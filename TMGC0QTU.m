@@ -1,0 +1,15 @@
+TMGC0QTU ;TMG/kst/TMG CPT2 utilities ;10/17/17
+         ;;1.0;TMG-LIB;**1**;10/17/17
+EXCLUDE(DFN) ;"
+  ;"This function determines whether patient should be excluded based on
+  ;insurance
+  ;"Result: 1 to exclude, 0 to include
+  NEW TMGRESULT SET TMGRESULT=1  ;"EXCLUDE BY DEFAULT
+  NEW INS2INC
+  SET INS2INC=",3,5,6,13,17,36,15," ;"IENS OF ACCEPTABLE INS IN #36. USING LEADING AND TRAILING COMMAS FOR EASE OF MATCHING
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(^DPT(DFN,.312,IDX)) QUIT:IDX'>0  DO
+  . NEW INSIEN SET INSIEN=","_$GET(^DPT(DFN,.312,IDX,0))_","
+  . IF INS2INC[INSIEN SET TMGRESULT=0
+  QUIT TMGRESULT
+  ;"

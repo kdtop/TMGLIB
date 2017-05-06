@@ -1,0 +1,223 @@
+TMGLRWU2 ;TMG/kst-Utility filing LAB DATA ;1/4/17
+              ;;1.0;TMG-LIB;**1**;1/4/17
+ ;
+ ;"TMG LAB ENTRY UTILITIES
+ ;
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;"Copyright (c) 1/4/17  Kevin S. Toppenberg MD
+ ;"
+ ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+ ;" to license terms outlined in separate file TMGLICNS.m, which should 
+ ;" always be distributed with this file.
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;
+ ;"=======================================================================
+ ;"=======================================================================
+ ;" API -- Public Functions.
+ ;"=======================================================================
+ ;"OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)  --  Send OR (CPRS) notification of lab reports being available.  
+ ;"ALERT(RECIP,DFN,FMDT,LEVEL,NODE)  -- Send Alert.  Wrapper for OR() above
+ ;"RPCALERT(OUT,RECIP,DFN,FMDT,LEVEL,NODE)  -- RPC for sending Alert.  Wrapper for ALERT() above
+ ;"
+ ;"=======================================================================
+ ;" API - Private Functions
+ ;"=======================================================================
+ ;"TEST1        
+ ;
+ ;"=======================================================================
+ ;"Dependancies
+ ;"=======================================================================
+ ;
+OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notification of lab reports being available.  
+  ;"NOTE: Copied from OR^LR7ORB3 for mod purposes
+  ;" Call with LRTYPE = type OERR notification, IEN 100.9 (currently supports 3, 14, 57)
+  ;"               3 = NF_LAB_RESULTS 
+  ;"               14 = NF_ABNORMAL_LAB_RESULTS
+  ;"               57 = NF_CRITICAL_LAB_RESULTS
+  ;"           LRDFN  = file #63 IEN
+  ;"           LRSS   = file #63 subscript -- "CH" OR "MI"
+  ;"                    Only supports CH and MI. AP subscript handled by separate API.
+  ;"           LRIDT  = inverse d/t of entry in file #63
+  ;"           LRUID  = accession's UID
+  ;"           LRXQA  = recipient array, e.g. LRXQA(168)=""
+  ;"           LRTST  = test IEN60 ^ Name of test being alerted ^ parent test ien60
+  ;"Result: 1^Alert Sent, or -1^Error
+  NEW DFN,LRMSG,LRPREFIX,LRX,LRY         
+  NEW LRIENS   ;"a string to pass to EN^ORB3
+  NEW LROIFN   ;"OK to be null "". OERR INTERNAL FILE #, an IEN100  
+  NEW LROE     ;"OK to be null "". ORDER # (field 9.5) in 69.01
+  NEW LRODT    ;"DATE ORDERED field (#3) in 68.02/ACCESSION NUMBER in 68.01/DATE in 68/ACCESSION
+  NEW LRSN     ;"SPECIMEN NUMBER (#4) in 68.02/ACCESSION NUMBER in 68.01/DATE in 68/ACCESSION
+  SET (LROE,LROIFN)=""
+  SET LROIFN=0  ;"//kt -- this affects processing in CPRS. 1 means use IFN order, 0 is a default generic 
+  NEW TMGRESULT SET TMGRESULT="1^Alert Sent"
+  IF LRSS'?1(1"CH",1"MI") DO  GOTO ORDN
+  . SET TMGRESULT="-1^Lab Subscript not supported"
+  SET DFN=$PIECE(^LR(LRDFN,0),"^",3)
+  SET LRPREFIX=$SELECT(LRTYPE=3:"",LRTYPE=14:"Abnormal ",LRTYPE=57:"Critical ",1:"")
+  ;
+  SET LRX=$$CHECKUID^LRWU4(LRUID,LRSS)  ;"RETURNS: 1(accession exists)^area^date^number, i.e. 1^IEN68^IEN68.01^IEN68.02       
+  ;"IF LRX<1 QUIT "0^Accession's UID not valid"
+  IF LRX<1 SET LRX=""  ;"//kt
+  NEW IEN68 SET IEN68=+$PIECE(LRX,"^",2)
+  NEW IEN68D01 SET IEN68D01=+$PIECE(LRX,"^",3)  ;"DATE field (a subfile -- 68.01)
+  NEW IEN68D02 SET IEN68D02=+$PIECE(LRX,"^",4)  ;"ACCESSION NUMBER subfield (a subfile -- 68.02)  
+  SET LRY=$GET(^LRO(68,IEN68,1,IEN68D01,1,IEN68D02,0))
+  SET LRODT=+$PIECE(LRY,"^",4)   ;"DATE ORDERED field (#3) in 68.02/ACCESSION NUMBER in 68.01/DATE in 68/ACCESSION
+  SET LRSN=+$PIECE(LRY,"^",5)    ;"SPECIMEN NUMBER (#4) in 68.02/ACCESSION NUMBER in 68.01/DATE in 68/ACCESSION
+  IF LRODT,LRSN DO
+  . ;"Get data from LAB ORDER ENTRY (#69)->SPECIMEN#(69.01)->TEST(69.03)
+  . ;"                                 |       |              | 
+  . ;"                                 LRDT    LRSN           LRTST (<-this is an IEN60)
+  . NEW LR6903 SET LR6903=$ORDER(^LRO(69,LRODT,1,LRSN,2,"B",+LRTST,0))
+  . IF 'LR6903,$PIECE(LRTST,"^",3) DO
+  . . SET LR6903=$ORDER(^LRO(69,LRODT,1,LRSN,2,"B",+$PIECE(LRTST,"^",3),0))
+  . IF LR6903 SET LROIFN=$PIECE($GET(^LRO(69,LRODT,1,LRSN,2,LR6903,0)),"^",7)
+  . IF 'LROIFN SET LROIFN=$PIECE($GET(^LRO(69,LRODT,1,LRSN,0)),"^",11)
+  . SET LROE=$PIECE($GET(^LRO(69,LRODT,1,LRSN,.1)),"^")
+  IF LRODT'>0 SET LRODT=9999999-LRIDT  ;"//kt
+  ;
+  ;"          OK to be null "". OERR INTERNAL FILE #, an IEN100
+  ;"          |             OK to be null "". ORDER # (field 9.5) in 69.01
+  ;"          |             |        DATE ORDERED field (#3) in 68.02/ACCESSION NUMBER in 68.01/DATE in 68/ACCESSION 
+  ;"          |             |        |        SPECIMEN NUMBER (#4) in 68.02/ACCESSION NUMBER in 68.01/DATE in 68/ACCESSION
+  ;"          |             |        |        |         File #63 subscript -- "CH" OR "MI"         
+  ;"          |             |        |        |         |       Inverse d/t of entry in file #63         
+  ;"          |             |        |        |         |       |         
+  SET LRIENS=LROIFN_"@OR|"_LROE_";"_LRODT_";"_LRSN_";"_LRSS_";"_LRIDT_"@LRCH"
+  ;
+  IF LRSS="CH" DO
+  . IF LRTYPE=14!(LRTYPE=57) SET LRMSG=LRPREFIX_"lab results:"
+  . ELSE   SET LRMSG="Lab results:"
+  IF LRSS="MI" DO
+  . IF LRTYPE=14!(LRTYPE=57) SET LRMSG=LRPREFIX_"microbiology results:"
+  . ELSE   SET LRMSG="Microbiology results:"
+  ;
+  SET LRMSG=LRMSG_" - ["_$PIECE(LRTST,"^",2)_"]"
+  ;
+  ;"OERR parameters:
+  ;"            ORN: notification id (#100.9 ien). e.g. 3 <-- NF_LAB_RESULTS 
+  ;"            |    ORBDFN: patient id (#2 ien)
+  ;"            |    |    ORNUM: order number (#100 ien)
+  ;"            |    |    |       ORBADUZ: recipient array
+  ;"            |    |    |       |     ORBPMSG: message text
+  ;"            |    |    |       |     |     ORBPDATA lab result reference
+  ;"            |    |    |       |     |     |
+  DO EN^ORB3(LRTYPE,DFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+  ;
+  ;"FYI: In comparison, this is what is sent from RAUTL00, a radiology alert
+  ;"------------------------------------------------
+  ;"                E.g. 22^Imaging Results,Non Critical: BONE DENSITOMETRY <-- TEXT IS STRIPPED OFF
+  ;"                |      patient id (#2 ien), e.g. 69928
+  ;"                |      |     OK to be null
+  ;"                |      |     |        e.g. LRXQA(168)=""
+  ;"                |      |     |       |        e.g. Imaging Results,Non Critical: BONE DENSITOMETRY
+  ;"                |      |     |       |        |     e.g. 6838787.8955~1
+  ;"                |      |     |       |        |     |
+  ;"D EN^ORB3(+$G(RANOTE),RADFN,RAOIFN,.RAREQPHY,RAMSG,RAIENS)         
+ORDN  ;
+  QUIT TMGRESULT
+  ;
+ALERT(RECIP,DFN,FMDT,LEVEL,NODE)  ;"Send Alert.  Wrapper for OR() above
+  ;"Input: RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
+  ;"       DFN -- IEN in 2
+  ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)
+  ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal, 3->Critical
+  ;"       NODE -- Optional.  Default is "CH".  Should be "CH" or "MI" only. 
+  ;"Result:  1^OK, or -1^Error message
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  SET DFN=$GET(DFN) IF DFN'>0 DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^Valid DFN not provided.  Got ["_DFN_"]"
+  NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
+  IF LRDFN'>0 DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^Field# 63 not defined in file #2 (PATIENT) for DFN="_DFN 
+  SET FMDT=$GET(FMDT) IF FMDT'>0 DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^Valid Lab date-time not provided.  Got ["_FMDT_"]"
+  NEW NODE SET NODE=$GET(NODE,"CH")
+  IF "CH,MI,"'[NODE_"," DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^Invalid NODE provided.  Got ["_NODE_"]"
+  NEW RDT SET RDT=9999999-FMDT
+  IF $DATA(^LR(LRDFN,NODE,RDT))=0 DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^No lab data to send alert for.  DFN="_DFN_", NODE="_NODE_", RDT="_RDT
+  SET LEVEL=$GET(LEVEL,1)
+  IF "1,2,3,"'[LEVEL_"," DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^Invalid LEVEL.  Expected 1, 2, or 3.  Got ["_LEVEL_"]"
+  NEW LRTYPE SET LRTYPE=$SELECT(LEVEL=3:57,LEVEL=2:14,1:3)  ;"//kt changed level 3 LRTYPE from 57 --> 24 (then changed it back)  
+  NEW TEMP SET TEMP=$GET(RECIP) IF TEMP>0 SET RECIP(TEMP)="",RECIP=""
+  ;
+  NEW FLD SET FLD=1
+  NEW IEN60 SET IEN60=0
+  ;"Find the first enountered IEN60 for grouping of tests at given DT
+  FOR  SET FLD=$ORDER(^LR(LRDFN,NODE,RDT,1)) QUIT:(FLD'>0)!(IEN60>0)  DO
+  . NEW N1 SET N1=$GET(^LR(LRDFN,NODE,RDT,FLD))
+  . NEW P3 SET P3=$PIECE(N1,"^",3)
+  . SET IEN60=$PIECE(P3,"!",7)
+  IF IEN60'>0 DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^Unable to find lab test (IEN 60).  DFN="_DFN_", NODE="_NODE_", RDT="_RDT
+  ;"NOTE: I will be sending an alert for just 1 single test.  This will be used
+  ;"      to notify the provider of the availablity for review of the entire panel.
+  NEW TESTNAME SET TESTNAME=$PIECE($GET(^LAB(60,IEN60,0)),"^",1)
+  ;"NOTE: could have more than one parent.  I am just picking the first encountered. 
+  NEW PARENTIEN60 SET PARENTIEN60=$ORDER(^LAB(60,"AB",IEN60,0))   
+  ;"NEW LRTST SET LRTST=IEN60_"^"_TESTNAME_"^"_PARENTIEN60
+  NEW LRTST SET LRTST=IEN60_"^"_$$FMTE^XLFDT(FMDT,"1M")_"^"_PARENTIEN60  ;"USE DATE INSTEAD OF TEST NAME 
+  SET TMGRSULT=$$OR(LRTYPE,LRDFN,NODE,RDT,0,.RECIP,LRTST)
+ALRTDN ;
+  QUIT TMGRESULT
+  ;
+RPCALERT(OUT,RECIP,DFN,FMDT,LEVEL,NODE)  ;"RPC for sending Alert.  Wrapper for ALERT() above
+  ;"RPC NAME -- 'TMG CPRS LAB ALERT'
+  ;"Input: OUT -- PASSED BY REFERENCE.  AN OUT PARAMETER.  Format: OUT(0)=1^OK, or -1^Error message
+  ;"       RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
+  ;"       DFN -- IEN in 2
+  ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)
+  ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal, 3->Critical
+  ;"       NODE -- Optional.  Default is "CH".  Should be "CH" or "MI" only. 
+  ;"Result:  None
+  NEW TMGZZDEBUG SET TMGZZDEBUG=0
+  IF TMGZZDEBUG=1 DO
+  . KILL RECIP MERGE RECIP=^TMP("RPCALERT","RECIP")
+  . SET DFN=$GET(^TMP("RPCALERT","DFN"))
+  . SET FMDT=$GET(^TMP("RPCALERT","FMDT"))
+  . SET LEVEL=$GET(^TMP("RPCALERT","LEVEL"))
+  . SET NODE=$GET(^TMP("RPCALERT","NODE"))
+  ELSE  DO
+  . MERGE ^TMP("RPCALERT","RECIP")=RECIP
+  . SET ^TMP("RPCALERT","DFN")=DFN
+  . SET ^TMP("RPCALERT","FMDT")=FMDT
+  . SET ^TMP("RPCALERT","LE1VEL")=LEVEL
+  . SET ^TMP("RPCALERT","NODE")=NODE
+  ;"
+  NEW TMGRESULT 
+  SET TMGRESULT=$$ALERT(.RECIP,.DFN,.FMDT,.LEVEL,.NODE)  ;"Send Alert.  Wrapper for ALERT() above
+  SET OUT(0)=TMGRESULT
+  QUIT
+  ;  
+TEST1  ;       
+  ;" DFN=9182       
+  ;" LRDFN=128               
+  ;" 
+  ;" 22) ^LR(128,"CH",6839492.899498,0) = 3160506.100502^0^3160507.0051^168^72^^^^^
+  ;"                                    = ^^^^69
+  ;" 23) ^LR(128,"CH",6839492.899498,1,0) = ^63.041A^6^6
+  ;" 24) ^LR(128,"CH",6839492.899498,1,1,0) =
+  ;" 25) ^LR(128,"CH",6839492.899498,1,2,0) = Test performed by PathGroup Labs
+  ;" 26) ^LR(128,"CH",6839492.899498,1,3,0) = 658 Grassmere Park Suite 101, Nashvil
+  ;"                                        = le, TN 37211
+  ;" 27) ^LR(128,"CH",6839492.899498,1,4,0) = Mary Mayo, Ph.D., Medical Director
+  ;" 28) ^LR(128,"CH",6839492.899498,1,5,0) = Chronic Kidney Disease:  Less than 60
+  ;"                                        =  ml/min/1.73 square meters
+  ;" 29) ^LR(128,"CH",6839492.899498,1,6,0) = End Stage Renal Disease: Less than 15
+  ;"                                        =  ml/min/1.73 square meters
+  ;" 30) ^LR(128,"CH",6839492.899498,69024) = >60^^00000.2270!00000.2272!!0000!!!51
+  ;"                                        = 10^168^!>60!!!!!mL/min/1.73m2!!!!^316
+  ;"                                        = 0507.0201^^^73^^PATHGROUP
+  ;" 31) ^LR(128,"CH",6839492.899498,69025) = >60^^00000.2270!00000.2270!!0000!!!51
+  ;"                                        = 11^168^!>60!!!!!mL/min/1.73m2!!!!^316
+  ;"                                        = 0507.0201^^^73^^PATHGROUP
+  ;" 32) ^LR(128,"CH",6839492.899498,"NPC") = 2
+  NEW RDT SET RDT="6839492.899498"
+  NEW FMDT SET FMDT=9999999-RDT
+  NEW TEMP SET TEMP=$$ALERT(168,9182,FMDT)
+  WRITE TEMP,!
+  QUIT

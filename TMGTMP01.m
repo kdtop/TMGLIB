@@ -1,0 +1,215 @@
+TMGTMP01 ;TMG/kst/Temp code ;12/28/14
+         ;;1.0;TMG-LIB;**1**;12/28/14
+ ;
+ ;"TMG temp code
+ ;"This was created for reporting PQRS data for 2014
+ ;
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
+ ;"
+ ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+ ;" to license terms outlined in separate file TMGLICNS.m, which should 
+ ;" always be distributed with this file.
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;
+ ;"=======================================================================
+ ;" API -- Public Functions.
+ ;"=======================================================================
+ ;
+ ;"=======================================================================
+ ;"Dependancies
+ ;
+ ;"=======================================================================
+ ;"=======================================================================
+ ;
+MATCH1(REF) ;"FIND DFN FOR EACH PATIENT
+  NEW LNAME SET LNAME=$GET(@REF@(3))
+  NEW FNAME SET FNAME=$GET(@REF@(4))
+  NEW PATIENT 
+  SET PATIENT("NAME")=LNAME_","_FNAME
+  SET PATIENT("SEQUELNUM")=+$GET(@REF@(7))
+  SET PATIENT("SSN")=$GET(@REF@(5))
+  NEW DFN SET DFN=$$GETDFN^TMGGDFN(.PATIENT,0)
+  SET @REF@(8)=DFN
+  QUIT
+  ;
+SHOW1(REF) ;
+  NEW LINE SET LINE=""
+  NEW LNAME SET LNAME=$GET(@REF@(3))
+  NEW FNAME SET FNAME=$GET(@REF@(4))
+  IF $GET(@REF@("KT SEEN"))="YES" DO
+  . SET LINE="[KT] "
+  ELSE  SET LINE="[  ] "
+  IF $GET(@REF@("MDT SEEN"))="YES" DO
+  . SET LINE=LINE_"[MDT] "
+  ELSE  SET LINE=LINE_"[   ] "
+  SET LINE=LINE_LNAME_","_FNAME_" ("_$GET(@REF@(5))_") [SEQL:"_+$GET(@REF@(7))_"]"
+  WRITE !,"--------------------------------------------------",!
+  WRITE LINE,!
+  NEW TMP
+  MERGE TMP=@REF
+  DO ZWRITE^TMGZWR("TMP")
+  QUIT
+  ;
+HASDM(REF,SDT,EDT) ;"MARK IF PATIENT HAS DM
+  NEW RESULT SET RESULT="NO"
+  NEW DFN SET DFN=+$GET(@REF@(8))
+  IF $$INLSTDM^TMGC0Q05(DFN,SDT,EDT) SET RESULT="YES"
+  SET @REF@(9)=RESULT
+  QUIT
+  ;
+SEENBY(PROVIEN,DFN,SDT,EDT) ;"WAS PATIENT SEEN BY PROVIDER DURING DATE RANGE?  
+  NEW FOUND SET FOUND=0
+  NEW VSTR SET VSTR=""
+  FOR  SET VSTR=$ORDER(^TIU(8925,"AVSTRV",DFN,VSTR)) QUIT:(VSTR="")!FOUND  DO
+  . NEW DT SET DT=$PIECE(VSTR,";",2)
+  . IF (DT<SDT)!(DT>EDT) QUIT
+  . NEW VISITIEN SET VISITIEN=0
+  . FOR  SET VISITIEN=$ORDER(^TIU(8925,"AVSTRV",DFN,VSTR,VISITIEN)) QUIT:(+VISITIEN'>0)!FOUND  DO  
+  . . NEW DOCIEN SET DOCIEN=0
+  . . FOR  SET DOCIEN=$ORDER(^TIU(8925,"AVSTRV",DFN,VSTR,VISITIEN,DOCIEN)) QUIT:(+DOCIEN'>0)!FOUND  DO
+  . . . NEW NOTEPROV SET NOTEPROV=+$PIECE($GET(^TIU(8925,DOCIEN,12)),"^",2)
+  . . . IF NOTEPROV=PROVIEN SET FOUND=1  
+  QUIT FOUND
+  ;
+VISTRANG(REF,DFN,SDT,EDT) ;"GATHER RANGE OF VISITS  
+  NEW FOUND SET FOUND=0
+  NEW VSTR SET VSTR=""
+  FOR  SET VSTR=$ORDER(^TIU(8925,"AVSTRV",DFN,VSTR)) QUIT:(VSTR="")!FOUND  DO
+  . NEW DT SET DT=$PIECE(VSTR,";",2)
+  . IF (DT<SDT)!(DT>EDT) QUIT
+  . NEW DA SET DA=+$GET(@REF@("VISIT-FIRST"))
+  . IF (DA=0)!(DT<DA) DO
+  . . SET DA=DT
+  . SET @REF@("VISIT-FIRST")=DA
+  . NEW DB SET DB=+$GET(@REF@("VISIT-LAST"))
+  . IF (DB=0)!(DT>DB) DO
+  . . SET DB=DT
+  . SET @REF@("VISIT-LAST")=DB
+  QUIT
+  ;
+BP(REF,DFN) ;
+  NEW BPVALUE SET BPVALUE=$$DOVITALS^TIULO(DFN,"BP")
+  IF BPVALUE'="" DO
+  . SET @REF@("BP","RECORDED")="YES"
+  . NEW SYS,DIA 
+  . DO PARSEBP^TMGC0QT2(BPVALUE,.SYS,.DIA) ;"Parse blood pressure
+  . SET @REF@("BP","VA SYS")=SYS
+  . SET @REF@("BP","VB DIA")=DIA
+  ELSE  DO
+  . SET @REF@("BP","RECORDED")="NO"
+  QUIT
+  ;
+DMTABLE(REF,DFN) ;
+  NEW S,ARRAY
+  SET S=$$GETTABLX^TMGTIUOJ(DFN,"[DIABETIC STUDIES]",.ARRAY)
+  SET S=$GET(ARRAY("KEY-VALUE","HGBA1C"))
+  IF S="" SET S=$GET(ARRAY("KEY-VALUE","HgbA1c"))
+  SET S=$$TRIM^XLFSTR(S)
+  IF S="." SET S=""
+  IF S="<NO DATA>" SET S=""
+  IF S="" DO  GOTO HCDN
+  . SET @REF@("HGBA1C","FOUND")="NO"
+  SET @REF@("HGBA1C","FOUND")="YES"
+  NEW VALUES,MSG
+  DO PARSEA1C^TMGTIUO7(S,.VALUES,.MSG)
+  IF $GET(MSG)'="" DO  GOTO HCDN
+  . SET @REF@("HGBA1C","ERR")=$PIECE(MSG,"^",2,99)
+  NEW LATEST SET LATEST=$GET(VALUES(1))
+  NEW LATESTDATE SET LATESTDATE=$$FMTE^XLFDT($PIECE(LATEST,"^",2),"2D")
+  SET @REF@("HGBA1C","LAST DATE")=LATESTDATE
+  SET @REF@("HGBA1C","LAST VALUE")=$PIECE(LATEST,"^",1)  
+  DO PARSTABL^TMGTIUO7(.ARRAY)  ;"Parse out data values
+  NEW LINE SET LINE=$GET(ARRAY("KEY-VALUE","Urine Microalbumin","PARSED",1)) ;"Value^FMDate^SourceText"
+  NEW RESULTVAL SET RESULTVAL=$PIECE(LINE,"^",1)  
+  NEW RESULT  
+  IF RESULTVAL>1.9 SET RESULT="POSITIVE"
+  ELSE  SET RESULT="NEGATIVE"
+  SET LATESTDATE=$$FMTE^XLFDT($PIECE(LINE,"^",2),"2D")
+  SET @REF@("MICROALBUMIN","LAST DATE")=LATESTDATE
+  SET @REF@("MICROALBUMIN","LAST VALUE")=RESULTVAL
+  SET @REF@("MICROALBUMIN","RESULT")=RESULT
+  ;"EYE EXAM
+  SET LINE=$GET(ARRAY("KEY-VALUE","DIABETIC EYE EXAM","PARSED",1))
+  SET LATESTDATE=$$FMTE^XLFDT($PIECE(LINE,"^",2),"2D")
+  SET @REF@("DIABETIC EYE EXAM","LATE DATE")=LATESTDATE
+  SET @REF@("DIABETIC EYE EXAM","LAST VALUE")=$PIECE(LINE,"^",1)
+HCDN ;
+  QUIT
+  ;
+LIPIDS(REF,DFN) ;
+  NEW ARRAY,S
+  SET S=$$GETTABLX^TMGTIUOJ(DFN,"[LIPIDS]",.ARRAY)
+  DO PARSTABL^TMGTIUO7(.ARRAY)  ;"Parse out data values
+  SET S=$GET(ARRAY("KEY-VALUE","LDL Cholesterol"))                
+  SET S=$$TRIM^XLFSTR(S)
+  IF S="<NO DATA>" SET S=""
+  IF S="" DO  GOTO LPDN
+  . SET @REF("LIPIDS","ERR")="Lipid data missing. " 
+  NEW MINLDL SET MINLDL=9999
+  NEW LINE SET LINE=$GET(ARRAY("KEY-VALUE","LDL Cholesterol","PARSED",1)) ;"Value^FMDate^SourceText"
+  IF LINE="" DO  GOTO LPDN
+  . SET @REF("LIPIDS","ERR")="Unable to get latest LDL."
+  NEW LATESTDATE SET LATESTDATE=$$FMTE^XLFDT($PIECE(LINE,"^",2),"2D")
+  SET @REF@("LDL CHOL","LAST DATE")=LATESTDATE
+  SET @REF@("LDL CHOL","LAST VALUE")=$PIECE(LINE,"^",1)  
+LPDN ;
+  QUIT
+  ;
+MEDTABLE(REF,DFN)  ;
+  NEW RESULT,RESULTARR
+  DO MEDLIST^TMGTIUOJ(.RESULT,DFN,.RESULTARR)
+  KILL RESULTARR("KEY-VALUE")  
+  MERGE @REF@("MEDICATION LIST")=RESULTARR
+  QUIT
+  ;
+TEST1() ;
+  NEW DATA
+  NEW OPTION SET OPTION("MATCH","*.csv")=""
+  NEW FULLPATHNAME SET FULLPATHNAME=$$FBROWSE^TMGIOUT2(.OPTION)
+  NEW TMGRESULT,DM
+  SET TMGRESULT=$$LCSV2ARR^TMGIOUT4(FULLPATHNAME,"DATA")
+  NEW SDT SET SDT=3140101
+  NEW EDT SET EDT=3141231
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(DATA(IDX)) QUIT:+IDX'>0  DO
+  . NEW REF SET REF=$NAME(DATA(IDX))
+  . DO MATCH1(REF)
+  . DO HASDM(REF,SDT,EDT)
+  . IF DATA(IDX,9)'="YES" QUIT
+  . MERGE DM(IDX)=DATA(IDX)
+  . NEW DFN SET DFN=$GET(DATA(IDX,8)) QUIT:DFN=""
+  . IF $$SEENBY(168,DFN,SDT,EDT) SET DM(IDX,"KT SEEN")="YES"
+  . IF $$SEENBY(83,DFN,SDT,EDT) SET DM(IDX,"MDT SEEN")="YES"
+  . SET REF=$NAME(DM(IDX))
+  . DO BP(REF,DFN)
+  . DO DMTABLE(REF,DFN)
+  . DO LIPIDS(REF,DFN) 
+  . DO MEDTABLE(REF,DFN)
+  . DO VISTRANG(REF,DFN,SDT,EDT)  
+  NEW DF,DL SET (DF,DL,IDX)=0
+  FOR  SET IDX=$ORDER(DM(IDX)) QUIT:+IDX'>0  DO
+  . NEW DA SET DA=+$GET(DM(IDX,"VISIT-FIRST"))
+  . NEW DB SET DB=+$GET(DM(IDX,"VISIT-LAST"))
+  . IF (DF=0)!(DA<DF) DO
+  . . SET DF=DA
+  . IF DB>DL DO
+  . . SET DL=DB
+  SET DATA("A",8)="DFN"
+  SET DATA("A",9)="DM Y/N"
+  
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET %ZIS("B")="HOME"
+  DO ^%ZIS  ;"standard device call
+  IF POP GOTO T1DN
+  USE IO
+  SET IDX=""
+  FOR  SET IDX=$ORDER(DM(IDX)) QUIT:+IDX'>0  DO
+  . NEW REF SET REF=$NAME(DM(IDX))
+  . DO SHOW1(REF)
+  WRITE "Earliest DATE=",DF,!
+  WRITE "Latest DATE=",DL,!
+  DO ^%ZISC ;"Close the output device
+T1DN ;  
+  QUIT  

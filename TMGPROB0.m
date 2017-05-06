@@ -1,0 +1,215 @@
+TMGPROB0 ;TMG/kst/IO Utilities ;10/14/15
+         ;;1.0;TMG-LIB;**1**;10/14/15
+ ;
+ ;"TMG IO UTILITIES
+ ;
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;"Copyright (c) 10/14/2015  Kevin S. Toppenberg MD
+ ;"
+ ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+ ;" to license terms outlined in separate file TMGLICNS.m, which should 
+ ;" always be distributed with this file.
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;
+ ;"=======================================================================
+ ;" API -- Public Functions.
+ ;"=======================================================================
+ ;
+ ;"=======================================================================
+ ;"Dependancies
+ ;
+ ;"=======================================================================
+ ;"======================================================================= 
+LOAD ;
+  NEW DATA,TMGRESULT,REC
+  NEW FULLPATHNAME SET FULLPATHNAME=$$FBROWSE^TMGIOUT2()
+  NEW OPTION SET OPTION("DIV")=$CHAR(9)
+  NEW STARTH SET STARTH=$H
+  NEW PROGFN SET PROGFN="DO PROGBAR^TMGUSRI2(IDX,""Progress"",1,MAX,60,STARTH)"
+  SET OPTION("PROGFN")=PROGFN
+  SET OPTION("PROGFN","INTERVAL")=100
+  WRITE !,!,"===========================================================",!
+  WRITE "Loader for UMLS mapping file from SNOMED --> ICD 10",! 
+  WRITE "===========================================================",!
+  WRITE !,!
+  WRITE "LOADING FILE INTO MEMORY",!
+  SET TMGRESULT=$$LCSV2ARR^TMGIOUT4(FULLPATHNAME,"DATA",.OPTION)
+  NEW ABORT SET ABORT=0
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(DATA("A",IDX)) QUIT:(+IDX'>0)!(ABORT)  DO
+  . NEW ATAG SET ATAG=$PIECE($PIECE($TEXT(COLTAGS+IDX),";;",2),"^",2)
+  . NEW COLNAME SET COLNAME=$GET(DATA("A",IDX))
+  . IF COLNAME[ATAG QUIT
+  . WRITE "Input file not in correct format.",!
+  . WRITE "Expected column #",IDX," to be '",ATAG,"', but found '",COLNAME,"'",!
+  . SET ABORT=1
+  IF ABORT GOTO DN
+  NEW LASTCODE SET LASTCODE=""
+  SET STARTH=$H
+  NEW PROGCT SET PROGCT=0
+  NEW MAX SET MAX=+$ORDER(DATA("@"),-1)
+  WRITE "STORING INFORMATION INTO DATABASE",!
+  SET IDX=0
+  FOR  SET IDX=$ORDER(DATA(IDX)) QUIT:(+IDX'>0)!ABORT  DO
+  . SET PROGCT=PROGCT+1
+  . IF PROGCT>100 DO
+  . . XECUTE PROGFN
+  . . SET PROCGT=0
+  . NEW SNOMED SET SNOMED=$GET(DATA(IDX,6)) QUIT:SNOMED=""
+  . IF (SNOMED'=LASTCODE)&(LASTCODE'="") DO  QUIT:ABORT
+  . . NEW TMGRESULT SET TMGRESULT=$$FILERECS(.REC)
+  . . KILL REC
+  . . IF TMGRESULT<0 DO  QUIT
+  . . . SET ABORT=1
+  . . . WRITE "IDX=",IDX," RESULT=",TMGRESULT,!
+  . . SET LASTCODE=""
+  . MERGE REC(IDX)=DATA(IDX) KILL DATA(IDX)
+  . SET LASTCODE=SNOMED
+DN ;  
+  WRITE !,"GOODBYE",!
+  QUIT 
+  ;
+COLTAGS ;  
+  ;;1^id
+  ;;2^effectiveTime
+  ;;3^active
+  ;;4^moduleId
+  ;;5^refSetId
+  ;;6^referencedComponentId
+  ;;7^sctName
+  ;;8^mapGroup
+  ;;9^mapPriority
+  ;;10^mapRule
+  ;;11^mapAdvice
+  ;;12^mapTarget
+  ;;13^icdName
+  ;;14^mapCategoryId
+  ;;15^mapCategoryValue
+  ;  
+FILERECS(DATA)  ;FILE RECORDS
+  ;"Input: DATA -- PASS BY REFERENCE.  This is a cluster of records all having same
+  ;"               SNOMED code.  Format DATA(REC#,TAG#)=value
+  NEW ARR,TMGFDA,TMGIEN,TMGMSG
+  NEW TMGRESULT SET TMGRESULT=$$ORGARR(.ARR,.DATA)
+  IF +TMGRESULT'>0 GOTO FRDN
+  NEW SNOMED SET SNOMED=$GET(ARR("SNOMED"))
+  IF SNOMED="" DO  GOTO FRDN
+  . SET TMGRESULT="-1^No SNOMED code found"
+  NEW IEN SET IEN=$GET(ARR("IEN"))
+  IF IEN>0 GOTO FR2
+  ;"DEAL WITH TOP LEVEL RECORD
+  NEW SCTPTR SET SCTPTR=$GET(ARR(.01))
+  IF SCTPTR'>0 DO  GOTO FRDN
+  . SET TMGRESULT="0^Cant find valid record for code '"_SNOMED_"' in file 757.02"
+  SET TMGIEN(1)=SCTPTR
+  SET TMGFDA(22728,"+1,",.01)=SNOMED
+  SET TMGFDA(22728,"+1,",.02)=SCTPTR
+  DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO FRDN
+  . SET TMGRESULT="-1^"+$$GETERRST^TMGDEBU2(.TMGMSG)
+  SET IEN=TMGIEN(1)  
+FR2  ;"DEAL WITH CHILD LEVEL RECORD (MAP GROUPS)
+  NEW GROUPNUM SET GROUPNUM=0
+  FOR  SET GROUPNUM=$ORDER(ARR("GROUP",GROUPNUM)) QUIT:(+GROUPNUM'>0)!(+TMGRESULT<0)  DO
+  . IF $DATA(^TMG(22728,IEN,1,GROUPNUM))=0 DO  QUIT:+TMGRESULT<0
+  . . KILL TMGFDA,TMGIEN,TMGMSG
+  . . SET TMGFDA(22728.01,"+1,"_IEN_",",.01)=GROUPNUM
+  . . SET TMGIEN(1)=GROUPNUM
+  . . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  . . IF $DATA(TMGMSG("DIERR")) SET TMGRESULT="-1^"+$$GETERRST^TMGDEBU2(.TMGMSG)
+  . ;"DEAL WITH GRANDCHILD LEVEL RECORD (PRIORITY GROUP)
+  . NEW PRIORITY SET PRIORITY=0
+  . FOR  SET PRIORITY=$ORDER(ARR("GROUP",GROUPNUM,"PRIORITY",PRIORITY)) QUIT:(+PRIORITY'>0)!(+TMGRESULT<0)  DO
+  . . IF $DATA(^TMG(22728,IEN,1,GROUPNUM,1,PRIORITY))=0 DO  QUIT:+TMGRESULT<0
+  . . . KILL TMGFDA,TMGIEN,TMGMSG
+  . . . SET TMGFDA(22728.11,"+1,"_GROUPNUM_","_IEN_",",.01)=PRIORITY
+  . . . SET TMGIEN(1)=PRIORITY
+  . . . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  . . . IF $DATA(TMGMSG("DIERR")) SET TMGRESULT="-1^"+$$GETERRST^TMGDEBU2(.TMGMSG)
+  . . KILL TMGFDA,TMGIEN,TMGMSG 
+  . . NEW FLD SET FLD=""
+  . . FOR  SET FLD=$ORDER(ARR("GROUP",GROUPNUM,"PRIORITY",PRIORITY,FLD)) QUIT:FLD'>0  DO
+  . . . NEW VAL SET VAL=$GET(ARR("GROUP",GROUPNUM,"PRIORITY",PRIORITY,FLD))
+  . . . SET TMGFDA(22728.11,PRIORITY_","_GROUPNUM_","_IEN_",",FLD)=VAL
+  . . DO FILE^DIE("E","TMGFDA","TMGMSG")
+  . . IF $DATA(TMGMSG("DIERR")) DO  QUIT
+  . . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  . . NEW WP MERGE WP=ARR("GROUP",GROUPNUM,"PRIORITY",PRIORITY,"WP")
+  . . IF $DATA(WP)=0 QUIT
+  . . KILL WP("MAXNODE")
+  . . KILL TMGFDA,TMGIEN,TMGMSG
+  . . DO WP^DIE(22728.11,PRIORITY_","_GROUPNUM_","_IEN_",",1,"","WP","TMGMSG")
+  . . IF $DATA(TMGMSG("DIERR")) DO  QUIT
+  . . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+FRDN ;
+  QUIT TMGRESULT
+  ;
+ORGARR(OUT,DATA)  ;"ORGANIZE DATA INTO OUT ARRAY
+  ;"Input: OUT -- AN OUT PARAMETER.  FORMAT:
+  ;"           OUT("IEN")=IEN22728 of existing record, or "" if none.
+  ;"           OUT("SNOMED")=<SNOMED CODE>
+  ;"           OUT(.01)=<IEN_757.02>
+  ;"           OUT("GROUP",#,.01)=#
+  ;"           OUT("GROUP",#,"PRIORITY",#,.01)=<VALUE>
+  ;"           OUT("GROUP",#,"PRIORITY",#,.02)=<VALUE>
+  ;"           OUT("GROUP",#,"PRIORITY",#,.03)=<VALUE>
+  ;"           OUT("GROUP",#,"PRIORITY",#,1)=<VALUE>
+  ;"           OUT("GROUP",#,"PRIORITY",#,"WP",#)=LINE
+  ;"       DATA -- DATA, as created by LCSV2ARR^TMGIOUT4
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  NEW SNOMED SET SNOMED=""
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(DATA(IDX)) QUIT:(+IDX'>0)!(+TMGRESULT'>0)  DO
+  . IF SNOMED="" DO
+  . . SET SNOMED=$GET(DATA(IDX,6))
+  . . IF SNOMED="" DO  QUIT
+  . . . SET TMGRESULT="-1^No SNOMED code found in DATA(6) in FILEREC^TMGPROB0"
+  . . NEW IEN SET IEN=$ORDER(^TMG(22728,"B",SNOMED,0))
+  . . SET OUT("IEN")=IEN,OUT("SNOMED")=SNOMED
+  . . NEW SCTPTR SET SCTPTR=$$GETSCTP(SNOMED)
+  . . IF SCTPTR'>0 DO  QUIT
+  . . . SET TMGRESULT="0^Cant find valid record for code '"_SNOMED_"' in file 757.02, in FILEREC^TMGPROB0"
+  . . SET OUT(.01)=SCTPTR
+  . NEW TEMPERR SET TEMPERR="-1^Invalid data in row #"_IDX_" in FILEREC^TMGPROB0"
+  . NEW MAPGROUP SET MAPGROUP=+$GET(DATA(IDX,8)) IF MAPGROUP'>0 SET TMGRESULT=TEMPERR QUIT
+  . NEW PRIORITY SET PRIORITY=+$GET(DATA(IDX,9)) IF PRIORITY'>0 SET TMGRESULT=TEMPERR  QUIT
+  . NEW ICD SET ICD=$GET(DATA(IDX,12)) IF ICD="" SET ICD="R69."
+  . NEW ICDP SET ICDP=$$GETICDP(ICD) 
+  . ;"IF ICDP'>0 DO  QUIT
+  . ;". SET TMGRESULT="-1^Unable to find ICD code '"_ICD_"' in file 80"
+  . NEW CATEGORY SET CATEGORY=$GET(DATA(IDX,15)) IF CATEGORY="" SET TMGRESULT=TEMPERR  QUIT
+  . NEW CSET SET CSET=""
+  . IF CATEGORY["Map of source concept is context dependent" SET CSET="CD"
+  . IF CATEGORY["Map source concept is properly classified" SET CSET="PC"
+  . IF CATEGORY["Map source concept cannot be classified with available data" SET CSET="N"
+  . SET OUT("GROUP",MAPGROUP,.01)=MAPGROUP
+  . SET OUT("GROUP",MAPGROUP,"PRIORITY",PRIORITY,.01)=PRIORITY
+  . IF ICDP>0 SET OUT("GROUP",MAPGROUP,"PRIORITY",PRIORITY,.02)="`"_ICDP
+  . SET OUT("GROUP",MAPGROUP,"PRIORITY",PRIORITY,.025)=ICD
+  . SET OUT("GROUP",MAPGROUP,"PRIORITY",PRIORITY,.03)=CSET
+  . NEW ADVICE SET ADVICE=$GET(DATA(IDX,11)) IF ADVICE'="" DO
+  . . NEW WP DO SPLIT2AR^TMGSTUT2(ADVICE,"|",.WP)
+  . . NEW JDX SET JDX=""
+  . . FOR  SET JDX=$ORDER(WP(JDX)) QUIT:+JDX'>0  DO
+  . . . SET WP(JDX)=$$TRIM^XLFSTR($GET(WP(JDX)))
+  . . MERGE OUT("GROUP",MAPGROUP,"PRIORITY",PRIORITY,"WP")=WP  
+ORGADN
+  QUIT TMGRESULT
+  ;
+GETSCTP(SNOMED)  ;"GET POINTER TO SNOMED REC
+  ;"FINISH
+  NEW TMGRESULT SET TMGRESULT=0
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(^LEX(757.02,"ACODE",SNOMED_" ",IEN)) QUIT:(+IEN'>0)!(TMGRESULT>0)  DO
+  . ;"FINISH... VERIFY THAT IEN IS A VALID RECORD (POINTS TO SCT REC)
+  . SET TMGRESULT=IEN
+  QUIT TMGRESULT
+  ;
+GETICDP(ICD)  ;"GET POINTER TO ICD REC (to file 80)
+  NEW TMGRESULT SET TMGRESULT=0
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(^ICD9("AB",ICD_" ",IEN)) QUIT:(+IEN'>0)!(TMGRESULT>0)  DO
+  . ;"FINISH... VERIFY THAT IEN IS A VALID RECORD
+  . SET TMGRESULT=IEN
+  QUIT TMGRESULT
+  ;
