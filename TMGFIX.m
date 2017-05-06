@@ -1478,4 +1478,4 @@ FIXBINDEX
   . . KILL ^LAB(60,"B",NAME,IEN)
   QUIT
  
-
+ ;"this is more text
