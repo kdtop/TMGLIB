@@ -172,7 +172,7 @@ GETDIRNM(MSG,DEFPATH,NODEDIV,PROMPT) ;
   ;"                IF not supplied, then default value is "/"
   ;"        PROMPT: [OPTIONAL] PROMPT for user to enter filename/directory name
   ;"Result: returns user specified filename (with path), or "" IF aborted
-  ;
+  ;"//KT NOTE -- THIS FUNCTION DOESN'T SEEM TO ALLOW YOU TO BROWSE TO A DIR.  FIX...
   NEW OPTION
   NEW RESULT SET RESULT=""
   SET OPTION("MSG")=$GET(MSG)

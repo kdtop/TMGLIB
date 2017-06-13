@@ -169,24 +169,9 @@ LOADPCKG(IEN9D4,ARRAY,PROTOCOL,Msg,SOMEADDED)
         . DO SPLITFPN^TMGIOUTL(FULLNAMEPATH,.PATH,.NAME,"/")
         . IF (PATH="")!(NAME="") QUIT
         . NEW UNAME SET UNAME=$$UP^XLFSTR(NAME)
-        . IF $$ISPNAME(NAME,.VER,.PATCHNUM,.SEQNUM) ;"IS NAME A PATCH NAME?  IF SO, PARSE
-        . ;"//kt IF UNAME?2.4A1"_"1.4N1"_"0.1"P"1.N1".KID" DO  ;"e.g. DG_53_P481.KID or EAS_1_47.KID
-        . ;"//kt . SET VER=$PIECE($PIECE(NAME,"_",2),"_",1)
-        . ;"//kt . NEW VERIEN SET VERIEN=+$ORDER(^TMG(22709,PCKIEN,1,"C",VER,""))
-        . ;"//kt . IF VERIEN=0 SET VER="" QUIT
-        . ;"//kt . SET VER=$PIECE($GET(^TMG(22709,PCKIEN,1,VERIEN,0)),"^",1)
-        . ;"//kt . IF VER="" QUIT
-        . ;"//kt . SET PATCHNUM=$PIECE($PIECE(NAME,"_",3),".",1)
-        . ;"//kt . IF PATCHNUM?1A.N SET PATCHNUM=$EXTRACT(PATCHNUM,2,99)
-        . ;"//kt . SET SEQNUM="" ;"signal for no seq number provided
-        . ELSE  IF $$ISSPNAME(UNAME) DO  QUIT
+        . NEW VALID SET VALID=$$ISPNAME(NAME,.VER,.PATCHNUM,.SEQNUM) ;"IS NAME A PATCH NAME?  IF SO, PARSE
+        . IF 'VALID,$$ISSPNAME(UNAME) DO  QUIT
         . . SET SPCLNAMES(NAME)=""
-        . ELSE  DO
-        . . SET VER=$PIECE($PIECE(NAME,"_",1),"-",2) QUIT:(VER="")
-        . . IF VER?.N1(1"p",1"P").N SET VER=$TRANSLATE(VER,"Pp","..")
-        . . SET SEQNUM=$PIECE($PIECE(NAME,"_",2),"-",2) QUIT:(SEQNUM="")
-        . . SET PATCHNUM=$PIECE($PIECE(NAME,"_",3),"-",2) QUIT:(PATCHNUM="")
-        . . SET PATCHNUM=$PIECE(PATCHNUM,".",1) QUIT:(PATCHNUM="")
         . IF VER="" DO  QUIT
         . . DO AddMsg("Unable to process file name: "_NAME_".  Couldn't determine version number.",1,.Msg)
         . ;"IF SEQNUM="" DO  QUIT   ;Removed because sometimes the sequence # comes from the TXT file, not the patch file.
@@ -237,7 +222,7 @@ ISPNAME(NAME,VER,PATCHNUM,SEQNUM) ;"IS NAME A PATCH NAME?  IF SO, PARSE
         . SET PATCHNUM=$PIECE($PIECE(NAME,"_",3),".",1)
         . IF PATCHNUM?1A.N SET PATCHNUM=$EXTRACT(PATCHNUM,2,99)
         . SET SEQNUM="" ;"signal for no seq number provided
-        IF UNAME?2.4A1"-"1.4N1"_SEQ-"1.4N1"_PAT-"1.4N1".KID" DO  ;"E.g. lex-2_seq-52_pat-56.kid
+        ELSE  IF UNAME?2.4A1"-"1.4N1"_SEQ-"1.4N1"_PAT-"1.4N1".KID" DO  ;"E.g. lex-2_seq-52_pat-56.kid
         . SET VER=$PIECE(UNAME,"_",1)
         . SET VER=$PIECE(VER,"-",2)
         . SET SEQNUM=$PIECE(UNAME,"_",2)
@@ -245,11 +230,23 @@ ISPNAME(NAME,VER,PATCHNUM,SEQNUM) ;"IS NAME A PATCH NAME?  IF SO, PARSE
         . SET PATCHNUM=$PIECE(UNAME,"_",3)
         . SET PATCHNUM=$PIECE(PATCHNUM,".",1)
         . SET PATCHNUM=$PIECE(PATCHNUM,"-",2)
+        ELSE  IF UNAME?2.4A1"_"1.4N1"_"1.4N1"_"1.4N1".KID"0.1"S" DO  ;"e.g. PXRM_2_0_54.KIDs
+        . SET VER=+$PIECE(UNAME,"_",2)
+        . SET SEQNUM=+$PIECE(UNAME,"_",3)
+        . SET PATCHNUM=+$PIECE(UNAME,"_",4)
+        ELSE  DO
+        . SET VER=$PIECE($PIECE(NAME,"_",1),"-",2) QUIT:(VER="")
+        . IF VER?.N1(1"p",1"P").N SET VER=$TRANSLATE(VER,"Pp","..")
+        . SET SEQNUM=$PIECE($PIECE(NAME,"_",2),"-",2) QUIT:(SEQNUM="")
+        . SET PATCHNUM=$PIECE($PIECE(NAME,"_",3),"-",2) QUIT:(PATCHNUM="")
+        . SET PATCHNUM=$PIECE(PATCHNUM,".",1) QUIT:(PATCHNUM="")
         ;
         IF VER'="" DO
         . NEW VERIEN 
         . SET VERIEN=+$ORDER(^TMG(22709,PCKIEN,1,"C",VER,""))
         . IF VERIEN'>0 SET VERIEN=+$ORDER(^TMG(22709,PCKIEN,1,"B",VER,""))
+        . ;"NOTE: this fails on first encounter of new package, because new version not added until LoadOne called
+        . ;"... needs to have option here to add new if not found.  fix later.  
         . IF VERIEN'>0 DO
         . . NEW AVER SET AVER=""
         . . FOR  SET AVER=$ORDER(^TMG(22709,PCKIEN,1,"B",AVER)) QUIT:(AVER="")!(VERIEN>0)  DO

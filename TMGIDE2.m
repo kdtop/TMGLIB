@@ -115,13 +115,14 @@ STEPTRAP(tmgIDEPos,tmgMsg)
         ;"            1=stepping mode
         ;"            2=Don't show code
         ;"            3=running SLOW mode
-        ;"            4=Data watch (monitor data watches, don't show code)
+        ;"            4=Hopping (rapidly jumping between breakpoints)
+        ;"            5=Data watch (monitor data watches, don't show code)
         ;"           -1=QUIT
        
+       NEW tmgdbgTruth SET tmgdbgTruth=$TEST   ;"save initial value of $TEST
        IF $DATA(tmgDbgJumpToBrkPos) DO  
        . DO RelBreakpoint(tmgDbgJumpToBrkPos)
        . KILL tmgDbgJumpToBrkPos
-       NEW tmgdbgTruth SET tmgdbgTruth=$TEST   ;"save initial value of $TEST
        IF $ZTRAP'["^TMG" DO SetErrTrap^TMGIDE  ;"ensure no redirecting of error trap
        NEW tmgDbgResult SET tmgDbgResult=1  ;"1=step into, 2=step over
        NEW tmgDbgNakedRef SET tmgDbgNakedRef=$$LGR^TMGIDE ;"save naked reference
@@ -129,7 +130,7 @@ STEPTRAP(tmgIDEPos,tmgMsg)
        
        IF $GET(tmgRunMode)="" DO  ;"Happens if code clears variable table, e.g. ^XUP
        . SET tmgRunMode=$GET(^TMG("TMGIDE",$J,"RUNMODE"),1) ;"//kt 1/7/15
-       IF ("123"[tmgRunMode)&(+$GET(tmgDbgOptions("VARTRACE"))=1) DO
+       IF ("1234"[tmgRunMode)&(+$GET(tmgDbgOptions("VARTRACE"))=1) DO
        . DO RecordVTrace^TMGIDE6  ;"Keep track of changes to variable system table
        SET tmgStepMode=$GET(tmgStepMode,"into")
        SET tmgDbgRemoteJob=+$GET(tmgDbgRemoteJob)
@@ -148,14 +149,12 @@ STEPTRAP(tmgIDEPos,tmgMsg)
        . DO RESETKB^XGF  ;"turn off XGF escape key processing code.
        . NEW tmpScrWidth IF $$GETSCRSZ^TMGKERNL(,.tmpScrWidth)  ;"drop function result
        . DO INITKB^XGF()  ;"set up keyboard input escape code processing
-       . ;"DEBUGGIN --> write "[-",$GET(tmgScrWidth("USER SET")),",",tmgScrWidth,",",tmpScrWidth,"-]"       
        . ;"//kt 6/8/16 IF ($GET(tmgScrWidth("USER SET"))=1)&(tmgScrWidth'>tmpScrWidth) QUIT 
        . IF ($GET(tmgScrWidth("USER SET"))=1) QUIT 
        . SET tmgScrWidth=tmpScrWidth
-       . ;"DEBUGGING --> write "[-RESET-]"              
        ;"NEW LROFFSET SET LROffset=$GET(tmgLROffset,0)
        SET tmgLROffset=$GET(tmgLROffset,0)
-       IF tmgRunMode'=4 GOTO SP2
+       IF tmgRunMode'=5 GOTO SP2
        NEW tmgTEMPEVAL SET tmgTEMPEVAL=$$EVALDW^TMGIDE7(.tmgRunMode)
        IF tmgTEMPEVAL=1 GOTO SPDone
 SP2    USE $P:(WIDTH=tmgScrWidth:NOWRAP)  ;"reset IO to the screen
@@ -184,10 +183,8 @@ SP2    USE $P:(WIDTH=tmgScrWidth:NOWRAP)  ;"reset IO to the screen
        ;
        DO VCUSAV2^TMGTERM
        NEW tmgCsrOnBreakline SET tmgCsrOnBreakline=0
-       ;"WRITE "!"  ;"TEMP1!!
        IF tmgRunMode'=2 DO  ;"2=Don't show code
        . DO ShowCode(tmgIDEPos,tmgScrWidth,tmgScrHeight,,tmgViewOffset,tmgLROffset,.tmgCsrOnBreakline)
-       . WRITE tmgCsrOnBreakline,!  ;"temps
        ELSE  DO
        . DO CUP^TMGTERM(1,2)
        WRITE tmgBlankLine,!
@@ -198,14 +195,16 @@ SP2    USE $P:(WIDTH=tmgScrWidth:NOWRAP)  ;"reset IO to the screen
        . DO CUU^TMGTERM(1)
        . DO EvalWatches
        . WRITE "(Press any key to pause"
-       . IF tmgRunMode=3 WRITE "; '+' for faster, '-' for slower)",!
+       . IF "34"[tmgRunMode WRITE "; '+' for faster, '-' for slower)",!
        . ELSE  WRITE ")",!
        . READ *tmgKeyIn:0
-       . IF tmgRunMode=3 DO
-       . . IF tmgKeyIn=43 SET tmgDbgHangTime=tmgDbgHangTime/2  ;"43= '+'
-       . . ELSE  IF tmgKeyIn=45 SET tmgDbgHangTime=tmgDbgHangTime*2 ;"45= '-'
+       . IF "34"[tmgRunMode DO
+       . . IF tmgKeyIn=43 SET tmgDbgHangTime=tmgDbgHangTime/2,tmgKeyIn=0       ;"43= '+'
+       . . ELSE  IF tmgKeyIn=45 SET tmgDbgHangTime=tmgDbgHangTime*2,tmgKeyIn=0 ;"45= '-'
        . . HANG tmgDbgHangTime
-       . IF (tmgKeyIn>0) DO SetRunMode(1)
+       . IF (tmgKeyIn>0) DO
+       . . ;"WRITE !,"KEY PRESSED",!
+       . . DO SetRunMode(1)
        IF tmgRunMode'=2 DO  ;"2=Don't show code
        . DO CmdPrompt ;"display prompt and interact with user
        DO VCULOAD2^TMGTERM
@@ -235,7 +234,8 @@ SPDone ;"Finish up and return to GTM execution
        IF tmgdbgTruth ;"This will restore initial value of $TEST
        QUIT tmgDbgResult
  ;"============================================================================
-SetRunMode(Value) ;"//kt 1/7/15
+SetRunMode(Value,Option) ;"//kt 1/7/15
+       IF ($GET(Option)=1),($GET(tmgRunMode)=4) QUIT  ;"When hopping, don't drop to step mode
        SET tmgRunMode=Value
        SET ^TMG("TMGIDE",$J,"RUNMODE")=tmgRunMode 
        QUIT
@@ -245,7 +245,7 @@ CmdPrompt
        ;"Note: uses some variables with global scope, because this code block
        ;"     was simply cut out of main routine above.
        ;"Result: None
-       IF tmgRunMode'=1 QUIT  ;"Only interact with user IF in stepping mode (1)
+       IF "41"'[tmgRunMode QUIT  ;"Only interact with user if in stepping mode (1)
        NEW $ETRAP SET $ETRAP="SET result="""",$ETRAP="""",$ecode="""""
        NEW tmgDone SET tmgDone=0
        FOR  DO  QUIT:tmgDone=1
@@ -261,7 +261,8 @@ CmdPrompt
        . WRITE "Action (? for help): "
        . WRITE "step "_$$UP^TMGIDE(tmgStepMode)_"// "
        . DO ClrLine
-       . SET tmgAction=$$READ^TMGIDE() WRITE !
+       . IF tmgRunMode=4 set tmgAction="X" 
+       . ELSE  SET tmgAction=$$READ^TMGIDE() WRITE !
        . IF tmgAction="" SET tmgAction=$$UP^TMGIDE($EXTRACT(tmgStepMode,1,1))
        . NEW tmgOrigAction SET tmgOrigAction=tmgAction
        . DO TranslateKeys(.tmgAction,$GET(tmgXGRT))
@@ -269,19 +270,20 @@ CmdPrompt
        . IF tmgAction="R" DO SetRunMode(0) QUIT         ;"Run Quickly
        . IF tmgAction="L" DO SetRunMode(3) QUIT         ;"Run slowly
        . IF tmgAction="H" DO SetRunMode(2) QUIT         ;"HIDE
+       . IF tmgAction="HOP" DO SetRunMode(4) QUIT       ;"HOPPING
        . IF tmgAction="I" SET tmgStepMode="into" QUIT   ;"Step INTO
        . IF tmgAction="O" SET tmgStepMode="over" QUIT   ;"Step OVER
-       . IF tmgAction="T" SET tmgStepMode="outof" QUIT   ;"Step OUTOF
-       . IF tmgAction="X" DO HndlDone QUIT             ;"Turn off debugger (keep running)
-       . IF tmgAction="Q" DO HndlQuit QUIT             ;"Quit from debugger (stop running)
-       . IF tmgAction="M" DO HndlMCode QUIT    ;"Execute M code
-       . IF tmgAction="B" DO HndlSetBrk QUIT   ;"Toggle a breakpoint at current location
-       . IF tmgAction="J" DO HndlJmpBrk QUIT   ;"Toggle a Jump-to breakpoint at current location
-       . IF tmgAction="E" DO HndlExpand QUIT   ;"Expand line
+       . IF tmgAction="T" SET tmgStepMode="outof" QUIT  ;"Step OUTOF
+       . IF tmgAction="X" DO HndlDone QUIT              ;"Turn off debugger (keep running)
+       . IF tmgAction="Q" DO HndlQuit QUIT              ;"Quit from debugger (stop running)
+       . IF tmgAction="M" DO HndlMCode QUIT             ;"Execute M code
+       . IF tmgAction="B" DO HndlSetBrk QUIT            ;"Toggle a breakpoint at current location
+       . IF tmgAction="J" DO HndlJmpBrk QUIT            ;"Toggle a Jump-to breakpoint at current location
+       . IF tmgAction="E" DO HndlExpand QUIT            ;"Expand line
        . IF tmgAction="W" DO HndlWatch(tmgOrigAction) QUIT    ;"Watch
-       . IF tmgAction="C" DO HndlCstBrk QUIT   ;"Custom breakpoint
+       . IF tmgAction="C" DO HndlCstBrk QUIT            ;"Custom breakpoint
        . IF tmgAction="G" DO HndlJmpDisp(.tmgIDEPos,.tmgViewOffset) QUIT  ;"Jump to NEW display location
-       . IF tmgAction="BC" DO HndlBrkCond QUIT  ;"Enter a breakpoint condition (IF code)
+       . IF tmgAction="BC" DO HndlBrkCond QUIT          ;"Enter a breakpoint condition (IF code)
        . IF $$MoveKey(tmgAction) QUIT
        . IF tmgAction="+" SET tmgScrWidth=$GET(tmgScrWidth)+1 QUIT
        . IF tmgAction="-" SET:(tmgScrWidth>10) tmgScrWidth=$GET(tmgScrWidth)-1 QUIT
@@ -407,7 +409,8 @@ HndlShow;
        DO Box
        DO SetColors("NORM")
        DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-       NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
+       ;"NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
+       NEW varName SET varName=$$Trim^TMGIDE($EXTRACT(tmgOrigAction,5,999))
        IF +$GET(tmgDbgRemoteJob) SET varName=$$GetRemoteVar(varName)
        WRITE !   ;"get below bottom line for output.
        NEW zbTemp SET zbTemp=0
@@ -432,7 +435,8 @@ HndlZWR
        DO Box
        DO SetColors("NORM")
        DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-       NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
+       ;"NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
+       NEW varName SET varName=$$Trim^TMGIDE($EXTRACT(tmgOrigAction,5,999))
        IF +$GET(tmgDbgRemoteJob) SET varName=$$GetRemoteVar(varName)
        WRITE !   ;"get below bottom line for output.
        NEW zbTemp SET zbTemp=0
@@ -508,7 +512,13 @@ HndlWatch(tmgAction) ;
        . READ "Enter M code (^ to cancel): ",tempCode:$GET(DTIME,3600),!
        . IF tempCode'="^" SET tmgWatchLine=tempCode
        QUIT
-
+       
+HndlHop  ;
+       DO SetRunMode(4) 
+       Do HndlDone
+       DO PRESS2GO^TMGUSRI2
+       Quit
+       
 HndlQuit  ;
        ;"Purpose: To create a crash, so can QUIT debugger, OR IF in Remote
        ;"         mode, then DO same thing as 'X' command
@@ -741,7 +751,7 @@ HndlRunDW ;
         ;"         with tests being checked between each line of code.
        NEW WatchMode SET WatchMode=0
        DO EditWatch^TMGIDE7(.WatchMode)
-       IF WatchMode=1 DO SetRunMode(4) ;"data watch mode
+       IF WatchMode=1 DO SetRunMode(5) ;"data watch mode
        QUIT
        ;
 HndlHelp ;
@@ -749,36 +759,38 @@ HndlHelp ;
        DO Box
        DO SetColors("NORM")
        DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-       DO HlpWrite(" {L} : Run sLow mode    | {M} : exec M code      | {SHOW [var]} : show [var]")
-       DO HlpWrite(" {O} : Step OVER line   | {I} : step INTO line   | {J} : Run To Cursor")
-       DO HlpWrite(" {R} : Run | {T} Step OUT | {H} : Hide debug code  | {CLS} : clear screen")
-       DO HlpWrite(" {B} : Toggle Brkpoint  | {C} : Custom breakpoint| {BC} : breakpoint code")
-       DO HlpWrite(" {W} : Set watch code   | {W +MyVar} :Watch MyVar| {W -MyVar} :Remove watch")
-       DO HlpWrite(" {A},{AA} : Scroll up     | {Z},{ZZ} : Scroll down   | {W +^} : Add Naked Ref")
-       DO HlpWrite(" {[},{[[} : Scroll left   | {]},{]]} : Scroll right  | {W +*} : Watch Var changes")
-       DO HlpWrite(" {X} : Turn off debug   | {Q} : Abort            | {BROWSE} [var] : browse [var]")
-       DO HlpWrite(" {-},{+} : Screen width   | {=} : Enter Width/Ht   | {HIDE} : manage/hide modules")
+       DO HlpWrite(" {L} : Run sLow mode    | {M} : exec M code       | {SHOW [var]} : show [var]")
+       DO HlpWrite(" {O} : Step OVER line   | {I} : step INTO line    | {J} : Run To Cursor")
+       DO HlpWrite(" {R} : Run | {T} Step OUT | {H} : Hide debug code   | {CLS} : clear screen")
+       DO HlpWrite(" {X} : Turn off debug   | {Q} : Abort             | {HOP} : Hop between Brkpoints  ")
+       DO HlpWrite(" {B} : Toggle Brkpoint  | {C} : Custom breakpoint | {BC} : breakpoint code")
+       DO HlpWrite(" {W} : Set watch code   | {W +MyVar} :Watch MyVar | {W -MyVar} :Remove watch")
+       DO HlpWrite(" {A},{AA} : Scroll up     | {Z},{ZZ} : Scroll down    | {W +^} : Add Naked Ref")
+       DO HlpWrite(" {[},{[[} : Scroll left   | {]},{]]} : Scroll right   | {W +*} : Watch Var changes")
        DO SetColors("SPECIAL")
        DO PRESS2GO^TMGUSRI2
        DO Box
        DO SetColors("NORM")
        DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
+       DO HlpWrite(" {BROWSE} [var] : browse| {SHOW [var]} : shows var| {ZWR [var]} : zwrites [var]")
        DO HlpWrite(" {TABLE *} : Symbol table| {NODES} : Browse var    | {INITKB} : restore key fn")
        DO HlpWrite(" {G} : Goto display      | {FULL} : Undo Scrl Zone | {E} : expand current line")
        DO HlpWrite(" {UCASE} : Force U Case  | {LCASE} : Force L Case  | {COLORS} : Edit colors   ")
        DO HlpWrite(" {XCMD} : Force ExpndCmd | {SCMD} : Force ShrtnCmd | {TRACE} : Show Trace     ")
        DO HlpWrite(" {VDIFF} : Show Var Chng | {TVDIFF} Toggle TraceVar| {RESYNC} : sync display  ")
        DO HlpWrite(" {DBK} : Del Brk Point   | {RDW} : Run data watch  | {STACK} : stack show/jump")
+       DO HlpWrite(" {-},{+} : Screen width    | {=} : Enter Width/Ht    | {HIDE} : manage/hide modules")
+       DO HlpWrite(" {VARS [<Name*>]} : shows variable table ")
        ;"WRITE HlpWrite("                                                                                  "),!
        DO SetColors("SPECIAL")
        DO PRESS2GO^TMGUSRI2
-       DO Box
-       DO SetColors("NORM")
-       DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-       DO HlpWrite(" {VARS [<Name*>]} : Var dump | {ZWR}: ZWRITE data |                          ")
-       DO HlpWrite("   ")
-       DO SetColors("SPECIAL")
-       DO PRESS2GO^TMGUSRI2
+       ;DO Box
+       ;DO SetColors("NORM")
+       ;DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
+       ;DO HlpWrite(" {VARS [<Name*>]} : Var dump | {ZWR}: ZWRITE data |                          ")
+       ;DO HlpWrite("   ")
+       ;DO SetColors("SPECIAL")
+       ;DO PRESS2GO^TMGUSRI2
        DO SetColors("Reset")
        QUIT
        ;
@@ -889,6 +901,7 @@ ShowCode(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
        SET scS="Routine: "_scLabel_"^"_scRoutine_" "
        IF $DATA(tmgOrigIDEPos) SET scS=scS_"("_tmgOrigIDEPos_")"
        ELSE  SET scS=scS_"("_ShowPos_")"
+	     SET scS=scS_" Runmode: "_$get(tmgRunMode)
        WRITE scS
        DO SetColors("NORM")
        WRITE " "
@@ -896,15 +909,17 @@ ShowCode(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
        DO SetColors("NORM")
        WRITE !
        ;
+       ;"NEW T1,T2,T3,TMA,TMB SET (TMA,TMB)=0
        SET tmgCsrOnBreakline=0
        FOR cdLoop=StartOffset:1:(StartOffset+tmgScrHeight) DO
+       . ;"SET T1=$$GETSEC^TMGIDE2() ;"======================================
        . DO SetColors("NORM")
        . DO SetTempBkColor("Reset")
        . NEW cbLine,cbRef,cbCursor,cBrkLine
        . SET cBrkLine=$DATA(zBreakIdx(cdLoop))
        . SET cbRef=scLabel_"+"_cdLoop_"^"_scRoutine
        . SET cbLine=$text(@cbRef)
-       . SET cbLine=$$REPLSTR^TMGSTUT3(cbLine,$Char(9),"        ")
+       . FOR  QUIT:cbLine'[$CHAR(9)  SET cbLine=$PIECE(cbLine,$CHAR(9),1)_"        "_$PIECE(cbLine,$CHAR(9),2,999)
        . ;"IF tmgLROffset>0 SET cbLine=$EXTRACT(cbLine,tmgLROffset,999)
        . SET scCursorLine=scOffset+$GET(tmgViewOffset)
        . NEW cHighCsrPos SET cHighCsrPos=(cdLoop=scCursorLine)
@@ -926,11 +941,18 @@ ShowCode(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
        . ;"SET cbLineLen=$LENGTH(cbLine)
        . NEW StartPos SET StartPos=$X
        . IF $GET(TMGIDEDEBUG) WRITE cbLine SET cbLineLen=$LENGTH(cbLine)  ;"temp
+       . ;"SET T2=$$GETSEC^TMGIDE2() ;"======================================
        . ELSE  SET cbLineLen=$$ShowLine^TMGIDE6(cbLine,tmgLROffset,.tmgDbgOptions,tmgScrWidth-StartPos)
        . ;"ELSE  SET cbLineLen=$$ShowLine^TMGIDE6(cbLine,.tmgDbgOptions,tmgScrWidth-StartPos)
        . WRITE $EXTRACT(tmgDbgBlankLine,cbLineLen,tmgScrWidth-StartPos-1)
        . DO SetTempBkColor("Reset"),SetColors("NORM")
        . WRITE !
+       . ;"SET T3=$$GETSEC^TMGIDE2() ;"======================================
+       . ;"SET TMA=$$MAX^TMGIDE2(T2-T1,TMA),TMB=$$MAX^TMGIDE2(T3-T2,TMB)
+
+       ;"IF TMB>TMA SET TM="PART b ("_TMB_" vs "_TMA_")"
+       ;"ELSE  IF TMB=TMA SET TM="PART a=b"
+       ;"ELSE  SET TM="PART a ("_TMA_" vs "_TMB_")"
 
        ;"Draw bottom line.
        DO SetColors("NORM")
@@ -938,9 +960,19 @@ ShowCode(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
        FOR cdLoop=1:1:tmgScrWidth WRITE "~"
        ;"do SetColors("NORM")
        WRITE !
+       ;"WRITE "Longest section was ",TM,!
 SCDone ;
        DO VTATRIB^TMGTERM(0)  ;"reset colors
        QUIT
+       
+GETSEC()  ;"GET SYSTEM SECONDS
+       NEW T,SEC,MCS SET T=$ZH SET SEC=$P(T,",",2),MCS=$P(T,",",3)
+       FOR  QUIT:$LENGTH(MCS)=6  SET MCS="0"_MCS
+       QUIT SEC_"."_MCS
+       ;
+MAX(A,B) ;
+       IF A>B QUIT A
+       QUIT B
 
 SetTempBkColor(tmgMode)
        SET tmgMode=$GET(tmgMode) QUIT:tmgMode=""
@@ -957,10 +989,14 @@ SetColors(tmgMode)
        ;"Purpose: SET colors in central location
        ;"Input: tmgMode -- the tmgMode to change the colors to
        ;"       bg -- OPTIONAL -- the default background.  Default=15
-       SET tmgMode=$GET(tmgMode,"Reset") IF tmgMode="" SET tmgMode="Reset"
+       ;"set ^TMG("TMP","SETCOLORS MODE",$ZH)=$get(tmgMode)
+       SET tmgMode=$GET(tmgMode) 
+       IF tmgMode="" SET tmgMode="Reset"
        NEW ref SET ref=$name(^TMG("TMGIDE",$J,"COLORS"))
-       IF $DATA(@ref)=0 DO InitColors^TMGIDE6
-       IF tmgMode="Reset" DO VTATRIB^TMGTERM(0) GOTO SCDn  ;"reset colors
+       IF $DATA(@ref)=0 DO
+       . DO InitColors^TMGIDE6
+       IF tmgMode="Reset" DO
+       . DO VTATRIB^TMGTERM(0) GOTO SCDn  ;"reset colors
        NEW colorSet MERGE colorSet=@ref@(tmgMode) ;"Get colors for mode
        NEW fg SET fg=$GET(colorSet("fg"),15)
        NEW bg SET bg=$GET(colorSet("bg"),15)
@@ -1072,7 +1108,7 @@ SetBreakpoint(pos,condition)
         . NEW temp SET temp=$$MessageOut("BKPOS "_pos_" "_$GET(condition))
         . WRITE "Results from remote process=",temp,!
         ELSE  DO
-        . NEW brkLine SET brkLine=pos_":""n tmg do SetRunMode^TMGIDE2(1) s tmg=$$STEPTRAP^TMGIDE2($ZPOS,1)"""
+        . NEW brkLine SET brkLine=pos_":""n tmg do SetRunMode^TMGIDE2(1,1) s tmg=$$STEPTRAP^TMGIDE2($ZPOS,1)"""
         . NEW $ETRAP
         . SET $ETRAP="K ^TMG(""TMGIDE"",$J,""ZBREAK"",pos) S $ETRAP="""",$ECODE="""""
         . ZBREAK @brkLine

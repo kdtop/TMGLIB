@@ -1,4 +1,4 @@
-TMGXMLE5 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
+TMGXMLE5 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14, 6/12/17
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG XML EXPORT FUNCTIONS (CORE FUNCTIONALITY)
@@ -20,7 +20,7 @@ TMGXMLE5 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
  ;"WTRLABEL(IEN,ENDER) -- WRITE out labels for record starting and ending.
- ;"WTFLABEL(LABEL,FIELD,TYPE,ENDER) -- WRITE of labels etc for output
+ ;"WTFLABEL(LABEL,FIELD,TYPE,ENDER,PROPS) -- WRITE of labels etc for output
  ;"WTLINE(LINE) -- WRITE writing of labels etc for output
  ;"CVTLABEL(LABEL)  --Convert label
  ;
@@ -71,7 +71,7 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         ;"Results: None
         ;"Note: this code began its life as a function written by Greg Woodhouse (thanks Greg!)
         NEW FLDTYPE,LABEL
-        NEW FIELDINFO
+        NEW FIELDINFO,TMGXMLPROPS
         ;
         IF $GET(IENS)="" SET IENS=IEN_","
         IF +$GET(FIELD)=0 GOTO W1FDN
@@ -113,7 +113,7 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         . . NEW IDX SET IDX=$ORDER(TMGWP(""))
         . . IF (IDX=""),(FLAGS'["b") QUIT
         . . IF FLAGS["i" WRITE $GET(INDENTS)
-        . . NEW EXECFN SET EXECFN="DO "_FWRITER_"(LABEL,"""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0)"
+        . . NEW EXECFN SET EXECFN="DO "_FWRITER_"(LABEL,"""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0,.TMGXMLPROPS)"
         . . XECUTE EXECFN
         . . WRITE !  ;"so first <LINE> will be on a separate line
         . . IF IDX="" QUIT
@@ -147,7 +147,7 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         . . SET SUBREC=$ORDER(@CROOT@(0))
         . . IF (SUBREC'="")!(FLAGS["b") DO
         . . . IF FLAGS["i" WRITE $GET(INDENTS)
-        . . . NEW EXECFN SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0)"
+        . . . NEW EXECFN SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0,.TMGXMLPROPS)"
         . . . XECUTE EXECFN
         . . . WRITE !
         . . . NEW INDS2 SET INDS2=$GET(INDENTS)_INCINDENT
@@ -202,13 +202,21 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         . . DO
         . . . NEW $ETRAP SET $ETRAP="SET LINE=""<Error reading FILE# ""_$g(FILENUM)_"", IENS=""_$g(IENS)_"", FIELD=""_$g(FIELD)_"">"" SET $ETRAP="""",$ecode="""""
         . . . SET LINE=$$GET1^DIQ(FILENUM,IENS,FIELD,GETFLAG)
-        . . . IF (FLAGS["p"),($GET(FIELDINFO("TYPE"))="POINTER"),(LINE'="") DO
+        . . . IF ($GET(FIELDINFO("TYPE"))["POINTER"),(LINE'="") DO
         . . . . NEW IEN SET IEN=$$GET1^DIQ(FILENUM,IENS,FIELD,"I")
-        . . . . NEW P2FILE SET P2FILE=+$PIECE($GET(FIELDINFO("SPECIFIER")),"P",2)
-        . . . . SET LINE=LINE_" (`"_IEN_" in #"_P2FILE_")"
+        . . . . ;"NEW P2FILE SET P2FILE=+$PIECE($GET(FIELDINFO("SPECIFIER")),"P",2)
+        . . . . NEW P2FILE SET P2FILE=$GET(FIELDINFO("SPECIFIER"))
+        . . . . IF P2FILE="MV",FIELDINFO("TYPE")="VARIABLE-POINTER" DO
+        . . . . . NEW P2FREF SET P2FREF="^"_$PIECE(IEN,";",2),IEN=+IEN
+        . . . . . SET P2FILE=+$GET(FIELDINFO("VARIABLE-POINTER","GL",P2FREF))
+        . . . . ELSE  SET P2FILE=+$PIECE($GET(FIELDINFO("SPECIFIER")),"P",2)
+        . . . . IF (FLAGS["p"),($GET(FIELDINFO("TYPE"))["POINTER"),(LINE'="") DO
+        . . . . . SET LINE=LINE_" (`"_IEN_" in #"_P2FILE_")"
+        . . . . SET TMGXMLPROPS("pointed-to-file")=P2FILE
+        . . . . SET TMGXMLPROPS("pointed-to-record")=IEN
         . IF (LINE="")&(FLAGS'["b") QUIT
         . IF FLAGS["i" WRITE $GET(INDENTS)
-        . NEW EXECFN SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0)"
+        . NEW EXECFN SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0,.TMGXMLPROPS)"
         . XECUTE EXECFN
         . SET EXECFN="DO "_LWRITER_"(.LINE)"
         . XECUTE EXECFN   ;"WRITE LINE
@@ -238,12 +246,14 @@ WTRLABEL(IEN,ENDER) ;
         . WRITE ">",!
         QUIT
         ;
-WTFLABEL(LABEL,FIELD,TYPE,ENDER) ;
+WTFLABEL(LABEL,FIELD,TYPE,ENDER,PROPS) ;
         ;"Purpose: This is the code that actually does writing of labels etc for output
         ;"Input: LABEL -- OPTIONAL -- Name of label, to WRITE after  'label='
         ;"       FIELD -- OPTIONAL -- Name of field, to WRITE after  'id='
         ;"       TYPE -- OPTIONAL -- Type of field, to WRITE after  'type='
-        ;"      ENDER -- OPTIONAL IF 1, then ends field.
+        ;"       ENDER -- OPTIONAL IF 1, then ends field.
+        ;"       PROPS -- OPTIONAL, PASS BY REFERENCE.  Format:
+        ;"           PROPS(<property name>)=<property value>
         ;"Results: none.
         ;"Note: This is a separate function so that a different callback function can replace it
         ;
@@ -252,14 +262,17 @@ WTFLABEL(LABEL,FIELD,TYPE,ENDER) ;
         IF +$GET(ENDER)>0 DO
         . WRITE "</Field>",!
         ELSE  DO
-         . WRITE "<Field "
-         . IF $GET(FIELD)'="" WRITE "id=""",$$SYMENC^MXMLUTL(FIELD),""" "
-         . IF $GET(LABEL)'="" WRITE "label=""",$$SYMENC^MXMLUTL(LABEL),""" "
-         . IF $GET(TYPE)'="" WRITE "type=""",$$SYMENC^MXMLUTL(TYPE),""" "
-         . WRITE ">"
-         ;
-         QUIT
-         ;
+        . WRITE "<Field "
+        . IF $GET(FIELD)'="" WRITE "id=""",$$SYMENC^MXMLUTL(FIELD),""" "
+        . IF $GET(LABEL)'="" WRITE "label=""",$$SYMENC^MXMLUTL(LABEL),""" "
+        . IF $GET(TYPE)'="" WRITE "type=""",$$SYMENC^MXMLUTL(TYPE),""" "
+        . NEW APROP SET APROP=""
+        . FOR  SET APROP=$ORDER(PROPS(APROP)) QUIT:APROP=""  DO
+        . . WRITE APROP,"=""",$GET(PROPS(APROP)),""" "
+        . WRITE ">"
+        ;
+        QUIT
+        ;
 WTLINE(LINE) ;
         ;"Purpose: This is the code that actually does writing of labels etc for output
         ;"Input: LINE -- the line of text to WRITE out.

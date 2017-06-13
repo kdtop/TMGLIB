@@ -169,6 +169,7 @@ SetHideList
        SET @tmgDbgHideList@("TMGKE*")=""
        SET @tmgDbgHideList@("TMGSTUTL")=""
        SET @tmgDbgHideList@("TMGSTUT2")=""
+       ;SET @tmgDbgHideList@("TMGSTUT3")=""
        SET @tmgDbgHideList@("X*")=""
        SET @tmgDbgHideList@("%*")=""
        SET @tmgDbgHideList@("DI*")=""
@@ -231,7 +232,9 @@ Ppt2   IF $DATA(tmgCodeLine)=0 WRITE !,"Restoring TMGIDE variables...",! GOTO Pp
        IF tmgCodeLine="" DO SaveHx(tmgDbgLine)
 
        IF $GET(tmgDataWatchMode) DO SetRunMode^TMGIDE2(4)
-       ELSE  DO SetRunMode^TMGIDE2(1)  ;"1=Step-by-step mode
+       ELSE  DO
+       . IF $GET(tmgRunMode)=4 QUIT
+       . DO SetRunMode^TMGIDE2(1)  ;"1=Step-by-step mode
        SET ^TMG("TMGIDE",$J,"RUNMODE")=tmgRunMode ;"//kt 1/7/15
        
        SET $ZSTEP="N tmgTrap S tmgTrap=$$STEPTRAP^TMGIDE2($ZPOS) ZSTEP:(tmgTrap=1) into ZSTEP:(tmgTrap=2) over ZSTEP:(tmgTrap=3) outof zcontinue"

@@ -32,7 +32,7 @@ TMGXMLE2 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
  ;"ARRAY(FILE,"TEMPLATE",FIELD)
  ;"ARRAY(FILE,"TEMPLATE","ORDER",OrderNUM)=FIELD
  ;"ARRAY(FILE,"TEMPLATE","TAG NAME",FIELDNumber)="Custom field name to put in XML file"
- ;"ARRAY("FLAGS","b")=""  b -- show tags for ALL fields, even IF field has no data
+ ;"ARRAY("FLAGS","b")=""  b -- show tags for ALL fields, even if field has no data
  ;"ARRAY("FLAGS","i")=""  i -- indent tags for pretty, but technically useless, file formating.
  ;"ARRAY("FLAGS","I")=""  I -- output INTERNAL values
  ;"ARRAY("FLAGS","D")=""  D -- output the data dictionary
@@ -40,11 +40,11 @@ TMGXMLE2 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
  ;"ARRAY("EXPORT_SYSTEM_NAME")=LABELForExportingSystem   -- OPTIONAL
  ;"
  ;"-----------------------------------------------------------------------------------------------
- ;"Note: FILE numbers can be replaces with full FILE NAMES, e.g.
+ ;"Note: FILE numbers can be replaced with full FILE NAMES, e.g.
  ;"   ARRAY("NEW PERSON",1234,.01)=""
  ;"
  ;"Example:  For ALL records, output ALL fields, and ALL subfields
- ;"     ARRAY(8925,"*")=""   <--- this is default IF RECS is not specified/passed
+ ;"     ARRAY(8925,"*")=""   <--- this is default if RECS is not specified/passed
  ;"
  ;"Example: to print from:
  ;"   file 8925, records 1234,1235,1236,1237
@@ -175,7 +175,8 @@ TMGXMLE2 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
 WTXMLOUT(PARRAY,FLAGS,INDENTS,SHOWPROG)  ;
         ;"Scope: PUBLIC
         ;"Purpose: to dump out a specified SET of files and records in XML Format
-        ;"Input: PARRAY -- pointer to (i.e. name of) array containting formatting/output info.
+        ;"         Output is to current output stream (to the console if not otherwise set via USE command)
+        ;"Input: PARRAY -- pointer to (i.e. name of) array containing formatting/output info.
         ;"              REQUIRED An array specifying which files and records to display
         ;"              Format as follows:
         ;"              ;"-----------------------------------------
@@ -188,6 +189,7 @@ WTXMLOUT(PARRAY,FLAGS,INDENTS,SHOWPROG)  ;
         ;"              ARRAY("FLAGS","S")=""  S -- output export settings.
         ;"              ARRAY("!DOCTYPE")=MyLABEL
         ;"              ARRAY("EXPORT_SYSTEM_NAME")=LABELForExportingSystem   -- OPTIONAL
+        ;"              ARRAY("!DOCTYPE")=  The doc type for the <!DOCTYPE header.  Default is UNDEFINED
         ;"              ;"-----------------------------------------
         ;"
         ;"      e.g.    ARRAY(8925,1234)=""
@@ -232,6 +234,7 @@ WTXMLOUT(PARRAY,FLAGS,INDENTS,SHOWPROG)  ;
         ;"                      i -- indent tags for pretty, but technically useless, file formating.
         ;"                      I -- output INTERNAL values
         ;"                      D -- output Data dictionary
+        ;"                      p -- for Pointers, show record number after name, e.g. DOE,JOHN (`123)
         ;"                      e.g. FLAGS="b"  or "bi"  or "ib"  or "iI" etc.
         ;"         INDENTS -- OPTIONAL -- current string to WRITE to indent line.
         ;"                    INDENTS("INCINDENT")=INCINDENT
@@ -249,6 +252,7 @@ WTXMLOUT(PARRAY,FLAGS,INDENTS,SHOWPROG)  ;
         IF ($DATA(TARRAY("FLAGS","I"))>0)&(FLAGS'["I") SET FLAGS=FLAGS_"I"
         IF ($DATA(TARRAY("FLAGS","D"))>0)&(FLAGS'["D") SET FLAGS=FLAGS_"D"
         IF ($DATA(TARRAY("FLAGS","S"))>0)&(FLAGS'["S") SET FLAGS=FLAGS_"S"
+        IF ($DATA(TARRAY("FLAGS","p"))>0)&(FLAGS'["p") SET FLAGS=FLAGS_"p"
         ;
         DO WRITEHDR
         WRITE "<!DOCTYPE "_$GET(TARRAY("!DOCTYPE"),"UNDEFINED"),">",!

@@ -1,4 +1,4 @@
-TMGKERN1 ;TMG/kst/Mumps Distro Specific functions ;2/2/14, 3/3/17
+TMGKERN1 ;TMG/kst/Mumps Distro Specific functions ;2/2/14, 3/3/17, 5/12/17
          ;;1.0;TMG-LIB;**1**;10/24/11
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -18,9 +18,13 @@ TMGKERN1 ;TMG/kst/Mumps Distro Specific functions ;2/2/14, 3/3/17
  ;"
  ;"LASTJOBN() -- return the process number of the child process
  ;"RTNPATH(ROUTINE,MODE)  -- GET ROUTINE PATH IN HFS
+ ;"MD5FILE(FPATHNAME) --CALCULATE MD5SUM FOR ARBITRARY FILE   
  ;"MD5SUM(ROUTINE)  -- CALCULATE MD5SUM FOR ROUTINE.
  ;"MD5ALL -- SHOW MD5SUM VALUES FOR ALL ENTRIES IN 'ROUTINE' FILE.
- ;"
+ ;"MD5ARR(REF) --CALCULATE MD5SUM OF ARRAY   
+ ;"LSTLCKS(OUT) --"LIST MUMPS DATABASE GLOBAL LOCKS  
+ ;"KILOKJOB ;"KILL JOBS HOLDING PARTICULAR DATABASE LOCKS 
+ ; 
  ;"=======================================================================
  ;"Dependancies
  ;"=======================================================================
@@ -118,7 +122,7 @@ MD5ALL(OUT) ;"GET / SHOW MD5SUM VALUES FOR ALL ENTRIES IN 'ROUTINE' FILE.
   IF $DATA(ARRAY) DO ZWRITE^TMGZWR("ARRAY")
   QUIT
   ;
-MD5ARR(ARR)  ;"RUN A MD5 CHECKSUM ON AN ARRAY
+MD5ARR0(ARR)  ;"RUN A MD5 CHECKSUM ON AN ARRAY ... DEPRECIATED, USE ONE BELOW, MORE ROBUST.  DELETE THIS LATER
   ;"Input: ARR -- PASS BY REFERENCE.  Expected format:  ARR(#)=<text>
   ;"Result: the md5 checksum, as calculated by host linux md5sum command
   ;"        or -1^message
@@ -129,8 +133,33 @@ MD5ARR(ARR)  ;"RUN A MD5 CHECKSUM ON AN ARRAY
   . SET TMGRESULT="-1^Error saving temp file. Path='"_PATH_"', Filename='"_FNAME_"'"
   NEW FILE SET FILE=PATH_FNAME
   SET TMGRESULT=$$MD5FILE(FILE)
-  ZSYSTEM "rm "_FILE  ;"delete file when done
 MD5ADN  ;
+  QUIT TMGRESULT
+  ;  
+MD5ARR(REF)  ;"CALCULATE MD5SUM OF ARRAY
+  ;"Input: REF -- Pass by NAME.  The NAME of the reference to calculate. 
+  ;"NOTE: This does include sub nodes.  E.g. 
+  ;"            @REF@(1)="cat"  <-- this is included
+  ;"            @REF@(1,2)="calico"   <-- also included
+  ;"            @REF@(2)="dog"
+  ;"NOTE2: This outputs the ZWRITE output of the array to a temp file, and does MD5SUM of that
+  ;"RESULT: MD5Sum value (a 32 digit hex number), or "-1^Message" if error
+  NEW TMGRESULT SET TMGRESULT="-1^UNKNOWN"
+  IF $GET(REF)="" DO  GOTO MD5ARDN
+  . SET TMGRESULT="-1^Name of array for md5sum calculation not provided."
+  IF $DATA(@REF)=0 DO  GOTO MD5ARDN
+  . SET TMGRESULT="-1^Unable to calculate md5sum because array '"_REF_"' is empty."
+  NEW TMGZZZARR DO ZWR2ARR^TMGZWR(REF,"TMGZZZARR")
+  IF $DATA(TMGZZZARR)=0 DO  GOTO MD5ARDN
+  . SET TMGRESULT="-1^Unable to ZWRITE arrray '"_REF_"'."
+  NEW PATH SET PATH="/tmp/"
+  NEW FNAME SET FNAME=$$UNIQUE^%ZISUTL("tempMD5sum.tmp")
+  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("TMGZZZARR",PATH,FNAME)
+  IF TMGRESULT=0 DO  GOTO MD5ARDN
+  . SET TMGRESULT="-1^Unable to save temporary file: "_PATH_FNAME
+  SET TMGRESULT=$$MD5FILE(PATH_FNAME)
+  ZSYSTEM "rm "_PATH_FNAME  ;"delete file when done  
+MD5ARDN ;
   QUIT TMGRESULT
   ;  
 LSTLCKS(OUT)  ;"LIST MUMPS DATABASE GLOBAL LOCKS

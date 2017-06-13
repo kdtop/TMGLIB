@@ -1,4 +1,4 @@
-TMGXMLUI ;TMG/kst/XML Exporter -- User Interface ;10/26/14
+TMGXMLUI ;TMG/kst/XML Exporter -- User Interface ;10/26/14, 6/6/17
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG XML EXPORT -- USER INTERFACE FUNCTIONS
@@ -28,9 +28,9 @@ TMGXMLUI ;TMG/kst/XML Exporter -- User Interface ;10/26/14
  ;"GETMFLDS(FILE,REFARRAY,s)
  ;"ASKCSTAG(FILE,FIELD,REFARRAY,INDENT)
  ;"ASKCXFRM(FILE,FIELD,REFARRAY,INDENT)
- ;"$$FMGETFLD(FILENUMBER)
- ;"$$ASKGTFLD(FILENUMBER,INDENT)
- ;"$$PCKUSFLD(FILENUMBER,REFARRAY,INDENT)
+ ;"$$FMGETFLD(FILENUM)
+ ;"$$ASKGTFLD(FILENUM,INDENT)
+ ;"$$PCKUSFLD(FILENUM,REFARRAY,INDENT)
  ;"CFGORFLD(FILE,REFARRAY)
  ;"SHOWARR(INDENT)
  ;"PAUSE
@@ -532,6 +532,7 @@ GTMANREC(FILE,REFRECS,s,INDENT)  ;"GET MAN RECS
         . . . SET @REFRECS@(+Y)=""
         . . . DO PAUSE(INDENT)
         . . ;" ELSE  SET RESULT=0 QUIT
+        . . SET DEFVALUE="X"
         . IF INPUT=2 DO
         . . NEW IEN
         . . READ ?INDENT,"Enter record number (a.k.a. IEN) (^ to abort): ",IEN:$GET(DTIME,3600),!
@@ -1065,49 +1066,89 @@ SPACES(NUM)  ;
 SPCDN   QUIT RESULT
         ;
  ;"===================================================
-        ;
-GETPTROT(FILE,ARRAY)  ;"GET POINTERS OUT
+ ;
+GETPTROT(FILE,ARRAY)  ;"GET POTENTIAL POINTERS OUT
         ;"Purpose: to return a list of all possible pointers out, for a given file
         ;"Input: FILE -- name or number of file to investigate
         ;"       ARRAY -- PASS BY REFERENCE.  Output format:
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY("SUBFILE",SUBFILENUM,PARENTFILENUMBER,PARENTFIELDNUM)=""
+        ;"          e.g. ARRAY(142,"POINTERS OUT",.06,200)=""
+        ;"          e.g. ARRAY(142.01,"POINTERS OUT",1,142.1)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,60)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,71)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,81)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,120.51)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,601.71)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,811.9)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,8925.1)=""
+        ;"          e.g. ARRAY(142.14,"VAR POINTERS OUT",.01,9999999.64)=""
+        ;"          e.g. ARRAY(142.2,"POINTERS OUT",.01,44)=""
+        ;"          e.g. ARRAY(142.2,"POINTERS OUT",.02,3.5)=""
+        ;"          e.g. ARRAY("SUBFILE",142.01,142,1)=""
+        ;"          e.g. ARRAY("SUBFILE",142.14,142.01,4)=""
+        ;"          e.g. ARRAY("SUBFILE",142.2,142,20)=""
         ;"Results: 1 if some found, 0 if no pointers out.
-        NEW FILENUMBER
-        KILL ARRAY
+        ;"NOTE: This is currently not supporting variable pointers
+        NEW FILENUM
+        ;"KILL ARRAY
         NEW FOUND SET FOUND=0        
-        IF +FILE=FILE SET FILENUMBER=FILE
-        ELSE  SET FILENUMBER=$$GETFNUM^TMGXMLT2(FILE)
+        IF +FILE=FILE SET FILENUM=FILE
+        ELSE  SET FILENUM=$$GETFNUM^TMGXMLT2(FILE)
         ;
         NEW FIELD SET FIELD=0
-        FOR  SET FIELD=$ORDER(^DD(FILENUMBER,FIELD)) QUIT:(FIELD'>0)  DO
-        . NEW FLDINFO SET FLDINFO=$PIECE($GET(^DD(FILENUMBER,FIELD,0)),"^",2)
-        . IF FLDINFO'["P" QUIT
-        . NEW OTHERFILE SET OTHERFILE=+$PIECE(FLDINFO,"P",2)
-        . IF $$GETFNAME^TMGXMLT2(OTHERFILE)="" DO  QUIT
-        . SET ARRAY(FILENUMBER,"POINTERS OUT",FIELD,OTHERFILE)=""
-        . SET FOUND=1
+        FOR  SET FIELD=$ORDER(^DD(FILENUM,FIELD)) QUIT:(FIELD'>0)  DO
+        . NEW FLDINFO SET FLDINFO=$PIECE($GET(^DD(FILENUM,FIELD,0)),"^",2)
+        . IF +FLDINFO>0 DO  QUIT
+        . . NEW TEMP SET FOUND=FOUND!$$GETPTROT(+FLDINFO,.TEMP) MERGE ARRAY=TEMP
+        . . SET ARRAY("SUBFILE",+FLDINFO,FILENUM,FIELD)=""
+        . . DO GETPTROT(+FLDINFO,.ARRAY)
+        . IF FLDINFO["P" DO
+        . . NEW OTHERFILE SET OTHERFILE=+$PIECE(FLDINFO,"P",2)
+        . . IF $$GETFNAME^TMGXMLT2(OTHERFILE)="" DO  QUIT
+        . . SET ARRAY(FILENUM,"POINTERS OUT",FIELD,OTHERFILE)=""
+        . . SET FOUND=1
+        . ELSE  IF FLDINFO["V" DO
+        . . NEW IDX SET IDX=0 
+        . . FOR  SET IDX=$ORDER(^DD(FILENUM,FIELD,"V",IDX)) QUIT:IDX'>0  DO
+        . . . NEW ZN SET ZN=$GET(^DD(FILENUM,FIELD,"V",IDX,0)) QUIT:ZN=""
+        . . . SET ARRAY(FILENUM,"VAR POINTERS OUT",FIELD,+ZN)=""
+        . . SET FOUND=1
         QUIT FOUND
         ;
-CSTPTROT(ARRAY,RECSARRAY)  ;"CUSTOM POINTERS OUT
+CSTPTROT(ARRAY,RECSARRAY)  ;"CUSTOMIZE TO ACTUAL POINTERS OUT
         ;"Purpose: Given an array of pointers out (as created by GETPTROT), look at the
         ;"      specific group of records (provided in RECSARRAY) and trim out theoretical
         ;"      pointers, and only leave actual pointers in the list.
-        ;"Input: ARRAY PASS BY REFERENCE.  Format:
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
-        ;"       RECSARRAY
-        ;"          RECSARRAY(FILENUMBER,IENinFILE)=""
-        ;"          RECSARRAY(FILENUMBER,IENinFILE)=""
-        ;"          RECSARRAY(FILENUMBER,IENinFILE)=""
+        ;"Input: ARRAY -- PASS BY REFERENCE.  Format:
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY("SUBFILE",SUBFILENUM,PARENTFILENUMBER,PARENTFIELDNUM)=""
+        ;"          ARRAY("SUBFILE",SUBFILENUM,PARENTFILENUMBER,PARENTFIELDNUM)=""
         ;"          Note: ARRAY may well have other information in it.
+        ;"       RECSARRAY -- An IN AND OUT PARAMETER.  Format
+        ;"          RECSARRAY(PARENTFILENUM,TOPIEN)=""
+        ;"          RECSARRAY(PARENTFILENUM,TOPIEN)=""
+        ;"          RECSARRAY(PARENTFILENUM,"*")=""  <-- Will be removed and expanded to all records
+        ;"          RECSARRAY("SUBFILE",IENS,FLD)=PTR   <-- the output part
         ;"Output: ARRAY pointer will be trimmed such that every pointer listed exists
-        ;"       in at least of the records in RECSARRAY
+        ;"       in at least one of the records in RECSARRAY
         NEW FILENUM,FIELDNUM,IEN
         SET FILENUM=""
+        FOR  SET FILENUM=$ORDER(RECSARRAY(FILENUM)) QUIT:(+FILENUM'>0)  DO
+        . IF $DATA(RECSARRAY(FILENUM,"*"))=0 QUIT
+        . KILL RECSARRAY(FILENUM,"*")
+        . NEW REF SET REF=$GET(^DIC(FILENUM,0,"GL")) QUIT:REF="" 
+        . NEW CREF SET CREF=$$CREF^DILF(REF)
+        . SET IEN=0
+        . FOR  SET IEN=$ORDER(@CREF@(IEN)) QUIT:IEN'>0  SET RECSARRAY(FILENUM,IEN)=""        
+        SET FILENUM=""
         FOR  SET FILENUM=$ORDER(ARRAY(FILENUM)) QUIT:(+FILENUM'>0)  DO
+        . IF $DATA(ARRAY("SUBFILE",FILENUM)) QUIT  ;"will handle separately below.  
         . SET FIELDNUM=""
         . FOR  SET FIELDNUM=$ORDER(ARRAY(FILENUM,"POINTERS OUT",FIELDNUM)) QUIT:(+FIELDNUM'>0)  DO
         . . ;"Now, for given file:field, DO any records in RECSARRAY contain a value?
@@ -1125,18 +1166,123 @@ CSTPTROT(ARRAY,RECSARRAY)  ;"CUSTOM POINTERS OUT
         . . . IF PTR>0 SET FOUND=1 QUIT  ;"found at least one record in group has an actual pointer
         . . IF FOUND=1 QUIT  ;"don't cut out the theoritical pointers (but no actual data)
         . . KILL ARRAY(FILENUM,"POINTERS OUT",FIELDNUM)
-        ;  
+        ;"Check for subfile pointers here...
+        NEW SUBFNUM SET SUBFNUM=""
+        FOR  SET SUBFNUM=$ORDER(ARRAY(SUBFNUM)) QUIT:(+SUBFNUM'>0)  DO
+        . IF $DATA(ARRAY("SUBFILE",SUBFNUM))=0 QUIT  ;"handled above    
+        . DO GETSFPTR(SUBFNUM,.ARRAY,.RECSARRAY) ;"GET SUBFILE POINTERS OUT
+        . IF $DATA(RECSARRAY("SUBFILE",SUBFNUM))>0 DO
+        . . NEW PARENTFNUM,TEMPFNUM,IENS SET TEMPFNUM=SUBFNUM,IENS="" 
+        . . FOR  SET PARENTFNUM=+$GET(^DD(TEMPFNUM,0,"UP")) QUIT:PARENTFNUM'>0  DO
+        . . . NEW FLD SET FLD=+$ORDER(ARRAY("SUBFILE",TEMPFNUM,PARENTFNUM,""))
+        . . . NEW FLDINFO SET FLDINFO=$PIECE($GET(^DD(SUBFNUM,FLD,0)),"^",2)
+        . . . NEW NODETYPE SET NODETYPE=$SELECT(FLDINFO["V":"VAR ",1:"")_"POINTERS OUT"
+        . . . IF FLD>0 SET ARRAY(PARENTFNUM,NODETYPE,FLD,TEMPFNUM)=""
+        . . . SET TEMPFNUM=PARENTFNUM
+        . ELSE  DO
+        . . KILL ARRAY(SUBFNUM),ARRAY("SUBFILE",SUBFNUM)
         QUIT
-        ; 
+        ;
+GETSFPTR(SUBFNUM,ARRAY,RECSARRAY) ;"GET SUBFILE POINTERS OUT
+        ;"Input: SUBFNUM -- SUBFILE NUMBER
+        ;"       ARRAY -- PASS BY REFERENCE.  Potential pointers out.  Format:
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY("SUBFILE",SUBFILENUM,PARENTFILENUMBER,PARENTFIELDNUM)=""
+        ;"          ARRAY("SUBFILE",SUBFILENUM,PARENTFILENUMBER,PARENTFIELDNUM)=""
+        ;"          Note: ARRAY may well have other information in it.
+        ;"       RECSARRAY -- An IN AND OUT PARAMETER.  Format
+        ;"          RECSARRAY(PARENTFILENUM,TOPIEN)=""
+        ;"          RECSARRAY(PARENTFILENUM,TOPIEN)=""
+        ;"          RECSARRAY("SUBFILE",IENS,FLD)=PTR   <-- the output part
+        ;"Result: none
+        NEW TMGZZDEBUG SET TMGZZDEBUG=0
+        IF TMGZZDEBUG=0 DO
+        . KILL ^TMG("TMP","GETSFPTR^TMGXMLUI")
+        . SET ^TMG("TMP","GETSFPTR^TMGXMLUI","SUBFNUM")=SUBFNUM
+        . MERGE ^TMG("TMP","GETSFPTR^TMGXMLUI","ARRAY")=ARRAY
+        . MERGE ^TMG("TMP","GETSFPTR^TMGXMLUI","RECSARRAY")=RECSARRAY
+        ELSE  DO
+        . KILL SUBFNUM,ARRAY,REVCSARRAY
+        . SET SUBFNUM=^TMG("TMP","GETSFPTR^TMGXMLUI","SUBFNUM")
+        . MERGE ARRAY=^TMG("TMP","GETSFPTR^TMGXMLUI","ARRAY")
+        . MERGE RECSARRAY=^TMG("TMP","GETSFPTR^TMGXMLUI","RECSARRAY")
+        IF $DATA(ARRAY("SUBFILE",SUBFNUM))=0 QUIT
+        NEW TOPFNUM SET TOPFNUM=$$TOPFILE^TMGXMLT2(SUBFNUM)
+        NEW REF,REFARR SET REF=$$SFREF^TMGXMLT2(SUBFNUM,.REFARR,.ARRAY)
+        NEW TOPIEN SET TOPIEN=""
+        FOR  SET TOPIEN=$ORDER(RECSARRAY(TOPFNUM,TOPIEN)) QUIT:(+TOPIEN'>0)  DO
+        . DO GTSFPTR2(TOPIEN,.REFARR,,.ARRAY,.RECSARRAY) 
+        QUIT
+        ;
+GTSFPTR2(IEN,TMGIEN,IDX,ARRAY,RECSARRAY,IENS)  ;" Recursive part of GETSFPTR above
+        ;"PRIVATE
+        ;"Input: IEN -- pass in top level IEN, or 0 for subfile
+        ;"       TMGIEN -- PASS BY REFERENCE, AN OUT PARAMETER. Format:
+        ;"          e.g. TMGIEN=2  <-- highest IEN index used
+        ;"          e.g. TMGIEN("FILE")=142.1
+        ;"          e.g. TMGIEN("REF",1)="^GMT(142,"
+        ;"          e.g. TMGIEN("REF",2)="^GMT(142,TMGIEN(1),1,"
+        ;"       IDX -- used in recursive calls, don't pass on first call
+        ;"       ARRAY -- PASS BY REFERENCE.  Format:
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""  
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY("SUBFILE",SUBFILENUM,PARENTFILENUMBER,PARENTFIELDNUM)=""
+        ;"       RECSARRAY -- An IN AND OUT PARAMETER.  Format
+        ;"          RECSARRAY(PARENTFILENUM,TOPIEN)=""
+        ;"          RECSARRAY(PARENTFILENUM,TOPIEN)=""
+        ;"          RECSARRAY("SUBFILE",IENS,FLD)=PTR   <-- the output part
+        ;"Result: none  
+        SET IDX=+$GET(IDX,1)
+        SET IEN=+$GET(IEN)
+        SET IENS=$GET(IENS) NEW SUBIENS
+        NEW REF SET REF=$GET(TMGIEN("REF",IDX)) IF REF="" QUIT
+        NEW FILENUM SET FILENUM=$GET(TMGIEN("FILE"))
+        IF IEN>0 DO  ;"TOP LEVEL
+        . NEW CREF SET CREF=$$CREF^DILF(REF_IEN_",")
+        . IF $DATA(@CREF)=0 QUIT
+        . SET SUBIENS=IEN_","_IENS
+        . SET TMGIEN(1)=IEN
+        . DO GTSFPTR2(0,.TMGIEN,IDX+1,.ARRAY,.RECSARRAY,SUBIENS)
+        ELSE  DO
+        . NEW CREF SET CREF=$$CREF^DILF(REF)
+        . NEW FILENUM SET FILENUM=$GET(TMGIEN("FILE"))
+        . NEW SUBIEN SET SUBIEN=0
+        . FOR  SET SUBIEN=$ORDER(@CREF@(SUBIEN)) QUIT:(SUBIEN'>0)  DO
+        . . SET SUBIENS=SUBIEN_","_IENS
+        . . IF IDX=TMGIEN DO
+        . . . NEW TYPENODE,FLD SET FLD=0
+        . . . FOR TYPENODE="POINTERS OUT","VAR POINTERS OUT" DO  
+        . . . . FOR  SET FLD=$ORDER(ARRAY(FILENUM,TYPENODE,FLD)) QUIT:(FLD'>0)  DO
+        . . . . . NEW NODE SET NODE=$GET(^DD(FILENUM,FLD,0)) ;"NODE=entire 0 NODE
+        . . . . . NEW NP SET NP=$PIECE(NODE,"^",4)       ;"get NODE;piece
+        . . . . . NEW NODE SET NODE=$PIECE(NP,";",1)  
+        . . . . . NEW PCE SET PCE=$PIECE(NP,";",2)
+        . . . . . NEW TEMP SET TEMP=$GET(@CREF@(SUBIEN,NODE))
+        . . . . . NEW PTR SET PTR=$PIECE(TEMP,"^",PCE)
+        . . . . . IF PTR'>0 QUIT
+        . . . . . SET RECSARRAY("SUBFILE",FILENUM,SUBIENS,FLD)=PTR
+        . . ELSE  DO
+        . . . SET TMGIEN(IDX)=SUBIEN
+        . . . DO GTSFPTR2(0,.TMGIEN,IDX+1,.ARRAY,.RECSARRAY,SUBIENS)
+        QUIT 
+        ;
 TRIMPTRO(ARRAY)  ;"TRIM PTR OUT
         ;"Purpose: Given array of pointers out (as created by GETPTROT, or CustPtrsOut), ask which
         ;"         other files should be ignored.
         ;"Input: ARRAY. PASS BY REFERENCE.  Format:
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
         ;"Output: for those pointers out that can be ignored, entries will be CHANGED:
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="-" <-- Ignore flag
-        ;"          ARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="+" <-- Confirmed flag
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="-" <-- Ignore flag
+        ;"          ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="+" <-- Confirmed flag
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)="-" <-- Ignore flag
+        ;"          ARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)="+" <-- Confirmed flag
         ;
         ;"first, make a temp array that groups pointers out.
         NEW ARRAY2
@@ -1144,16 +1290,17 @@ TRIMPTRO(ARRAY)  ;"TRIM PTR OUT
         FOR  SET FILENUM=$ORDER(ARRAY(FILENUM)) QUIT:(+FILENUM'>0)  DO
         . NEW FIELDNUM SET FIELDNUM=0
         . NEW REF
-        . FOR  SET FIELDNUM=$ORDER(ARRAY(FILENUM,"POINTERS OUT",FIELDNUM)) QUIT:(+FIELDNUM'>0)  DO
-        . . NEW OTHERFILENUM SET OTHERFILENUM=$ORDER(ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,""))
-        . . IF +OTHERFILENUM'>0 QUIT
-        . . NEW REF SET REF=$NAME(ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM))
-        . . NEW IEN SET IEN=$ORDER(^TMG(22708,"B",OTHERFILENUM,""))
-        . . IF (IEN'=""),$PIECE($GET(^TMG(22708,IEN,0)),"^",2)=0 DO  QUIT
-        . . . SET ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="-"
-        . . IF (IEN'=""),$PIECE($GET(^TMG(22708,IEN,0)),"^",2)=1 DO  QUIT
-        . . . SET ARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="+"
-        . . SET ARRAY2(OTHERFILENUM,REF)=""
+        . NEW TYPENODE FOR TYPENODE="POINTERS OUT","VAR POINTERS OUT" DO  
+        . . FOR  SET FIELDNUM=$ORDER(ARRAY(FILENUM,TYPENODE,FIELDNUM)) QUIT:(+FIELDNUM'>0)  DO
+        . . . NEW OTHERFILENUM SET OTHERFILENUM=""
+        . . . FOR  SET OTHERFILENUM=$ORDER(ARRAY(FILENUM,TYPENODE,FIELDNUM,OTHERFILENUM)) QUIT:OTHERFILENUM'>0  DO
+        . . . . NEW REF SET REF=$NAME(ARRAY(FILENUM,TYPENODE,FIELDNUM,OTHERFILENUM))
+        . . . . NEW IEN SET IEN=$ORDER(^TMG(22707.5,"B",OTHERFILENUM,""))
+        . . . . IF (IEN'=""),$PIECE($GET(^TMG(22707.5,IEN,0)),"^",2)=0 DO  QUIT
+        . . . . . SET ARRAY(FILENUM,TYPENODE,FIELDNUM,OTHERFILENUM)="-"
+        . . . . IF (IEN'=""),$PIECE($GET(^TMG(22707.5,IEN,0)),"^",2)=1 DO  QUIT
+        . . . . . SET ARRAY(FILENUM,TYPENODE,FIELDNUM,OTHERFILENUM)="+"
+        . . . . SET ARRAY2(OTHERFILENUM,REF)=""
         ;
         NEW MENU,COUNT
         NEW USRINPUT,IEN
@@ -1163,11 +1310,13 @@ TRIMPTRO(ARRAY)  ;"TRIM PTR OUT
         IF $DATA(ARRAY2)=0 GOTO TPODN
         ;
         SET MENU(0)="Pick Which Pointers are NOT to User Data"
-        SET COUNT=1
+        SET COUNT=0
         SET OTHERFILENUM=0
         FOR  SET OTHERFILENUM=$ORDER(ARRAY2(OTHERFILENUM)) QUIT:(OTHERFILENUM="")  DO
-        . SET MENU(COUNT)=$$GETFNAME^TMGXMLT2(OTHERFILENUM)_$CHAR(9)_OTHERFILENUM_"^"_COUNT
+        . IF $DATA(ARRAY("SUBFILE",OTHERFILENUM)) QUIT  
         . SET COUNT=COUNT+1
+        . SET MENU(COUNT)=$$GETFNAME^TMGXMLT2(OTHERFILENUM)_$CHAR(9)_OTHERFILENUM_"^"_COUNT
+        IF COUNT=0 GOTO TPOQ
         ;
 TPO     SET USRINPUT=$$MENU^TMGUSRI2(.MENU)
         IF "x^"[USRINPUT GOTO TPODN
@@ -1190,19 +1339,19 @@ TPO     SET USRINPUT=$$MENU^TMGUSRI2(.MENU)
         . KILL MENU(COUNT)
         . SET OTHERFILENUM=+$PIECE(REF,",",4)
         SET %=1
-        SET IEN=$ORDER(^TMG(22708,"B",OTHERFILENUM,""))
-        IF (IEN'=""),$PIECE($GET(^TMG(22708,IEN,0)),"^",2)=0 GOTO TPO
-        WRITE "Remember that ",$$GETFNAME^TMGXMLT2(OTHERFILENUM)," DOESN'T contain ",!
-        WRITE "  site-specific data (stored in File #22708)"
+        SET IEN=$ORDER(^TMG(22707.5,"B",OTHERFILENUM,""))
+        IF (IEN'=""),$PIECE($GET(^TMG(22707.5,IEN,0)),"^",2)=0 GOTO TPO
+        WRITE "Remember that file '",$$GETFNAME^TMGXMLT2(OTHERFILENUM),"' DOESN'T contain ",!
+        WRITE "  site-specific data (stored in File #22707.5)"
         DO YN^DICN WRITE !
         IF %'=1 GOTO TPO
         KILL TMGMSG,TMGFDA,TMGIEN
         IF +IEN>0 DO
-        . SET TMGFDA(22708,IEN_",",1)=0
+        . SET TMGFDA(22707.5,IEN_",",.02)=0
         . DO FILE^DIE("","TMGFDA","TMGMSG")
         ELSE  DO
-        . SET TMGFDA(22708,"+1,",.01)=OTHERFILENUM
-        . SET TMGFDA(22708,"+1,",1)=0
+        . SET TMGFDA(22707.5,"+1,",.01)=OTHERFILENUM
+        . SET TMGFDA(22707.5,"+1,",.02)=0
         . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
         DO SHOWDIER^TMGDEBU2(.TMGMSG)
         GOTO TPO
@@ -1222,15 +1371,15 @@ TPODN   IF $DATA(MENU)=0 GOTO TPOQ
         . . SET REF=""
         . . FOR  SET REF=$ORDER(ARRAY2(OTHERFILENUM,REF)) QUIT:(REF="")  DO
         . . . SET @REF="+"
-        . . SET IEN=$ORDER(^TMG(22708,"B",OTHERFILENUM,""))
-        . . IF (IEN'=""),$PIECE($GET(^TMG(22708,IEN,0)),"^",2)=1 QUIT
+        . . SET IEN=$ORDER(^TMG(22707.5,"B",OTHERFILENUM,""))
+        . . IF (IEN'=""),$PIECE($GET(^TMG(22707.5,IEN,0)),"^",2)=1 QUIT
         . . IF +IEN>0 DO
-        . . . SET TMGFDA(22708,IEN_",",1)=1
+        . . . SET TMGFDA(22707.5,IEN_",",.02)=1
         . . . DO FILE^DIE("","TMGFDA","TMGMSG")
         . . ELSE  DO
         . . . KILL TMGIEN
-        . . . SET TMGFDA(22708,"+1,",.01)=OTHERFILENUM
-        . . . SET TMGFDA(22708,"+1,",1)=1
+        . . . SET TMGFDA(22707.5,"+1,",.01)=OTHERFILENUM
+        . . . SET TMGFDA(22707.5,"+1,",.02)=1
         . . . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
         . . DO SHOWDIER^TMGDEBU2(.TMGMSG)
         ;
@@ -1240,44 +1389,63 @@ GTRECSOT(RECSARRAY,PTRSARRAY,ARRAY)  ;"GET RECS OUT
         ;"Purpose: For a given SET of records in a file, determine the linked-to record #'s
         ;"         in other files through pointers out.  This will return the actual IEN's
         ;"         in other files that are being pointed to.
-        ;"Input -- PTRSARRAY.  PASS BY REFERENCE.  Format:
-        ;"              RECSARRAY(FILENUMBER,IENinFILE)=""
-        ;"              RECSARRAY(FILENUMBER,IENinFILE)=""
-        ;"              RECSARRAY(FILENUMBER,IENinFILE)=""
+        ;"Input -- RECSARRAY. PASS BY REFERENCE.  Format:
+        ;"              RECSARRAY(FILENUM,IENinFILE)=""
+        ;"              RECSARRAY(FILENUM,IENinFILE)=""
+        ;"              RECSARRAY(FILENUM,IENinFILE)=""
+        ;"              RECSARRAY("SUBFILE",IENS,FLD)=PTR  
         ;"              Note: ARRAY may well have other information in it.
-        ;"         RECSARRAY. PASS BY REFERENCE.  Format:
-        ;"              PTRSARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
-        ;"              PTRSARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="-" <-- flag to ignore
-        ;"              PTRSARRAY(FILENUMBER,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"         PTRSARRAY.  PASS BY REFERENCE.  Format:
+        ;"              PTRSARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"              PTRSARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM)="-" <-- flag to ignore
+        ;"              PTRSARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)=""
+        ;"              PTRSARRAY(FILENUM,"VAR POINTERS OUT",FIELDNUM,OTHERFILENUM)="-" <-- flag to ignore
+        ;"              PTRSARRAY("SUBFILE",SUBFILENUM,PARENTFILENUMBER,PARENTFIELDNUM)=""
         ;"         ARRAY. PASS BY REFERENCE.  An OUT PARAMETER.  Format:
-        ;"              ARRAY(FILENUMBER,IEN,FIELDNUM,"LINKED TO",OTHERFILENUM,OtherIEN)=""
-        ;"              ARRAY(FILENUMBER,IEN,FIELDNUM,"LINKED TO",OTHERFILENUM,OtherIEN)=""
-        ;"              ARRAY(FILENUMBER,IEN,FIELDNUM,"LINKED TO",OTHERFILENUM,OtherIEN)=""
+        ;"              ARRAY(FILENUM,IEN,FIELDNUM,"LINKED TO",OTHERFILENUM,OtherIEN)=""
+        ;"              ARRAY(FILENUM,IEN,FIELDNUM,"LINKED TO",OTHERFILENUM,OtherIEN)=""
+        ;"              ARRAY(FILENUM,IEN,FIELDNUM,"LINKED TO",OTHERFILENUM,OtherIEN)=""
         ;"              ARRAY("X1",OTHERFILENUM,OtherIEN)=""
         ;"              ARRAY("X1",OTHERFILENUM,OtherIEN)=""
         ;"Output: ARRAY is filled as above.
+        ;"NOTE: This has not yet been tested with VARIABLE POINTERS
         ;"Results: None
+        NEW P2FARR
         NEW FILENUM SET FILENUM=0
         FOR  SET FILENUM=$ORDER(PTRSARRAY(FILENUM)) QUIT:(+FILENUM'>0)  DO
-        . NEW IEN SET IEN=0
-        . FOR  SET IEN=$ORDER(RECSARRAY(FILENUM,IEN)) QUIT:(+IEN'>0)  DO
-        . . NEW FIELDNUM SET FIELDNUM=0
-        . . FOR  SET FIELDNUM=$ORDER(PTRSARRAY(FILENUM,"POINTERS OUT",FIELDNUM)) QUIT:(+FIELDNUM'>0)  DO
-        . . . NEW OTHERFILENUM SET OTHERFILENUM=$ORDER(PTRSARRAY(FILENUM,"POINTERS OUT",FIELDNUM,""))
-        . . . IF +OTHERFILENUM'>0 QUIT
-        . . . NEW FLAG SET FLAG=$GET(PTRSARRAY(FILENUM,"POINTERS OUT",FIELDNUM,OTHERFILENUM))
-        . . . IF FLAG="-" QUIT
-        . . . NEW OTHERIEN SET OTHERIEN=$$GET1^DIQ(FILENUM,IEN_",",FIELDNUM,"I")
-        . . . IF +OTHERIEN'>0 QUIT
-        . . . SET ARRAY(FILENUM,IEN,FIELDNUM,"LINKED TO",OTHERFILENUM,OTHERIEN)=""
-        . . . IF $DATA(RECSARRAY(OTHERFILENUM,OTHERIEN))=0 DO
-        . . . . SET ARRAY("X1",OTHERFILENUM,OTHERIEN)="tag=POINTED_TO_RECORD"
+        . NEW RECSREF FOR RECSREF="RECSARRAY","RECSARRAY(""SUBFILE"")" DO
+        . . NEW IEN SET IEN=0  ;"IEN WILL BE IENS FOR SUBFILES
+        . . FOR  SET IEN=$ORDER(@RECSREF@(FILENUM,IEN)) QUIT:(+IEN'>0)  DO
+        . . . NEW NODETYPE FOR NODETYPE="POINTERS OUT","VAR POINTERS OUT" DO        
+        . . . . NEW FIELDNUM SET FIELDNUM=0
+        . . . . FOR  SET FIELDNUM=$ORDER(PTRSARRAY(FILENUM,NODETYPE,FIELDNUM)) QUIT:(+FIELDNUM'>0)  DO
+        . . . . . NEW OTHERFILENUM SET OTHERFILENUM=$ORDER(PTRSARRAY(FILENUM,NODETYPE,FIELDNUM,"")) 
+        . . . . . QUIT:OTHERFILENUM'>0
+        . . . . . NEW FLAG SET FLAG=$GET(PTRSARRAY(FILENUM,NODETYPE,FIELDNUM,OTHERFILENUM))
+        . . . . . IF FLAG="-" QUIT
+        . . . . . NEW IENS SET IENS=IEN_$SELECT($EXTRACT(IEN,$LENGTH(IEN))=",":"",1:",")
+        . . . . . NEW OFN SET OFN=OTHERFILENUM
+        . . . . . IF $DATA(ARRAY(FILENUM,IENS,FIELDNUM)) QUIT
+        . . . . . NEW OTHERIEN SET OTHERIEN=$$GET1^DIQ(FILENUM,IENS,FIELDNUM,"I")
+        . . . . . IF +OTHERIEN'>0 QUIT
+        . . . . . IF OTHERIEN[";" DO
+        . . . . . . NEW FREF SET FREF="^"_$PIECE(OTHERIEN,";",2),OTHERIEN=+OTHERIEN
+        . . . . . . SET OFN=+$GET(P2FARR(FREF)) QUIT:OFN>0
+        . . . . . . NEW IDX SET IDX=0
+        . . . . . . FOR  SET IDX=$ORDER(^DD(FILENUM,FIELDNUM,"V",IDX)) QUIT:(IDX'>0)!(OFN>0)  DO
+        . . . . . . . NEW TEMPFNUM SET TEMPFNUM=+$GET(^DD(FILENUM,FIELDNUM,"V",IDX,0))
+        . . . . . . . IF $GET(^DIC(TEMPFNUM,0,"GL"))'=FREF QUIT
+        . . . . . . . SET OFN=TEMPFNUM
+        . . . . . . . SET P2FARR(FREF)=OFN
+        . . . . . SET ARRAY(FILENUM,IENS,FIELDNUM,"LINKED TO",OFN,OTHERIEN)=""
+        . . . . . IF $DATA(@RECSREF@(OFN,OTHERIEN))=0 DO
+        . . . . . . SET ARRAY("X1",OFN,OTHERIEN)="tag=POINTED_TO_RECORD"
         QUIT
         ;
 XPNDPTRS(REFRECSARRAY)  ;"EXPAND POINTERS
         ;"Purpose: To take selected record SET and include records from other files that
-        ;"      the selected records point to.  Only records in files that marked as holding
-        ;"      site-specific data will be added
+        ;"      the selected records point to.  NOTE: only records in files that marked 
+        ;"      as holding site-specific data will be added
         ;"
         NEW CHANGED
         NEW RECSARRAY
@@ -1285,7 +1453,8 @@ XPNDPTRS(REFRECSARRAY)  ;"EXPAND POINTERS
         MERGE RECSARRAY=@REFRECSARRAY
 T1      SET CHANGED=0
         SET FILENUM=0
-        FOR  SET FILENUM=$ORDER(RECSARRAY(FILENUM)) QUIT:(FILENUM="")  DO
+        FOR  SET FILENUM=$ORDER(RECSARRAY(FILENUM)) QUIT:(FILENUM'>0)  DO
+        . IF $DATA(RECSARRAY("SUBFILE",FILENUM)) QUIT        
         . IF $$GETPTROT(FILENUM,.PTRSARRAY)=0 GOTO XPNDDN
         . DO CSTPTROT(.PTRSARRAY,.RECSARRAY)
         . DO TRIMPTRO(.PTRSARRAY)

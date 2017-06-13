@@ -25,6 +25,10 @@ TMGTEST ;TMG/kst/Scratch fns for programming tests ;03/25/06, 2/2/14
   .for j=1:1:10 do  write "^"
   ..for k=1:1:10 do  write "%"
   ...write "*"
+  ...write "^"
+  ...write "%"
+  ...write "$"
+  
   QUIT
   ;                                                                
 B(TEST) ;                                                     

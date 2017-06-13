@@ -1,4 +1,4 @@
-TMGKERN4 ;TMG/KST - Patch server stuff; 8/23/12, 2/2/14, 3/3/17
+TMGKERN4 ;TMG/KST - Patch server stuff; 8/23/12, 2/2/14, 3/3/17, 5/26/17
         ;;1.0;TMG-LIB;**1**;08/14/10;Build 1
        ;
  ;"TMG KERNEL FUNCTIONS
@@ -65,7 +65,8 @@ GETPATL(PCKINIT,ARRAY,REFRESH,DIRFN) ;
         . SET RESULT=0
         IF (REFRESH'>0)!(RESULT=0) GOTO GPLDN
         NEW URLLIST,URL,URLBASE
-        SET URLBASE="mirrors.medsphere.org/pub/downloads.va.gov/files/FOIA/Software/"
+        ;"SET URLBASE="mirrors.medsphere.org/pub/downloads.va.gov/files/FOIA/Software/"
+        SET URLBASE="foia-vista.osehra.org/"   ;"//kt 5/26/17
         SET URLLIST(1)=URLBASE_"Patches_By_Application/"
         SET URLLIST(2)=URLBASE_"Patches_By_Application/COMBINED%20PATCH%20KIDS%20BUILDS/"
         SET URLBASE=URLBASE_"VISTA_FOIA_Historical_Files/VISTA_FOIA_RELEASES_BEFORE_2008/"
@@ -114,17 +115,25 @@ GETWDIR(URL,PARRAY) ;
         NEW OPENAREF SET OPENAREF="<a href="""
         NEW CLOSEAREF SET CLOSEAREF="</a>"
         DO WGETFIL(URL,"TEMPARR")
+        NEW HTMLSTR SET HTMLSTR=""
         NEW LN SET LN=0
-        FOR  SET LN=$ORDER(TEMPARR(LN)) QUIT:LN=""  DO
-        . NEW STR SET STR=$GET(TEMPARR(LN)) QUIT:STR=""
-        . IF STR'[OPENAREF QUIT
-        . SET STR=$PIECE(STR,OPENAREF,2,999)
-        . SET STR=$PIECE(STR,CLOSEAREF,1)
-        . NEW REF SET REF=$PIECE(STR,""">",1)
+        FOR  SET LN=$ORDER(TEMPARR(LN)) QUIT:LN=""  SET HTMLSTR=HTMLSTR_$GET(TEMPARR(LN))        
+        FOR  QUIT:HTMLSTR=""  DO
+        . NEW STRB
+        . IF HTMLSTR'[OPENAREF SET HTMLSTR="" QUIT
+        . NEW WORKSTR SET WORKSTR=$PIECE(HTMLSTR,OPENAREF,2,999)
+        . SET WORKSTR=$PIECE(WORKSTR,CLOSEAREF,1)
+        . SET HTMLSTR=$PIECE(HTMLSTR,CLOSEAREF,2,999)
+        . NEW REF SET REF=$PIECE(WORKSTR,">",1)
+        . SET REF=$PIECE(REF,"""",1)
         . IF $EXTRACT(REF,1)="?" QUIT
+        . IF (REF="")!(REF="/") QUIT
+        . NEW UREF SET UREF=$$UP^XLFSTR(REF)
+        . IF (UREF["HTTP://")!(UREF["MAILTO:") QUIT
         . ;"SET REF=$$REPLSTR^TMGSTUT3(REF,"%20","\ ")
-        . NEW NAME SET NAME=$PIECE(STR,""">",2)
+        . NEW NAME SET NAME=$PIECE(WORKSTR,""">",2)
         . IF NAME="Parent Directory" QUIT
+        . IF $EXTRACT(NAME,1,4)="<img" QUIT
         . SET REF=URL_REF
         . SET @PARRAY@(CT)=NAME_"^"_REF SET CT=CT+1
         QUIT

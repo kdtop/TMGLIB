@@ -187,4 +187,96 @@ PRINTICD  ;"THIS FUNCTION IS A SCRATCH REPORT AND CAN BE DELETED
   DO ^%ZISC  ;" Close the output device
   DO PRESS2GO^TMGUSRI2
   QUIT
-  
+  ;"
+PETAGETR()  ;"Physical exam tag entry point
+  ;"Purpose: Entry point for report option
+  ;"         This will set up the 7 day date range and
+  ;"         set the output printer
+  ;"NOTE: Rewriting this to run daily. As so, it will only print notes for today
+  NEW BDATE,EDATE,X,X1,X2
+  DO NOW^%DTC
+  ;"SET EDATE=X
+  ;"SET X1=EDATE
+  ;"SET X2="-7"
+  ;"DO C^%DTC
+  ;"Not doing weekly now, only one day
+  SET BDATE=X
+  SET EDATE=X+".999999"
+  ;"SET BDATE=3140101
+  ;"SET EDATE=3190101
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  ;"SET %ZIS("B")="HOME"
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  IF POP DO  GOTO PETDN
+  . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.Aborting.")
+  use IO
+  NEW SUPPRESS 
+  SET SUPPRESS=1  ;"CHANGE TO 1 TO STOP PRINTING, WHEN NO RESULTS ARE FOUND
+  DO PETAGEST(BDATE,EDATE,SUPPRESS)
+PETDN
+  DO ^%ZISC  ;" Close the output device
+  ;"DO PRESS2GO^TMGUSRI2
+  QUIT
+  ;"
+PETAGEST(BDATE,EDATE,SUPPRESS)   ;"Physical Exam tag exists
+  ;"Purpose: This report is designed to look through the last
+  ;"         # days worth of TIU notes to see if Dr. Kevin's 
+  ;"         physical exam disclaimer has not been removed properly.
+  ;"         If the tag is found, the patient's name, date of note, and
+  ;"         note title
+  ;"Input: BDATE & EDATE for beginning and end dates (in fileman format)
+  ;"       SUPPRESS - OPTIONAL. 1=DON'T PRINT IF NO RESULTS 
+  NEW IENLIST,TOTALCOUNT
+  NEW PHRASE SET PHRASE="NOTE: BELOW IS UNEDITED EXAM TEMPLATE."
+  NEW TIUDATE SET TIUDATE=$PIECE(BDATE,".",1),TOTALCOUNT=0
+  FOR  SET TIUDATE=$ORDER(^TIU(8925,"D",TIUDATE)) QUIT:(TIUDATE>EDATE)!(TIUDATE'>0)  DO
+  . NEW TIUIEN
+  . SET TIUIEN=0
+  . FOR  SET TIUIEN=$ORDER(^TIU(8925,"D",TIUDATE,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . NEW TIULINE,TIUTEXT SET TIULINE=0,TIUTEXT=""
+  . . FOR  SET TIULINE=$ORDER(^TIU(8925,TIUIEN,"TEXT",TIULINE)) QUIT:TIULINE'>0  DO
+  . . . SET TIUTEXT=TIUTEXT_$GET(^TIU(8925,TIUIEN,"TEXT",TIULINE,0))
+  . . IF TIUTEXT[PHRASE DO
+  . . . SET IENLIST(TIUIEN)=""
+  . . . SET TOTALCOUNT=TOTALCOUNT+1
+  SET SUPPRESS=+$GET(SUPPRESS)
+  IF (SUPPRESS=1)&(TOTALCOUNT'>0) GOTO PEDN   ;"If no results, don't print anything
+  DO NOW^%DTC
+  WRITE !
+  WRITE "****************************************************************",!
+  WRITE "         PATIENTS WITH INCOMPLETE PHYSICAL EXAMINATIONS",!
+  WRITE "             DATE RANGE: ",$$EXTDATE(BDATE)," TO ",$$EXTDATE(EDATE),!
+  WRITE "                  RUN DATE: ",$$EXTDATE(X),!  ;" SET Y=X DO DD^%DT WRITE Y,!
+  WRITE "",!
+  WRITE "                  PLEASE DELIVER TO DR. KEVIN",!
+  WRITE "****************************************************************",!
+  WRITE "                                        (From TMGRPT4.m)",!,!
+  WRITE " ",!
+  WRITE TOTALCOUNT," NOTES FOUND",!,!
+  WRITE "PATIENT",?25,"DATE",?40,"TITLE",!
+  WRITE "-------",?25,"----",?40,"-----",!
+  NEW TIUIEN SET TIUIEN=0
+  FOR  SET TIUIEN=$ORDER(IENLIST(TIUIEN)) QUIT:TIUIEN'>0  DO
+  . NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
+  . NEW PATIENT,DATE,TITLE
+  . SET PATIENT=$P(ZN,"^",2)
+  . SET DATE=$P(ZN,"^",7)
+  . SET TITLE=$P(ZN,"^",1)
+  . SET PATIENT=$P($G(^DPT(PATIENT,0)),"^",1)
+  . SET TITLE=$P($G(^TIU(8925.1,TITLE,0)),"^",1)
+  . WRITE PATIENT,?25,$P($$EXTDATE(DATE),"@",1),?40,TITLE,!
+  IF (SUPPRESS=1)&(TOTALCOUNT'>0) DO
+  . WRITE !,!
+  . WRITE "NOTE: Printing with 0 results can be turned off by setting"
+  . WRITE " the SUPPRESS variable to 1 in PETAGETR^TMGRPT4",!
+PEDN
+  QUIT
+  ;"
+EXTDATE(FMDATE)  ;"WILL PROBABLY MOVE THIS UTILITY TO COMMON AREA
+  NEW Y
+  SET Y=FMDATE
+  D DD^%DT
+  QUIT Y
+  ;"

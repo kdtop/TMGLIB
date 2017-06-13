@@ -35,7 +35,7 @@ TMGKERNL ;TMG/kst/OS Specific functions ;6/10/14, 3/6/15, 2/3/17
  ;"$$EditHFSFile^TMGKERNL(FilePathName,Editor) -- interact with Linux to edit a file on the host file system
  ;"$$EditArray^TMGKERNL(ARRAY,Editor) -- interact with Linux to edit array as file on the host file system
  ;"ZSAVE -- to save routine out to HFS
- ;"MAKEBAKF^TMGKERNL(FilePathName,NodeDiv)  ;Make Backup File IF original exists
+ ;"MAKEBAKF^TMGKERNL(FilePathName,NodeDiv)  ;Make Backup File if original exists
  ;"IOCapON -- redirect IO to a HFS file, so that it can be captured.
  ;"IOCapOFF(pOutArray) -- restore IO channel to that prior IOCapON was called, and return captured output in OutArray
  ;"KillPID(JobNum) -- send message to MUPIP to KILL Job
@@ -141,12 +141,12 @@ ISFILE(FPNAME)  ;"Does file exist?  See also $$FILEXIST^TMGIOUTL(FilePathName)
   QUIT RESULT
   ;
 ISDIR(Path,NodeDiv)  ;
-  ;"Purpose: To determine IF Path is a path to a directory (i.e. are there sub files)
+  ;"Purpose: To determine if Path is a path to a directory
   ;"Input:  Path to test, e.g. "/home/user" or "/home/user/"
   ;"        NodeDiv: [OPTIONAL] -- the character that separates folders (e.g. "/")
   ;"                IF not supplied, then default value is "/"
   ;"Result:  1 filepath is actually a directory, 0 IF not
-  ;"Note: NEW!  Will now return 1 IF Path is a valid path to a directory, but there are no files in directory
+  ;"Note: NEW!  Will now return 1 if Path is a valid path to a directory, but there are no files in directory
   SET Path=$GET(Path)
   SET NodeDiv=$GET(NodeDiv,"/")
   IF $EXTRACT(Path,$LENGTH(Path))'=NodeDiv SET Path=Path_NodeDiv

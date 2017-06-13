@@ -1,4 +1,4 @@
-TMGHL72 ;TMG/kst-HL7 transformation engine processing ;6/23/16, 8/9/16
+TMGHL72 ;TMG/kst-HL7 transformation engine processing ;6/23/16, 8/9/16, 5/9/17
               ;;1.0;TMG-LIB;**1**;03/26/11
  ;
  ;"TMG HL7 TRANSFORMATION CALL-BACK FUNCTIONS
@@ -463,21 +463,21 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         ;"Results: None.  TMGXERR SET IF error
         NEW PROV SET PROV=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"OBR",16)
         IF $PIECE(PROV,TMGU(2),13)="NPI" DO
-        . NEW NPI,DFN
+        . NEW NPI,ADUZ
         . SET NPI=$PIECE(PROV,TMGU(2),1)
         . IF NPI="" DO  QUIT
         . . SET TMGXERR="In SPROV.TMGHL72: Set to NPI, but NPI is blank in field #16 of 'OBR' segment in HL7 message"
-        . SET DFN=+$ORDER(^VA(200,"ANPI",NPI,0))
-        . IF DFN'>0 DO  QUIT
+        . SET ADUZ=+$ORDER(^VA(200,"ANPI",NPI,0))
+        . IF ADUZ'>0 DO  QUIT
         . . SET TMGXERR="In SPROV.TMGHL72: NPI "_NPI_" could not be found in ^VA(200,'ANPI' index"
-        . NEW NAME SET NAME=$PIECE($GET(^VA(200,DFN,0)),"^",1)
+        . NEW NAME SET NAME=$PIECE($GET(^VA(200,ADUZ,0)),"^",1)
         . IF NAME="" DO  QUIT
-        . . SET TMGXERR="In SPROV.TMGHL72: DFN "_DFN_" did not return a value name."
+        . . SET TMGXERR="In SPROV.TMGHL72: ADUZ "_ADUZ_" did not return a value name."
         . NEW LNAME,FNAME
         . SET LNAME=$PIECE(NAME,",",1)
         . SET FNAME=$PIECE(NAME,",",2)
         . SET FNAME=$PIECE(FNAME," ",1)
-        . SET PROV=DFN_TMGU(2)_LNAME_TMGU(2)_FNAME
+        . SET PROV=ADUZ_TMGU(2)_LNAME_TMGU(2)_FNAME
         . SET TMGINFO("PROV")=PROV
         ELSE  DO
         . IF $$UP^XLFSTR(PROV)'["TOPPENBERG" SET PROV="^Doctor^Unspecified^"
@@ -499,6 +499,7 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         . IF Y'>0 DO  QUIT
         . . SET TMGXERR="In SUPROV.TMGHL72: Unable find provider in lookup: '"_NAME_"'"
         . SET PROV=+Y_TMGU(2)_LNAME_TMGU(2)_FNAME
+        . SET $PIECE(PROV,TMGU(2),13)="TMGDUZ"
         . SET TMGINFO("PROV")=PROV
 SPVDN   QUIT
         ;
@@ -592,3 +593,4 @@ VV2     SET TMGRESULT="-1^[INVALID-VAL] Lab value: {"_TMGVALUE_"} not acceptable
         ;"SET TMGRESULT=TMGRESULT_"database for test {"_TMGWKLD_"}.  "_HLP
 VVDN    QUIT TMGRESULT
  ;
+

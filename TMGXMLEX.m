@@ -1,4 +1,4 @@
-TMGXMLEX ;TMG/kst/XML Exporter ;10/26/14
+TMGXMLEX ;TMG/kst/XML Exporter ;10/26/14, 6/9/17
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG XML EXPORT FUNCTION
@@ -23,11 +23,12 @@ TMGXMLEX ;TMG/kst/XML Exporter ;10/26/14
  ;"=======================================================================
  ;"Dependencies   (duplicates shown in parenthesies)
  ;"TMGXML*, TMGDBAP*, TMGDEBUG, TMGUSRIF, TMGSTUTL, TMGMISC, TMGIOUTL, XLFSTR
+ ;"TMGKERNL
  ;"
  ;"=======================================================================
  ;"=======================================================================
 EXPORT  ;
-        ;"Purpose: To ask for parameters, select output, and DO actual export
+        ;"Purpose: To ask for parameters, select output, and do actual export
         NEW XMLARRAY
         NEW REFARR SET REFARR=$NAME(XMLARRAY)
         NEW FILENAME,ERRFOUND
@@ -63,5 +64,44 @@ EXPORT  ;
         ;
 EXDN    KILL TMGXDEBUG,ERRFOUND
         WRITE !,"Leaving XML Exporter.  Goodbye.",!
+        QUIT
+        ;
+EXPFILE  ;"Export records of Fileman file to HFS, with one file per record
+        WRITE !,"This utility will export all records of a file to a ",!
+        WRITE "Host File System (HFS) file, one file per record.",!
+        WRITE !,"Ready to proceed" SET %=1 DO YN^DICN WRITE ! 
+        IF %'=1 QUIT
+        NEW FPATH
+        WRITE "Enter output path on the HFS (e.g. '/tmp'): " READ FPATH:$GET(DTIME,3600),!
+        IF $EXTRACT(FPATH,$LENGTH(FPATH))'="/" SET FPATH=FPATH_"/"
+        IF $$ISDIR^TMGKERNL(FPATH)'=1 DO  GOTO EXPFILE
+        . WRITE !,"Sorry, that doesn't appear to be a valid directory on the HFS, try again!",!
+        NEW X,Y,DIC SET DIC=1,DIC(0)="MAEQ",DIC("A")="Select Fileman FILE for export: " 
+        DO ^DIC WRITE ! 
+        IF Y'>0 DO  GOTO EXPFILE 
+        . WRITE !,"No Fileman file selected for ouput.  Please try again!",!
+        NEW FNUM SET FNUM=+Y
+        NEW FNAME SET FNAME=$TRANSLATE($PIECE(Y,"^",2)," ","_")
+        NEW FREF SET FREF=$GET(^DIC(FNUM,0,"GL")) IF FREF="" DO  QUIT
+        . WRITE "Unable to obtain global storage location for file.  Aborting",!
+        SET FREF=$$CREF^DILF(FREF)
+        NEW POP SET POP=0
+        NEW IEN SET IEN=0
+        FOR  SET IEN=$ORDER(@FREF@(IEN)) QUIT:(IEN'>0)!POP  DO
+        . NEW TMGARRAY
+        . SET TMGARRAY(FNUM,"TEMPLATE","*")=""
+        . ;"SET TMGARRAY("FLAGS","b")=""  ;b=output fields even if empty.  
+        . SET TMGARRAY("FLAGS","i")=""    ;i=indent for human reading
+        . SET TMGARRAY(FNUM,IEN)=""
+        . DO XPNDPTRS^TMGXMLUI("TMGARRAY")
+        . NEW RECNAME SET RECNAME=$$GET1^DIQ(FNUM,IEN_",",.01)
+        . ZWR TMGARRAY
+        . NEW OUTFNAME SET OUTFNAME=$TRANSLATE(FNAME_"--"_RECNAME_".xml"," ","_")
+        . WRITE "WOULD OUTPUT TO: ",OUTFNAME,!
+        . DO OPEN^%ZISH("TMGXML",FPATH,OUTFNAME,"W") 
+        . QUIT:POP
+        . USE IO
+        . DO WTXMLOUT^TMGXMLE2("TMGARRAY",,,1)
+        . DO CLOSE^%ZISH("TMGXML")
         QUIT
         ;

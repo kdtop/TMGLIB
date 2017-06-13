@@ -1,4 +1,4 @@
-TMGDEBU3 ;TMG/kst/Debug utilities: logging, record dump ;2/2/14, 3/18/15
+TMGDEBU3 ;TMG/kst/Debug utilities: logging, record dump ;3/18/15, 6/12/17
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG DEBUG UTILITIES
@@ -158,27 +158,33 @@ WTRECLAB(IEN,ENDER) ;
         ELSE  WRITE "     Multiple Entry #",IEN,"",!
         QUIT
         ;
-WTFLDLAB(LABEL,FIELD,TYPE,ENDER) ;
+WTFLDLAB(LABEL,FIELD,TYPE,ENDER,IGNORE) ;
         ;"Purpose: This is the code that actually does writing of labels etc for output
         ;"      This is a CUSTOM CALL BACK function called by WRIT1FLD^TMGXMLE2
         ;"Input: LABEL -- OPTIONAL -- Name of label, to WRITE after  'label='
         ;"       FIELD -- OPTIONAL -- Name of field, to WRITE after  'id='
         ;"       TYPE -- OPTIONAL -- type of field, to WRITE after  'type='
-        ;"      ENDER -- OPTIONAL IF 1, then ends field.
+        ;"       ENDER -- OPTIONAL IF 1, then ends field.
+        ;"       IGNORE -- a properties array, that is ignored here.  
         ;"Results: none.
         ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
         ;
         ;"To WRITE out <Field label="NAME" id=".01" type="FREE TEXT"> or </Field>
         ;
         IF +$GET(ENDER)>0 DO
+        . IF $GET(^TMP("FORMATED OUT TMGDEBU3",$J))="" QUIT  ;"try to prevent sequential empty lines 
         . WRITE !
+        . KILL ^TMP("FORMATED OUT TMGDEBU3",$J)
         ELSE  DO
+        . KILL ^TMP("FORMATED OUT TMGDEBU3",$J)
         . NEW STR SET STR=FIELD
-        . IF $GET(FIELD)'="" WRITE $$RJ^XLFSTR(.STR,6," "),"-"
-        . IF $GET(LABEL)'="" WRITE LABEL," "
+        . NEW OUT SET OUT=""
+        . IF $GET(FIELD)'="" SET OUT=OUT_$$RJ^XLFSTR(.STR,6," ")_"-"
+        . IF $GET(LABEL)'="" SET OUT=OUT_LABEL_" "
         . ;"IF $GET(TYPE)'="" WRITE "type=""",TYPE,""" "
-        . WRITE ": "
-         QUIT
+        . SET OUT=OUT_": "
+        . WRITE OUT SET ^TMP("FORMATED OUT TMGDEBU3",$J)=OUT
+        QUIT
         ;
 WTLINE(LINE)  ;
         ;"Purpose: To actually WRITE out labels for record starting and ending.

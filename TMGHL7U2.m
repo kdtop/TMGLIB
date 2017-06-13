@@ -1,4 +1,4 @@
-TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ; 8/12/15
+TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ; 8/12/15, 5/12/17
               ;;1.0;TMG-LIB;**1**;7/21/13
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS UTILITY
@@ -21,6 +21,7 @@ TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ; 8/12/15
  ;"KLHL7MSG(IEN773) -- KILL HL7 MESSAGE  (2 records, 1 each in 772, 773)
  ;"LOADHL7(FNAME,ARRAY,MSH) -- LOAD HL7 FILE INTO ARRAY, and MSH header segment
  ;"MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
+ ;"MKHLMAR2(MSGARRAY,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
  ;"STUBHL7M(MSH,IEN772,IEN773) --Create stub records in 772, 773
  ;"FROM772(IEN772,IEN773,MSGARRAY) --FILL MSGARRAY FROM FILES 772 & 773
  ;"FROM772H(IEN772,IEN773,MSGARRAY,MSH) -- FILL MSGARRAY+MSH FROM FILES 772 & 773
@@ -109,10 +110,15 @@ STUBHL7M(MSH,IEN772,IEN773) ;"Create stub records in 772, 773
 MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 1 each in 772, 773)
         ;"Purpose: To take input message array, and create a NEW HL7 MESSAGE TEXT, for use by parsing system
         ;"Input: MSGARRAY --  PASS BY REFERENCE, Array holding text of full HL7 message.  Format:
-        ;"                  MSGARRAY(#)=<text>
+        ;"                  MSGARRAY(#)=<text>  **<-- shouldn't contain MSH segment (I think)
         ;"       MSH -- HL7 message header
         ;"       IEN772 -- Pass by REFERENCE.  AN OUT PARAMETER.  IEN in 772, HL7 MESSAGE TEXT
         ;"       IEN773 -- Pass by REFERENCE.  AN OUT PARAMETER.  IEN in 773, HL7 MESSAGE HEADER
+        ;"GLOBALLY SCOPED VARIABLES USED: INFO("IEN101")
+        ;"                                INFO("IEN771")    
+        ;"                                INFO("IEN771.2")  
+        ;"                                INFO("IEN779.001")
+        ;"                                INFO("HL7 PURGE DT") <-- OPTIONAL, default is "T+7@0800" 
         ;"Results: 1 if OK, or -1^Error Message
         NEW TMGRESULT SET TMGRESULT=0
         SET MSH=$GET(MSH) IF MSH="" DO  GOTO M7MADN 
@@ -121,11 +127,12 @@ MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 
         IF TMGRESULT'>0 GOTO M7MADN
         NEW NOW SET NOW=$$FMTE^XLFDT($$NOW^XLFDT,"5")
         NEW MSGID SET MSGID=$TRANSLATE($H,",","")
-        NEW TMGFDA,TMGIEN,TMGMSG
+        NEW PURGEDT SET PURGEDT=$GET(INFO("HL7 PURGE DT"),"T+7@0800")    
+        NEW TMGFDA,TMGIEN,TMGMSG                      
         ;"SETUP RECORD IN HL7 MESSAGE TEXT FILE. (#772)
         SET TMGFDA(772,"+1,",.01)=NOW                  ;"DATE
         SET TMGFDA(772,"+1,",2)="`"_INFO("IEN771")     ;"(was 'LA7V HOST PG')    ;SERVER APPLICATION
-        SET TMGFDA(772,"+1,",2.02)="T+7@0800"          ;"FAST PURGE DT/TM
+        SET TMGFDA(772,"+1,",2.02)=PURGEDT             ;"FAST PURGE DT/TM
         SET TMGFDA(772,"+1,",4)="INCOMING"             ;"TRANSMISSION TYPE
         SET TMGFDA(772,"+1,",6)=MSGID                  ;"MESSAGE ID
         SET TMGFDA(772,"+1,",9)="IMMEDIATE"            ;"PRIORITY
@@ -146,7 +153,7 @@ MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 
         KILL TMGFDA,TMGIEN,TMGMSG            
         SET TMGFDA(773,"+1,",.01)="`"_IEN772           ;"DATE/TIME ENTERED
         SET TMGFDA(773,"+1,",2)=MSGID                  ;"MESSAGE ID
-        SET TMGFDA(773,"+1,",2.02)="T+7@0800"          ;"FAST PURGE DT/TM
+        SET TMGFDA(773,"+1,",2.02)=PURGEDT             ;"FAST PURGE DT/TM
         SET TMGFDA(773,"+1,",3)="INCOMING"             ;"TRANSMISSION TYPE
         SET TMGFDA(773,"+1,",4)="IMMEDIATE"            ;"PRIORITY
         SET TMGFDA(773,"+1,",8)="`"_INFO("IEN101")     ;"(was '`4390' LA7V Process Results from PathGroup)
@@ -167,6 +174,24 @@ MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 
         . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)        
 M7MADN  QUIT TMGRESULT
         ;
+MKHLMAR2(MSGARRAY,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
+        ;"Purpose: To take input message array, and create a NEW HL7 MESSAGE TEXT, for use by parsing system
+        ;"Input: MSGARRAY --  PASS BY REFERENCE, Array holding text of full HL7 message.  Format:
+        ;"            MSGARRAY(#)=<text> , **including MSH as first line**
+        ;"       IEN772 -- Pass by REFERENCE.  AN OUT PARAMETER.  IEN in 772, HL7 MESSAGE TEXT
+        ;"       IEN773 -- Pass by REFERENCE.  AN OUT PARAMETER.  IEN in 773, HL7 MESSAGE HEADER
+        ;"GLOBALLY SCOPED VARIABLES USED: INFO("IEN101")
+        ;"                                INFO("IEN771")    
+        ;"                                INFO("IEN771.2")  
+        ;"                                INFO("IEN779.001")
+        ;"                                INFO("HL7 PURGE DT") <-- OPTIONAL, default is "T+7@0800" 
+        ;"Results: 1 if OK, or -1^Error Message
+        NEW IDX SET IDX=+$ORDER(MSGARRAY(""))  
+        NEW MSH SET MSH=$GET(MSGARRAY(IDX))    
+        NEW ARR MERGE ARR=MSGARRAY KILL ARR(IDX)
+        SET TMGRESULT=$$MKHLMARR(.ARR,MSH,.IEN772,.IEN773)  ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 1 each in 772, 773)
+        QUIT TMGRESULT
+        ;        
 MSH2IENA(MSH,INFO) ;"MSH HEADER TO IEN INFO ARRAY
         ;"Input: MSH -- string containing the MSH segment
         ;"       INFO -- PASS BY REFERENCE.  AN OUT PARAMETER.  
@@ -312,7 +337,7 @@ TO772(MSGARRAY,IEN772,IEN773) ;"PUT MSGARRAY INTO FILES 772 & 773 (PRE-EXISTING 
         ;"Results: 1 if OK, or -1^Error IF problem.
         NEW MSH SET MSH=$GET(MSGARRAY(1))
         NEW ARR MERGE ARR=MSGARRAY KILL ARR(1)
-        QUIT $$TO772H(.MSGARRAY,MSH,.IEN772,.IEN773)
+        QUIT $$TO772H(.ARR,MSH,.IEN772,.IEN773)
         ;
 TO772H(MSGARRAY,MSH,IEN772,IEN773) ;"PUT MSH+MSGARRAY INTO FILES 772 & 773 (PRE-EXISTING RECORDS)
         ;"Input: MSGARRAY.  PASS BY REFERENCE.  Array with message.  Format:

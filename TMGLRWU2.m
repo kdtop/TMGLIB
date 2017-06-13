@@ -28,7 +28,7 @@ TMGLRWU2 ;TMG/kst-Utility filing LAB DATA ;1/4/17
  ;"Dependancies
  ;"=======================================================================
  ;
-OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notification of lab reports being available.  
+OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) notification of lab reports being available.  
   ;"NOTE: Copied from OR^LR7ORB3 for mod purposes
   ;" Call with LRTYPE = type OERR notification, IEN 100.9 (currently supports 3, 14, 57)
   ;"               3 = NF_LAB_RESULTS 
@@ -41,8 +41,10 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notification 
   ;"           LRUID  = accession's UID
   ;"           LRXQA  = recipient array, e.g. LRXQA(168)=""
   ;"           LRTST  = test IEN60 ^ Name of test being alerted ^ parent test ien60
+  ;"           SUPPRESS = Optional. Default is 0. If 1, will suppress if duplicate alert
   ;"Result: 1^Alert Sent, or -1^Error
   NEW DFN,LRMSG,LRPREFIX,LRX,LRY         
+  SET SUPPRESS=+$GET(SUPPRESS)
   NEW LRIENS   ;"a string to pass to EN^ORB3
   NEW LROIFN   ;"OK to be null "". OERR INTERNAL FILE #, an IEN100  
   NEW LROE     ;"OK to be null "". ORDER # (field 9.5) in 69.01
@@ -94,16 +96,22 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notification 
   . ELSE   SET LRMSG="Microbiology results:"
   ;
   SET LRMSG=LRMSG_" - ["_$PIECE(LRTST,"^",2)_"]"
+  IF SUPPRESS=1 DO CHKALERT(.LRXQA,DFN,LRMSG) ;"Removes entries from LRXQA if duplicates
   ;
   ;"OERR parameters:
   ;"            ORN: notification id (#100.9 ien). e.g. 3 <-- NF_LAB_RESULTS 
-  ;"            |    ORBDFN: patient id (#2 ien)
-  ;"            |    |    ORNUM: order number (#100 ien)
-  ;"            |    |    |       ORBADUZ: recipient array
-  ;"            |    |    |       |     ORBPMSG: message text
-  ;"            |    |    |       |     |     ORBPDATA lab result reference
-  ;"            |    |    |       |     |     |
-  DO EN^ORB3(LRTYPE,DFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+  ;"            |     ORBDFN: patient id (#2 ien)
+  ;"            |     |    ORNUM: order number (#100 ien)
+  ;"            |     |    |       ORBADUZ: recipient array
+  ;"            |     |    |       |     ORBPMSG: message text
+  ;"            |     |    |       |     |     ORBPDATA lab result reference
+  ;"            |     |    |       |     |     |
+  IF SUPPRESS=0 DO
+  . DO EN^ORB3(LRTYPE,DFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+  ELSE  IF (SUPPRESS=1)&($D(LRXQA)) DO
+  . DO EN^ORB3(LRTYPE,DFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+  ELSE  DO
+  . SET TMGRESULT="0^ALERTS ALREADY EXISTS"
   ;
   ;"FYI: In comparison, this is what is sent from RAUTL00, a radiology alert
   ;"------------------------------------------------
@@ -118,14 +126,41 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notification 
 ORDN  ;
   QUIT TMGRESULT
   ;
-ALERT(RECIP,DFN,FMDT,LEVEL,NODE)  ;"Send Alert.  Wrapper for OR() above
+CHKALERT(RECIPARR,DFN,ALERTMSG)   
+  ;"Purpose: Checks existing alerts to see if current one is duplicate.
+  ;"         When one is found, the user's entry will be removed from RECIPARR
+  ;"Input: RECIPARR - BY REF - array of user IENs
+  ;"       DFN - Patient IEN
+  ;"       ALERTMSG - Message text of current alert
+  SET ALERTMSG=$$TRIM^XLFSTR(ALERTMSG)
+  NEW DTTIME SET DTTIME=0
+  NEW RECIP SET RECIP=0
+  FOR  SET RECIP=$ORDER(RECIPARR(RECIP)) QUIT:RECIP'>0  DO
+  . FOR  SET DTTIME=$ORDER(^XTV(8992,RECIP,"XQA",DTTIME)) QUIT:(DTTIME'>0)  DO
+  . . NEW ZN SET ZN=$GET(^XTV(8992,RECIP,"XQA",DTTIME,0))
+  . . NEW ITEMDFN,ITEMMSG
+  . . SET ITEMDFN=$P($P(ZN,"^",2),",",2)
+  . . SET ITEMMSG=$$TRIM^XLFSTR($P($P(ZN,"^",3),": ",2,999))
+  . . IF (ITEMDFN=DFN)&(ITEMMSG=ALERTMSG) KILL RECIPARR(RECIP)
+  . ;"Just in case an alert was previously created in the same job, but 
+  . ;"was tasked off and hasn't been fully completed yet... we will test
+  . ;"a temp global and also store in the global
+  . IF $D(^TMP("TMG HL7 ALERT",$J,RECIP,DFN,ALERTMSG)) KILL RECIPARR(RECIP)
+  . SET ^TMP("TMG HL7 ALERT",$J,RECIP,DFN,ALERTMSG)=""
+  QUIT
+  ;  
+ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   ;"Input: RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
   ;"       DFN -- IEN in 2
   ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)
   ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal, 3->Critical
   ;"       NODE -- Optional.  Default is "CH".  Should be "CH" or "MI" only. 
+  ;"       SUPPRESS -- Optional. Default is 0. If value is 1, alert will be
+  ;"                 checked against existing alerts for user and not sent
+  ;"                 if duplicate
   ;"Result:  1^OK, or -1^Error message
   NEW TMGRESULT SET TMGRESULT="1^OK"
+  SET SUPPRESS=+$GET(SUPPRESS)
   SET DFN=$GET(DFN) IF DFN'>0 DO  GOTO ALRTDN
   . SET TMGRESULT="-1^Valid DFN not provided.  Got ["_DFN_"]"
   NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
@@ -161,7 +196,7 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE)  ;"Send Alert.  Wrapper for OR() above
   NEW PARENTIEN60 SET PARENTIEN60=$ORDER(^LAB(60,"AB",IEN60,0))   
   ;"NEW LRTST SET LRTST=IEN60_"^"_TESTNAME_"^"_PARENTIEN60
   NEW LRTST SET LRTST=IEN60_"^"_$$FMTE^XLFDT(FMDT,"1M")_"^"_PARENTIEN60  ;"USE DATE INSTEAD OF TEST NAME 
-  SET TMGRSULT=$$OR(LRTYPE,LRDFN,NODE,RDT,0,.RECIP,LRTST)
+  SET TMGRSULT=$$OR(LRTYPE,LRDFN,NODE,RDT,0,.RECIP,LRTST,SUPPRESS)
 ALRTDN ;
   QUIT TMGRESULT
   ;
@@ -221,3 +256,4 @@ TEST1  ;
   NEW TEMP SET TEMP=$$ALERT(168,9182,FMDT)
   WRITE TEMP,!
   QUIT
+  ;"

@@ -214,8 +214,10 @@ HELP    ;
         WRITE "^ to QUIT",!
         WRITE !
         QUIT
-        ;        
-OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notification
+        ;   
+ ;"NOTE: SEARCH ON 5/17/17 found  no calls into this, so renaming OR-->ORXX.  Can delete function later if no problems        
+ORXX(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notification
+         ;"NOTE: I think that OR^TMGLRWU2 is the function that is being used more.  ??Duplicate??
          ;"NOTE: Copied from OR^LR7ORB3 for mod purposes
          ;" Call with LRTYPE = type OERR notification (currently supports 3, 14, 57)
          ;"               3 = NF_LAB_RESULTS 

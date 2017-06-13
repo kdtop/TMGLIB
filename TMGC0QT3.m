@@ -41,7 +41,42 @@ BMI(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for BMI CPT codes.
   ;"             to show on report.  E.g. 'Influenza (90656)'
   ;"RESULT: integer result is also expected, that represents number of records returned.
   ;"        If this isn't done,0 is assumed.
-  NEW BMITEXT SET BMITEXT="BMI"  ;"<- This is the text to find in the note. Should be defined server side at a later date
+  QUIT $$STRSRCH(.OUTARRAY,BDATE,EDATE,TEXT,"BMI","3008F")
+  ;"
+MEDLIST(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for med list documented CPT codes.
+  ;"Params: OutArray: PASS BY REFERENCE.  Format:
+  ;"          OutArray(PatientName,TextToReturnWhenFound,DateFound)=""
+  ;"              PatientName is the patient's name
+  ;"              TextToReturnWhenFound is the text that will be displayedon
+  ;the report
+  ;"              DateFound is the date (in Fileman date format)
+  ;"        BDATE: Beginning search date, sent from CPRS, in fileman format
+  ;"        EDATE: Ending search date, sent from CPRS, in fileman format
+  ;"        TEXT: This is Text To Return When Found. PASSED BY REFERENCE
+  ;"             Initially, it is the text that is specified in the TMG
+  ;BILLABLE ITEMS file
+  ;"             it can be used or replaced as needed.  This should specify
+  ;what
+  ;"             to show on report.  E.g. 'Influenza (90656)'
+  ;"RESULT: integer result is also expected, that represents number of
+  ;records returned.
+  ;"        If this isn't done,0 is assumed.
+  QUIT $$STRSRCH(.OUTARRAY,BDATE,EDATE,TEXT,"[FINAL MEDICATIONS]","1159F")
+  ;"
+STRSRCH(OUTARRAY,BDATE,EDATE,TEXT,STRING,CPT)  ;"
+  ;"Params: OutArray: PASS BY REFERENCE.  Format:
+  ;"          OutArray(PatientName,TextToReturnWhenFound,DateFound)=""
+  ;"              PatientName is the patient's name
+  ;"              TextToReturnWhenFound is the text that will be displayed on the report
+  ;"              DateFound is the date (in Fileman date format)
+  ;"        BDATE: Beginning search date, sent from CPRS, in fileman format
+  ;"        EDATE: Ending search date, sent from CPRS, in fileman format
+  ;"        TEXT: This is Text To Return When Found. PASSED BY REFERENCE
+  ;"             Initially, it is the text that is specified in the TMG BILLABLE ITEMS file
+  ;"             it can be used or replaced as needed.  This should specify what
+  ;"             to show on report.  E.g. 'Influenza (90656)'
+  ;"RESULT: integer result is also expected, that represents number of records returned.
+  ;"        If this isn't done,0 is assumed.
   NEW TMGRESULT SET TMGRESULT=0
   NEW SDT SET SDT=$EXTRACT(BDATE,1,3)_"0101"  ;"BEGINNING OF PASSED-IN YEAR
   NEW EDT SET EDT=$EXTRACT(BDATE,1,3)_"1231"  ;"END OF PASSED-IN YEAR
@@ -52,11 +87,11 @@ BMI(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for BMI CPT codes.
   FOR  SET TIUDT=$ORDER(^TIU(8925,"D",TIUDT)) QUIT:(TIUDT>EDATE)!(TIUDT'>0)  DO
   . SET TIUIEN=0
   . FOR  SET TIUIEN=$ORDER(^TIU(8925,"D",TIUDT,TIUIEN)) QUIT:TIUIEN'>0  DO
-  . . SET FOUND=$$SRCHTIU^TMGRPT2(TIUIEN,BMITEXT)
+  . . SET FOUND=$$SRCHTIU^TMGRPT2(TIUIEN,STRING)
   . . IF FOUND=1 DO
   . . . NEW DFN SET DFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
   . . . NEW NAME SET NAME=$$GETNAME^TMGRPT2(DFN)
-  . . . IF $$HASCPT^TMGRPU1(DFN,"3008F",SDT,EDT) QUIT
+  . . . IF $$HASCPT^TMGRPU1(DFN,CPT,SDT,EDT) QUIT
   . . . IF $$EXCLUDE^TMGC0QTU(DFN) QUIT
   . . . SET OUTARRAY(NAME,TEXT,TIUDT)=""
   . . . SET TMGRESULT=TMGRESULT+1

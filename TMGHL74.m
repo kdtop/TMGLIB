@@ -135,6 +135,7 @@ ORC13  ;"Purpose: Process empty ORC message, field 13
         ;
 OBR     ;"Purppse: setup for OBR fields.
         DO OBR^TMGHL72
+        
         QUIT
 OBR4    ;"Purpose: To transform the OBR segment, field 4
         DO OBR4^TMGHL72
