@@ -952,3 +952,8 @@ FileSearch ;
         . . set ARRAY("C",p3)=""
         ; DO ZWRITE^TMGZWR("ARRAY")
         QUIT
+        
+  
+  
+
+

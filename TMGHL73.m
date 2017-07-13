@@ -1,4 +1,4 @@
-TMGHL73 ;TMG/kst-HL7 transformation engine processing ;2/18/14
+TMGHL73 ;TMG/kst-HL7 transformation engine processing ;2/18/14, 6,14,17
               ;;1.0;TMG-LIB;**1**;06/23/13
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
@@ -55,32 +55,12 @@ TMGHL73 ;TMG/kst-HL7 transformation engine processing ;2/18/14
  ;"=======================================================================
  ;
 TEST    ;"Pick file and manually send through filing process.
-        ;"DO TEST^TMGHL72("/mnt/WinServer/PathgroupHL7")
         DO TEST^TMGHL71("/mnt/WinServer/PathgroupHL7")
         QUIT
         ; 
 BATCH   ;"Launch processing through all files in folder.
-        NEW DIR SET DIR="/mnt/WinServer/PathgroupHL7"
-        ;"DO HLDIRIN^TMGHL72(DIR,1000,10)
-        DO HLDIRIN^TMGHL71(DIR,1000,10)
+        DO HLDIRIN^TMGHL71("/mnt/WinServer/PathgroupHL7",1000,10)
         QUIT
-        ;
-HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH) ;"DEPRECIATED
-        ;"DO HLDIRIN^TMGHL72(.DIRNAME,.COUNT,.MAXERRCT,.DONEPATH) 
-        DO HLDIRIN^TMGHL71(.DIRNAME,.COUNT,.MAXERRCT,.DONEPATH) 
-        QUIT
-        ;        
-HL7FIN(FNAME,NOALERT,DONEPATH)  ;"DEPRECIATED.  POC file input HL7 message files from PATHGROUP
-        ;"QUIT $$HL7FIN^TMGHL72(.FNAME,.NOALERT,.DONEPATH) 
-        QUIT $$HL7FIN^TMGHL71(.FNAME,.NOALERT,.DONEPATH) 
-        ;
-HL7IN(NOALERT)  ;"Purpose: Entry point, that could be  called from LA7V Process Results from PathGroup.
-        ;"QUIT $$HL7IN^TMGHL72(.NOALERT)
-        QUIT $$HL7IN^TMGHL71(.NOALERT)
-        ;        
-HL7MSGIN(TMGMSG,NOALERT,OPTION) ;
-        ;"QUIT $$HL7MSGIN^TMGHL72(.TMGMSG,.NOALERT,.OPTION)
-        QUIT $$HL7MSGIN^TMGHL72(.TMGMSG,.NOALERT,.OPTION)
         ;
         ;"---------------------------------------------------------------
         ;"===============================================================
@@ -89,14 +69,21 @@ HL7MSGIN(TMGMSG,NOALERT,OPTION) ;
         ;"===============================================================
         ;"---------------------------------------------------------------
         ;
-MSG    ;"Purpose: Process entire message before processing segments
+MSG     ;"Purpose: Process entire message before processing segments
+        DO KILLDNRS^TMGHL72(.TMGHL7MSG)
         DO XMSG^TMGHL72 
+        QUIT
+        ;
+MSG2    ;"Purpose: Process entire message AFTER processing segments
+        DO XMSG2^TMGHL72  
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        DO XMSG2B^TMGHL72
         QUIT
         ;
 MSH3    ;"Purpose: Process MSH segment, FLD 4 (Sending Application)
         ;"SET TMGVALUE="LA7V HOST PG"
         QUIT
-        
+        ;
 MSH4    ;"Purpose: Process MSH segment, FLD 4 (Sending Facility)
         SET TMGVALUE="PATHGROUP"
         DO XMSH4^TMGHL72
@@ -144,77 +131,112 @@ ORC12  ;"Purpose: Process empty ORC message, field 12
         QUIT
 ORC13  ;"Purpose: Process empty ORC message, field 13
         DO XORC13^TMGHL72
-        ;"SET $PIECE(TMGVALUE,"^",1)="Laughlin_Office"
         SET $PIECE(TMGVALUE,"^",1)="Family Phys Of Greeneville"
         SET $PIECE(TMGVALUE,"^",2)="69" 
         QUIT
         ;
         ;
 OBR     ;"Purppse: setup for OBR fields.
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
         DO OBR^TMGHL72
         QUIT
 OBR4    ;"Purpose: To transform the OBR segment, field 4
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
         DO OBR4^TMGHL72
         QUIT
 OBR15   ;"Transform Secimen source
-        NEW VACODE SET VACODE=$GET(TMGINFO("VACODE"))
-        IF VACODE="" SET TMGXERR="In OBR15.TMGHL73: OBR setup code didn't fire to setup TMGINFO(""VACODE"")." GOTO OBR15DN
-        IF $TRANSLATE(TMGVALUE,TMGU(2),"")="" SET TMGVALUE=""
-        IF $PIECE(TMGVALUE,TMGU(2),1)="URINE" SET $PIECE(TMGVALUE,TMGU(2),1)="UR"
-        NEW HL7SCHEME SET HL7SCHEME="HL70070"
-        IF TMGVALUE'="",$PIECE(TMGVALUE,TMGU(2),3)="" SET $PIECE(TMGVALUE,TMGU(2),3)=HL7SCHEME
-        NEW DIV SET DIV=$GET(TMGU(1))_$GET(TMGU(2))_$GET(TMGU(3))
-        NEW ORDINFO MERGE ORDINFO=TMGHL7MSG(TMGSEGN,"ORDER")
-        NEW IEN60 SET IEN60=$GET(ORDINFO("IEN60"))  ;"FILE 60 = LABORATORY TEST
-        IF +IEN60'>0 DO  GOTO OBR15DN
-        . SET TMGXERR="IN OBR15^TMGHL73: No value found for IEN60 (Test probably needs to be set up.)"
-        NEW IEN64D061 SET IEN64D061=$GET(ORDINFO("SPECIMEN (64.061)"))
-        IF IEN64D061'>0 DO  GOTO OBR15DN
-        . SET TMGXERR="In OBR15.TMGHL73: No default specimen source IEN 64.061 found for OBR segment, line #"_TMGSEGN
-        NEW IEN61 SET IEN61=+$GET(ORDINFO("SPECIMEN (61)"))  ;"FILE 61 = TOPOGRAPHY FIELD, used in SPECIMEN field in LAB DATA (63) file. 
-        IF IEN61'>0 DO  GOTO OBR15DN
-        . SET TMGXERR="In OBR15.TMGHL73: No default specimen source IEN 61 found for OBR segment, line #"_TMGSEGN
-        ;
-        NEW ZN SET ZN=$GET(^LAB(64.061,IEN64D061,0))
-        NEW CODE SET CODE=$PIECE(ZN,"^",2) IF CODE="" DO  GOTO OBR15DN
-        . SET TMGXERR="In OBR15.TMGHL73: No specimen source code found in File 64.061, record #"_IEN64D061
-        NEW CODENAME SET CODENAME=$PIECE(ZN,"^",1) IF CODENAME="" SET CODENAME=CODE
-        NEW UPCODENAME SET UPCODENAME=$$UP^XLFSTR(CODENAME)
-        NEW HL7MSGSRC SET HL7MSGSRC=TMGVALUE IF HL7MSGSRC'="" SET $PIECE(HL7MSGSRC,TMGU(2),4)=IEN61
-        NEW EXPECTEDSRC SET EXPECTEDSRC=CODE_TMGU(2)_CODENAME_TMGU(2)_"HL70070"_TMGU(2)_IEN61
-        IF DIV'="" SET HL7MSGSRC=$TRANSLATE(HL7MSGSRC,DIV,"")  ;"See IF value is just empty field dividers
-        IF HL7MSGSRC="" DO  GOTO OBR15DN  ;"If not value provided, then use expected default.
-        . SET TMGVALUE=EXPECTEDSRC
-        NEW ACCEPTHL7SOURCE SET ACCEPTHL7SOURCE=0
-        SET ACCEPTHL7SOURCE=1  ;"//kt 9/15/13 -- mod to just take whatever source HL7 message gives...
-        IF $PIECE(VACODE,"^",3)["CULTURE" SET ACCEPTHL7SOURCE=1 ;"Hardcoded fix of particular problem.
-        IF UPCODENAME="OTHER" SET ACCEPTHL7SOURCE=1 ;"If source is OTHER  then allow any provided source.
-        IF UPCODENAME["MISCELLANEOUS" SET ACCEPTHL7SOURCE=1 ;"If expect is MISC. then allow any provided source.
-        IF HL7MSGSRC=EXPECTEDSRC SET ACCEPTHL7SOURCE=1 ;"found HL7 value is same as expected, so OK
-        IF ACCEPTHL7SOURCE DO  GOTO OBR15DN
-        . ;"Try to match source from HL7 message to entry in 61 (TOPOGRAPHY FILE)
-        . NEW DIC SET DIC=61,DIC(0)="M"
-        . NEW X,Y SET X=$PIECE(TMGVALUE,TMGU(2),2)
-        . DO ^DIC
-        . IF Y'>0 DO  QUIT
-        . . SET TMGVALUE=EXPECTEDSRC ;"Can't map provided source name, so just use expected value. 
-        . NEW SPECNAME SET SPECNAME=$PIECE(Y,"^",2)
-        . SET TMGVALUE=SPECNAME_TMGU(2)_SPECNAME_TMGU(2)_HL7SCHEME_TMGU(2)_+Y  ;"Y=IEN60
-        ;
-        ;"At this point, we have an HL7 message provided that is different than expected. 
-        SET TMGXERR="HL7 message has an unexpected value for source in OBR segment #15.  "
-        SET TMGXERR=TMGXERR_"Expected: '"_EXPECTEDSRC_"', but got '"_TMGVALUE_"'.  " 
-        SET TMGXERR=TMGXERR_"Edit OBR15^TMGHL73 code to handle."
-OBR15DN QUIT
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        DO SUSPEC^TMGHL72
+        QUIT
         ;
 OBR16   ;"Transform Ordering provider.
         DO OBR16^TMGHL72
         QUIT
         ;
-OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifier
-        DO OBX3^TMGHL72
+OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc are processed
+        ;"This allows putting information about the ordered test(s) into the comment section
+        ;"Uses globally scoped vars: TMGSEGN, TMGDD
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        NEW TEMP
+        DO LABLDATA^TMGHL72(.TEMP,.TMGHL7MSG,"OBR",TMGSEGN) ;
+        ;
+        NEW ORDINFO MERGE ORDINFO=TMGHL7MSG("ORDER",TMGSEGN)
+        NEW TESTNAME SET TESTNAME=$PIECE($GET(TMGHL7MSG("ORDER",TMGSEGN,"IEN60")),"^",2)
+        ;
+        NEW INFO,PROV,PID  
+        NEW ONEACSN SET ONEACSN=$GET(TEMP("Filler Order Number"))
+        NEW LABADDR SET LABADDR=$GET(TEMP("Filler Field 2"))
+        SET PROV=$GET(TEMP("Ordering Provider"))
+        SET PROV=$PIECE(PROV,TMGU(2),2,3)
+        SET PROV=$$TRIM^XLFSTR($TRANSLATE(PROV,"^"," "))
+        IF PROV="" DO
+        . NEW TEMP2 DO LABLDATA^TMGHL72(.TEMP2,.TMGHL7MSG,"ORC") 
+        . SET PROV=$GET(TEMP2("Ordering Provider"))
+        . SET PROV=$PIECE(PROV,TMGU(2),2,3)
+        . SET PROV=$TRANSLATE(PROV,"^"," ")        
+        NEW OBSDT SET OBSDT=$GET(TEMP("Observation Date/Time"))
+        SET OBSDT=$$HL72FMDT^TMGHL7U3(OBSDT)
+        SET OBSDT=$$FMTE^XLFDT(OBSDT)
+        NEW RECDT SET RECDT=$GET(TEMP("Specimen Received Date/Time"))
+        SET RECDT=$$HL72FMDT^TMGHL7U3(RECDT)
+        SET RECDT=$$FMTE^XLFDT(RECDT)        
+        NEW RPTDT SET RPTDT=$GET(TEMP("Results Rpt/Status Chng - Date/Time"))
+        SET RPTDT=$$HL72FMDT^TMGHL7U3(RPTDT)
+        SET RPTDT=$$FMTE^XLFDT(RPTDT)
+        NEW STATUS SET STATUS=$GET(TEMP("Result Status"))
+        ;"IF STATUS="F" SET STATUS="FINAL"
+        ;"IF STATUS="I" SET STATUS="INCOMPLETE/PRELIMINARY"
+        ;"IF STATUS="C" SET STATUS="CORRECTED"
+        ;"IF STATUS="P" SET STATUS="PRELIMINARY"
+        ;"IF STATUS="X" SET STATUS="TEST CANCELED"
+        NEW STATARR DO SUMOBXSTA^TMGHL72(.TMGHL7MSG,TMGSEGN,.STATARR)
+        NEW OBRCOMMENTS DO CHKOBRNT^TMGHL72(.TMGHL7MSG,TMGSEGN,.OBRCOMMENTS) ;"Handle OBR notes 
+        ;       
+        NEW TEMP2 DO LABLDATA^TMGHL72(.TEMP2,.TMGHL7MSG,"PID") ;
+        NEW PID SET PID=$GET(TEMP2("Patient ID"))
+        IF PID="" SET PID=$GET(TEMP2("Alternate Patient ID - PID"))
+        IF PID="" SET PID=$GET(TEMP2("SSN Number - Patient"))
+        NEW GENDER SET GENDER=$GET(TEMP2("Sex"))
+        IF GENDER="F" SET GENDER="FEMALE"
+        IF GENDER="M" SET GENDER="MALE"
+        NEW PTDOB SET PTDOB=$GET(TEMP2("Date/Time Of Birth"))
+        SET PTDOB=$$HL72FMDT^TMGHL7U3(PTDOB)
+        SET PTDOB=$$FMTE^XLFDT(PTDOB,"2D")
+        NEW PTNAME SET PTNAME=$TRANSLATE($GET(TEMP2("Patient Name")),TMGU(2),",")
+        NEW ACCTN SET ACCTN=$GET(TEMP2("Patient Account Number"))
+        NEW PATIENT SET PATIENT=PTNAME_" ("_PTDOB_"), "_GENDER
+        IF ACCTN'="" SET PATIENT=PATIENT_", Acct #"_ACCTN
+        ;
+        NEW LINE,ARR,FLD,VALUE SET FLD=""   
+        NEW INDENT SET INDENT="  "
+        DO ADDTOARR^TMGHL72(.ARR,$$DBLN^TMGHL72())
+        DO ADD2ARRI^TMGHL72(.ARR,"Test ordered: ",TESTNAME)
+        DO ADD2ARRI^TMGHL72(.ARR,"Ordering Provider: ",PROV)
+        DO ADD2ARRI^TMGHL72(.ARR,"Lab Accession Number: ",ONEACSN)
+        DO ADD2ARRI^TMGHL72(.ARR,"Patient: ",PATIENT)
+        DO ADD2ARRI^TMGHL72(.ARR,"Lab Patient ID: ",PID)
+        SET LINE="Specimen Collection Date: "_OBSDT
+        IF $GET(TMGHL75OBRCOLDT)=1 SET LINE=LINE_" <-- see *NOTE*"
+        DO ADDTOARR^TMGHL72(.ARR,LINE)
+        IF $GET(TMGHL75OBRCOLDT)=1 DO
+        . DO ADDTOARR^TMGHL72(.ARR,"  *NOTE*: Collection date/time not provided.")    
+        . DO ADDTOARR^TMGHL72(.ARR,"          Using date/time lab RECEIVED instead.")    
+        KILL TMGHL75OBRCOLDT
+        DO ADD2ARRI^TMGHL72(.ARR,"Specimen Received Date: ",RECDT)
+        DO ADD2ARRI^TMGHL72(.ARR,"Result Report Date: ",RPTDT)
+        ;"DO ADD2ARRI^TMGHL72(.ARR,"Result Status: ",STATUS)         
+        DO ADDA2ARR^TMGHL72(.ARR,.STATARR) 
+        DO ADDA2ARR^TMGHL72(.ARR,.OBRCOMMENTS) 
+        DO ADDTOARR^TMGHL72(.ARR,$$DBLN^TMGHL72())
+        ;           
+        DO INSRTNTE^TMGHL72(.ARR,.TMGHL7MSG,.TMGU,TMGSEGN)  
         QUIT
         ;
+        ;           
+OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifier
+        DO OBX3^TMGHL72       
+        QUIT
+        ;           
 OBX5    ;"Purpose: To transform the OBX segment, field 5 -- Observation value
         DO OBX5^TMGHL72
         QUIT
@@ -231,7 +253,22 @@ OBX18   ;"Purpose: To transform the OBX segment, field 18 ---- Equipment Identif
         ;
         ;
 NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
+        ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE, TMGSEGN, TMGINFO
         DO NTE3^TMGHL72
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        ;'NEW OBXIDX SET OBXIDX=+$GET(TMGINFO("MOST RECENT OBX","SEGN"))
+        NEW OBXIDX SET OBXIDX=+$GET(TMGLASTOBX("SEGN"))        
+        IF $ORDER(TMGHL7MSG(OBXIDX))=TMGSEGN DO
+        . ;"NEW LABNAME SET LABNAME=$GET(TMGINFO("MOST RECENT OBX")) QUIT:LABNAME=""
+        . NEW LABNAME SET LABNAME=$GET(TMGLASTOBX("NAME")) QUIT:LABNAME=""
+        . NEW LINE SET LINE="Comment for: "_LABNAME
+        . DO PREFIXNT^TMGHL72(LINE,.TMGHL7MSG,.TMGU,TMGSEGN)  ;"PREFIX NOTE (INSERT LINE BEFORE INDEX LINE)
+        . ;"NEW ARR SET ARR(1)="Comment for: "_LABNAME
+        . ;"SET ARR(2)="_________________________"
+        . ;"DO PREFXNTA^TMGHL72(.ARR,.TMGHL7MSG,.TMGU,TMGSEGN)  ;"PREFIX NOTE ARRAY
+        IF $$ISFINALN^TMGHL72(.TMGHL7MSG,TMGSEGN) DO
+        . NEW ARR SET ARR(1)=$$DBLN^TMGHL72
+        . DO APPNDNTE^TMGHL72(.ARR,.TMGHL7MSG,.TMGU,TMGSEGN)   ;"APPEND LINE AFTER NOTE 
         QUIT
         ;
         ;
@@ -240,27 +277,8 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         ;"Output: Sets globally scoped variable TMGINFO("PROV")
         ;"Results: None.  TMGXERR SET IF error
         DO SUPROV^TMGHL72
-        QUIT                    
-        ;"//kt redirected code to one common function on 1/16/15
-        ;" NEW PROV SET PROV=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"OBR",16)
-        ;" IF $$UP^XLFSTR(PROV)'["TOPPENBERG" SET PROV="^Doctor^Unspecified^"
-        ;" IF PROV="" DO  GOTO SPVDN
-        ;" . SET TMGXERR="In SUPROV.TMGHL73: Ordering provider not provided in field #16 or 'OBR' segment in HL7 message"
-        ;" NEW LNAME,FNAME,MNAME
-        ;" SET LNAME=$$UP^XLFSTR($PIECE(PROV,TMGU(2),2))
-        ;" SET FNAME=$$UP^XLFSTR($PIECE(PROV,TMGU(2),3))
-        ;" SET MNAME=$$UP^XLFSTR($PIECE(PROV,TMGU(2),4))
-        ;" IF (LNAME="TOPPENBERG")&(FNAME="EE") SET FNAME="MARCIA"  
-        ;" NEW NAME SET NAME=LNAME_","_FNAME_" "_MNAME
-        ;" SET NAME=$$TRIM^XLFSTR(NAME)
-        ;" NEW DIC,X,Y
-        ;" SET DIC=200,DIC(0)="M"
-        ;" SET X=NAME
-        ;" DO ^DIC
-        ;" IF Y'>0 DO  GOTO SPVDN
-        ;" . SET TMGXERR="In SUPROV.TMGHL73: Unable find provider in lookup: '"_NAME_"'"
-        ;" SET PROV=+Y_TMGU(2)_LNAME_TMGU(2)_FNAME
-        ;" SET TMGINFO("PROV")=PROV
+        QUIT
+        ;
 SPVDN   QUIT
         ;
 SUORL   ;"Purpose: Setup TMGINFO("ORL") and TMGINFO("LOC") -- Ordering locations
@@ -269,4 +287,3 @@ SUORL   ;"Purpose: Setup TMGINFO("ORL") and TMGINFO("LOC") -- Ordering locations
         DO SUORL^TMGHL72
         QUIT
         ;
-

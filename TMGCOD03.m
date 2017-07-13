@@ -162,7 +162,11 @@ STALDN ;
   QUIT
   ;
 HDLERR(ERRSTR,ARR,OPTION) ;
-  WRITE !,$PIECE(TEMP,"^",2,999),!
+  ;"WRITE !,$PIECE(TEMP,"^",2,999),!
+  ;"//kt  elh -- The above line kept generating an error because TEMP is
+  ;"             null. Changed to below line since ERRSTR looks to be the
+  ;"             correct variable to be writing out     6/27/17
+  WRITE !,$PIECE(ERRSTR,"^",2,999),!
   QUIT
   ;
 RTNCHNGD(ROUTINE,MD5SUM)  ;"HAS ROUTINE CHANGED?

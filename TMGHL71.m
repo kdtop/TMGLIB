@@ -195,7 +195,7 @@ HL7IN(NOALERT,OPTION)   ;"Purpose: Entry point, that could be  called from LA7V 
            ;"Results: 1 if OK, or -1^Message IF error
            NEW TMGHL7MSG,MSGSTORE,TMGRESULT,IEN62D4,IEN22720
            NEW TMGHL7DEBUG SET TMGHL7DEBUG=0
-           NEW TMGMSG,TMGENV
+           NEW TMGMSG,TMGENV,TMGINFO
            NEW IEN772,IEN773,TMGHLZZZ
            IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("@@")  ;"kill message log for all processes.
            IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Starting HL7IN^TMGHL72 to process HL7 message") 

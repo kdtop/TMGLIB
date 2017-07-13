@@ -1,4 +1,4 @@
-TMGSTUT3 ;TMG/kst/SACC ComplIant String Util LIb ;2/2/14, 7/22/15
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;2/2/14, 7/22/15, 6/23/17
          ;;1.0;TMG-LIB;**1,17**;7/17/12
  ;
  ;
@@ -35,6 +35,8 @@ TMGSTUT3 ;TMG/kst/SACC ComplIant String Util LIb ;2/2/14, 7/22/15
  ;"$$ENDQTPOS(STR,P1) -- return position of closing quotes 
  ;"$$GETWORD(STR,POS,OPENDIV,CLOSEDIV) -- Extract a word from a sentance, bounded by OPENDIV,CLOSEDIV 
  ;"$$NEXTTOKN(STR) --GET NEXT TOKEN
+ ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.  
+
  ;"=======================================================================
  ;" Private Functions.
  ;"=======================================================================
@@ -376,6 +378,28 @@ NEXTTOKN(STR) ;"GET NEXT TOKEN
   SET STR=$EXTRACT(STR,$LENGTH(TOKEN)+1,$LENGTH(STR))
   QUIT TOKEN
   ;
+NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) ;"Get first next character (or string fragment), matching from 7 possible inputs.  
+  ;"Purpose: Check string to determine which string fragment comes first and return it
+  ;"INPUTS: STR -- the string to check
+  ;"        STARTPOS -- the index to start $FIND at, default is 0
+  ;"        A..G the inputs to test for.  
+  ;"Results: returns which of inputs is found first, or "" if none found.  
+  NEW MAX SET MAX=$LENGTH(STR)+1
+  NEW TEST,POS,MIN,IDX,JDX SET MIN=MAX,(IDX,JDX)=1
+  SET STARTPOS=+$GET(STARTPOS)
+  FOR TEST=$G(A),$G(B),$G(C),$G(D),$G(E),$G(F),$G(G) DO
+  . IF TEST="" QUIT
+  . SET POS(IDX)=$FIND(STR,TEST,STARTPOS)-$LENGTH(TEST)
+  . SET POS(IDX,"TEST")=TEST
+  . IF POS(IDX)'>0 KILL POS(IDX) QUIT
+  . SET IDX=IDX+1
+  NEW MINIDX SET MINIDX=0
+  FOR JDX=1:1:IDX-1 DO
+  . IF POS(JDX)'<MIN QUIT
+  . SET MIN=POS(JDX)
+  . SET MINIDX=JDX
+  QUIT $GET(POS(MINIDX,"TEST"))
+  ;  
 LMATCH(STR,SUBSTR,CASESPEC) ;"Does left part of STR match SUBSTR?
   SET STR=$GET(STR),SUBSTR=$GET(SUBSTR) IF (STR="")!(SUBSTR="") QUIT 0
   IF $GET(CASESPEC)'=1 SET STR=$$UP^XLFSTR(STR),SUBSTR=$$UP^XLFSTR(SUBSTR)

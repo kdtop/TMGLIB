@@ -168,12 +168,13 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   . SET TMGRESULT="-1^Field# 63 not defined in file #2 (PATIENT) for DFN="_DFN 
   SET FMDT=$GET(FMDT) IF FMDT'>0 DO  GOTO ALRTDN
   . SET TMGRESULT="-1^Valid Lab date-time not provided.  Got ["_FMDT_"]"
-  NEW NODE SET NODE=$GET(NODE,"CH")
+  ;"NEW NODE SET NODE=$GET(NODE,"CH")
+  SET NODE=$GET(NODE,"CH")
   IF "CH,MI,"'[NODE_"," DO  GOTO ALRTDN
   . SET TMGRESULT="-1^Invalid NODE provided.  Got ["_NODE_"]"
   NEW RDT SET RDT=9999999-FMDT
   IF $DATA(^LR(LRDFN,NODE,RDT))=0 DO  GOTO ALRTDN
-  . SET TMGRESULT="-1^No lab data to send alert for.  DFN="_DFN_", NODE="_NODE_", RDT="_RDT
+  . SET TMGRESULT="-1^No lab data to send alert for.  DFN=["_DFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
   SET LEVEL=$GET(LEVEL,1)
   IF "1,2,3,"'[LEVEL_"," DO  GOTO ALRTDN
   . SET TMGRESULT="-1^Invalid LEVEL.  Expected 1, 2, or 3.  Got ["_LEVEL_"]"
@@ -187,11 +188,17 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   . NEW N1 SET N1=$GET(^LR(LRDFN,NODE,RDT,FLD))
   . NEW P3 SET P3=$PIECE(N1,"^",3)
   . SET IEN60=$PIECE(P3,"!",7)
-  IF IEN60'>0 DO  GOTO ALRTDN
-  . SET TMGRESULT="-1^Unable to find lab test (IEN 60).  DFN="_DFN_", NODE="_NODE_", RDT="_RDT
+  ;"//kt note:  I encountered situation where alert was being called and there was just a 
+  ;"   comment, but no actual lab result.  And in that case, an alert had already
+  ;"   been sent for the other part of the message (that wasn't just comment).
+  ;"   So I am going to remove IEN60=0 as an error state.  Will see if this causes
+  ;"   other problems.  
+  ;"IF IEN60'>0 DO  GOTO ALRTDN
+  ;". SET TMGRESULT="-1^Unable to find lab test (IEN 60).  DFN=["_DFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
   ;"NOTE: I will be sending an alert for just 1 single test.  This will be used
   ;"      to notify the provider of the availablity for review of the entire panel.
   NEW TESTNAME SET TESTNAME=$PIECE($GET(^LAB(60,IEN60,0)),"^",1)
+  IF TESTNAME="" SET TESTNAME="LAB TEST"   ;"//kt 7/5/17, HOWEVER, not even used (see below)
   ;"NOTE: could have more than one parent.  I am just picking the first encountered. 
   NEW PARENTIEN60 SET PARENTIEN60=$ORDER(^LAB(60,"AB",IEN60,0))   
   ;"NEW LRTST SET LRTST=IEN60_"^"_TESTNAME_"^"_PARENTIEN60

@@ -28,6 +28,11 @@ TRIG1(IEN8925)  ;"HANDLE POST-SIGNATURE FOR TIU DOCUMENTS.
   ;"  As such, it should not try to fire any inherited handlers, as that leads to endless loop.  
   ;"//KT NO--> DO FIREINH1^TMGTIUT4(.TIUIEN)  ;"Fire inherited post-signature event-handlers first.
   ;"TO DO .... consider jobbing this off for faster processing.  
+  NEW ZZDEBUG SET ZZDEBUG=0
+  IF ZZDEBUG=1 DO
+  . SET IEN8925=$GET(^TMG("TMP","TRIG1^TMGTIUT5","IEN8925"))
+  ELSE  DO
+  . SET ^TMG("TMP","TRIG1^TMGTIUT5","IEN8925")=$GET(IEN8925)
   IF $$ISHTML^TMGHTM1(.IEN8925) DO STRIPSCR^TMGHTM1(.IEN8925)  ;"strip <SCRIPT> ..</SCRIPT>
   NEW OUT,DFN SET DFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
   IF DFN>0 DO SCANNOTE^TMGTIU10(DFN,IEN8925,"OUT",1)

@@ -28,6 +28,7 @@ TMGRST01 ;TMG/kst/REST web service; 4/21/14
  ;"old->Turn on web listener via DO JOB^VPRJREQ(PORTNUMBER)
  ;"old->  (Client side code has been using port 9080)
  ;"old->Turn off web listener via DO STOP^VRPJREQ
+ ;
  ;"Data that connects particular REST service is 
  ;"  via FILEMAN FILE [WEB SERVICE URL HANDLER]
  ;"Client side code has been using port 9080
@@ -47,7 +48,7 @@ TMGRST01 ;TMG/kst/REST web service; 4/21/14
  ;"To call RPC, use RESTclient in firefox
  ;"URL = http://localhost:9080/rpc/ORWU%20NEWPERS
  ;"BODY = ["S", "-1"]
- ;"Result come back in Respons body {raw}
+ ;"Result come back in Response body {raw}
  ;"=======================================================================
  ;
  ;"=======================================================================

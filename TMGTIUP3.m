@@ -1,4 +1,4 @@
-TMGTIUP3 ;TMG/kst-TIU processing Functions ;5/1/13, 2/2/14, 4/11/17
+TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17
          ;;1.0;TMG-LIB;**1**;5/1/13
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -13,8 +13,10 @@ TMGTIUP3 ;TMG/kst-TIU processing Functions ;5/1/13, 2/2/14, 4/11/17
  ;" RPC -- Public Functions.
  ;"=======================================================================
  ;"PROCESS(TMGRESULT,TMGIN) -- Entrypoint for RPC to effect processing a note from CPRS
+ ;"FRSHTABL(TMGRESULT,TMGIN,HTML) -- REFRESH TABLES
  ;"GETTABLS(TABLES,HTML) -- Get list of all defined text tables, minus protected ones
  ;"TABLEND(LINE,PARTB) --Determine if HTML-coded line includes the end of a table.
+ ;"PRTIUHTM(TEXT)  --PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO ARRAY (HANDLING TABLES)  
  ;"
  ;"=======================================================================
  ;"Dependancies:
@@ -71,8 +73,15 @@ PROCESS(TMGRESULT,TMGIN,FORCE) ;
 PRODN   QUIT
         ;        
 FRSHTABL(TMGRESULT,TMGIN,HTML) ;"REFRESH TABLES
-        ;"Input: See PROCESS above
-        ;"       HTML -- 1 IF note is in HTML format
+        ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
+        ;"       TMGIN -- Input from client.  Format:
+        ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
+        ;"              TMGIN("TEXT",1) = 1st line of text
+        ;"              TMGIN("TEXT",2) = 2nd line of text, etc
+        ;"       FORCE -- ADDED 12/12/16. If not sent, is set to 0
+        ;"                If 1 is sent, note is processed even if
+        ;"                tag is absent
+        ;"       HTML -- 1 if note is in HTML format
         ;"Result: None
         SET TMGRESULT(0)="1^Success"
         NEW ATABLE,TABLES DO GETTABLS(.TABLES,HTML)
@@ -106,7 +115,8 @@ FRSHTABL(TMGRESULT,TMGIN,HTML) ;"REFRESH TABLES
         . . . . IF ENDFOUND SET LINE=PARTB 
         . . . ELSE  SET ENDFOUND=(LINE="")
         . . IF 'ENDFOUND QUIT
-        . . NEW TABLESTR SET TABLESTR=$$GETTABLX^TMGTIUOJ(TMGDFN,FOUNDTABLE)
+        . . NEW TABLESTR,TABLEARR
+        . . SET TABLESTR=$$GETTABLX^TMGTIUOJ(TMGDFN,FOUNDTABLE,.TABLEARR)
         . . NEW TEMPARR
         . . IF 'INLINEMODE DO
         . . . DO SPLIT2AR^TMGSTUT2(TABLESTR,$CHAR(13,10),.TEMPARR,OUTLNUM+1)
@@ -127,18 +137,18 @@ FRSHTABL(TMGRESULT,TMGIN,HTML) ;"REFRESH TABLES
         . . SET ATABLE=""
         . . FOR  SET ATABLE=$ORDER(TABLES(ATABLE)) QUIT:(ATABLE="")!(FOUNDTABLE'="")  DO
         . . . IF LINE[ATABLE DO
-        . . . . ;"Handle InLine Tables Here
         . . . . NEW NAME,IEN
         . . . . SET NAME=$$HTML2TXS^TMGHTM1($PIECE($PIECE(ATABLE,"]",1),"[",2))
         . . . . SET IEN=$ORDER(^TMG(22708,"B",NAME,0))
         . . . . NEW ZN SET ZN=$GET(^TMG(22708,IEN,0))
-        . . . . IF $PIECE(ZN,"^",5)="I" DO
+        . . . . IF $PIECE(ZN,"^",5)="I" DO   ;"Handle InLine Tables Here
         . . . . . NEW TERMCHARS,INPARTA,INPARTB
         . . . . . SET TERMCHARS=$PIECE($GET(^TMG(22708,IEN,4)),"^",1)
         . . . . . SET INPARTA=$PIECE(LINE,ATABLE,1)
         . . . . . IF LINE[TERMCHARS DO
         . . . . . . SET INPARTB=$PIECE(LINE,TERMCHARS,2)
         . . . . . . NEW TABLESTR SET TABLESTR=$$GETTABLX^TMGTIUOJ(TMGDFN,ATABLE)
+        . . . . . . SET TABLESTR=$$SYMENC^MXMLUTL(TABLESTR) 
         . . . . . . SET LINE=INPARTA_TABLESTR_INPARTB 
         . . . . . ELSE  DO
         . . . . . . SET FOUNDTABLE=TABLES(ATABLE)
@@ -148,8 +158,8 @@ FRSHTABL(TMGRESULT,TMGIN,HTML) ;"REFRESH TABLES
         . . . . . . . SET LINE=INPARTA
         . . . . . . ELSE  DO
         . . . . . . . SET LINE="#!$<SKIP<$!#"
+        . . . . ;"Finished with InLine Tables
         . . . . ELSE  DO
-        . . . . . ;"Finished with InLine Tables
         . . . . . SET FOUNDTABLE=TABLES(ATABLE)
         . . . . . IF HTML DO
         . . . . . . SET LINE=$PIECE(LINE,ATABLE,1)
@@ -257,13 +267,13 @@ GTL1    ;"Below are tables that will NOT be refreshed during PROCESS
         QUIT
         ;
 TABLEND(LINE,PARTB) ;" HAS TABLE END  
-        ;"Purpose: Determine IF HTML-coded line includes the end of a table.
+        ;"Purpose: Determine if HTML-coded line includes the end of a table.
         ;"         It is expected that begining of table has been found
         ;"Input: LINE --The line to check.  DON'T PASS BY REFERENCE. 
         ;"       PARTB -- an OUT PARAMETER.  PASS BY REFERENCE.
         ;"              The residual part of the line (if any) that 
         ;"              represents text AFTER the table.
-        ;"Result: 1 IF end of table found.  0 otherwise.
+        ;"Result: 1 if end of table found.  0 otherwise.
         ;"Output: PARTB is filled with residual line (if any)
         NEW TMGRESULT SET TMGRESULT=0
         SET PARTB=""
@@ -282,36 +292,36 @@ TABLEND(LINE,PARTB) ;" HAS TABLE END
         QUIT TMGRESULT
         ;
 SETPLAN(TMGRESULT,TMGIN)  ;"-- NOT CURRENTLY USED (?)
-       NEW LINENUM SET LINENUM=0 
-       NEW FOUNDHPI SET FOUNDHPI=0
-       NEW OUTLNUM SET OUTLNUM=0
-       NEW TMPTEXTARR,FOUNDAP,LINETEXT,NEWNUM
-       SET NEWNUM=0
-       SET FOUNDAP=0
-       FOR  SET LINENUM=$ORDER(TMGIN("TEXT",LINENUM)) QUIT:LINENUM'>0  DO
-       . SET LINETEXT=$GET(TMGIN("TEXT",LINENUM))
-       . IF FOUNDHPI=1 DO
-       . . IF LINETEXT["PAST MEDICAL HISTORY" DO
-       . . . SET FOUNDHPI=0
-       . . ELSE  DO
-       . . . SET OUTLNUM=OUTLNUM+1
-       . . . SET TMPTEXTARR(OUTLNUM)=LINETEXT
-       . . . SET NEWNUM=NEWNUM+1
-       . . . SET TMGRESULT(NEWNUM)=LINETEXT
-       . ELSE  IF FOUNDAP=1 DO
-       . . NEW TMPCOUNT
-       . . FOR TMPCOUNT=1:1:OUTLNUM DO
-       . . . SET LINETEXT=$GET(TMPTEXTARR(TMPCOUNT))
-       . . . SET NEWNUM=NEWNUM+1
-       . . . SET TMGRESULT(NEWNUM)=LINETEXT
-       . . SET FOUNDAP=0
-       . ELSE  DO
-       . . SET NEWNUM=NEWNUM+1
-       . . SET TMGRESULT(NEWNUM)=LINETEXT
-       . . IF LINETEXT["(HPI)" SET FOUNDHPI=1
-       . . IF LINETEXT["PLAN:" SET FOUNDAP=1
-       QUIT
-       ;"
+        NEW LINENUM SET LINENUM=0 
+        NEW FOUNDHPI SET FOUNDHPI=0
+        NEW OUTLNUM SET OUTLNUM=0
+        NEW TMPTEXTARR,FOUNDAP,LINETEXT,NEWNUM
+        SET NEWNUM=0
+        SET FOUNDAP=0
+        FOR  SET LINENUM=$ORDER(TMGIN("TEXT",LINENUM)) QUIT:LINENUM'>0  DO
+        . SET LINETEXT=$GET(TMGIN("TEXT",LINENUM))
+        . IF FOUNDHPI=1 DO
+        . . IF LINETEXT["PAST MEDICAL HISTORY" DO
+        . . . SET FOUNDHPI=0
+        . . ELSE  DO
+        . . . SET OUTLNUM=OUTLNUM+1
+        . . . SET TMPTEXTARR(OUTLNUM)=LINETEXT
+        . . . SET NEWNUM=NEWNUM+1
+        . . . SET TMGRESULT(NEWNUM)=LINETEXT
+        . ELSE  IF FOUNDAP=1 DO
+        . . NEW TMPCOUNT
+        . . FOR TMPCOUNT=1:1:OUTLNUM DO
+        . . . SET LINETEXT=$GET(TMPTEXTARR(TMPCOUNT))
+        . . . SET NEWNUM=NEWNUM+1
+        . . . SET TMGRESULT(NEWNUM)=LINETEXT
+        . . SET FOUNDAP=0
+        . ELSE  DO
+        . . SET NEWNUM=NEWNUM+1
+        . . SET TMGRESULT(NEWNUM)=LINETEXT
+        . . IF LINETEXT["(HPI)" SET FOUNDHPI=1
+        . . IF LINETEXT["PLAN:" SET FOUNDAP=1
+        QUIT
+        ;"
 CHNGES(TMGRESULT,XU1) ;change ES, Return 0 = success
        SET TMGRESULT="0^SUCCESSFUL"
        N XU2,XU3,XU4 
@@ -328,3 +338,78 @@ CHNGES(TMGRESULT,XU1) ;change ES, Return 0 = success
        ;"I XU3>0 S DUZ=0 ;Clean-up if not changed.
        ;"I 'XU3,XU4 D KILL^XWBSEC("XUS DUZ")
 CESDN  QUIT        
+       ;
+PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO ARRAY (HANDLING TABLES)  
+       ;"INPUT: TEXT -- PASS BY REFERENCE.  AN IN & OUT PARAMETER.  
+       ;"           For input, TEXT = HTML string to process.  This is expected to be
+       ;"             the text for one section of HPI part of progress note
+       ;"           For output -- FORMAT:
+       ;"           TEXT(1)=part 1, e.g. text, e.g. [GROUP A&B]
+       ;"                TEXT(1)="[GROUP]"
+       ;"                TEXT(1,"GROUP")="A&B"
+       ;"           TEXT(2)=part 2, e.g. name of inline table
+       ;"                TEXT(2)="[TABLE]"  <-- signal this part is a table. 
+       ;"                TEXT(2,"TABLE")=WT   <-- WT is name of table
+       ;"                TEXT(2,"TEXT")=<TEXT OF TABLE>
+       ;"                TEXT(2,"INLINE")=0 or 1
+       ;"           TEXT(3)=part 3, e.g. more text
+       ;"           TEXT(4)=part 4, e.g. name of table
+       ;"           TEXT("GROUPX",#)=""  <-- index of GROUP nodes
+       ;"           TEXT("TABLEX",#)=""  <-- index of TABLE nodes
+       ;"           ... etc. 
+       ;"       TABLES -- OPTIONAL.  PASS BY REFERENCE.  Allows reuse from prior calls.  
+       IF '$DATA(TABLES) DO GETTABLS^TMGTIUP3(.TABLES,1) ;"Get list of all defined text tables, minus protected ones
+       NEW IDX SET IDX=0
+       NEW STARTPOS SET STARTPOS=0
+       NEW STR SET STR=TEXT
+       FOR  QUIT:STR=""  DO
+       . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(STR,STARTPOS,"-- [","--&nbsp;[","[")
+       . IF DIV="" DO  QUIT
+       . . SET IDX=IDX+1,TEXT(IDX)=$$REPLSTR^TMGSTUT3(STR,"&nbsp;"," ")
+       . . SET STR="",STARTPOS=0 
+       . NEW STRA,STRA2,STRB SET STRA=""
+       . IF STARTPOS>0 DO
+       . . SET STRA=$EXTRACT(STR,1,STARTPOS-1)
+       . . ;"SET STR=$EXTRACT(STR,STARTPOS,$LENGTH(STR))
+       . SET STRA=STRA_$PIECE(STR,DIV,1) 
+       . IF STRA'="" DO  QUIT
+       . . SET STRA2=$$REPLSTR^TMGSTUT3(STRA,"&nbsp;"," ")
+       . . SET IDX=IDX+1,TEXT(IDX)=STRA2
+       . . SET STR=$EXTRACT(STR,$LENGTH(STRA)+1,$LENGTH(STR))
+       . . SET STARTPOS=0
+       . ;"At this point, DIV starts at the first character
+       . NEW TEMP SET TEMP=$PIECE($PIECE(STR,"]",1),DIV,2)
+       . NEW NAME SET NAME=$$REPLSTR^TMGSTUT3(TEMP,"&nbsp;"," ")
+       . IF $PIECE(NAME," ",1)="GROUP" DO  QUIT
+       . . SET STRA=DIV_TEMP_"]",STRA2=DIV_NAME_"]"
+       . . SET IDX=IDX+1,TEXT(IDX)=STRA2
+       . . SET TEXT(IDX,"GROUP")=$PIECE(NAME," ",2,99)
+       . . SET TEXT("GROUPX",IDX)=""
+       . . SET STR=$EXTRACT(STR,$LENGTH(STRA)+1,$LENGTH(STR))
+       . . SET STARTPOS=0
+       . IF $DATA(TABLES("["_NAME_"]")) DO  QUIT
+       . . SET IDX=IDX+1,TEXT(IDX)="[TABLE]"
+       . . SET TEXT(IDX,"TABLE")=NAME
+       . . NEW INLINE SET INLINE=$$ISINLINE^TMGTIUO6(NAME)
+       . . SET TEXT(IDX,"INLINE")=INLINE
+       . . IF INLINE DO
+       . . . NEW P2 SET P2=$FIND(STR,"]]")
+       . . . IF P2=0 DO  QUIT  ;"end of inline table not found. 
+       . . . . SET STRA=STR,STR=""
+       . . . . SET TEXT(IDX,"TEXT")=STRA
+       . . . SET STRA=$EXTRACT(STR,1,P2-1)
+       . . . SET TEXT(IDX,"TEXT")=STRA
+       . . . SET STR=$EXTRACT(STR,$LENGTH(STRA)+1,$LENGTH(STR))
+       . . . SET STARTPOS=0
+       . . ELSE  DO  ;"standard table.  
+       . . . IF $$TABLEND(STR,.STRB) DO
+       . . . . NEW LENA SET LENA=$LENGTH(STR)-$LENGTH(STRB)
+       . . . . SET STRA=$EXTRACT(STR,1,LENA),STR=STRB
+       . . . ELSE  DO
+       . . . . SET STRA=STR,STR=""
+       . . . SET TEXT(IDX,"TEXT")=STRA
+       . . SET STARTPOS=0
+       . DO
+       . . SET STARTPOS=$LENGTH("["_TEMP_"]")+1
+       QUIT
+       ;

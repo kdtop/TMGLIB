@@ -630,7 +630,7 @@ SETPCE(VALUE,TMGHL7MSG,TMGU,SEG,FLDN,COMPN,SCMPN) ;
         ;"        TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
         ;"        TMGU -- The array with divisor chars.
         ;"        SEG -- the segment *number* in the array, OR
-        ;"               the segment *NAME* desired
+        ;"               the segment *NAME* desired <-- ? WORKING ?
         ;"        FLDN -- OPTIONAL. The field number
         ;"        COMPN -- OPTIONAL. The component number
         ;"        SCMPN -- OPTIONAL.  The sub-component number

@@ -63,6 +63,10 @@ MEDLIST(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for med list documented CPT codes
   ;"        If this isn't done,0 is assumed.
   QUIT $$STRSRCH(.OUTARRAY,BDATE,EDATE,TEXT,"[FINAL MEDICATIONS]","1159F")
   ;"
+TOBACCO(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for tobacco status updated
+  ;"PARAMS: AS ABOVE
+  QUIT $$STRSRCH(.OUTARRAY,BDATE,EDATE,TEXT,"TOBACCO USE HISTORY UPDATE","4004F")
+  ;"
 STRSRCH(OUTARRAY,BDATE,EDATE,TEXT,STRING,CPT)  ;"
   ;"Params: OutArray: PASS BY REFERENCE.  Format:
   ;"          OutArray(PatientName,TextToReturnWhenFound,DateFound)=""

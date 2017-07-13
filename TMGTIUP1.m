@@ -54,6 +54,8 @@ SUMNOTE(TIUIEN,ARRAY) ;
         ;"              ARRAY(TIUIEN,"HPI",#)=<TOPIC NAME>^<First line of paragraph>
         ;"              ARRAY(TIUIEN,"A&P",#)=<TOPIC NAME>^<First line of paragraph>
         ;"              ARRAY(TIUIEN,"TITLE",<TOPIC NAME>)=<topic name as originally in text>
+        ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>,#)=<TOPIC NAME>
+        ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>)=# OF TOPICS
         NEW TEMPARR
         NEW SECTION SET SECTION=""
         NEW SECTNUM SET SECTNUM=0
@@ -89,7 +91,7 @@ SUMNOTE(TIUIEN,ARRAY) ;
 SNDN    QUIT
         ;
 HPIDIV(LINESTR)  ;
-        ;"Purpose: Determine IF LINESTR text indicates change into HPI parts
+        ;"Purpose: Determine if LINESTR text indicates change into HPI parts
         ;"Input: LINES -- 1 line of text
         ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
         NEW RESULT SET RESULT=1
@@ -100,7 +102,7 @@ HPIDIV(LINESTR)  ;
 HPDN    QUIT RESULT
         ;        
 PMHDIV(LINESTR)  ;
-        ;"Purpose: Determine IF LINESTR text indicates change from HPI to PMH parts
+        ;"Purpose: Determine if LINESTR text indicates change from HPI to PMH parts
         ;"Input: LINES -- 1 line of text
         ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
         NEW RESULT SET RESULT=1
@@ -131,11 +133,13 @@ PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;
         ;"        TIUIEN -- IEN 8925
         ;"        SECTION -- "HPI" or "A&P"
         ;"        ARRAY -- PASS BY REFERENCE.  AN OUT PARAMETER.
-        ;"Results: none
         ;"Output: ARRAY filled as below
         ;"              ARRAY(TIUIEN,"FULL",<SECTION>,<TOPIC NAME>,Line#)=text
         ;"              ARRAY(TIUIEN,<SECTION>,#)=<TOPIC NAME>^<First line of paragraph>
         ;"              ARRAY(TIUIEN,"TITLE",<TOPIC NAME>)=<topic name as originally in text>
+        ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>,#)=<TOPIC NAME>
+        ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>)=# OF TOPICS
+        ;"Results: none
         NEW LINEI SET LINEI=0
         NEW TITLE SET TITLE=""
         NEW ORIGTITLE SET ORIGTITLE=""
@@ -166,6 +170,9 @@ PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;
         . . . SET TITLE=""
         . . ELSE  DO
         . . . SET ARRAY(TIUIEN,SECTION,CT)=TITLE_"^"_SHORTLINE
+        . . . NEW SEQ SET SEQ=$GET(ARRAY(TIUIEN,"SEQ#",SECTION))+1
+        . . . SET ARRAY(TIUIEN,"SEQ#",SECTION)=SEQ
+        . . . SET ARRAY(TIUIEN,"SEQ#",SECTION,SEQ)=TITLE
         . IF TITLE'="" DO
         . . DO ADDLINE($NAME(ARRAY(TIUIEN,"FULL",SECTION,TITLE)),LINESTR)
         . . SET ARRAY(TIUIEN,"TITLE",TITLE)=ORIGTITLE

@@ -19,11 +19,16 @@ TMGHTM1 ;TMG/kst-HTML utilities ;7/1/15, 5/7/16
  ;"$$ISHTMREF(REFARRAY,ZN) -- determine IF @REFARRAY text is HTML markup 
  ;"$$HTMSPLIT(STR,LEN) -- Split HTML string in way that doesn't break tags
  ;"HTML2TXT(ARRAY) -- convert HTML --> text formatted array
- ;"TXT2HTML(ARRAY) -- convert text --> HTML formatted array 
- ;"$$SIGPICT(DUZ,DATE) -- Return HTML tag pointing to signiture image, or '' IF none.
+ ;"TXT2HTML(ARRAY) -- convert text --> HTML formatted array
+ ;"$$STRIPTAG(HTMLSTR)  --remove all tags from an HTML string (doesn't change special chars) 
+ ;"$$SIGPICT(DUZ,DATE) -- Return HTML tag pointing to signiture image, or '' if none.
  ;"HTML2TXS(LINESTR) -- text a string that is HTML formatted, and strips out tags
  ;"$$HTMLTRIM(STR,FLAG,CHARS) -- Trim from HTML text
- ;"STRIPSCR(IEN8925)  --Strip out any <SCRIPT> .. </SCRIPT> from documents     
+ ;"STRIPSCR(IEN8925)  --Strip out any <SCRIPT> .. </SCRIPT> from documents
+ ;"RMTAGS(TEXT,TAG) --REMOVE TAGS
+ ;"RPTAGS(TEXT,TAG,NEWTAG)  --REPLACE TAGS
+ ;"MATCHTAG(HTMLSTR,ALLOWNESTING) --ENSURE MATCHING TAGS IN HTML STRING
+ ;"PARSBYTG(HTMLSTR,OUT) --PARSE HTML STRING INTO ARRAY BY TAGS
  ;"---------------------------------------------------------------------------
  ;"PRIVATE FUNCTIONS
  ;"---------------------------------------------------------------------------
@@ -154,7 +159,7 @@ HTML2TXT(ARRAY,LISUB) ;
   MERGE ARRAY=OUTARRAY
   QUIT
   ;
-TXT2HTML(ARRAY,ZN) ;"Convert text --> HTML formatted array
+TXT2HTML(ARRAY,ZN) ;"Convert text ARRAY --> HTML formatted array
   ;"Note: This is not a comprehensive conversion.  Could be improved in future
   ;"Input: ARRAY -- PASS BY REFERENCE.  This array will be altered.  Format:
   ;"                ARRAY(#)=<Text>  <-- IF ZN=0
@@ -164,16 +169,18 @@ TXT2HTML(ARRAY,ZN) ;"Convert text --> HTML formatted array
   ;"Convert special characters
   SET ZN=+$GET(ZN)
   NEW SPEC
-  SET SPEC(" ")="&nbsp;"
-  SET SPEC("<")="&lt;"
-  SET SPEC(">")="&gt;"
-  SET SPEC("&")="&amp;"
-  SET SPEC("""")="&quot;"
+  SET SPEC("  ")="&nbsp;&nbsp;"  ;"//6/25/17 changed from 1 space to 2 spaces
+  ;" SET SPEC(" ")="&nbsp;"      ;"//6/25/17 replaced these with call to $$SYMENC^MXMLUTL
+  ;" SET SPEC("<")="&lt;"
+  ;" SET SPEC(">")="&gt;"
+  ;" SET SPEC("&")="&amp;"
+  ;" SET SPEC("""")="&quot;"
   NEW LINE SET LINE=0
   FOR  SET LINE=$ORDER(ARRAY(LINE)) QUIT:(LINE="")  DO
   . NEW LINESTR 
   . IF ZN SET LINESTR=$GET(ARRAY(LINE,0))
   . ELSE  SET LINESTR=$GET(ARRAY(LINE))
+  . SET LINESTR=$$SYMENC^MXMLUTL(LINESTR)  ;"//ADDED 6/25/17
   . SET LINESTR=$$REPLACE^XLFSTR(LINESTR,.SPEC)_"<BR>"
   . IF ZN SET ARRAY(LINE,0)=LINESTR
   . ELSE  SET ARRAY(LINE)=LINESTR
@@ -210,6 +217,16 @@ HTML2TXS(LINESTR) ;
   ;
   QUIT LINESTR
   ;
+STRIPTAG(HTMLSTR)  ;"remove all tags from an HTML string (doesn't change special chars)
+  NEW ARR DO PARSBYTG(.HTMLSTR,.ARR)  
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARR("TAGS",IDX)) QUIT:IDX'>0  KILL ARR(IDX)  ;"kill all tag nodes.  
+  ;"Now assemble array back into long string.  
+  NEW TMGRESULT SET TMGRESULT=""
+  SET IDX=0 FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO     
+  . SET TMGRESULT=TMGRESULT_$GET(ARR(IDX))
+  QUIT TMGRESULT
+  ;  
 REPLACE(LINE,MATCHSTR,SUBSTR) ;
   ;"Purpose: wrapper for $$REPLACE^XLFSTR for simpler use
   ;"Result: returns NEW string
@@ -235,7 +252,7 @@ HTMSPLIT(STR,LEN)  ;"Split HTML string in way that doesn't break tags
   ;"NOTE: It is required that the beginning of the string NOT be in an html tag.  
   ;"      It IS allowed that first character is "<" (the beginning of a tag) 
   NEW TMGRESULT SET TMGRESULT=0
-  ;"to be completed...
+  ;"to be completed...  ... CONSIDER USING PARSBYTG(HTMLSTR,OUT) BELOW ... MUST ANALYZE
   QUIT TMGRESULT
   ;
 HTMLTRIM(STR,FLAG,TRIMCHARS,TRIMTAGS) ;"Trim from HTML text
@@ -382,3 +399,76 @@ RPTAGS(TEXT,TAG,NEWTAG)  ;"REPLACE TAGS
   . SET TEXT=$P(TEXT,TAG,1)_NEWTAG_$P(TEXT,TAG,2,999)
   QUIT
   ;  
+MATCHTAG(HTMLSTR,ALLOWNESTING)  ;"ENSURE MATCHING TAGS IN HTML STRING
+  ;"INPUT: HTMLSTR --  a string of HTML, doesn't have to be complete
+  ;"       ALLOWNESTING: 0 or 1.  If 0, then tag of same kind will be closed before
+  ;"                      opening another.  e.g. '<i>hello<i>world</i></i>' would become
+  ;"                      '<i>hello</i><i>world</i>
+  ;"Result: returns long HTML string with final results.  
+  NEW EMPTYTAGS SET EMPTYTAGS="^AREA^BASE^BR^COL^HR^IMG^INPUT^LINK^META^PARAM^KEYGEN^SOURCE^"
+  NEW KEEPOPENCLOSE SET KEEPOPENCLOSE="^P^BR^"
+  SET ALLOWNESTING=+$GET(ALLOWNESTING)
+  SET HTMLSTR=$GET(HTMLSTR)
+  NEW ARR DO PARSBYTG(.HTMLSTR,.ARR)
+  NEW TAGS,ATAG
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO  ;"count open vs close for all tags.   
+  . NEW STR SET STR=$GET(ARR(IDX)) QUIT:STR=""
+  . IF $EXTRACT(STR,1)'="<" QUIT
+  . SET ATAG=$PIECE(STR,"<",2)
+  . SET ATAG=$PIECE(ATAG,">",1)
+  . NEW OPENCLOSE SET OPENCLOSE=($EXTRACT(ATAG,$LENGTH(ATAG))="/") 
+  . SET ATAG=$PIECE(ATAG," ",1)
+  . IF OPENCLOSE,KEEPOPENCLOSE'[("^"_ATAG_"^") KILL ARR(IDX) QUIT  ;"Ignore/delete <U /> but keep <BR /> and <P />
+  . NEW CLOSING SET CLOSING=($EXTRACT(ATAG,1)="/")
+  . IF CLOSING SET ATAG=$$TRIM^XLFSTR($PIECE(ATAG,"/",2))
+  . IF EMPTYTAGS[("^"_ATAG_"^") QUIT  ;"ignore empty tags -- shouldn't be match to closers.
+  . NEW CURCT SET CURCT=+$GET(TAGS(ATAG))
+  . IF CURCT=0,CLOSING KILL ARR(IDX) QUIT  ;"delete any closing tag that was not first opened
+  . IF 'ALLOWNESTING,'CLOSING,(CURCT>0) DO  ;"close current tag before starting new
+  . . SET ARR(IDX-0.5)="</"_ATAG_">"
+  . . SET CURCT=CURCT-1
+  . NEW DELTA SET DELTA=$SELECT(CLOSING:-1,1:1)
+  . SET TAGS(ATAG)=CURCT+DELTA  
+  ;"delete all tags with balanced open vs closed (i.e. final count of 0)
+  SET ATAG="" FOR  SET ATAG=$ORDER(TAGS(ATAG)) QUIT:ATAG=""  DO     
+  . IF +$GET(TAGS(ATAG))=0 KILL TAGS(ATAG) 
+  ;"append close tags for all unmatched tags
+  ;"delete all tags with balanced open vs closed (i.e. final count of 0)
+  SET ATAG="" FOR  SET ATAG=$ORDER(TAGS(ATAG)) QUIT:ATAG=""  DO
+  . NEW CT FOR CT=1:1:+$GET(TAGS(ATAG)) DO
+  . . SET IDX=$ORDER(ARR(""),-1)+1
+  . . SET ARR(IDX)="</"_ATAG_">"
+  ;"Now assemble array back into long string.  
+  NEW TMGRESULT SET TMGRESULT=""
+  SET IDX=""
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO     
+  . SET TMGRESULT=TMGRESULT_$GET(ARR(IDX))
+  QUIT TMGRESULT
+  ;  
+PARSBYTG(HTMLSTR,OUT)  ;"PARSE HTML STRING INTO ARRAY BY TAGS
+  ;"Input: HTMLSTR == a string of HTML, doesn't have to be complete
+  ;"       OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  FORMAT:
+  ;"         OUT(#)=some text
+  ;"         OUT(#)=some tag
+  ;"         OUT(#)=some text
+  ;"         OUT(#)=some tag   etc.
+  ;"         OUT("TAGS",#)=""
+  NEW TEMP SET TEMP=$GET(HTMLSTR)
+  NEW TMGRESULT SET TMGRESULT=""
+  KILL OUT
+  NEW CT,DONE SET DONE=0
+  NEW POS
+  FOR  QUIT:$LENGTH(TEMP)=0  DO
+  . NEW STRA,ISTAG SET ISTAG=0
+  . IF $EXTRACT(TEMP,1)="<" DO
+  . . SET STRA=$PIECE(TEMP,">",1)_">"
+  . . SET ISTAG=1
+  . ELSE  DO
+  . . SET STRA=$PIECE(TEMP,"<",1)
+  . SET TEMP=$EXTRACT(TEMP,$LENGTH(STRA)+1,$LENGTH(TEMP))
+  . SET CT=+$GET(OUT)+1,OUT(CT)=STRA,OUT=CT
+  . IF ISTAG SET OUT("TAGS",CT)=""
+  QUIT  
+  ;
+

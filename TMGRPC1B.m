@@ -150,6 +150,70 @@ L1      ;"LIST OF CPRS FOR TMG-CPRS
         ;;VEFA GET XP STRING
         ;;VEFA LETTERS GET
         ;;VEFA TEMPLATE MATCH PROBLIST
+        ;;TMG CPRS ACCESS LOG STORE
+        ;;TMG CPRS ACCESS LOG RETRIEVE
+        ;;TMG CPRS PROCESS NOTE
+        ;;TMG GET NOTE ADDENDUMS
+        ;;TMG CPRS GET LAB LIST
+        ;;TMG CPRS GET LAB COMPONENTS
+        ;;TMG CPRS GET SPEC LIST
+        ;;TMG CPRS GET INSTIT LIST
+        ;;TMG CPRS POST LAB VALUES
+        ;;TMG CPRS LAB DEF SPECIMEN GET
+        ;;TMG CPRS LAB DEF SPECIMEN SET
+        ;;TMG CPRS GET DD HELP
+        ;;TMG CPRS GET AUDIT PER USER
+        ;;TMG CPRS GET AUDIT PER PATIENT
+        ;;TMG CPRS GET AUDIT DETAIL
+        ;;TMG CPRS DISPLAY COS DIALOG
+        ;;TMG CPRS GET CUSTOM PS CODE
+        ;;TMG CPRS STORE ESIG IMAGE
+        ;;TMG CPRS MACRO RESOLVE
+        ;;TMG CPRS GET PT DUE STATUS
+        ;;TMG CPRS SEARCH TEMPLATE
+        ;;TMG CPRS LAB GET RESULTS
+        ;;TMG CPRS CREATE COMPONENT REC
+        ;;TMG CPRS PROBLEM LINK
+        ;;TMG CPRS PROBLEM TOPICS
+        ;;TMG CPRS CHANGE ES
+        ;;TMG CPRS TOPIC PROB SUGGEST
+        ;;TMG DB CONTROL VALUES
+        ;;TMG CPRS LAB ALERT
+        ;;TMG CHANNEL FOR HL7
+        ;;TMG CPRS CONSULT LINK W TIU
+        ;;TMG CPRS GET ADMIN TITLES
+        ;;TMG CPRS GET BILLABLE ITEMS
+        ;;TMG CPRS GET NEXT APPOINTMENT
+        ;;TMG CPRS GET PROVIDERS
+        ;;TMG CPRS IMAGES TAB HTML
+        ;;TMG CPRS IMAGING ALERT
+        ;;TMG CPRS LABS SEEN
+        ;;TMG CPRS TOPIC PROBLEM LINK
+        ;;TMG CPRS TOPIC SUBSET
+        ;;TMG CREATE INFORMATIONAL ALERT
+        ;;TMG DOES HTML FACESHEET EXIST
+        ;;TMG DXLINK CHANNEL
+        ;;TMG FMD CHANNEL
+        ;;TMG GET APPOINTMENT LIST
+        ;;TMG GET HTML DEMOGRAPHICS
+        ;;TMG GET LAST HIPAA AGREEMENT
+        ;;TMG GET MED LIST
+        ;;TMG GET RACE ABBREVIATION
+        ;;TMG GET ROS ALLERGY LIST
+        ;;TMG HIPAA DUE
+        ;;TMG LR-TXT DATES OVERVIEW
+        ;;TMG SCANNER GET EXTRA DOCS
+        ;;TMG SCANNER GET NOTES BY DATE
+        ;;TMG SCANNER PSA NEEDED
+        ;;TMG SCHD APPT LIST
+        ;;TMG SCHD CANCEL APPT
+        ;;TMG SCHD GET AVAIL
+        ;;TMG SCHD MAKE APPT
+        ;;TMG SCHD SET AVAIL
+        ;;TMG SET PAT NOTIFICATIONS
+        ;;TMG SMS SEND LAB MSG
+        ;;TMG TIU NOTE CAN BE SIGNED
+        ;;TMG VERIFY PN FOR IMAGES
         ;;<END>
         ;
 GETLIST(OUT)  ;"Read list at L1 into an array
@@ -193,8 +257,10 @@ ENSUREAL ;
         NEW RPC SET RPC=""
         FOR  SET RPC=$ORDER(RPCLIST(RPC)) QUIT:RPC=""  DO
         . IF (RPC["KEENE")&(BOOLKEENE=0) QUIT
-        . IF $DATA(FOUND(RPC)) QUIT
+        . IF $DATA(FOUND(RPC)) DO  QUIT
+        . . WRITE RPC," --> OK, already in OR CPRS GUI CHART",!
         . IF $$ISPRESNT(RPC)=0 SET MSNGRPC(RPC)="" QUIT
+        . WRITE RPC," --> Adding to OR CPRS GUI CHART",!
         . DO ENSURE1(RPC)
         IF $DATA(MSNGRPC) DO
         . WRITE "ERROR: The following RPC(s) are missing from the REMOTE PROCEDURE",!
@@ -251,31 +317,25 @@ ENSURE1(RPCNAME) ;
 CHKMSNG ;"MENU TO CHECK PATCH FOR MISSING PARTS
         NEW MENU
         SET MENU(0)="Select Option"
-        SET MENU(1)="Show missing RPC's, comparing L1 lst to REMOTE PROCEDURE file"_$C(9)_"SHOWMSNG"
-        SET MENU(2)="Show missing RPC's, comparing L1 list to BUILD"_$C(9)_"SHWMSNG2"
-        SET MENU(3)="Show misssing RPC's, comparing BUILD to REMOTE PROCEDURE file"_$C(9)_"SHWMSNGR"  
-        SET MENU(4)="Show missing ROUTINES, comparing BUILD to ROUTINES file"_$C(9)_"SHWMSNGF"
+        SET MENU(1)="Show missing RPC's from L1^TMGRPC1B, compared to OR CPRS GUI CHART"_$C(9)_"SHOWMSNG"
+        SET MENU(2)="Ensure that all RPCS in L1^TMGRPC1B are in OR CPRS GUI CHART option"_$C(9)_"ENSUREAL"
+        SET MENU(3)="Show missing RPC's in L1^TMGRPC1B, compared to REMOTE PROCEDURE file"_$C(9)_"SHOWMSNG4"
+        SET MENU(4)="Show missing RPC's in a BUILD, compared to L1^TMGRPC1B list"_$C(9)_"SHWMSNG2"        
+        SET MENU(5)="Show misssing RPC's in a BUILD, compared to REMOTE PROCEDURE file"_$C(9)_"SHWMSNG3"        
+        SET MENU(6)="Show missing ROUTINES in a BUILD, compared to ROUTINES file"_$C(9)_"SHWMSNGF"
         NEW USRINPUT,CMD
 CHKL    SET USRINPUT=$$MENU^TMGUSRI2(.MENU)
-        IF (USRINPUT="")!(USRINPUT="^") QUIT
+        IF (USRINPUT="")!("^?"[USRINPUT) QUIT
         SET CMD="DO "_USRINPUT_"^TMGRPC1B"
         XECUTE CMD
         GOTO CHKL
         ;
-SHOWMSNG ;"SHOW MISSING
-        ;"Show which RPC's, are missing from list L1, compared to RPC 
-        ;"multiple in OR CPRS GUI CHART option
-        NEW ARR,TMGI,RPC       
-        NEW RPCLIST
+SHOWMSNG ;"Show which RPC's, are missing from list L1, compared to RPC multiple in OR CPRS GUI CHART option
+        NEW TMGI,RPC,RPCLIST,NAMESPACE,MISSING
         DO GETLIST(.RPCLIST)  ;"Read list at L1 into an array
-
         NEW DONE SET DONE=0
-        SET RPC="" FOR  SET RPC=$ORDER(RPCLIST(RPC)) QUIT:RPC=""  DO
-        . SET ARR(RPC)=1
-        NEW NAMESPACE
-        SET DONE=0
         FOR  DO  QUIT:DONE
-        . WRITE "Enter a namespace (e.g. 'TMG') to scan for (^ to abort): "
+        . WRITE "Enter a namespace (e.g. 'TMG') to scan for (^ when done): "
         . NEW NS READ NS:$GET(DTIME,3600) WRITE !
         . IF NS="" SET NS="^" 
         . IF NS="^" SET DONE=1 QUIT
@@ -286,24 +346,30 @@ SHOWMSNG ;"SHOW MISSING
         DO ^DIC
         IF +Y'>0 DO  GOTO SWMDN
         . WRITE "CAN'T FIND OR CPRS GUI CHART!!!",!
-        WRITE !,"Scanning through all entries in REMOTE PROCEDURE file",!
+        WRITE !,"Scanning through all entries in OR CPRS GUI CHART, RPC field",!
         WRITE "  for matches in given namespace(s), to ensure all entries",!
-        WRITE "    are present in list.",!
+        WRITE "    are present in L1^TMGRPC1B list.",!
         WRITE "-------------------------------------",!
-        NEW RPCIEN SET RPCIEN=0
-        FOR  SET RPCIEN=$ORDER(^DIC(19,+Y,"RPC",RPCIEN)) QUIT:(+RPCIEN'>0)  DO
-        . NEW RPCPTR SET RPCPTR=+$GET(^DIC(19,+Y,"RPC",RPCIEN,0)) QUIT:RPCPTR'>0
+        NEW RPCPTR SET RPCPTR=0
+        FOR  SET RPCPTR=$ORDER(^DIC(19,+Y,"RPC","B",RPCPTR)) QUIT:(+RPCPTR'>0)  DO
         . NEW RPCNAME SET RPCNAME=$PIECE($GET(^XWB(8994,RPCPTR,0)),"^",1)
         . NEW NS SET NS=""
         . FOR  SET NS=$ORDER(NAMESPACE(NS)) QUIT:NS=""  DO
         . . IF $EXTRACT(RPCNAME,1,$LENGTH(NS))'=NS QUIT
-        . . IF $GET(ARR(RPCNAME))=1 DO  QUIT  ;"RPC ALREADY PRESENT
+        . . IF $DATA(RPCLIST(RPCNAME))>0 DO  QUIT  ;"RPC ALREADY PRESENT
         . . . WRITE RPCNAME," --> Already present",!
         . . WRITE "MISSING: ",RPCNAME,", should add to list at L1^TMGRPC1B",!
+        . . SET MISSING(RPCNAME)=""
+        IF $DATA(MISSING) DO
+        . WRITE !,"------------------------------",!
+        . WRITE "SUMMARY OF MISSING RPC'S, that should be added to L1^TMGRPC1B'",!
+        . DO ZWRITE^TMGZWR("MISSING")
+        ELSE  DO
+        . WRITE !,"------------------------------",!
+        . WRITE "None missing.",! 
 SWMDN   QUIT                
   ;
-SHWMSNG2 ;"Show missing RPC'S in a BUILD 
-        ;"Show which RPC's, are missing from list L1, compared to RPC in BUILD 
+SHWMSNG2 ;"Show which RPC's, are missing from list L1, compared to RPC in BUILD 
         NEW DIC,X,Y SET DIC(0)="MAEQ",DIC=9.6  ;"9.6 = BUILD file
         DO ^DIC WRITE !
         IF +Y'>0 QUIT
@@ -326,7 +392,7 @@ SHWMSNG2 ;"Show missing RPC'S in a BUILD
         . WRITE "And there were NO missing RPC's in BUILD",!
         QUIT
         ;
-SHWMSNGR ;"Show missing RPC'S from REMOTE PROCEDURE file in a BUILD
+SHWMSNG3 ;"Show missing RPC'S from REMOTE PROCEDURE file in a BUILD
         ;"Looks at available RPC's and sees if any are missing from BUILD.
         NEW DIC,X,Y SET DIC(0)="MAEQ",DIC=9.6  ;"9.6 = BUILD file
         DO ^DIC WRITE !
@@ -350,10 +416,38 @@ SHWMSNGR ;"Show missing RPC'S from REMOTE PROCEDURE file in a BUILD
         . SET MISSING(RPCNAME)=""
         WRITE !
         IF $DATA(MISSING) DO
+        . WRITE !,"------------------------------",!
         . WRITE "SUMMARY OF MISSING RPC'S, that should be added to BUILD'",!
         . DO ZWRITE^TMGZWR("MISSING")
         QUIT
         ;
+SHOWMSNG4 ;"SHOW which RPC's, are missing from list L1, compared to REMOTE PROCEDURE file
+        NEW TMGI,RPC,RPCNAME,NAMESPACE,NAMESPACERPC,RPCLIST,MISSING
+        DO GETLIST(.RPCLIST)  ;"Read list at L1 into an array
+        NEW DONE SET DONE=0
+        FOR  DO  QUIT:DONE
+        . WRITE "Enter a namespace (e.g. 'TMG') to scan for (^ when done): "
+        . NEW NS READ NS:$GET(DTIME,3600) WRITE !
+        . IF NS="" SET NS="^" 
+        . IF NS="^" SET DONE=1 QUIT
+        . SET NAMESPACE(NS)=""
+        SET RPCNAME="" 
+        FOR  SET RPCNAME=$ORDER(^XWB(8994,"B",RPCNAME)) QUIT:(RPCNAME="")  DO
+        . SET NS="" FOR  SET NS=$ORDER(NAMESPACE(NS)) QUIT:NS=""  DO
+        . . IF $EXTRACT(RPCNAME,1,$LENGTH(NS))=NS SET NAMESPACERPC(RPCNAME)=""
+        SET REPCNAME=""
+        FOR  SET RPCNAME=$ORDER(NAMESPACERPC(RPCNAME)) QUIT:RPCNAME=""  DO
+        . WRITE RPCNAME," (in REMOTE PROCEDURE file) --> " 
+        . IF $DATA(RPCLIST(RPCNAME)) DO  QUIT
+        . . WRITE "OK, already present",!
+        . WRITE "MISSING.  Consider adding to L1^TMGRPC1B list",!
+        . SET MISSING(RPCNAME)=""
+        WRITE !
+        IF $DATA(MISSING) DO
+        . WRITE "SUMMARY OF MISSING RPC'S, that should be added to L1^TMGRPC1B list'",!
+        . DO ZWRITE^TMGZWR("MISSING")
+        QUIT                
+        ;        
 SHWMSNGF ;"Show missing ROUTINES (source files) in a BUILD
         ;"Looks at available ROUTINEs and sees if any are missing from BUILD.
         NEW DIC,X,Y SET DIC(0)="MAEQ",DIC=9.6  ;"9.6 = BUILD file

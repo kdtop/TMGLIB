@@ -45,7 +45,7 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"ARRAY2WP(ARRAY,REF) -- convert ARRAY to a Fileman WP array
  ;"Comp2Strs(s1,s2) -- compare two strings and assign an arbritrary score to their similarity
  ;"$$PosNum(s,[Num],LeadingSpace) -- return position of a number in a string
- ;"IsNumeric(s) -- deterimine IF word s is a numeric
+ ;"IsNumeric(s) -- deterimine if word s is a numeric
  ;"ScrubNumeric(s) -- remove numeric words from a sentence
  ;"Pos(subStr,s,count) -- return the beginning position of subStr in s
  ;"DiffPos(s1,s2) -- Return the position of the first difference between s1 and s2
@@ -60,7 +60,7 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"CatArray(Words,i1,i2,DivChr) -- return concat array from index1 to index2
  ;"$$InQt(s,Pos) ;"Depreciated -- use $$INQT^TMGSTUT3
  ;"$$HNQTSUB(s,SubStr) --Same as $$HasNonQtSub
- ;"$$HasNonQtSub(s,SubStr) -- return IF string s contains SubStr, but not inside quotes.
+ ;"$$HasNonQtSub(s,SubStr) -- return if string s contains SubStr, but not inside quotes.
  ;"$$GetWord(s,Pos,OpenDiv,CloseDiv) ;"Depreciated.  Use $$GETWORD^TMGSTUT3
  ;"$$CmdChStrip(s) -- Strips all characters < #32 from string.
  ;"$$StrBounds(s,p) -- return position of end of string
