@@ -1,0 +1,383 @@
+TMGC0P04   ; TMG E LAB ORDERING, PDF and HL7;  5/17/17
+        ;;1.0;TMG-LIB;**1**;2/1/17
+  ;
+  ;" CODE FOR PROCESSING MESSAGES RETURNED FROM NEWCROP / CHANGE-HEALTH
+  ;
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;"Copyright (c) 5/17/17/  Kevin S. Toppenberg MD
+  ;"
+  ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+  ;" to license terms outlined in separate file TMGLICNS.m, which should
+  ;" always be distributed with this file.
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;
+  ;"=======================================================================
+  ;"=======================================================================
+  ;" API -- Public Functions.
+  ;"=======================================================================
+  ;"PROCESS1(ARR,HL7MSG,HTMLMSG,PROCMODE) ;"ENTRY POINT.  CALLED BY ELABPULL^TMGC0P01
+  ;
+  ;"=======================================================================
+  ;" API - Private Functions
+  ;"=======================================================================
+  ;"HNDLHL7(HL7MSG,TMGDFN,DT) ;
+  ;"ISDUPHL7(TMGDFN,MD5SUM)  ;"IS HL7 MESSAGE DUPLICATE? TESTING MD5SUM
+  ;"MKMSGREC(TMGDFN,DT,IEN772,IEN773,MD5SUM,SUCCESS)  ;"MAKE HL7 MESSAGE INFO REC
+  ;"HTML2PDF(HTMLMSG,TMGDFN,DT)  ;Save HTMLMsg as file and entry in IMAGE file.
+  ;"MAKPDF(SRCFNAME,DESTFNAME)  ;Render HFS html file into pdf file.
+  ;"MAKPIMAG(TMGDFN,DT,EXT)  ;"MAKE ENTRY IN FILE 2005 (IMAGE) TO HOLD LAB PDF IMAGE
+  ;"ST2HFS(STR,PATH,FILENAME)  ;"WRITE STRING TO HOST FILE SYSTEM
+  ;"
+  ;"=======================================================================
+  ;"Dependancies
+  ;"=======================================================================
+  ;"TMGHL7*, TMGDEBU2
+  ;"=======================================================================
+  ;"=======================================================================
+  ;
+PROCESS1(ARR,HL7MSG,HTMLMSG,PROCMODE) ;"ENTRY POINT. CALLED BY ELABPULL^TMGC0P01
+  ;"Purpose: process one lab message array, as returned from NewCrop
+  ;"Input: ARR -- PASS BY REFERENCE.  Format ARR(<property str>)=value
+  ;"       HL7MSG -- A string comprising entire HL7 message
+  ;"       HTMLMSG -- A string comprising entire HTML message to display lab.
+  ;"       PROCMODE -- OPTIONAL.
+  ;"            PROCMODE("HL7")=1 (default) if HL7 message should be processed
+  ;"                     NOTE: if HL7'=1 then PDF also not processed.
+  ;"                     If just PDF is needed, will need to reorganize code below.  
+  ;"            PROCMODE("PDF")=1 (default) if PDF should be generated for result
+  ;"            PROCMODE("ERR")=1 (default) if errors should generate alerts
+  ;"NOTE: If error generated in this procedure, an ALERT will generated.
+  ;"Result:  1^OK, OR -1^ErrorMessage
+  NEW TMGZZDEBUG SET TMGZZDEBUG=0
+  IF TMGZZDEBUG=1 DO
+  . KILL ARR,HL7MSG,HTMLMSG,PROCMODE
+  . MERGE ARR=^TMG("TMP","PROCESS1^TMGC0P04","ARR")
+  . MERGE HL7MSG=^TMG("TMP","PROCESS1^TMGC0P04","HL7MSG")
+  . MERGE HTMLMSG=^TMG("TMP","PROCESS1^TMGC0P04","HTMLMSG")
+  . MERGE PROCMODE=^TMG("TMP","PROCESS1^TMGC0P04","PROCMODE")
+  ELSE  DO
+  . KILL ^TMG("TMP","PROCESS1^TMGC0P04")
+  . MERGE ^TMG("TMP","PROCESS1^TMGC0P04","ARR")=ARR
+  . MERGE ^TMG("TMP","PROCESS1^TMGC0P04","HL7MSG")=HL7MSG
+  . MERGE ^TMG("TMP","PROCESS1^TMGC0P04","HTMLMSG")=HTMLMSG
+  . MERGE ^TMG("TMP","PROCESS1^TMGC0P04","PROCMODE")=PROCMODE  
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  SET PROCMODE("PDF")=$GET(PROCMODE("PDF"),1)
+  SET PROCMODE("HL7")=$GET(PROCMODE("HL7"),1)
+  SET PROCMODE("ERR")=$GET(PROCMODE("ERR"),1)
+  NEW IEN2005 SET IEN2005=0
+  NEW HLMTIEN,HLMTIENS,TMGHLMINFO
+  NEW HL7MSGARR,TMGHL7MSG
+  NEW DIV SET DIV="^"
+  NEW CR,LF,CRLF,LFCR SET CR=$CHAR(13),LF=$CHAR(10),CRLF=CR_LF,LFCR=LF_CR
+  SET DIV=$SELECT(HL7MSG[CRLF:CRLF,HL7MSG[LFCR:LFCR,HL7MSG[LF:LF,1:CR)
+  ;IF HL7MSG[CRLF SET DIV=CRLF
+  ;ELSE  IF HL7MSG[LFCR SET DIV=LFCR
+  ;ELSE  IF HL7MSG[LF SET DIV=LF
+  ;ELSE  IF HL7MSG[CR SET DIV=CR
+  DO SPLIT2AR^TMGSTUT2(HL7MSG,DIV,.HL7MSGARR) ;split to array
+  ;"Below is just to ease getting DFN and DT from HL7 message.  Actual processing later
+  NEW TMGU SET TMGRESULT=$$PRSEARRY^TMGHL7X2(,.HL7MSGARR,.TMGHL7MSG,.TMGU)
+  IF +TMGRESULT'>0 GOTO PR1ERR
+  NEW PIDIDX SET PIDIDX=+$ORDER(TMGHL7MSG("B","PID",0))
+  NEW TMGDFN SET TMGDFN=0
+  ;"SET TMGDFN=$GET(ARR("PatientMRN"))  NOTE: QUEST SEEMS TO SEND BACK THEIR INTERNAL MRN
+  ;NEW TEMPDFN SET TEMPDFN=$GET(TMGHL7MSG(PIDIDX,2)) IF TEMPDFN'="" SET TMGDFN=TEMPDFN
+  IF TMGDFN'>0 DO
+  . NEW TMGINFO DO PID^TMGHL72 SET TMGDFN=+$GET(TMGINFO("DFN"))
+  . IF TMGDFN'>0 DO  QUIT
+  . . SET TMGRESULT="-1^Unable to determine DFN in PROCESS1^TMGC0P04"
+  IF TMGRESULT<0 GOTO PR1ERR
+  NEW MSHIDX SET MSHIDX=+$ORDER(TMGHL7MSG("B","MSH",0))
+  NEW LABDT SET LABDT=$$HL72FMDT^TMGHL7U3($GET(TMGHL7MSG(MSHIDX,7)))
+  NEW OBRIDX SET OBRIDX=0
+  FOR  SET OBRIDX=$ORDER(TMGHL7MSG("B","OBR",OBRIDX)) QUIT:+OBRIDX'>0  DO
+  . NEW HL7DT SET HL7DT=+$GET(TMGHL7MSG(OBRIDX,7)) QUIT:HL7DT'>0
+  . SET LABDT($$HL72FMDT^TMGHL7U3(HL7DT))=""
+  NEW IENS22735D01 SET IENS22735D01=0
+PR1HL7 ;
+  IF PROCMODE("HL7")'=1 GOTO PR1DN   ;"NO PDF because HNDLHL7 currently makes rec in 22735 needed for PDF handling
+  SET TMGRESULT=$$HNDLHL7(.HL7MSGARR,TMGDFN,.LABDT,.TMGHLMINFO)  ;"File HL7 message. 
+  IF TMGRESULT="1^DUPLICATE" SET TMGRESULT="1^OK" GOTO PR1DN ;"SKIP PROCESSING
+  IF TMGRESULT<0 GOTO PR1ERR
+  SET IENS22735D01=TMGRESULT
+PR1PDF ;
+  IF PROCMODE("PDF")'=1 GOTO PR1ERR
+  ;"note: I was having trouble with PDF readers on client, so am turning PDF into images and showing them.  
+  ;"SET IEN2005=$$HTML2PDF(.HTMLMSG,TMGDFN,.LABDT) ;Returns IEN2005^OK, OR -1^ErrorMessage
+  NEW IMGARR SET TMGRESULT=$$HTML2IMG(.HTMLMSG,TMGDFN,.LABDT,.IMGARR)  ;"Render HTMLMsg to images & recs in IMAGE file
+  SET TMGRESULT="1^OK"
+  SET IEN2005=0 FOR  SET IEN2005=$ORDER(IMGARR(IEN2005)) QUIT:(+IEN2005'>0)!(+TMGRESULT'>0)  DO
+  . IF $DATA(^TMG(22735,TMGDFN,"MSG",+IENS22735D01,"B",IEN2005))>0 QUIT  ;"already present, so skip
+  . NEW TMGFDA,TMGMSG,TMGIEN
+  . SET TMGFDA(22735.02,"+1,"_IENS22735D01,.01)=+IEN2005
+  . DO UPDATE^DIE("K","TMGFDA","TMGIEN","TMGMSG")
+  . IF $DATA(TMGMSG("DIERR")) DO  QUIT
+  . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  IF +TMGRESULT>0 GOTO PR1DN
+PR1ERR  ;
+  IF PROCMODE("ERR")'=1 GOTO PR1DN
+  IF +TMGRESULT=-2 GOTO PR1DN
+  SET HLMTIEN=+$GET(TMGHLMINFO("IEN772"))  ;"USED IN GLOBAL SCOPE IN ALERT
+  SET HLMTIENS=+$GET(TMGHLMINFO("IEN773")) ;"USED IN GLOBAL SCOPE IN ALERT
+  DO SETALRT2^TMGHL7E(TMGRESULT) 
+PR1DN ;
+  QUIT TMGRESULT
+  ;
+HNDLHL7(HL7MSG,TMGDFN,LABDT,INFO) ;
+  ;"HANDLE HL7MESSAGE, and make TMG HL7 MESSAGE INFO record
+  ;"NOTE: If a corrected HL7 message comes in, it should be somehow different, and thus
+  ;"      will have a different MD5SUM value.  Only if MD5SUM is the exactly the same will
+  ;"      the message be considered to be duplicate.
+  ;"Input: HL7MSG
+  ;"       TMGDFN
+  ;"       LABDT -- PASS BY REFERENCE.  FORMAT:
+  ;"             LABDT=DATE TIME OF HL7 MESSAGE
+  ;"             LABDT(FMDT)=""  <-- FMDT OF SPECIMENT COLLECTION (MAY BE MULTIPLE)
+  ;"       INFO -- Pass by REFERENCE, AN OUT PARAMETER
+  ;"           INFO("IEN772")=<IEN772> of newly generated records
+  ;"           INFO("IEN773")=<IEN773> of newly generated records
+  ;"RESULT: IENS TO 22735.01 (e.g. "2,3456,") if OK, 
+  ;"        -1^Message if error, or 
+  ;"        -2^Message if error, but ALERT has already been sent.  
+  ;"         1^DUPLICATE
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  NEW TMGHL7MSG,TMGENV,OPTION
+  NEW MD5SUM SET MD5SUM=$$MD5ARR^TMGKERN1("HL7MSG")
+  IF $$ISDUPHL7(TMGDFN,MD5SUM) DO  GOTO HNDH7DN
+  . SET TMGRESULT="1^DUPLICATE"
+  NEW IEN772,IEN773
+  SET OPTION("AUTO REGISTER MODE")=1
+  SET OPTION("HL7 PURGE DT")="T+12M@0800"  ;"PURGE AFTER 10 YEARS
+  SET TMGRESULT=$$MKHLMAR2^TMGHL7U2(.HL7MSG,.IEN772,.IEN773,.OPTION) ;"MAKE HL7 MESSAGE
+  IF TMGRESULT<0 GOTO HNDH7DN
+  NEW HLMTIEN SET (HLMTIEN,INFO("IEN772"))=IEN772   ;"HLMTIEN USED IN GLOBAL SCOPE IN TMGHL7*
+  NEW HLMTIENS SET (HLMTIENS,INFO("IEN773"))=IEN773 ;"HLMTIEN USED IN GLOBAL SCOPE IN TMGHL7*
+  NEW NOALERT SET NOALERT=0 ;"alerts handled here
+  SET TMGRESULT=$$HL7IN^TMGHL71(NOALERT,.OPTION)  ;"returns OPTION("HL7 DATE")
+  IF TMGRESULT<0 DO  GOTO HNDH7DN
+  . IF NOALERT=0 SET $PIECE(TMGRESULT,"^",1)=-2
+  ;"NEW DT SET DT=$$HL72FMDT^TMGHL7U3($GET(OPTION("HL7 DATE")))
+  IF LABDT'>0 DO  GOTO HNDH7DN
+  . SET TMGRESULT="-1^Unable to get HL7 date/time in HNDLHL7^TMGC0P04"
+  SET TMGRESULT=$$MKMSGREC(TMGDFN,.LABDT,IEN772,IEN773,MD5SUM,1)
+HNDH7DN ;
+  QUIT TMGRESULT
+  ;
+ISDUPHL7(TMGDFN,MD5SUM)  ;"IS HL7 MESSAGE DUPLICATE? TESTING MD5SUM
+  NEW TMGRESULT SET TMGRESULT=($DATA(^TMG(22735,"AMD5SUM",MD5SUM,TMGDFN))>0)
+  QUIT TMGRESULT
+  ;
+MKMSGREC(TMGDFN,LABDT,IEN772,IEN773,MD5SUM,SUCCESS)  ;"MAKE HL7 MESSAGE INFO REC
+  ;"INPUT: TMGDFN -- PATIENT IEN
+  ;"       LABDT -- PASS BY REFERENCE.  FORMAT:
+  ;"             LABDT=DATE TIME OF HL7 MESSAGE
+  ;"             LABDT(FMDT)=""  <-- FMDT OF SPECIMENT COLLECTION (MAY BE MULTIPLE)
+  ;"RESULT IENS TO 22735.01 (e.g. "2,3456,"), or -1^message if problem
+  NEW TMGFDA,TMGMSG,TMGIEN
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  IF +$GET(TMGDFN)'>0 DO  GOTO MKMRCDN
+  . SET TMGRESULT="-1^Invalid DFN in MKMSGREC^TMGC0P04"
+  IF $DATA(^TMG(22735,TMGDFN)) GOTO MKMRC2
+  SET TMGFDA(22735,"+1,",.01)=TMGDFN
+  SET TMGIEN(1)=TMGDFN
+  DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO MKMRCDN
+  . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+MKMRC2 ;
+  KILL TMGFDA,TMGIEN,TMGMSG
+  SET SUCCESS=$SELECT(SUCCESS=1:"Y",1:"")
+  NEW TMGIENS SET TMGIENS="+1,"_TMGDFN_","
+  SET TMGFDA(22735.01,TMGIENS,.01)=LABDT
+  SET TMGFDA(22735.01,TMGIENS,.02)=IEN773
+  SET TMGFDA(22735.01,TMGIENS,.03)=IEN772
+  SET TMGFDA(22735.01,TMGIENS,.04)=SUCCESS
+  SET TMGFDA(22735.01,TMGIENS,.05)=MD5SUM
+  DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO MKMRCDN
+  . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  NEW SUBIEN SET SUBIEN=+$GET(TMGIEN(1))
+  IF SUBIEN'>0 DO  GOTO MKMRCDN
+  . SET TMGRESULT="-1^Unable to locate IEN of added record in MKMSGREC^TMGC0P04"
+  NEW IENS SET IENS=SUBIEN_","_TMGDFN_","
+  SET TMGRESULT=IENS
+  NEW OBRDT SET OBRDT=0
+  FOR  SET OBRDT=$ORDER(LABDT(OBRDT)) QUIT:(+OBRDT'>0)!(+TMGRESULT'>0)  DO
+  . KILL TMGFDA,TMGIEN,TMGMSG
+  . SET TMGFDA(22735.11,"+1,"_IENS,.01)=OBRDT
+  . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  . IF $DATA(TMGMSG("DIERR")) DO  QUIT
+  . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+MKMRCDN ;
+  QUIT TMGRESULT
+  ;
+HTML2IMG(HTMLMSG,TMGDFN,LABDT,OUT)  ;"Render HTMLMsg to image files and entries in IMAGE file
+  ;"Input: HTMLMSG -- string containing HTML page.
+  ;"       TMGDFN -- PATIENT DFN
+  ;"       LABDT -- PASS BY REFERENCE.  FORMAT:
+  ;"             LABDT=DATE TIME OF HL7 MESSAGE
+  ;"             LABDT(FMDT)=""  <-- FMDT OF SPECIMENT COLLECTION (MAY BE MULTIPLE)
+  ;"       OUT -- pass by REFERENCE.  AN OUT PARAMETER.  Format
+  ;"            OUT(IEN2005)=""  <-- multiple entries if multiple pages to rendered HTML document. 
+  ;"Result:  1^OK, OR -1^ErrorMessage
+  NEW ZZDEBUG SET ZZDEBUG=0
+  IF ZZDEBUG=1 DO
+  . SET TMGDFN=$GET(^TMG("TMP","HTML2IMG^TMGC0P04","DFN"))
+  . MERGE LABDT=^TMG("TMP","HTML2IMG^TMGC0P04","LABDT")
+  . KILL HTMLMSG MERGE HTMLMSG=^TMG("TMP","HTML2IMG^TMGC0P04","HTMLMSG")
+  ELSE  DO
+  . KILL ^TMG("TMP","HTML2IMG^TMGC0P04")
+  . SET ^TMG("TMP","HTML2IMG^TMGC0P04","DFN")=TMGDFN
+  . MERGE ^TMG("TMP","HTML2IMG^TMGC0P04","LABDT")=LABDT
+  . MERGE ^TMG("TMP","HTML2IMG^TMGC0P04","HTMLMSG")=HTMLMSG
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  NEW TEMPDIR SET TEMPDIR="/tmp/"
+  NEW UNIQ SET UNIQ=$$UNIQUE^%ZISUTL("LABHTML")
+  NEW SRCFNAME SET SRCFNAME=UNIQ_".html"
+  NEW TEMP SET TEMP=$$ST2HFS(.HTMLMSG,TEMPDIR,SRCFNAME) 
+  IF +TEMP'>0 SET TMGRESULT=TEMP GOTO H2IDN
+  NEW PDFNAME SET PDFNAME=UNIQ_".pdf"
+  SET TEMP=$$MAKPDF(TEMPDIR_SRCFNAME,TEMPDIR_PDFNAME)  ;"Render HTML to pdf, then will convert pdf to images. 
+  IF +TEMP'>0 SET TMGRESULT=TEMP GOTO H2IDN
+  IF $$ISFILE^TMGKERNL(TEMPDIR_PDFNAME)=0 DO  GOTO H2IDN
+  . SET TMGRESULT="-1^Unable to find created PDF file in HTM2IMAG^TMGC0P4: "_TEMPDIR_PDFNAME
+  NEW KIL SET KIL(SRCFNAME)="" SET TEMP=$$DEL^%ZISH(TEMPDIR,"KIL")  ;"//delete the HTML file.  
+  IF TEMP'=1 DO  GOTO H2IDN
+  . SET TMGRESULT="-1^Unable to delete temp file: "_TEMPDIR_SRCFNAME
+  NEW FILES SET TMGRESULT=$$PDF2PNGS(TEMPDIR,PDFNAME,UNIQ,.FILES,150,1)  ;"convert pdf to images, deleting source pdf
+  IF TMGRESULT'>0 GOTO H2IDN
+  NEW FNAME SET FNAME=""
+  FOR  SET FNAME=$ORDER(FILES(FNAME)) QUIT:(FNAME="")!(+TMGRESULT'>0)  DO
+  . SET TEMP=$$MAKPIMAG(TMGDFN,.LABDT,"png")  ;"MAKE ENTRY IN FILE 2005 (IMAGE) TO HOLD LAB IMAGE
+  . IF +TEMP'>0 SET TMGRESULT=TEMP QUIT
+  . NEW IEN2005 SET IEN2005=+TEMP
+  . NEW DESTPATH SET DESTPATH=$PIECE(TEMP,"^",2)
+  . SET DESTPATH=$$GETLOCFPATH^TMGRPC1C(DESTPATH)
+  . NEW DESTFNAME SET DESTFNAME=$PIECE(TEMP,"^",3)
+  . IF DESTFNAME="" DO  QUIT
+  . . SET TMGRESULT="-1^No filename returned from MAKPIMAG, in HTML2IMG^TMGC0P04"
+  . NEW CMD SET CMD="mv "_FNAME_" "_DESTPATH_DESTFNAME
+  . NEW MSG SET TEMP=$$LINUXCMD^TMGKERNL(CMD,.MSG)
+  . IF +TEMP'>0 DO  QUIT
+  . . SET TMGRESULT=TEMP
+  . SET OUT(IEN2005)=""
+H2IDN ;
+  QUIT TMGRESULT
+  ;
+PDF2PNGS(DIR,PDFNAME,PREFIX,OUT,DPI,DELORIG)  ;"CONVERT PDF TO PNG IMAGES
+  ;"Input: DIR -- the source and output directory.  Optional.  Default="/tmp/"
+  ;"       PDFNAME -- Filename (without path) of the source PDF
+  ;"       PREFIX -- Prefix of the filename for output png files.  E.g. if "TMG", the
+  ;"              output files will be "TMG-1.png", "TMG-2.png" etc. 
+  ;"              OPTIONAL.  Default is TMGPDF2PNG_$JOB
+  ;"       OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
+  ;"            OUT(FULLPATHFNAME)=""  <-- one entry for each generated file
+  ;"       DPI -- OPTIONAL.  This is the image density of the output file.  Default is 150
+  ;"       DELORIG -- IF 1, then source PDFNAME will deleted if conversion occured OK
+  ;"Result: 1^OK, or -1^Message if problem.  
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  NEW TEMP SET TEMP=$$CMDOK^TMGKERNL("pdftoppm")
+  IF +TEMP'>0 DO  GOTO P2PDN
+  . SET TMGRESULT="-1^Linux command 'pdftoppm' not found on system. Try installing 'poppler-utils' with package manager."
+  SET DIR=$GET(DIR) IF DIR="" SET DIR="/tmp/"
+  SET PDFNAME=$GET(PDFNAME) IF PDFNAME="" DO  GOTO P2PDN
+  . SET TMGRESULT="-1^Name of PDF file to convert not provided to PDF2PNG^TMGC0P04."
+  SET PREFIX=$GET(PREFIX) IF PREFIX="" SET PREFIX="TMGPDF2PNG"_$J
+  SET DPI=+$GET(DPI) IF DPI'>0 SET DPI=150
+  NEW CMD SET CMD="pdftoppm -rx "_DPI_" -ry "_DPI_" -png """_DIR_PDFNAME_""" """_DIR_PREFIX_""""
+  NEW MSG SET TEMP=$$LINUXCMD^TMGKERNL(CMD,.MSG)
+  IF +TEMP'>0 SET TMGRESULT=TEMP GOTO P2PDN
+  NEW ARR NEW SRCH SET SRCH(PREFIX_"*.png")="" SET TEMP=$$LIST^%ZISH(DIR,"SRCH","ARR")
+  IF (TEMP=0)!($DATA(ARR)=0) DO  GOTO P2PDN
+  . SET TMGRESULT="-1^Failure listing files in PDF2PNG^TMGC0P04 when converting PDF to images."
+  NEW FNAME SET FNAME=""
+  FOR  SET FNAME=$ORDER(ARR(FNAME)) QUIT:FNAME=""  SET OUT(DIR_FNAME)=""
+  IF $GET(DELORIG)'=1 GOTO P2PDN
+  NEW KIL SET KIL(PDFNAME)="" SET TEMP=$$DEL^%ZISH(DIR,"KIL")
+  IF TEMP'=1 SET TMGRESULT="-1^Unable to delete temp file: "_DIR_PDFNAME
+P2PDN ;
+  QUIT TMGRESULT
+  ;
+HTML2PDF(HTMLMSG,TMGDFN,LABDT)  ;Save HTMLMsg as file and entry in IMAGE file.
+  ;"NOTE: Not being used.  The code is OK, but I needed to change functionality for client reasons. 
+  ;"Input: HTMLMSG -- string containing HTML page.
+  ;"       TMGDFN=PATIENT DFN
+  ;"       LABDT -- PASS BY REFERENCE.  FORMAT:
+  ;"             LABDT=DATE TIME OF HL7 MESSAGE
+  ;"             LABDT(FMDT)=""  <-- FMDT OF SPECIMENT COLLECTION (MAY BE MULTIPLE)
+  ;"Result:  IEN2005^OK, OR -1^ErrorMessage
+  NEW TEMPDIR SET TEMPDIR="/tmp/"
+  NEW TMGRESULT SET TMGRESULT=$$MAKPIMAG(TMGDFN,.LABDT,"pdf")  ;"FILE 2005 (IMAGE) holds file meta
+  NEW IEN2005 SET IEN2005=+TMGRESULT IF IEN2005'>0 GOTO H2PDN
+  NEW DESTPATH SET DESTPATH=$PIECE(TMGRESULT,"^",2)
+  SET DESTPATH=$$GETLOCFPATH^TMGRPC1C(DESTPATH)
+  NEW DESTFNAME SET DESTFNAME=$PIECE(TMGRESULT,"^",3)
+  IF DESTFNAME="" DO  GOTO H2PDN
+  . SET TMGRESULT="-1^No filename returned from MAKPIMAG, in HTML2PDF^TMGC0P04()"
+  SET TMGRESULT=IEN2005_"^OK"
+  NEW DEST SET DEST=DESTPATH_DESTFNAME
+  NEW SRCFNAME SET SRCFNAME=$$UNIQUE^%ZISUTL("LABHTML")_".html"
+  NEW TEMP
+  SET TEMP=$$ST2HFS(.HTMLMSG,TEMPDIR,SRCFNAME) IF +TEMP'>0 SET TMGRESULT=TEMP GOTO H2PDN
+  SET TEMP=$$MAKPDF(TEMPDIR_SRCFNAME,DEST) IF +TEMP'>0 SET TMGRESULT=TEMP GOTO H2PDN
+  NEW KIL SET KIL(SRCFNAME)="" SET TEMP=$$DEL^%ZISH(TEMPDIR,"KIL")
+  IF TEMP'=1 DO  GOTO H2PDN
+  . SET TMGRESULT="-1^Unable to delete temp file: "_TEMPDIR_SRCFNAME
+H2PDN ;
+  QUIT TMGRESULT
+  ;
+MAKPDF(SRCFNAME,DESTFNAME)  ;Render HFS html file into pdf file.
+  ;"Input: SRCFNAME -- filename, including path, of saved html file.
+  ;"       DESTFNAME -- filename, including path, of the pdf file that is to be created
+  ;"NOTE: This routine depends on linux command wkhtmltopdf which must be
+  ;"      installed in linux
+  ;"Result: 1^OK, or -1^Error message (Linux error return code)
+  NEW TMGRESULT SET TMGRESULT=$$CMDOK^TMGKERNL("wkhtmltopdf")
+  IF +TEMP'>0 DO  GOTO MKPDN
+  . SET TMGRESULT="-1^Linux command 'wkhtmltopdf' not found on system. Try installing with package manager after setting up repository."
+  NEW CMD SET CMD="wkhtmltopdf -q "_SRCFNAME_" "_DESTFNAME
+  NEW OUT,TEMP SET TEMP=$$LINUXCMD^TMGKERNL(CMD,.OUT)
+  IF +TEMP'>0 SET TMGRESULT=TEMP GOTO MKPDN
+  IF $$ISFILE^TMGKERNL(DESTFNAME)=0 DO  QUIT
+  . SET TMGRESULT="-1^Expected output file, "_DESTFNAME_", not found."
+MKPDN ;
+  QUIT TMGRESULT
+  ;
+MAKPIMAG(TMGDFN,LABDT,EXT)  ;"MAKE ENTRY IN FILE 2005 (IMAGE) TO HOLD LAB IMAGE
+  ;"Input: TMGDFN=PATIENT DFN
+  ;"       LABDT -- PASS BY REFERENCE.  FORMAT:
+  ;"             LABDT=DATE TIME OF HL7 MESSAGE
+  ;"             LABDT(FMDT)=""  <-- FMDT OF SPECIMENT COLLECTION (MAY BE MULTIPLE)
+  ;"Result:  IEN2005^PATH^FNAME, or -1^ErrorMessage
+  NEW PROCDT SET PROCDT=+$ORDER(LABDT(""))
+  IF PROCDT'>0 SET PROCDT=$GET(LABDT)
+  NEW UPEXT SET UPEXT=$$UP^XLFSTR(EXT)
+  NEW TMGARR  ;"NOTE: subscript names (e.g. 'magDFN') have no significance; 1st piece of
+  SET TMGARR("NETLOCABS")="ABS^STUFFONLY"
+  SET TMGARR("magDFN")="5^"_TMGDFN
+  SET TMGARR("DATETIME")="7^NOW"            ;date/time image stored
+  SET TMGARR("DATETIMEPROC")="15^"_PROCDT  ;Date/Time of Procedure
+  SET TMGARR("PROC")="6^LAB IMAGE"          ;text name of procedure, 1-10 chars
+  SET TMGARR("DESC")="10^"_UPEXT_" file containing lab results"  ;image description
+  SET TMGARR("DUZ")=DUZ                     ;DUZ
+  SET TMGARR("OBJTYPE")="3^1"               ;Object Type. 1= Still Image
+  SET TMGARR("FileExt")="EXT^"_EXT
+  NEW OUT DO ADD^MAGGTIA(.OUT,.TMGARR)  ;"OUT is single variable, IEN2005^path^FILE NAME
+  NEW TMGRESULT SET TMGRESULT=$GET(OUT)
+  IF +TMGRESULT'>0 DO
+  . SET TMGRESULT="-1^Unable to add IMAGE record in file# 2005 in MAKPIMAG^TMGC0P04"
+  QUIT TMGRESULT
+  ;
+ST2HFS(STR,PATH,FILENAME)  ;"WRITE STRING TO HOST FILE SYSTEM
+  ;"Result:  1^ok, OR -1^ErrorMessage
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  SET PATH=$GET(PATH),FILENAME=$GET(FILENAME)
+  DO OPEN^%ZISH("FILE1",PATH,FILENAME,"W")
+  IF POP DO  GOTO STHDN
+  . SET TMGRESULT="-1^Unable to open file.  Path=["_PATH_"], Filename=["_FILENAME_"]"
+  USE IO
+  WRITE STR
+  DO CLOSE^%ZISH("FILE1")
+STHDN ;
+  QUIT TMGRESULT
+  ;
