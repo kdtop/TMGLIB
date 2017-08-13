@@ -23,7 +23,7 @@ TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 4/11/17; 6/26/17
  ;"PRIVATE FUNCTIONS
  ;"=======================================================================
  ;"NEXT(STR,FIRST,SECOND) --  determine which delimiter comes first and Return it
- ;"BRKTRIM(STR)   
+ ;"TRAILTRM(STR)   
  ;"ENDTEXT(STR)  -- RETURN THE END OF THE TEXT (ACCOUNTING FOR SPACES AND TAGS)
  ;"ITALICS(SECTION)  --  This will remove then replace italics 
  ;"INLINE(SECTION) 
@@ -41,11 +41,15 @@ TESTLHPI ;
         WRITE $$LASTHPI(+Y)
         QUIT
         ;
+T2()    ;
+        NEW TIULASTOV 
+        SET TIULASTOV=474969 ;"//L. HILT   NOTE: DON'T PUT FULL PATIENT NAMES HERE        
+        QUIT $$GETHPI(TIULASTOV)
+        ;       
 LASTHPI(DFN)  ;"Return the last HPI section, with processing, formatting etc.
         ;"FIND LAST NOTE WITH HPI SECTION
-        SET TIULASTOV=$$LASTTIU(DFN,"HISTORY OF PRESENT ILLNESS (HPI):")
-        IF DFN=25489 SET TIULASTOV=464299  ;!!!! REMOVE AFTER DEBUGGING !!!!! PAT.FINK. SPECIAL HANDLING DURING DEBUGGING
-        IF DFN=33957 SET TIULASTOV=463262  ;!!!! REMOVE AFTER DEBUGGING !!!!! PEA.HIP. SPECIAL HANDLING DURING DEBUGGING          
+        NEW TIULASTOV SET TIULASTOV=$$LASTTIU(DFN,"HISTORY OF PRESENT ILLNESS (HPI):")
+        if DFN=54514 SET TIULASTOV=462952
         IF TIULASTOV=0 QUIT ""
         QUIT $$GETHPI(TIULASTOV)
         ;                   
@@ -67,20 +71,26 @@ GETHPI(IEN8925,ITEMARRAY,OUT) ;"Get HPI section as one long string, with process
         ;"RUN PROCESS NOTE HERE
         NEW TMGHPI SET TMGHPI=""
         NEW IDX,TIUARRAY,PROCESSEDARR,OPTION SET IDX=0
+        NEW DFN SET DFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
         SET TIUARRAY("DFN")=DFN
         FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
         . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
         DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,1) ;
-        DO PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION)  ;"Parse note array into formatted array
+        NEW TEMP SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION)  ;"Parse note array into formatted array
+        IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
         SET OPTION("BULLETS")=(+$GET(DUZ)'=83)                
-        NEW ZZTMG SET ZZTMG=(+$GET(DUZ)=168)
+        NEW ZZTMG 
+        SET ZZTMG=(+$GET(DUZ)=168)
+        SET ZZTMG=1  ;"<--- REMOVE TO PUT DR DEE BACK TO PRIOR METHOD.  
         IF ZZTMG=1 DO  GOTO LHDN
-        . SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI    //kt 7/10/17  --FINISH!!
+        . SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        . SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI    //kt 7/10/17 
         ELSE  DO
         . SET TMGHPI=$$COMPHPI0(.ITEMARRAY,.OPTION,.OUT)  ;"EDDIE'S WORKING COMPILER OF HPI    
 LHDN    QUIT TMGHPI
         ;
-PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array        
+PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array 
+        ;"NOTE: See also TRIGGER1^TMGC0Q04 -> SUMNOTE^TMGTIUP1 --> PARSESCT^TMGTIUP1 for summarizing notes
         ;"Input: TIUARRAY -- PASS BY REFERENCE.  FORMAT:
         ;"          TIUARRAY(#)=<note text>  <-- array holds ENTIRE typical TMG note
         ;"       ITEMARRAY -- PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
@@ -105,10 +115,23 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         ;"          OPTION("AUTOGROUPING") = 0 OR 1
         ;"          OPTION("NUMOFGROUPS") =
         ;"          OPTION("GROUPING") =
-        NEW IDX,TMGHPI SET TMGHPI=""  
+        ;"Result: 1^OK, or -1^Error message
+        NEW TMGRESULT SET TMGRESULT="1^OK"
+        ;        
+        ;"NOTE: I encountered situation where there were so many <FONT ..> tags, that
+        ;"      the DOM processor (below) was blowing the stack. So this is a very
+        ;"      crude solution for that problem.
+        DO KILLFONT(.TIUARRAY)  
+        ;
+        ;"PROCESS NOTE VIA HTML DOM, using callback function.
+        NEW TEMP SET TEMP=$$PROCESS^TMGHTM2(.TIUARRAY,"FIXHTML^TMGTIUP2")
+        IF +TEMP<0 SET TMGHPI="ERROR: "_$PIECE(TEMP,"^",2,99) GOTO LHDN
+        ;
+        NEW IDX,TMGHPI SET TMGHPI=""
         ;"CONVERT ENTIRE NOTE INTO LONG STRING (TMGHPI)
         SET IDX=0 FOR  SET IDX=$ORDER(TIUARRAY(IDX)) QUIT:IDX'>0  DO
         . SET TMGHPI=TMGHPI_$GET(TIUARRAY(IDX))
+        IF TMGHPI="" SET TMGRESULT="-1^No text for not found for processing." GOTO PRSDN
         ;
         ;"GET GROUPING SIGNAL, IF PRESENT
         SET OPTION("AUTOGROUPING")=0
@@ -116,21 +139,34 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         IF TMGHPI["[GROUP AUTO " DO
         . SET OPTION("NUMOFGROUPS")=+$P($P(TMGHPI,"[GROUP AUTO ",2),"]",1)
         . IF OPTION("NUMOFGROUPS")>0 SET OPTION("AUTOGROUPING")=1
-        ;"
-        ;"EXTRACT JUST HPI PART
-        SET TMGHPI=$P(TMGHPI,"<B>HISTORY OF PRESENT ILLNESS (HPI):</B>",2)
-        IF TMGHPI["<STRONG>PAST MEDICAL HISTORY (PMH)" DO
-        . SET TMGHPI=$P(TMGHPI,"<STRONG>PAST MEDICAL HISTORY (PMH)",1)
-        ELSE  DO  
-        . SET TMGHPI=$P(TMGHPI,"<B>PAST MEDICAL HISTORY (PMH)",1)
-        ;"
-        ;"PROCESS NOTE VIA HTML DOM, using callback function.
-        NEW TEMP SET TEMP=$$PROCESS^TMGHTM2(.TMGHPI,"FIXHTML^TMGTIUP2")
-        IF +TEMP<0 SET TMGHPI="ERROR: "_$PIECE(TEMP,"^",2,99) GOTO LHDN
-        SET TMGHPI=$$UPTAGS^TMGHTM2(TMGHPI)  ;"force all tags to UPPER CASE
-        DO RPTAGS^TMGHTM1(.TMGHPI,"<BR />","<BR>")
         ;
-        ;"Remove unwanted tags / strings from note  
+        ;"EXTRACT JUST HPI PART
+        ;"== SET UP MARKERS FOR BEGINNING AND ENDING OF DESIRED HPI SECTION =======
+        NEW STARTARR,ENDARR
+        SET STARTARR("<b>HISTORY OF PRESENT ILLNESS (HPI)</b>")=""
+        SET STARTARR("<B>HISTORY OF PRESENT ILLNESS (HPI)</B>")=""
+        SET STARTARR("HISTORY OF PRESENT ILLNESS (HPI)")=""
+        ;"SET STARTARR(<MORE HERE IF NEEDED>) ...------------------------
+        SET ENDARR("<STRONG>PAST MEDICAL HISTORY (PMH)")=""
+        SET ENDARR("<B>PAST MEDICAL HISTORY (PMH)")=""
+        SET ENDARR("<b>PAST MEDICAL HISTORY (PMH)")=""
+        SET ENDARR("PAST MEDICAL HISTORY (PMH)")=""
+        ;"SET ENDARR(<MORE HERE IF NEEDED>)... --------------------------
+        ;
+        NEW STARTDIV,ENDDIV SET (STARTDIV,ENDDIV)=""
+        FOR  SET STARTDIV=$ORDER(STARTARR(STARTDIV))  QUIT:TMGHPI[STARTDIV  ;"when STARTDIV="", <text>["" is always TRUE
+        IF STARTDIV="" SET TMGRESULT="-1^Unable to find 'HISTORY OF PRESENT ILLNESS (HPI)' to start getting HPI" GOTO PRSDN
+        FOR  SET ENDDIV=$ORDER(ENDARR(ENDDIV))  QUIT:TMGHPI[ENDDIV  ;"when ENDDIV="", <text>["" is always TRUE
+        IF ENDDIV="" SET TMGRESULT="-1^Unable to find 'PAST MEDICAL HISTORY (PMH)' as end of HPI section" GOTO PRSDN
+        SET TMGHPI=$PIECE(TMGHPI,STARTDIV,2)
+        SET TMGHPI=$PIECE(TMGHPI,ENDDIV,1)
+        ;"
+        IF TMGHPI="" SET TMGRESULT="-1^No text for HPI found between opening and closing markers." GOTO PRSDN
+        ;"
+        SET TMGHPI=$$UPTAGS^TMGHTM2(TMGHPI)  ;"force all tags to UPPER CASE
+        ;"Remove/replace unwanted tags / strings from note  
+        DO RPTAGS^TMGHTM1(.TMGHPI,"<BR />","<BR>")
+        DO RPTAGS^TMGHTM1(.TMGHPI,"<P />","<P>")
         DO RMTAGS^TMGHTM1(.TMGHPI,"=== HPI ISSUES BELOW WERE NOT ADDRESSED TODAY ===")
         DO RMTAGS^TMGHTM1(.TMGHPI,"--&nbsp;[FOLLOWUP&nbsp;ITEMS]&nbsp;---------")
         DO RMTAGS^TMGHTM1(.TMGHPI,"-- [FOLLOWUP ITEMS] ---------")
@@ -158,7 +194,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         . . ;Skip section
         . ELSE  DO        
         . . SET SECTION=$$HTMLTRIM^TMGHTM1(SECTION,"LR")
-        . . SET SECTION=$$BRKTRIM(SECTION)
+        . . SET SECTION=$$TRAILTRM(SECTION)
         . . SET SECTION=$$ITALICS(SECTION)
         . . SET ITEMARRAY(IDX)=SECTION
         . . MERGE ITEMARRAY("TEXT",IDX)=TEXTARR 
@@ -170,7 +206,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         IF PREVFOUND=0 DO  ;"if prevention section not found, add blank one
         . SET ITEMARRAY(IDX)="<U>Prevention</U>: (data needed)"
         . SET IDX=IDX+1
-        QUIT
+PRSDN   QUIT TMGRESULT
         ;
 COMPHPI0(ITEMARRAY,OPTION,OUT)  ;"EDDIE'S WORKING COMPILER OF HPI
         ;"Purpose: Reassemble ordered list, removing undesired sections
@@ -217,7 +253,7 @@ COMPHPI0(ITEMARRAY,OPTION,OUT)  ;"EDDIE'S WORKING COMPILER OF HPI
         IF BULLETS=1 SET TMGHPI=TMGHPI_"</UL>"
         QUIT TMGHPI
         ;
-COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI    //kt 7/10/17  --FINISH!!
+COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI    //kt 7/10/17  
         ;"Input: ITEMARRAY -- PASS BY REFERENCE.  Format:
         ;"            ITEMARRAY(Ref#)=<Full section text>
         ;"            ITEMARRAY("TITLE",Ref#)=<SECTION TITLE>
@@ -236,6 +272,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI    //kt 7/10/17  --FINISH!!
         NEW NUMOFGROUPS  SET NUMOFGROUPS=$GET(OPTION("NUMOFGROUPS"))
         NEW GROUPING SET GROUPING=$GET(OPTION("GROUPING"))
         NEW BULLETS SET BULLETS=$GET(OPTION("BULLETS"))
+        NEW ADDBR SET ADDBR=+$GET(OPTION("TRAILING <BR>"))
         NEW TMGHPI SET TMGHPI=""
         IF GROUPING=1 SET AUTOGROUPING=0  ;"IF ALREADY GROUPING, DON'T ATTEMPT TO AUTOGROUP
         ;
@@ -254,19 +291,24 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI    //kt 7/10/17  --FINISH!!
         . NEW LINE SET LINE=DELIM(BULLETS,"START")_$$FORMATTL(TITLE)  ;"FORMAT TITLE
         . IF AUTOGROUPING>0 SET LINE=LINE_$$GROUP(IDX,SECTIONCT,NUMOFGROUPS)_" "
         . NEW TEXTARR MERGE TEXTARR=ITEMARRAY("TEXT",IDX) 
+        . NEW LASTSECT SET LASTSECT=""
         . NEW PART SET PART=0
         . FOR  SET PART=$ORDER(TEXTARR(PART)) QUIT:PART'>0  DO
         . . NEW STR SET STR=$GET(TEXTARR(PART)) QUIT:STR=""
         . . IF STR="[GROUP]" DO  QUIT
         . . . SET LINE=LINE_"[GROUP "_$GET(TEXTARR(PART,"GROUP"))_"] "
+        . . . SET LASTSECT="GROUP"
         . . ELSE  IF STR="[TABLE]" DO  QUIT
         . . . NEW INLINE SET INLINE=+$GET(TEXTARR(PART,"INLINE"))
         . . . IF 'INLINE SET LINE=LINE_"<BR><BR>"
         . . . SET LINE=LINE_$GET(TEXTARR(PART,"TEXT"))_" "
         . . . IF 'INLINE SET LINE=LINE_"<BR>"
+        . . . SET LASTSECT="TABLE"
         . . DO  QUIT
         . . . NEW TEXT SET TEXT=$GET(TEXTARR(PART))
         . . . SET LINE=LINE_$$FORMATTX(TEXT) ;"FORMAT BODY TEXT OF ONE SECION
+        . . . SET LASTSECT="TEXT"
+        . IF ADDBR,LASTSECT="TEXT" SET LINE=LINE_"<BR>"
         . SET LINE=LINE_DELIM(BULLETS,"END")        
         . SET TMGHPI=TMGHPI_$$ADDSTR(LINE,.OUT)  ;"//add to TMGHPI string and OUT array
         IF BULLETS SET TMGHPI=TMGHPI_$$ADDSTR("</UL>",.OUT)
@@ -303,7 +345,7 @@ SUDELIM(ARR) ;"//kt 7/10/17
         SET ARR(1,"END")="</LI>" 
         QUIT
         ;
-SPLITTL(SECTION,TITLE,TEXTARR,TABLES) ;"Split title and main text of section
+SPLITTL(SECTION,TITLE,TEXTARR,TABLES) ;"Split title and main text of section, and parse section into parts
         ;"Input: SECTION -- the text to be parsed
         ;"       TITLE -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is section TITLE  
         ;"       TEXTARR -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is SECTION with title stripped, and cleaned.  
@@ -320,7 +362,7 @@ SPLITTL(SECTION,TITLE,TEXTARR,TABLES) ;"Split title and main text of section
         . NEW POS SET POS=$SELECT(LEN>CUTLEN:CUTLEN,1:LEN)
         . SET TITLE=$EXTRACT(SECTION,1,POS) 
         . SET TEXTARR=$EXTRACT(SECTION,POS+1,$LENGTH(SECTION))
-        DO PRCSSTXT(.TEXTARR,.TABLES)  ;"//process text
+        DO PRCSSTXT(.TEXTARR,.TABLES)  ;"//process and parse text into array, handling tables
         SET TITLE=$$STRIPTAG^TMGHTM1(TITLE)
         QUIT
         ;
@@ -330,8 +372,8 @@ FORMATTL(TITLE)  ;"FORMAT TITLE
         ;
 FORMATTX(TEXT) ;"FORMAT BODY TEXT OF ONE SECION
         NEW TMGRESULT 
-        ;"SET TMGRESULT="<I>"_TEXT_"</I>"_"... "
-        SET TMGRESULT=$$ITALICS(TEXT)    ;"This will remove the italics and add one single
+        SET TMGRESULT="<I>"_TEXT_"</I>"_"... "
+        ;"SET TMGRESULT=$$ITALICS(TEXT)    ;"This will remove the italics and add one single
         QUIT TMGRESULT
         ;
 PRCSSTXT(TEXTARR,TABLES)  ;"Process, parse, clean text for one section for unmatching tags etc.
@@ -351,7 +393,7 @@ PRCSSTXT(TEXTARR,TABLES)  ;"Process, parse, clean text for one section for unmat
         DO RMTAGS^TMGHTM1(.TEXTARR,"<LI>") 
         DO RMTAGS^TMGHTM1(.TEXTARR,"</LI>")
         SET TEXTARR=$$MATCHTAG^TMGHTM1(TEXTARR) ;"ENSURE MATCHING OPEN/CLOSE TAGS
-        DO PRTIUHTM^TMGTIUP3(.TEXTARR,.TABLES)
+        DO PRTIUHTM^TMGTIUP3(.TEXTARR,.TABLES)  ;"PARSE TEXTARR into parts, handling tables.  
         NEW IDX SET IDX=0
         FOR  SET IDX=$ORDER(TEXTARR(IDX)) QUIT:IDX'>0  DO
         . NEW REF,STR SET STR=$GET(TEXTARR(IDX))
@@ -361,32 +403,47 @@ PRCSSTXT(TEXTARR,TABLES)  ;"Process, parse, clean text for one section for unmat
         . SET STR=$GET(@REF)
         . SET STR=$$HTMLTRIM^TMGHTM1(STR)
         . ;"SET STR=$$MATCHTAG^TMGHTM1(STR) ;"<-- NO, was causing problems when open/close split across different lines. 
-        . SET STR=$$BRKTRIM(STR)
+        . SET STR=$$TRAILTRM(STR)
         . SET @REF=STR
         SET TEXTARR=""
         QUIT
         ;
-BRKTRIM(STR)  ;" 
-        NEW TRIMMING 
-TRIM    SET STR=$$TRIM^XLFSTR(STR)
-        SET TRIMMING=0
-        IF $E(STR,$L(STR)-2,$L(STR))="<P>" DO
-        . SET STR=$E(STR,1,$L(STR)-3)
-        . SET TRIMMING=1
-        IF $E(STR,$L(STR)-3,$L(STR))="<BR>" DO
-        . SET STR=$E(STR,1,$L(STR)-4)
-        . SET TRIMMING=1
-        IF $E(STR,$L(STR)-3,$L(STR))="</P>" DO
-        . SET STR=$E(STR,1,$L(STR)-4)
-        . SET TRIMMING=1
-        IF $E(STR,$L(STR)-2,$L(STR))="..." DO
-        . SET STR=$E(STR,1,$L(STR)-3)
-        . SET TRIMMING=1      
-        IF $E(STR,$L(STR)-6,$L(STR))="</FONT>" DO
-        . SET STR=$E(STR,1,$L(STR)-7)
-        . SET TRIMMING=1
-        IF TRIMMING=1 GOTO TRIM    
-BTDN    QUIT STR
+TRAILTRM(STR)  ;"TRIM FROM TRAILING PART OF STR
+        NEW TRIMARR,FRAG SET FRAG=""
+        SET TRIMARR("<P>")=""
+        SET TRIMARR("<BR>")=""
+        SET TRIMARR("</P>")=""
+        SET TRIMARR("...")=""
+        SET TRIMARR("</FONT>")=""
+        SET TRIMARR(" ")=""
+        NEW FOUND
+        FOR  DO  QUIT:FOUND=0
+        . SET FOUND=0
+        . FOR  SET FRAG=$ORDER(TRIMARR(FRAG)) QUIT:FRAG=""  DO
+        . . IF $$RMATCH^TMGSTUT3(STR,FRAG)=0 QUIT
+        . . SET FOUND=1
+        . . SET STR=$EXTRACT(STR,1,$LENGTH(STR)-$LENGTH(FRAG))
+        QUIT STR
+        ;"NEW TRIMMING 
+TRIM    ;"SET STR=$$TRIM^XLFSTR(STR)
+        ;"SET TRIMMING=0
+        ;"IF $E(STR,$L(STR)-2,$L(STR))="<P>" DO
+        ;". SET STR=$E(STR,1,$L(STR)-3)
+        ;". SET TRIMMING=1
+        ;"IF $E(STR,$L(STR)-3,$L(STR))="<BR>" DO
+        ;". SET STR=$E(STR,1,$L(STR)-4)
+        ;". SET TRIMMING=1
+        ;"IF $E(STR,$L(STR)-3,$L(STR))="</P>" DO
+        ;". SET STR=$E(STR,1,$L(STR)-4)
+        ;". SET TRIMMING=1
+        ;"IF $E(STR,$L(STR)-2,$L(STR))="..." DO
+        ;". SET STR=$E(STR,1,$L(STR)-3)
+        ;". SET TRIMMING=1      
+        ;"IF $E(STR,$L(STR)-6,$L(STR))="</FONT>" DO
+        ;". SET STR=$E(STR,1,$L(STR)-7)
+        ;". SET TRIMMING=1
+        ;"IF TRIMMING=1 GOTO TRIM    
+BTDN    ;"QUIT STR
         ;"
 ENDTEXT(STR)  ;"RETURN THE END OF THE TEXT (ACCOUNTING FOR SPACES AND TAGS)
         NEW TMGRESULT SET TMGRESULT=$L(STR)
@@ -468,7 +525,20 @@ GROUP(IDX,TOPICS,NUMOFGROUPS)
         ;"
 GETLETTER(GRPNUMBER)  ;"
         QUIT $TR(GRPNUMBER,"123456789","ABCDEFGHI")
-        ;"                         
+        ;"
+KILLFONT(TIUARRAY) ;"Kill certain FONT tags
+        ;"Input: TIUARRAY -- PASS BY REFERENCE.  FORMAT:
+        ;"          TIUARRAY(#)=<note text>  <-- array holds ENTIRE typical TMG note
+        ;"Results: none
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(TIUARRAY(IDX)) QUIT:IDX'>0  DO
+        . NEW LINE SET LINE=$GET(TIUARRAY(IDX)) QUIT:LINE=""
+        . NEW INITLINE SET INITLINE=LINE
+        . DO RMTAGS^TMGHTM1(.LINE,"<FONT size=3>")   
+        . DO RMTAGS^TMGHTM1(.LINE,"<FONT size=1>")
+        . IF LINE'=INITLINE SET TIUARRAY(IDX)=LINE
+        QUIT
+        ;
 FIXHTML(DOMNAME,ERR)  ;"A callback function for fixing HTML 
         ;"Called from LASTHPI^TMGTIUP2() via PROCESS^TMGHTM2()   
         NEW DOCID SET DOCID=$$getDocumentNode^%zewdDOM(DOMNAME)
@@ -482,6 +552,10 @@ FIXHTML(DOMNAME,ERR)  ;"A callback function for fixing HTML
         DO DELNODES("//i",DOCID,.ERR)      ;"//REMOVE <I>  
         IF $GET(ERR)'="" QUIT
         DO DELNODES("//strong",DOCID,.ERR) ;"//REMOVE <STRONG>
+        IF $GET(ERR)'="" QUIT
+        DO DELATTR("style",DOCID,.ERR)     ;"//REMOVE all nodes' style attribute  
+        IF $GET(ERR)'="" QUIT
+        DO SCRNCLAS(DOCID,.ERR)       
         IF $GET(ERR)'="" QUIT
         IF 1=0 DO  QUIT:($GET(ERR)'="")   ;"REMOVE TABLE TAGS. 
         . DO DELNODES("//table",DOCID,.ERR)  ;"//REMOVE <TABLE>  
@@ -499,10 +573,44 @@ FIXHTML(DOMNAME,ERR)  ;"A callback function for fixing HTML
         ;
 DELNODES(SRCH,DOCID,ERR)  ;
        NEW NODES,CT SET CT=$$select^%zewdXPath(SRCH,DOCID,.NODES)
-       IF ERR'="" QUIT
+       IF ERR'="" QUIT  
        NEW OID,OIDIDX SET OIDIDX=""
        FOR  SET OIDIDX=$ORDER(NODES(OIDIDX)) QUIT:(OIDIDX="")!(ERR'="")  DO
        . SET OID=$GET(NODES(OIDIDX)) QUIT:OID=""
        . SET ERR=$$removeIntermediateNode^%zewdDOM(OID,1)
+       QUIT
+       ;
+DELATTR(ATTRNAME,DOCID,ERR)  ;       
+       NEW SRCH SET SRCH="//*/attribute::"_ATTRNAME
+       NEW NODES,CT SET CT=$$select^%zewdXPath(SRCH,DOCID,.NODES)
+       IF ERR'="" QUIT  ;"IMPLEMENT ERROR HANDLING SOMEDAY...
+       NEW OID,OIDIDX SET OIDIDX=""
+       FOR  SET OIDIDX=$ORDER(NODES(OIDIDX)) QUIT:(OIDIDX="")!(ERR'="")  DO
+       . SET OID=$GET(NODES(OIDIDX)) QUIT:OID=""
+       . SET OID=$$getParentNode^%zewdDOM(OID)
+       . DO removeAttribute^%zewdDOM(ATTRNAME,OID,1)
+       . ;"DO setAttribute^%zewdDOM(ATTRNAME,"",OID)
+       QUIT
+       ;
+SCRNCLAS(DOCID,ERR) ;       
+       NEW SRCH SET SRCH="//*/attribute::class"
+       NEW NODES,CT SET CT=$$select^%zewdXPath(SRCH,DOCID,.NODES)
+       IF ERR'="" QUIT  ;"IMPLEMENT ERROR HANDLING SOMEDAY...
+       NEW OID,OIDIDX SET OIDIDX=""
+       FOR  SET OIDIDX=$ORDER(NODES(OIDIDX)) QUIT:(OIDIDX="")!(ERR'="")  DO
+       . SET OID=$GET(NODES(OIDIDX)) QUIT:OID=""
+       . SET OID=$$getParentNode^%zewdDOM(OID)
+       . NEW CLASS SET CLASS=$$getAttribute^%zewdDOM("class",OID)
+       . NEW CLASS2,IDX SET CLASS2=""
+       . FOR IDX=1:1:$LENGTH(CLASS," ") DO 
+       . . NEW ACLASS SET ACLASS=$$UP^XLFSTR($PIECE(CLASS," ",IDX))
+       . . ;"NOTE: Line below  will effect deletion of all classes not starting with TMG namespace
+       . . IF $$LMATCH^TMGSTUT3(ACLASS,"TMG")=0 QUIT
+       . . IF CLASS2'="" SET CLASS2=CLASS2_" "
+       . . SET CLASS2=CLASS2_ACLASS
+       . IF CLASS2="" DO
+       . . DO removeAttribute^%zewdDOM("class",OID,1)
+       . ELSE  DO
+       . . DO setAttribute^%zewdDOM("class",CLASS2,OID)
        QUIT
        ;

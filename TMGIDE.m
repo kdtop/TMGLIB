@@ -171,7 +171,7 @@ SetHideList
        SET @tmgDbgHideList@("TMGSTUT2")=""
        ;SET @tmgDbgHideList@("TMGSTUT3")=""
        SET @tmgDbgHideList@("X*")=""
-       SET @tmgDbgHideList@("%*")=""
+       ;"SET @tmgDbgHideList@("%*")=""
        SET @tmgDbgHideList@("DI*")=""
        SET @tmgDbgHideList@("%ZVE")=""
        SET @tmgDbgHideList@("%ZVEMK")=""
@@ -888,7 +888,6 @@ DebugIndent(tmgDbgIndentForced)
 
 
 ArrayDump(ArrayP,TMGIDX,indent)
-        ;"NOTE: Duplicate of function in TMGIDEDEBUG
         ;"PUBLIC FUNCTION
         ;"Purpose: to get a custom version of GTM's "zwr" command
         ;"Input: Uses global scope var tmgDbgIndent (if defined)

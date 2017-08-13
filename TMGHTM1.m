@@ -1,4 +1,4 @@
-TMGHTM1 ;TMG/kst-HTML utilities ;7/1/15, 5/7/16
+TMGHTM1 ;TMG/kst-HTML utilities ;7/1/15, 5/7/16, 7/14/17
          ;;1.0;TMG-LIB;**1,17**;08/10/10
  ;
  ;"Utility functions related to documents with HTML formatting
@@ -25,8 +25,8 @@ TMGHTM1 ;TMG/kst-HTML utilities ;7/1/15, 5/7/16
  ;"HTML2TXS(LINESTR) -- text a string that is HTML formatted, and strips out tags
  ;"$$HTMLTRIM(STR,FLAG,CHARS) -- Trim from HTML text
  ;"STRIPSCR(IEN8925)  --Strip out any <SCRIPT> .. </SCRIPT> from documents
- ;"RMTAGS(TEXT,TAG) --REMOVE TAGS
- ;"RPTAGS(TEXT,TAG,NEWTAG)  --REPLACE TAGS
+ ;"RMTAGS(TEXT,TAG,FOUND) --REMOVE TAGS
+ ;"RPTAGS(TEXT,TAG,NEWTAG,FOUND)  --REPLACE TAGS
  ;"MATCHTAG(HTMLSTR,ALLOWNESTING) --ENSURE MATCHING TAGS IN HTML STRING
  ;"PARSBYTG(HTMLSTR,OUT) --PARSE HTML STRING INTO ARRAY BY TAGS
  ;"---------------------------------------------------------------------------
@@ -260,10 +260,9 @@ HTMLTRIM(STR,FLAG,TRIMCHARS,TRIMTAGS) ;"Trim from HTML text
   ;"Input: STR -- This is the input string.  Don't pass by reference
   ;"       Flags -- L = trim from left, R= trim from right, LR = trim from both ends
   ;"                OPTIONAL.  Default is LR
-  ;"       TRIMCHARS -- OPTIONAL.  Characters to trim.  NOTE: these should be
-  ;"                   characters as they appear on the screen.  E.g. use
-  ;"                   '<', not '&lt;'
-  ;"                Default value is " " (a space)
+  ;"       TRIMCHARS -- OPTIONAL.  Characters to trim.  Default value is " " (a space)
+  ;"                NOTE: these should be characters as they appear on the screen. 
+  ;"                     E.g. use '<', not '&lt;'
   ;"       TRIMTAGS -- OPTIONAL.  Default=0
   ;"                If 1 then tags (e.g. <..>) are trimmed
   ;"Result: Returns modified string
@@ -277,12 +276,12 @@ HTMLTRIM(STR,FLAG,TRIMCHARS,TRIMTAGS) ;"Trim from HTML text
   SET CONV(1,"<P>")=" "
   SET CONV(1,"</P>")=" "
   SET CONV(1,"<BR>")=" "
-  DO
-  . NEW CODE SET CODE="" 
-  . FOR  SET CODE=$ORDER(CONV(1,CODE)) QUIT:CODE=""  DO
-  . . NEW I2,RCODE SET RCODE=""
-  . . FOR I2=$LENGTH(CODE):-1:1 SET RCODE=RCODE_$EXTRACT(CODE,I2)
-  . . SET CONV(2,RCODE)=$GET(CONV(1,CODE))
+  ;"DO
+  ;". NEW CODE SET CODE="" 
+  ;". FOR  SET CODE=$ORDER(CONV(1,CODE)) QUIT:CODE=""  DO
+  ;". . NEW I2,RCODE SET RCODE=""
+  ;". . FOR I2=$LENGTH(CODE):-1:1 SET RCODE=RCODE_$EXTRACT(CODE,I2)
+  ;". . SET CONV(2,RCODE)=$GET(CONV(1,CODE))
   NEW IDX SET IDX=0
   NEW TMGRESULT SET TMGRESULT=""
   SET STR=$GET(STR)
@@ -323,10 +322,10 @@ HTMLTRIM(STR,FLAG,TRIMCHARS,TRIMTAGS) ;"Trim from HTML text
   . . IF CH=">" SET INTAG=1
   . . IF CH=";",$$ISSPECL(STR,IDX) SET INSPECL=1
   . . IF INSPECL DO  QUIT
-  . . . SET SPECIALCH=SPECIALCH_CH
+  . . . SET SPECIALCH=CH_SPECIALCH
   . . . IF CH="&" DO
   . . . . SET INSPECL=0
-  . . . . NEW ALTCH SET ALTCH=$GET(CONV(2,SPECIALCH))
+  . . . . NEW ALTCH SET ALTCH=$GET(CONV(1,SPECIALCH))  ;"//kt changed 2 --> 1
   . . . . IF TRIMCHARS[ALTCH SET SPECIALCH="" QUIT 
   . . . . SET TMGRESULT=SPECIALCH_TMGRESULT
   . . . . SET SPECIALCH=""
@@ -389,13 +388,26 @@ SSL1 ;
   IF FOUND=1 GOTO SSL1  ;"loop back to check for more than one instance of <script> </script>
   QUIT
   ;
-RMTAGS(TEXT,TAG) ;"REMOVE TAGS
+RMTAGS(TEXT,TAG,FOUND) ;"REMOVE TAGS
+  ;"Input: TEXT -- PASS BY REFERENCE, AN IN AND OUT PARAMETER
+  ;"       TAG -- The string to search for and remove
+  ;"       FOUND -- OPTIONAL.  PASS BY REFERENCE.  Set to 1 if match found, 0 if not
+  ;"Results: none
+  SET FOUND=0
   FOR  QUIT:TEXT'[TAG  DO
+  . SET FOUND=0
   . SET TEXT=$P(TEXT,TAG,1)_$P(TEXT,TAG,2,999)
   QUIT
   ;"    
-RPTAGS(TEXT,TAG,NEWTAG)  ;"REPLACE TAGS
+RPTAGS(TEXT,TAG,NEWTAG,FOUND)  ;"REPLACE TAGS
+  ;"Input: TEXT -- PASS BY REFERENCE, AN IN AND OUT PARAMETER
+  ;"       TAG -- The string to search for and REPLACE
+  ;"       NEWTAG -- the replacement string for TAG
+  ;"       FOUND -- OPTIONAL.  PASS BY REFERENCE.  Set to 1 if match found, 0 if not
+  ;"Results: none
+  SET FOUND=0
   FOR  QUIT:TEXT'[TAG  DO
+  . SET FOUND=0
   . SET TEXT=$P(TEXT,TAG,1)_NEWTAG_$P(TEXT,TAG,2,999)
   QUIT
   ;  
@@ -405,6 +417,7 @@ MATCHTAG(HTMLSTR,ALLOWNESTING)  ;"ENSURE MATCHING TAGS IN HTML STRING
   ;"                      opening another.  e.g. '<i>hello<i>world</i></i>' would become
   ;"                      '<i>hello</i><i>world</i>
   ;"Result: returns long HTML string with final results.  
+  ;"NOTE!:  'currently, </i>hello<i>  will be turned into just 'hello', not considered matched.  
   NEW EMPTYTAGS SET EMPTYTAGS="^AREA^BASE^BR^COL^HR^IMG^INPUT^LINK^META^PARAM^KEYGEN^SOURCE^"
   NEW KEEPOPENCLOSE SET KEEPOPENCLOSE="^P^BR^"
   SET ALLOWNESTING=+$GET(ALLOWNESTING)
@@ -424,7 +437,7 @@ MATCHTAG(HTMLSTR,ALLOWNESTING)  ;"ENSURE MATCHING TAGS IN HTML STRING
   . IF CLOSING SET ATAG=$$TRIM^XLFSTR($PIECE(ATAG,"/",2))
   . IF EMPTYTAGS[("^"_ATAG_"^") QUIT  ;"ignore empty tags -- shouldn't be match to closers.
   . NEW CURCT SET CURCT=+$GET(TAGS(ATAG))
-  . IF CURCT=0,CLOSING KILL ARR(IDX) QUIT  ;"delete any closing tag that was not first opened
+  . IF CURCT=0,CLOSING KILL ARR(IDX),ARR("TAGS",IDX) QUIT  ;"delete any closing tag that was not first opened
   . IF 'ALLOWNESTING,'CLOSING,(CURCT>0) DO  ;"close current tag before starting new
   . . SET ARR(IDX-0.5)="</"_ATAG_">"
   . . SET CURCT=CURCT-1
@@ -437,8 +450,24 @@ MATCHTAG(HTMLSTR,ALLOWNESTING)  ;"ENSURE MATCHING TAGS IN HTML STRING
   ;"delete all tags with balanced open vs closed (i.e. final count of 0)
   SET ATAG="" FOR  SET ATAG=$ORDER(TAGS(ATAG)) QUIT:ATAG=""  DO
   . NEW CT FOR CT=1:1:+$GET(TAGS(ATAG)) DO
-  . . SET IDX=$ORDER(ARR(""),-1)+1
+  . . SET IDX=$ORDER(ARR("@"),-1)+1
   . . SET ARR(IDX)="</"_ATAG_">"
+  . . SET ARR("TAGS",IDX)="/"_ATAG
+  ;"Next, remove any OPEN and then CLOSE tags without any interval text.  
+  SET IDX=0 FOR  SET IDX=$ORDER(ARR("TAGS",IDX)) QUIT:IDX'>0  DO
+  . SET ATAG=$GET(ARR("TAGS",IDX)) QUIT:(ATAG="")!($EXTRACT(ATAG,1)="/")  ;"Only get open tags
+  . NEW CLOSEIDX SET CLOSEIDX=0
+  . NEW JDX SET JDX=IDX FOR  SET JDX=$ORDER(ARR("TAGS",JDX)) QUIT:(JDX'>0)!(CLOSEIDX>0)  DO
+  . . NEW TEMPTAG SET TEMPTAG=$GET(ARR("TAGS",JDX))
+  . . IF TEMPTAG=("/"_ATAG) SET CLOSEIDX=JDX
+  . IF CLOSEIDX'>0 DO  QUIT  
+  . . ;"SOME ERROR STATE HERE... SHOULDN'T HAPPEN
+  . NEW INTERVALTXT SET INTERVALTXT=0
+  . FOR JDX=IDX+1:1:CLOSEIDX QUIT:(INTERVALTXT>0)  DO
+  . . IF $DATA(ARR("TEXT",JDX)) SET INTERVALTXT=1
+  . IF INTERVALTXT=0 DO
+  . . KILL ARR(IDX),ARR("TAGS",IDX)
+  . . KILL ARR(CLOSEIDX),ARR("TAGS",CLOSEIDX)
   ;"Now assemble array back into long string.  
   NEW TMGRESULT SET TMGRESULT=""
   SET IDX=""
@@ -454,21 +483,25 @@ PARSBYTG(HTMLSTR,OUT)  ;"PARSE HTML STRING INTO ARRAY BY TAGS
   ;"         OUT(#)=some text
   ;"         OUT(#)=some tag   etc.
   ;"         OUT("TAGS",#)=""
+  ;"         OUT("TEXT",#)=""
   NEW TEMP SET TEMP=$GET(HTMLSTR)
   NEW TMGRESULT SET TMGRESULT=""
   KILL OUT
   NEW CT,DONE SET DONE=0
   NEW POS
   FOR  QUIT:$LENGTH(TEMP)=0  DO
-  . NEW STRA,ISTAG SET ISTAG=0
+  . NEW STRA
+  . SET CT=+$GET(OUT)+1
   . IF $EXTRACT(TEMP,1)="<" DO
-  . . SET STRA=$PIECE(TEMP,">",1)_">"
-  . . SET ISTAG=1
+  . . SET STRA=$PIECE(TEMP,">",1)
+  . . NEW TAGNAME SET TAGNAME=$PIECE($PIECE(STRA," ",1),"<",2)
+  . . SET STRA=STRA_">"
+  . . SET OUT("TAGS",CT)=TAGNAME
   . ELSE  DO
   . . SET STRA=$PIECE(TEMP,"<",1)
+  . . SET OUT("TEXT",CT)=""
   . SET TEMP=$EXTRACT(TEMP,$LENGTH(STRA)+1,$LENGTH(TEMP))
-  . SET CT=+$GET(OUT)+1,OUT(CT)=STRA,OUT=CT
-  . IF ISTAG SET OUT("TAGS",CT)=""
+  . SET OUT(CT)=STRA,OUT=CT
   QUIT  
   ;
 

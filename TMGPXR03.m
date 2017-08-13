@@ -550,5 +550,32 @@ APPTREMS(TMGRESULT,REMARR,BEGDT,ENDDT)  ;"
         SET TMGRESULT(0)=COUNT
         QUIT
         ;"       
+ALLREMS(TMGRESULT,REMARR,ACTIVE)  ;"
+        ;"Purpose: get all reminders, sent by REMARR that are due for
+        ;"         scheduled patients.
+        ;"   note: reminder status is calculated by date of appointment
+        ;"Input: TMGRESULT - result array
+        ;"              format TMGRESULT(0)=# of results
+        ;"                     TMGRESULT(REMINDER IEN,DATETIME,DFN)="" , FOR EACH ONE DUE
+        ;"        REMARR - Reminders to check
+        ;"              format REMARR(IEN of reminder)="name"  (Name optional)
+        ;"        ACTIVE - BOOLEAN (1 OR 0). If 1, check only active
+        ;:                 patients, 0 for all
+        ;"
+        NEW COUNT,NOW,X
+        DO NOW^%DTC SET NOW=X
+        NEW RESULT,DFN
+        SET DFN=0,COUNT=0
+        FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:DFN'>0  DO
+        . IF (ACTIVE=1)&($$ACTIVEPT^TMGPXR03(DFN,3)<1) QUIT
+        . NEW REMIEN SET REMIEN=0
+        . FOR  SET REMIEN=$ORDER(REMARR(REMIEN)) QUIT:REMIEN'>0  DO
+        . . SET RESULT=$$DOREM(DFN,REMIEN,5,NOW)
+        . . IF RESULT["DUE" DO
+        . . . SET COUNT=COUNT+1
+        . . . SET TMGRESULT($GET(REMIEN),$P(RESULT,"^",2),DFN)=RESULT
+        SET TMGRESULT(0)=COUNT
+        QUIT
+        ;"
 
       

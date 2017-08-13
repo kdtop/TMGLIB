@@ -663,4 +663,91 @@ NEXTAPPT(TMGRESULT,DFN)  ;"
   IF APPTCOUNT=0 SET TMGRESULT="NO UPCOMING APPOINTMENT FOUND."
   QUIT
   ;"
-
+MISSED
+       ;"Purpose: Provide an NON-interactive entry point for report
+       ; device.
+       NEW %ZIS,IOP
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO DCNDn
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       DO MISMAMMO
+       DO ^%ZISC  ;" Close the output device
+DCNDn  QUIT
+       ;"
+MISMAMMO
+       ;"Purpose: Print report for patients with unscheduled mammograms
+       NEW RESULT
+       NEW X,Y DO NOW^%DTC NEW NowDate SET NowDate=X
+       NEW REMARR
+       SET REMARR(224)="TMG MAMMOGRAM/BREAST IMAGING"
+       DO ALLREMS^TMGPXR03(.RESULT,.REMARR,1)
+       IF RESULT(0)=0 GOTO MMDn
+       WRITE !
+       WRITE "************************************************************",!
+       WRITE "                      Overdue mammogram reminders",!
+       WRITE "              NOTE: this will display yearly reminders which are",!
+       WRITE "                    over 6 months past due, or shorter followups",!
+       WRITE "                    which are 3 months past due.",!
+       WRITE "                            " SET Y=NowDate DO DD^%DT WRITE Y,!
+       WRITE "               Please deliver this report to the NURSE",!
+       WRITE "************************************************************",!
+       WRITE "                                            (From TMGRPT2.m)",!!
+       NEW REMIEN SET REMIEN=0
+       NEW RESULTARR 
+       FOR  SET REMIEN=$ORDER(RESULT(REMIEN)) QUIT:REMIEN'>0  DO
+       . NEW REMDISP SET REMDISP=$PIECE($GET(^PXD(811.9,REMIEN,0)),"^",3)
+       . WRITE "============= PATIENTS DUE FOR ",REMDISP," ============",!
+       . NEW DATE SET DATE=""
+       . FOR  SET DATE=$ORDER(RESULT(REMIEN,DATE)) QUIT:DATE=""  DO
+       . . NEW DFN SET DFN=0
+       . . FOR  SET DFN=$ORDER(RESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
+       . . . NEW REMSTR SET REMSTR=$G(RESULT(REMIEN,DATE,DFN))
+       . . . NEW DUEDATE SET DUEDATE=$P(REMSTR,"^",2)
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . IF $$EXCLUDE($G(RESULT(REMIEN,DATE,DFN)),.RESULTARR,NAME,DUEDATE)=1 QUIT
+       . . . ;"SET RESULTARR(NAME,DUEDATE)=""
+       SET DATE=""
+       FOR  SET DATE=$ORDER(RESULTARR(DATE)) QUIT:DATE=""  DO
+       . SET NAME="" 
+       . FOR  SET NAME=$ORDER(RESULTARR(DATE,NAME)) QUIT:NAME=""  DO
+       . . WRITE "  - ",NAME,?40,DATE,!       
+MMDn  
+  QUIT
+  ;"
+EXCLUDE(REMSTR,ARRAY,NAME,DUEDATE)
+       NEW RESULT SET RESULT=1  ;"DEFAULT TO EXCLUDE
+       NEW FUDAYS,PASTDUEDAYS,YRMAXDAYS,LESSMAXDAYS
+       NEW NOW,X DO NOW^%DTC SET NOW=X
+       SET YRMAXDAYS=180,LESSMAXDAYS=90
+       IF $P(REMSTR,"^",1)["SOON" GOTO EXDN
+       IF $P(REMSTR,"^",2)["DUE" DO
+       . SET RESULT=0
+       . SET ARRAY(DUEDATE,NAME)=""
+       ELSE  DO
+       . NEW DISPLAYSTR
+       . NEW X1,X2 SET X1=$$DTTOFMDT($P(REMSTR,"^",2)),X2=$$DTTOFMDT($P(REMSTR,"^",3))
+       . DO ^%DTC SET FUDAYS=X
+       . SET X2=$$DTTOFMDT($P(REMSTR,"^",2)),X1=NOW
+       . DO ^%DTC SET PASTDUEDAYS=X
+       . ;"WRITE REMSTR," -> ",FUDAYS,!
+       . IF FUDAYS<360 DO
+       . . IF PASTDUEDAYS>LESSMAXDAYS DO
+       . . . SET RESULT=0,DISPLAYSTR=FUDAYS_" DAY FU WAS DUE ON "_DUEDATE
+       . . . SET ARRAY(DISPLAYSTR,NAME)=""
+       . ELSE  DO
+       . . IF PASTDUEDAYS>YRMAXDAYS DO
+       . . . SET RESULT=0,DISPLAYSTR="YEARLY FU WAS DUE ON "_DUEDATE
+       . . . SET ARRAY(DISPLAYSTR,NAME)=""
+EXDN   QUIT RESULT
+       ;"
+DTTOFMDT(EXTDATE)  ;"RETURNS FMDATETIME
+       NEW FMDATE,%DT,X
+       IF $P(EXTDATE,"/",1)="00" SET $P(EXTDATE,"/",1)="01"
+       IF $P(EXTDATE,"/",2)="00" SET $P(EXTDATE,"/",2)="01"
+       SET X=$P(EXTDATE,"@",1),%DT="T"
+       DO ^%DT
+       SET FMDATE=Y       
+       QUIT FMDATE
+       ;"

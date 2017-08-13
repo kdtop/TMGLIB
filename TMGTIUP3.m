@@ -258,6 +258,8 @@ GTL1    ;"Below are tables that will NOT be refreshed during PROCESS
         . . SET LBL=$GET(TEMPARR(IDX))
         . . SET LBL=$EXTRACT(LBL,1,$LENGTH(LBL)-4)
         . . SET TABLES(LBL)=$GET(TEMPARR2(IDX))
+        . . NEW LBL2 SET LBL2=$$REPLSTR^TMGSTUT3(LBL," ","&nbsp;")   ;"//kt 8/1/17 
+        . . SET TABLES(LBL2)=$GET(TEMPARR2(IDX))        ;"//kt 8/1/17
         . . SET TABLES($$HTML2TXS^TMGHTM1($GET(TEMPARR(IDX))))=$GET(TEMPARR2(IDX))
         ELSE  DO
         . NEW LBL SET LBL="" 
@@ -269,7 +271,7 @@ GTL1    ;"Below are tables that will NOT be refreshed during PROCESS
 TABLEND(LINE,PARTB) ;" HAS TABLE END  
         ;"Purpose: Determine if HTML-coded line includes the end of a table.
         ;"         It is expected that begining of table has been found
-        ;"Input: LINE --The line to check.  DON'T PASS BY REFERENCE. 
+        ;"Input: LINE --The line to check.  WILL BE MODIFIED IF PASSED BY REFERENCE. 
         ;"       PARTB -- an OUT PARAMETER.  PASS BY REFERENCE.
         ;"              The residual part of the line (if any) that 
         ;"              represents text AFTER the table.
@@ -277,8 +279,15 @@ TABLEND(LINE,PARTB) ;" HAS TABLE END
         ;"Output: PARTB is filled with residual line (if any)
         NEW TMGRESULT SET TMGRESULT=0
         SET PARTB=""
-        NEW DIVPOS,DIV
-        FOR DIV="<P>","</P>","<LI>","</LI>" DO  QUIT:TMGRESULT=1
+        NEW DIVPOS,DIV,FOUND,EITHER
+        SET EITHER=0 FOR  DO  QUIT:EITHER=0          
+        . SET FOUND=1 FOR  QUIT:FOUND=0  DO 
+        . . DO RPTAGS^TMGHTM1(.LINE,"&nbsp;<BR>","<BR>",.FOUND)
+        . . SET EITHER=EITHER!FOUND
+        . SET FOUND=1 FOR  QUIT:FOUND=0  DO
+        . . DO RPTAGS^TMGHTM1(.LINE," <BR>","<BR>",.FOUND)
+        . . SET EITHER=EITHER!FOUND        
+        FOR DIV="<P>","</P>","<LI>","</LI>","<BR><BR>" DO  QUIT:TMGRESULT=1
         . SET DIVPOS($FIND(LINE,DIV))=DIV
         KILL DIVPOS(0)
         SET TMGRESULT=($DATA(DIVPOS)>0)
@@ -363,7 +372,7 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        NEW STARTPOS SET STARTPOS=0
        NEW STR SET STR=TEXT
        FOR  QUIT:STR=""  DO
-       . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(STR,STARTPOS,"-- [","--&nbsp;[","[")
+       . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(STR,STARTPOS,"-- [","--&nbsp;[","[","{E-Scribe}")
        . IF DIV="" DO  QUIT
        . . SET IDX=IDX+1,TEXT(IDX)=$$REPLSTR^TMGSTUT3(STR,"&nbsp;"," ")
        . . SET STR="",STARTPOS=0 
@@ -382,12 +391,23 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . NEW NAME SET NAME=$$REPLSTR^TMGSTUT3(TEMP,"&nbsp;"," ")
        . IF $PIECE(NAME," ",1)="GROUP" DO  QUIT
        . . SET STRA=DIV_TEMP_"]",STRA2=DIV_NAME_"]"
-       . . SET IDX=IDX+1,TEXT(IDX)=STRA2
-       . . SET TEXT(IDX,"GROUP")=$PIECE(NAME," ",2,99)
+       . . SET IDX=IDX+1,TEXT(IDX)="[GROUP]"  ;"STRA2
+       . . NEW GRPLIST SET GRPLIST=$PIECE(NAME," ",2,99)
+       . . SET TEXT(IDX,"GROUP")=GRPLIST
+       . . SET GRPLIST=$$HTML2TXS^TMGHTM1(GRPLIST)
+       . . FOR  QUIT:GRPLIST=""  DO
+       . . . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(GRPLIST,0," ",",",";","&")
+       . . . NEW STRA
+       . . . IF DIV="" SET STRA=GRPLIST
+       . . . ELSE  DO
+       . . . . SET STRA=$PIECE(GRPLIST,DIV,1)
+       . . . SET GRPLIST=$EXTRACT(GRPLIST,$LENGTH(STRA_DIV)+1,$LENGTH(GRPLIST))
+       . . . SET STRA=$$TRIM^XLFSTR(STRA) QUIT:STRA=""
+       . . . SET TEXT(IDX,"GROUP","LIST",STRA)=""
        . . SET TEXT("GROUPX",IDX)=""
        . . SET STR=$EXTRACT(STR,$LENGTH(STRA)+1,$LENGTH(STR))
        . . SET STARTPOS=0
-       . IF $DATA(TABLES("["_NAME_"]")) DO  QUIT
+       . IF $DATA(TABLES("["_$$UP^XLFSTR(NAME)_"]")) DO  QUIT
        . . SET IDX=IDX+1,TEXT(IDX)="[TABLE]"
        . . SET TEXT(IDX,"TABLE")=NAME
        . . NEW INLINE SET INLINE=$$ISINLINE^TMGTIUO6(NAME)
@@ -402,7 +422,7 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . . . SET STR=$EXTRACT(STR,$LENGTH(STRA)+1,$LENGTH(STR))
        . . . SET STARTPOS=0
        . . ELSE  DO  ;"standard table.  
-       . . . IF $$TABLEND(STR,.STRB) DO
+       . . . IF $$TABLEND(.STR,.STRB) DO
        . . . . NEW LENA SET LENA=$LENGTH(STR)-$LENGTH(STRB)
        . . . . SET STRA=$EXTRACT(STR,1,LENA),STR=STRB
        . . . ELSE  DO

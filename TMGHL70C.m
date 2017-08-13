@@ -288,7 +288,7 @@ A60DN   QUIT TMGRESULT
         ;
 AUTOADDN(NAME) ;"AUTO ADD DATANAME, into 63.04
         ;"Purpose: to automatically add NAME as NEW field into file 63.04, as a NEW DATA NAME
-		    ;"Result: returns NewlyAddedFieldNumber^Name, or 0 if none added, or -1^Message if problem.
+        ;"Result: returns NewlyAddedFieldNumber^Name, or 0 if none added, or -1^Message if problem.
         ;"NOTE: This does direct data dictionary writes.  This is likely not SACC compliant.
         SET NAME=$$UP^XLFSTR(NAME)
         NEW TMGRESULT SET TMGRESULT=0

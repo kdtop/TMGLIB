@@ -333,6 +333,7 @@ VMA1    FOR TEMPNAME=TESTID,TESTNAME,ALTTESTID,ALTTESTNAME QUIT:(+IEN60>0)  DO
         . NEW SYN60 SET SYN60=$E(SYNONYM,1,60)  ;"//kt CHANGED 30 -> 60 chars  SYN30 -> SYN60
         . SET OUT(TESTID,"SYN60")=SYN60  ;"//kt changed 30 -> 60
         . SET IEN60=+$ORDER(^LAB(60,"B",SYN60,""))  ;"//kt changed 30 -> 60
+        . SET OUT(TESTID,"IEN60 source is via ^LAB(60,""B"","""_SYN60_""")")=IEN60
         IF IEN60'>0 DO  GOTO VMADN
         . SET TMGRESULT="-1^1^Can't find an existing map for test '"_TESTID_"'"
         . SET IEN60="??"
@@ -419,10 +420,13 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         SET OUT("MAP SYN->60")=IEN60_"^"_TESTNAME_"^"_LABPRNAME
         SET OUT("IEN60")=IEN60_"^"_TESTNAME_"^"_LABPRNAME
         NEW IEN64D061 SET IEN64D061=+$PIECE($GET(^LAB(60,+IEN60,"TMG")),"^",1)
+        SET OUT("NOTE: IEN SPECIMEN (64.061) source is via ""^LAB(60,"_+IEN60_",""TMG""), piece #1")=IEN64D061 
         SET OUT("SPECIMEN (64.061)")=IEN64D061_"^"_$PIECE($GET(^LAB(64.061,IEN64D061,0)),"^",1)
         NEW IEN61 SET IEN61=+$PIECE($GET(^LAB(60,+IEN60,"TMG")),"^",2)
+        SET OUT("NOTE: IEN SPECIMEN (61) source is via ""^LAB(60,"_+IEN60_",""TMG""), piece #2")=IEN61 
         SET OUT("SPECIMEN (61)")=IEN61_"^"_$PIECE($GET(^LAB(61,IEN61,0)),"^",1)
         SET IEN64=+$PIECE($GET(^LAB(60,IEN60,64)),"^",1)  ;"64;1 = NATIONAL VA LAB CODE
+        SET OUT("NOTE: IEN 64 (NLT) source is via ""^LAB(60,"_+IEN60_",64), piece #1")=IEN64 
         IF IEN64'>0 DO
         . IF TMGRESULT'<0 DO
         . . SET TMGRESULT="-1^Unable to find value for IEN64 at ^LAB(60,"_IEN60_",64), piece 1)"
@@ -430,7 +434,9 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         . SET IEN64="??"
         SET TEMP=$GET(^LAM(IEN64,0))
         SET OUT("VA CODE")=IEN64_"^"_$P(TEMP,"^",2)_"^"_$P(TEMP,"^",1) 
+        SET OUT("NOTE: VA CODE info source is via ""^LAM("_+IEN64_",0)")=TEMP 
         SET IEN64=$PIECE($GET(^LAB(60,IEN60,64)),"^",2)   ;"64;2= RESULT NLT CODE
+        SET OUT("NOTE: 2nd IEN 64 (National VA Lab Code) source is via ""^LAB(60,"_+IEN60_",64), piece #2")=IEN64 
         IF IEN64'>0 DO
         . IF TMGRESULT'<0 DO
         . . SET TMGRESULT="-1^Unable to find value for IEN64 at ^LAB(60,"_IEN60_",64), piece 2)"
@@ -439,11 +445,14 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         SET TEMP=$GET(^LAM(IEN64,0))
         NEW NLTCODE SET NLTCODE=$PIECE(TEMP,"^",2)
         SET OUT("NLT CODE")=IEN64_"^"_NLTCODE_"^"_$P(TEMP,"^",1)
+        SET OUT("NOTE: NLT CODE source is via ""^LAM("_+IEN64_",0), piece #2")=NLTCODE 
         NEW FLD63D04 SET FLD63D04=+$PIECE($GET(^LAB(60,IEN60,.2)),"^",1)
         NEW DATANAME SET DATANAME=$PIECE($GET(^DD(63.04,FLD63D04,0)),"^",1)
         SET OUT("STORAGE FLD 63.04")=FLD63D04_"^"_DATANAME
+        SET OUT("NOTE: FLD 63.04 source is via ""^LAB(60,"_+IEN60_",.2), piece #1")=FLD63D04_"^"_DATANAME 
         NEW PROFILE SET PROFILE=1  ;"CHECK!!! <-- I don't know if this is always correct
         NEW IEN68D24 SET IEN68D24=+$ORDER(^LRO(68.2,+IEN68D2,10,PROFILE,1,"B",+IEN60,"")) ;
+        SET OUT("NOTE: IEN 68.24 source is via ""^LRO(68.2,"_+IEN68D2_",10,"_PROFILE_",1,""B"","_+IEN60_","""")")=IEN68D24 
         IF IEN68D24'>0 DO  ;"GOTO VMADN
         . SET TMGRESULT="-1^2^Test not found -- i.e. not individually orderable)"
         . SET ERR(EIDX)=TMGRESULT,EIDX=EIDX+1
@@ -452,6 +461,7 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         ;"Look up NLT code in auto instrument file, and get pointed to ien60.
         IF NLTCODE'>0 GOTO VMADN
         NEW IEN62D41 SET IEN62D41=+$ORDER(^LAB(62.4,IEN62D4,3,"AC",NLTCODE,""))
+        SET OUT("NOTE: IEN62.41 source is via ""^LAB(62.4,"_+IEN62D4_",3,""AC"","""_NLTCODE_""","")")=IEN62D41
         IF IEN62D41'>0 DO  ;"GOTO VMADN
         . SET IEN62D41="??"
         . IF TMGRESULT'<0 DO
@@ -459,6 +469,8 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         . . SET ERR(EIDX)=TMGRESULT,EIDX=EIDX+1
         SET OUT("RESULTABLES","MAP NLT->62.41")=IEN62D41
         NEW NEWIEN60 SET NEWIEN60=+$PIECE($GET(^LAB(62.4,IEN62D4,3,IEN62D41,0)),"^",1)
+        SET OUT("NOTE: NEWIEN60 source is via ""^LAB(62.4,"_IEN62D4_",3,"_IEN62D41_",0)"", piece #1)")=NEWIEN60
+        SET OUT("IEN60 #2")=NEWIEN60
         IF NEWIEN60'>0 SET NEWIEN60="??"
         SET OUT("RESULTABLES","MAP 62.41->60")=NEWIEN60_"^"_$PIECE($GET(^LAB(60,NEWIEN60,0)),"^",1)
         IF NEWIEN60'=IEN60 DO

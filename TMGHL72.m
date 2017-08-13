@@ -120,6 +120,11 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE
         ;"Will try to put DFN into PID-4 ("alternate PID") field
         NEW SOURCE SET SOURCE=$PIECE(TMGVALUE,TMGU(1),19)
+        NEW NAME SET NAME=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",5)
+        IF NAME["""" DO
+        . SET NAME=$TRANSLATE(NAME,"""","")  ;"remove any quotes("") from names
+        . SET $PIECE(TMGVALUE,TMGU(1),5)=NAME
+        . DO SETPCE^TMGHL7X2(NAME,.TMGHL7MSG,.TMGU,TMGSEGN,5)
         NEW DFN SET DFN=-1
         ;"IF SOURCE="" DO  GOTO PIDDN
         ;". SET TMGXERR="In PID.TMGHL72: No SSN provided in field 19 of 'PID' segment in HL7 message"
@@ -135,8 +140,8 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         IF DFN=-1 DO
         . NEW INFO SET INFO=""
         . NEW NAME SET NAME=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",5)
-        . NEW LNAME SET LNAME=$PIECE(NAME,"^",1)        
-        . NEW FNAME SET FNAME=$PIECE(NAME,"^",2)
+        . NEW LNAME SET LNAME=$PIECE(NAME,TMGU(2),1)        
+        . NEW FNAME SET FNAME=$PIECE(NAME,TMGU(2),2)
         . SET NAME=LNAME_","_FNAME   
         . NEW HL7DOB SET HL7DOB=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",7)
         . NEW FMDT SET FMDT=$$HL72FMDT^TMGHL7U3(HL7DOB)
@@ -782,7 +787,7 @@ ADD2RSLT(RESULT,ARR,SEGN,FLD,PREFIX) ;
         ;
 HNDUPOBX(TMGHL7MSG,SEGN,TMGU) ;"Handle situation with an OBR having duplicate OBX's
         ;"NOTE: This code is to handle situation were a given OBR has multiple OBX's
-        ;"      with differening results for the same test.  For example, Laughlin
+        ;"      with differening results for the same test name.  For example, Laughlin
         ;"      was putting comment-style results into multiple UCULT test result OBX's.
         ;"      Without this code, only the last value was being stored, and the
         ;"      others were being overwritten.  

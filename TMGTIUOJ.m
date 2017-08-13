@@ -364,8 +364,7 @@ XTRAFORM(TMGRESULT,DFN)  ;"
 NEEDPSA(TMGRESULT,DFN)  ;"
         ;"Purpose: To determine if the patient needs a PSA handout
         SET TMGRESULT=0
-        NEW X 
-        DO NOW^%DTC
+        NEW X DO NOW^%DTC
         NEW REMRESULT SET REMRESULT=$$DOREM^TMGPXR03(DFN,263,5,X)
         IF REMRESULT["DUE NOW" SET TMGRESULT=1
         QUIT TMGRESULT
@@ -407,4 +406,21 @@ ADDLSIGN(TMGRESULT)  ;"
         . . SET TMGRESULT(NOTEIEN,PATIENT,EXPECTEDIEN)=""
         . . ;"WRITE $PIECE($GET(^VA(200,EXPECTEDIEN,0)),"^",1)," NEEDS TO SIGN ",NOTEIEN,!
         QUIT
+        ;"
+LASTOPTH(DFN)  ;"
+        ;"Purpose: To return the patient's last opthalmology note titles
+        NEW TMGRESULT
+        NEW EYEEARRAY,NOTEDATE,COUNT
+        SET NOTEDATE=9999999,COUNT=0
+        DO TIUDATES^TMGPXR01(TMGDFN,"OPHTHO / OPTO / EYE CONSULTANT NOTE (IMAGE)",.EYEEARRAY)
+        IF $DATA(EYEEARRAY) DO 
+        . SET TMGRESULT=TMGRESULT_"OPHTHO NOTE DATES : "
+        . FOR  SET NOTEDATE=$ORDER(EYEEARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
+        . . NEW Y
+        . . SET Y=NOTEDATE
+        . . X ^DD("DD")
+        . . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
+        ELSE  DO
+        . SET TMGRESULT="NO OPHTHALMOLOGY NOTES FOUND"
+        QUIT TMGRESULT
         ;"

@@ -65,9 +65,9 @@ M1      KILL TMGUSERINPUT,TMGMNU
         SET TMGMNU(-1,"INDENT")=INDENTN
         SET TMGMNU(TMGMNUI)="Pick HL7 Lab Setup Option for "_TMGENV("INST"),TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Setup/Test HL7 message test result from lab provider"_$CHAR(9)_"TestParse",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="<HL7 Message Transform MENU>"_$CHAR(9)_"XFRMMenu",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="<HL7 Message FILE MENU>"_$CHAR(9)_"FileMenu",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="<Utility MENU>"_$CHAR(9)_"UtilMenu",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="HL7 Message Transform <MENU>"_$CHAR(9)_"XFRMMenu",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="HL7 Message FILE <MENU>"_$CHAR(9)_"FileMenu",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Utility <MENU>"_$CHAR(9)_"UtilMenu",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Pick lab source other than "_TMGENV("INST")_" to work on."_$CHAR(9)_"OtherInst",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Done setting up NEW HL7 Test."_$CHAR(9)_"^",TMGMNUI=TMGMNUI+1
         ;
@@ -112,7 +112,7 @@ UT1     KILL TMGUSERINPUT,TMGMNU
         ;"SET TMGMNU(TMGMNUI)="Add atomic data name"_$CHAR(9)_"LRWU5",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Add atomic lab tests"_$CHAR(9)_"AddAtomic",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Edit atomic lab tests"_$CHAR(9)_"EditAtomic",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="<Check/Fix mapping of tests MENU>"_$CHAR(9)_"MapMenu",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Check/Fix mapping of tests <MENU>"_$CHAR(9)_"MapMenu",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="View arbitrary record in file."_$CHAR(9)_"Dump",TMGMNUI=TMGMNUI+1
         ;"SET TMGMNU(TMGMNUI)="<HL7 Message FILE MENU>"_$CHAR(9)_"FileMenu",TMGMNUI=TMGMNUI+1
 
@@ -228,7 +228,7 @@ MMM1    SET TMGMNUI=0
         SET TMGMNU(-1,"INDENT")=INDENTN
         SET TMGMNU(TMGMNUI)="Check, Fix, Edit Mapping of tests",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Check/Fix mapping of tests"_$CHAR(9)_"CheckMap",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="Show POC mapping of tests"_$CHAR(9)_"ShowMap",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="POC mapping display of tests"_$CHAR(9)_"ShowMap",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Show map of 1 test"_$CHAR(9)_"VIEWMAP",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Remove mapping of 1 test"_$CHAR(9)_"DelMap",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="View arbitrary record in file."_$CHAR(9)_"Dump",TMGMNUI=TMGMNUI+1
@@ -258,8 +258,8 @@ VMPCK(TMGENV,INDENTN)  ;"VIEW MAP, PICKING TYPE TO VIEW.
 VMPM1   KILL TMGMNUI SET TMGMNUI=0
         SET TMGMNU(-1,"INDENT")=INDENTN
         SET TMGMNU(TMGMNUI)="Pick Type of 1-Test Mapping To View",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="Show map of test code from HL7 message (from lab provider)"_$CHAR(9)_"FromLab",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="Show map of transformed NLT code"_$CHAR(9)_"NLTMap",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="HL7: Show map of test code from HL7 message (from lab provider)"_$CHAR(9)_"FromLab",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="NLT: Show map of transformed NLT code"_$CHAR(9)_"NLTMap",TMGMNUI=TMGMNUI+1
         WRITE !
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
         KILL TMGMNU ;"Prevent from cluttering variable table during debug run
@@ -317,7 +317,7 @@ VIEWMAP(TMGENV,TESTID) ;
         ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)                
         ;"           TMGENV(<other entries>)= etc.              
         ;"       TESTID -- Optional.  If not provided, then user is prompted for value. 
-        ;"Note: uses globally-scoped vars" TMGLABPREFIX, IEN62D4, IEN68D2
+        ;"Note: uses globally-scoped vars" TMGLABPREFIX, IEN62D4, IEN68D2, TMGTESTMSG
         NEW TMGZZ SET TMGZZ=0
         IF TMGZZ=1 DO
         . KILL TMGENV
@@ -329,8 +329,12 @@ VIEWMAP(TMGENV,TESTID) ;
         NEW TESTNAME,%,VACODE,NEWIEN60,IEN62D41,SYN60,SYNONYM,TMGRESULT
         SET TESTID=$GET(TESTID)
 VM1     IF TESTID="" DO
-        . WRITE !,"Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
-        . READ TESTID:$GET(DTIME,3600),!
+        . IF $DATA(TMGTESTMSG) DO
+        . . NEW TMGU MERGE TMGU=TMGENV("TMGU")
+        . . SET TESTID=$$GETIDFRM(.TMGTESTMSG,.TMGU) ;"GET TEST ID FROM TEST HL7 MESSAGE
+        . ELSE  DO
+        . . WRITE !,"Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
+        . . READ TESTID:$GET(DTIME,3600),!
         IF "^"[TESTID GOTO VMDN
         WRITE "-----",!
         WRITE "Using this TMGENV:",!
@@ -338,10 +342,16 @@ VM1     IF TESTID="" DO
         WRITE "-----",!
         NEW ARR
         SET TMGRESULT=$$LMAPAPI^TMGHL7U(.TMGENV,TESTID,.ARR) ;"Get actual mapping
+        DO
+        . WRITE "-----",!
+        . WRITE "Using this mapping array (from $$LMAPAPI^TMGHL7U):",!
+        . DO ArrayDump^TMGIDE($NAME(ARR(TESTID)))
+        . WRITE "-----",!
+        
         SET SYNONYM=$GET(ARR(TESTID,"SYNONYM"))
         SET SYN60=$GET(ARR(TESTID,"SYN60"))  ;"//kt changed 30 -> 60
         WRITE "Using '",SYNONYM,"' as a synonym for a lab test in File# 60, via 'B' index...",!
-        ;"First see IF already added.
+        ;"First see if already added.
         SET IEN60=$GET(ARR(TESTID,"MAP SYN->60"))  ;"IEN^NAME
         IF (+TMGRESULT<0)&($PIECE(TMGRESULT,"^",2)=1) DO  GOTO VMDN
         . WRITE $PIECE(TMGRESULT,"^",3),!
@@ -380,6 +390,38 @@ VM3     SET %=2
         . DO DUMPREC^TMGDEBU3(60,+IEN60,0)
         . WRITE !
 VMDN    QUIT
+        ;
+GETIDFRM(TESTMSG,TMGU) ;"GET TEST ID FROM TEST HL7 MESSAGE
+        ;"Input: TESTMSG -- PASS BY REFERENCE.  FORMAT:
+        ;"          TESTMSG(#)=<TEXT>, E.g. TESTMSG(133)= "NTE|1|L|Interpretation of Vitamin D 25 OH:|"
+        ;"       TMGU -- ARRAY WITH DIVIDER INFO, E.G. 
+        ;"       TMGU(1)="|"
+        ;"       TMGU(2)="^"
+        ;"       TMGU(3)="~"
+        ;"       TMGU(4)="\"
+        ;"       TMGU(5)="&"
+        ;"Result: returns 'testID', or "" if none chosen.    e.g., if user picks:
+        ;"         Vitamin D 25-Hydroxy (ID: 1989-3), then '1989-3"
+        NEW MENU,TMGUSERINPUT,MENUCT SET MENUCT=0
+        SET MENU(0)="Select lab result from test message to show mapping."
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(TESTMSG(IDX)) QUIT:IDX'>0  DO
+        . NEW LINE SET LINE=$GET(TESTMSG(IDX)) QUIT:LINE=""
+        . NEW TYPE SET TYPE=$PIECE(LINE,TMGU(1),1)
+        . IF TYPE'="OBX" QUIT
+        . NEW LAB SET LAB=$PIECE(LINE,TMGU(1),4) QUIT:LAB=""
+        . NEW ID SET ID=$PIECE(LAB,TMGU(2),1)
+        . NEW LABNAME SET LABNAME=$PIECE(LAB,TMGU(2),2)
+        . SET MENUCT=MENUCT+1,MENU(MENUCT)=LABNAME_" (ID: "_ID_")"_$CHAR(9)_ID
+        SET MENUCT=MENUCT+1,MENU(MENUCT)="Manual entry of a lab code (e.g. OSMOC)"_$CHAR(9)_"<MANUAL>" 
+        SET TMGUSERINPUT=$$MENU^TMGUSRI2(.MENU,"^")
+        IF TMGUSERINPUT="<MANUAL>" DO
+        . WRITE !,"Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
+        . READ TMGUSERINPUT:$GET(DTIME,3600),!
+        IF TMGUSERINPUT="^" SET TMGUSERINPUT=""
+        SET TMGRESULT=TMGUSERINPUT
+        QUIT TMGRESULT
         ;
 GETCFG(HL7INST,HL7APP) ;
         ;"Purpose: To get TMGH HL7 MESSAGE TRANSFORM SETTINGS 

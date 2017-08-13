@@ -221,6 +221,37 @@ COPDRESV(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         . . SET TEST=1
         QUIT
         ;"
+BCWELLDN(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To determine if the patient has had a G0439 billed this
+        ;"         calendar year
+        SET TEST=0
+        SET DATE=0
+        NEW IEN SET IEN=0
+        FOR  SET IEN=$ORDER(^AUPNVCPT("C",TMGDFN,IEN)) QUIT:IEN'>0  DO
+        . NEW CPTIEN SET CPTIEN=$P($G(^AUPNVCPT(IEN,0)),"^",1)
+        . NEW CPT SET CPT=$P($G(^ICPT(CPTIEN,0)),"^",1)
+        . IF CPT="G0439" DO
+        . . SET TEST=1
+        . . NEW VISIT SET VISIT=$P($G(^AUPNVCPT(IEN,0)),"^",3)
+        . . NEW THISDATE SET THISDATE=$P($G(^AUPNVSIT(VISIT,0)),"^",1)
+        . . SET THISDATE=$E(THISDATE,1,3)_"0101.010101"
+        . . IF THISDATE>DATE SET DATE=THISDATE
+        QUIT
+        ;"
+BCADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To detmine if the patient is a BCBS Advantage patient
+        SET TEST=0
+        SET DATE=0
+        NEW BCBSAIEN SET BCBSAIEN=+$ORDER(^DIC(36,"B","BC/BS ADVANTAGE",0))
+        IF BCBSAIEN'>0 GOTO BCDN
+        NEW INSIDX SET INSIDX=0
+        FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+        . NEW THISIEN SET THISIEN=$G(^DPT(TMGDFN,.312,INSIDX,0))
+        . IF THISIEN=BCBSAIEN DO
+        . . SET TEST=1
+BCDN
+        QUIT
+        ;"
 GETIUIEN(NAME) ;
        ;"Return the IEN of the given note title
        NEW TMGRESULT SET TMGRESULT=0

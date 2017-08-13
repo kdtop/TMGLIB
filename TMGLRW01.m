@@ -1,4 +1,4 @@
-TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 5/23/17
+TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 5/23/17, 8/2/17
               ;;1.0;TMG-LIB;**1**;06/20/13
  ;
  ;"TMG LAB RESULTS STORAGE API
@@ -18,6 +18,7 @@ TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 5/23/17
  ;"FILEMSG(IEN62D4,TMGHL7MSG) -- FILE HL7 MESSAGE INTO LAB DATA FILE (63)
  ;"LRWRITE(DFN,ARRAY,LABTYPE,FLAGS,ALERTS) -- Store data in LAB DATA (^LR), file# 63
  ;"PARSXTRA(REF,DATA,DIV1,DIV2) ;"Parse lab dataline back into XTRA array
+ ;"ASKDELAB  -- Interact with user and delete stored
  ;"
  ;"=======================================================================
  ;" API - Private Functions
@@ -726,6 +727,46 @@ DELPRIOR(FILEARR,DATESUSED,INFO)  ;"DELETE PRIOR FILINGS
         . ;"KILL DATESUSED("B",FLD,OLDDT_" "),DATESUSED(OLDDT_" ",FLD)
         . KILL DATESUSED("B",FLD,OLDDT),DATESUSED(OLDDT,FLD)
 DLPDN   QUIT TMGRESULT
+        ;
+ASKDELAB ;
+        WRITE !,!,"--------------------------------------------------------",!
+        WRITE "This utility will cause PERMANENT DELETION of store lab values. CAUTION!",!
+        WRITE "--------------------------------------------------------",!
+        NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE !
+        IF Y'>0 DO  GOTO ADLDN
+        . WRITE "No patient selected.  Aborting.",!
+        NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(+Y,"LR")),"^",1)
+        IF LRDFN'>0 DO  GOTO ADLDN
+        . WRITE "Unable to determine LRDFN in ^DPT("_+Y_",""LR"").  Aborting.",!
+        NEW %DT,X,Y SET %DT="AEP"
+        SET %DT("A")="Enter date of labs to delete: "
+        DO ^%DT WRITE !
+        IF Y'>0 DO  GOTO ADLDN
+        . WRITE "No date selected.  Aborting.",!
+        NEW MENU,MENUCT,USRPICK,ADT,FLD
+ADLL0   KILL MENU SET MENUCT=0
+        SET MENU(0)="Pick labs to delete"
+        NEW SRDT SET SRDT=9999999-(Y+1)
+        NEW ERDT SET ERDT=9999999-Y
+        NEW RDT SET RDT=SRDT
+        FOR  SET RDT=+$ORDER(^LR(LRDFN,"CH",RDT)) QUIT:(RDT>ERDT)!(RDT=0)  DO
+        . NEW LABFLD SET LABFLD=1
+        . FOR  SET LABFLD=+$ORDER(^LR(LRDFN,"CH",RDT,LABFLD)) QUIT:LABFLD'>0  DO
+        . . NEW DATANAME SET DATANAME=$PIECE($GET(^DD(63.04,LABFLD,0)),"^",1)
+        . . IF DATANAME="" SET DATANAME="(?? LAB NAME ??)"
+        . . NEW LINE SET LINE=$GET(^LR(LRDFN,"CH",RDT,LABFLD))
+        . . NEW VALUE SET VALUE=$PIECE(LINE,"^",1)
+        . . SET MENUCT=MENUCT+1,MENU(MENUCT)=DATANAME_" = "_VALUE_$CHAR(9)_LRDFN_";"_RDT_";"_LABFLD
+        IF MENUCT=0 DO  GOTO ADLDN
+        . WRITE "No labs found for patient on specified data.  Aborting."
+        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        IF "^"[USRPICK GOTO ADLDN
+        SET ADT=9999999-$PIECE(USRPICK,";",2)
+        SET FLD=$PIECE(USRPICK,";",3)
+        DO DELLAB(LRDFN,ADT,FLD)
+        SET %=1 WRITE !,"DELETE ANOTHER" DO YN^DICN WRITE !
+        IF %=1 GOTO ADLL0
+ADLDN   QUIT
         ;
 DELLAB(LRDFN,DT,FLD)  ;"DELETE 1 LAB
         ;"IMPLEMENT

@@ -128,6 +128,7 @@ ASSEMENT(LINESTR) ;
 ASDN    QUIT RESULT
         ;    
 PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;
+        ;"NOTE: see also PARSEARR^TMGTIUP2 regarding parsing sections
         ;"Purpose: parse one section on note array
         ;"Input:  TEMPARR -- PASS BY REFERENCE.  Array as created in SUMNOTE()
         ;"        TIUIEN -- IEN 8925
