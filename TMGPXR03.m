@@ -501,11 +501,61 @@ SLL1    IF +$$GETSWMD(.MODES)'>0 GOTO SLDN  ;"GET SHOW MODES
         IF %=1 GOTO SLL1        
 SLDN    QUIT        
         ;"
-GETSCHED(TMGRESULT,BEGDT,ENDDT)  ;"
+GETCSPAT(TMGRESULT,BEGDT,ENDDT)  ;"
+        ;"Purpose: this function returns an array 
+        ;"         of all patients who are scheduled for
+        ;"         the given dates and are on Controlled Substances
+        NEW ARRAY,COUNT
+        SET BEGDT=$GET(BEGDT),ENDDT=+$GET(ENDDT)
+        IF ENDDT'>0 SET ENDDT=BEGDT
+        DO GETSCHED(.ARRAY,BEGDT,ENDDT)
+        NEW DFN,RESULT
+        SET DFN=0
+        FOR  SET DFN=$O(ARRAY(DFN)) QUIT:DFN'>0  DO
+        . NEW TEST,DATE,DATA,TEXT
+        . DO PAINMEDS^TMGPXR01(DFN,.TEST,.DATE,.DATA,.TEXT) 
+        . IF TEST=1 DO
+        . . NEW DATE SET DATE=$ORDER(ARRAY(DFN,0))
+        . . SET TMGRESULT(DATE,DFN)=""
+        QUIT
+        ;"
+TOMORROW(DATE)
+        NEW TOMORROW
+        NEW X,X1,X2
+        SET X1=DATE,X2=1
+        DO C^%DTC
+        SET TOMORROW=X
+        QUIT TOMORROW
+        ;"
+NEXTDATE(DATE,DAYSTOCHECK)   ;"
+        ;"Purpose: This function will return the NEXT business date after
+        ;"         the date provided. If not provided, then it will assume
+        ;"         today.
+        NEW TMGRESULT,TEMPARR,COUNT
+        SET DAYSTOCHECK=$G(DAYSTOCHECK)
+        IF DAYSTOCHECK=0 SET DAYSTOCHECK=30 ;"QUIT IF NO RESULTS FOUND IN SO
+                                            ;"MANY DAYS, TO STOP INFINITE LOOPS
+        SET DATE=+$G(DATE),COUNT=0
+        IF DATE=0 DO
+        . NEW X DO NOW^%DTC SET DATE=X
+        SET TMGRESULT=0
+        FOR  SET DATE=$$TOMORROW(DATE) QUIT:(TMGRESULT>0)!(COUNT>DAYSTOCHECK)  DO
+        . IF $$GETSCHED(.TEMPARR,DATE,DATE,"AO")>0 DO
+        . . SET TMGRESULT=DATE
+        . SET COUNT=COUNT+1
+        QUIT TMGRESULT
+        ;"
+GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES)  ;"
         ;"Purpose: This function returns an array
         ;"         of all appointment inside the given 
         ;"         date range.
         ;"   TMGRESULT(Datetime,DFN)=""
+        ;"   BEGDT-FM START DATE
+        ;"   ENDDT-(Optional)FM END DATE. Will default to BEGDT if not provided
+        ;"   STATUSES-(Optional) Statuses to return. Defaults to "A[ctive]"
+        NEW NUMOFAPPTS SET NUMOFAPPTS=0
+        SET STATUSES=$$UP^XLFSTR($G(STATUSES))
+        IF STATUSES="" SET STATUSES="A"
         SET BEGDT=$PIECE($GET(BEGDT),",",1)
         SET ENDDT=+$GET(ENDDT)
         IF ENDDT'>0 SET ENDDT=BEGDT
@@ -516,9 +566,10 @@ GETSCHED(TMGRESULT,BEGDT,ENDDT)  ;"
         . FOR  SET DFN=$ORDER(^TMG(22723,"DT",DTIDX,DFN)) QUIT:DFN'>0  DO
         . . NEW IDX SET IDX=$ORDER(^TMG(22723,"DT",DTIDX,DFN,0))
         . . NEW STATUS SET STATUS=$GET(^TMG(22723,"DT",DTIDX,DFN,IDX))
-        . . IF STATUS="A" DO
+        . . IF STATUSES[STATUS DO
         . . . SET TMGRESULT(DFN,DTIDX)=""
-        QUIT
+        . . . SET NUMOFAPPTS=NUMOFAPPTS+1
+        QUIT NUMOFAPPTS
         ;"
 APPTREMS(TMGRESULT,REMARR,BEGDT,ENDDT)  ;"
         ;"Purpose: get all reminders, sent by REMARR that are due for
@@ -536,7 +587,7 @@ APPTREMS(TMGRESULT,REMARR,BEGDT,ENDDT)  ;"
         NEW ARRAY,COUNT
         SET BEGDT=$GET(BEGDT),ENDDT=+$GET(ENDDT)
         IF ENDDT'>0 SET ENDDT=BEGDT
-        DO GETSCHED(.ARRAY,BEGDT,ENDDT)
+        DO GETSCHED(.ARRAY,BEGDT,ENDDT,"AO")  ;"GET ACTIVE AND OLD BOTH
         NEW RESULT,DFN
         SET DFN=0,COUNT=0
         FOR  SET DFN=$ORDER(ARRAY(DFN)) QUIT:DFN'>0  DO

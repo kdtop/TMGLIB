@@ -348,6 +348,7 @@ PROCESPT(ONELINE,ERRARRAY,CHGLOG,EXTARR2,EXTARR3,DUZ) ;
   ;"Output: Data is put into database, IF it is not there already.
   ;"Result: 1=OK To continue; -1^Message if error, or to abort or bad data
   ;"NEW XFn
+  SET ^TMP("ERROR")=DUZ
   NEW PTINFO,ONEERRARRAY
   NEW RESULT SET RESULT=1
   NEW AUTOREG SET AUTOREG=1

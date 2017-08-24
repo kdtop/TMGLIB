@@ -477,47 +477,92 @@ GETINRS  ;
        ;"
 PRTPAINR  ;"
        ;"Purpose: Provide an Non-interactive entry point for Pain report,
+       ;"Get patient arrays
+       NEW CSPTRESULT,REMRESULT  
+       NEW X,Y DO NOW^%DTC NEW NOWDATE SET NOWDATE=X
+       ;"DON'T PRINT ON WEDNESDAY,SATURDAY,SUNDAY
+       NEW DOW SET DOW=$$DOW^XLFDT(NOWDATE)
+       NEW DAYSTR SET DAYSTR="WED,SUN,SAT"
+       IF DAYSTR[DOW GOTO PPDN  
+       ;"
+       NEW BDATE,EDATE 
+       ;"Note: we are going to start printing reports in advance,
+       ;"      so this will try to determine the next open date
+       ;"      If returns 0, quit
+       NEW NEXTDATE SET NEXTDATE=$$NEXTDATE^TMGPXR03(NOWDATE,3)
+       IF NEXTDATE'>0 GOTO PPDN
+       SET BDATE=NEXTDATE,EDATE=NEXTDATE
+       DO GETPRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE)
+       ;"
+       ;"If data is found in either one, proceed with printing else quit
+       IF ('$D(CSPTRESULT))&(REMRESULT(0)=0) GOTO PPDN 
+       ;"
        NEW %ZIS
        SET %ZIS("A")="Enter Output Device: "
        SET IOP="S121-LAUGHLIN-LASER"
        DO ^%ZIS  ;"standard device call
-       IF POP DO  GOTO PPDn
+       IF POP DO  GOTO PPDN
        . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
        use IO
-       DO PAINRPT
+       DO PAINRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE)
        DO ^%ZISC  ;" Close the output device
        ;"DO PRESS2GO^TMGUSRI2
-PPDn   QUIT
+PPDN   QUIT
        ;"
-PAINRPT   ;"
-       ;"Purpose: Print report for patients due for UDS and Pain Contracts
-       NEW RESULT
-       NEW X,Y DO NOW^%DTC NEW NowDate SET NowDate=X
+GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
+       ;"Get CS Patients
+       DO GETCSPAT^TMGPXR03(.CSPTRESULT,BDATE,EDATE)
+       ;"Get patients with reminders due
        NEW REMARR
        SET REMARR(232)="PAIN CONTRACT DUE"
        SET REMARR(233)="DRUG SCREEN DUE"
-       DO APPTREMS^TMGPXR03(.RESULT,.REMARR,NowDate)
-       IF RESULT(0)=0 GOTO PRDn
+       DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,BDATE,EDATE)
+       QUIT
+       ;" 
+PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)   ;"
+       ;"Purpose: Print report for patients due for UDS and Pain Contracts
+       ;"Print heading
+       NEW X,Y DO NOW^%DTC NEW NOWDATE SET NOWDATE=X
+       ;"Get date range
+       NEW DTRANGE
+       SET Y=BDATE DO DD^%DT SET DTRANGE=Y
+       IF BDATE'=EDATE DO
+       . SET Y=EDATE DO DD^%DT SET DTRANGE=DTRANGE_"-"_Y
        WRITE !
        WRITE "************************************************************",!
-       WRITE "              Controlled substance reminders due today",!
-       WRITE "                            " SET Y=NowDate DO DD^%DT WRITE Y,!
+       WRITE "              Controlled substance reminders due ",DTRANGE,!
+       WRITE "                      Printed: " SET Y=NOWDATE DO DD^%DT WRITE Y,!
        WRITE "               Please deliver this report to the NURSE",!
        WRITE "************************************************************",!
        WRITE "                                            (From TMGRPT1.m)",!!
+       ;"
+       ;"Print CS Patients, if found in array
+       IF $D(CSPTRESULT) DO
+       . NEW DATE SET DATE=0
+       . WRITE "============= PATIENTS SCHEDULED, ON CONTROLLED SUBSTANCES ============",!
+       . FOR  SET DATE=$ORDER(CSPTRESULT(DATE)) QUIT:DATE'>0  DO
+       . . NEW DFN SET DFN=0
+       . . FOR  SET DFN=$ORDER(CSPTRESULT(DATE,DFN)) QUIT:DFN'>0  DO
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . SET Y=DATE DO DD^%DT
+       . . . WRITE "  - ",NAME,?40,Y,!
+       . WRITE !,!
+       ;"              
+       ;"Print reminders due, if found in array
+       IF REMRESULT(0)=0 GOTO PRTDN
        NEW REMIEN SET REMIEN=0
-       FOR  SET REMIEN=$ORDER(RESULT(REMIEN)) QUIT:REMIEN'>0  DO
+       FOR  SET REMIEN=$ORDER(REMRESULT(REMIEN)) QUIT:REMIEN'>0  DO
        . NEW REMDISP SET REMDISP=$PIECE($GET(^PXD(811.9,REMIEN,0)),"^",3)
        . WRITE "============= PATIENTS DUE FOR ",REMDISP," ============",!
        . NEW DATE SET DATE=0
-       . FOR  SET DATE=$ORDER(RESULT(REMIEN,DATE)) QUIT:DATE'>0  DO
+       . FOR  SET DATE=$ORDER(REMRESULT(REMIEN,DATE)) QUIT:DATE'>0  DO
        . . NEW DFN SET DFN=0
-       . . FOR  SET DFN=$ORDER(RESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
+       . . FOR  SET DFN=$ORDER(REMRESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
        . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?40,Y,!
        . WRITE !!
-PRDn   QUIT
+PRTDN  QUIT
        ;
 PREVNAR ;
        ;"Purpose: Print report for patients needing Prevnar-13

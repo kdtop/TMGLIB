@@ -54,8 +54,10 @@ R(RESULT,ARGS) ; GET Mumps Routine   ;"Modified from R^%W0
   . KILL ARGS SET ARGS("*")=PATH
   . DO FILESYS^%W0(.RESULT,.ARGS)
   ;
-  NEW RTN SET RTN=$G(ARGS("routine"))
+  NEW RTN,FSRTN SET RTN=$G(ARGS("routine"))
   IF RTN="" SET RTN=PATH
+  SET RTN=$$URLDEC^VPRJRUT(RTN)  ;"//kt 8/13/17
+  SET FSRTN=RTN IF $EXTRACT(FSRTN,1)="%" SET FSRTN=$TRANSLATE(FSRTN,"%","_")
   IF '(RTN]""&($TEXT(^@RTN)]"")) DO  GOTO R2DN
   . DO SETERROR^VPRJRUT(404,"Routine not found")
   NEW TMGRSTRTN SET TMGRSTRTN=RTN  ;"will be used in global scope below

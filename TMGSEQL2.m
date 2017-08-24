@@ -201,6 +201,7 @@ ERREFILE(ONELINE,PTINFO,ONEERRORARRAY,DUZ)
   ;"       DUZ -- the user IEN (from file 2) to recieve alert
   ;"Output: A NEW alert will be created, and messages written to screen
   ;"Result : none
+  set ^TMP("ERROR")=DUZ
   WRITE "There is still an error:",!
   DO ZWRITE^TMGZWR("ONEERRORARRAY")
   WRITE "A NEW alert will be made to handle this NEW error.",!

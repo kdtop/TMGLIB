@@ -454,8 +454,9 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . . SET OUTARR(I2)=ALINE
         . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_$CHAR(13)
         . . SET TMGRESULT=TMGRESULT_ALINE
-        . . NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1      ;"//kt 10/15
-        . . SET OUTARR(LN)=ALINE                        ;"//kt 10/15        
+        . . ;"//kt removed 8/23/17 -- d/t causes duplicate entries
+        . . ;"//kt removed 8/23/17 NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1      ;"//kt 10/15
+        . . ;"//kt removed 8/23/17  SET OUTARR(LN)=ALINE                        ;"//kt 10/15        
         ELSE  DO
         . SET PRIORLABEL=$$UP^XLFSTR(PRIORLABEL)
         . SET STRVAL=$GET(PRIORTABLE(TABLENAME,"KEY-VALUE",PRIORLABEL))

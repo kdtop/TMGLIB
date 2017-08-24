@@ -124,7 +124,7 @@ MAKEWS(N)  ;"MAKE WHITE SPACE
 REPLSTR(STR,MATCH,NEWVAL)  ;"REPLACE STRING
   ;"Scope: PUBLIC FUNCTION
   ;"Purpose: to look for all instances of Match in S, and replace with NewValue
-  ;"Input: STR - string to alter.  Altered IF passed by reference
+  ;"Input: STR - string to alter.  Altered if passed by reference
   ;"       Match -- the sequence to look for, i.e. '##'
   ;"       NewValue -- what to replace Match with, i.e. '$$'
   ;"Note: This is different than $TRANSLATE, as follows

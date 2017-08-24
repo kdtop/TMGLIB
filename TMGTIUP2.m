@@ -43,13 +43,12 @@ TESTLHPI ;
         ;
 T2()    ;
         NEW TIULASTOV 
-        SET TIULASTOV=474969 ;"//L. HILT   NOTE: DON'T PUT FULL PATIENT NAMES HERE        
+        SET TIULASTOV=478071 ;"//C. HICK   NOTE: DON'T PUT FULL PATIENT NAMES HERE        
         QUIT $$GETHPI(TIULASTOV)
         ;       
 LASTHPI(DFN)  ;"Return the last HPI section, with processing, formatting etc.
         ;"FIND LAST NOTE WITH HPI SECTION
         NEW TIULASTOV SET TIULASTOV=$$LASTTIU(DFN,"HISTORY OF PRESENT ILLNESS (HPI):")
-        if DFN=54514 SET TIULASTOV=462952
         IF TIULASTOV=0 QUIT ""
         QUIT $$GETHPI(TIULASTOV)
         ;                   
@@ -76,7 +75,11 @@ GETHPI(IEN8925,ITEMARRAY,OUT) ;"Get HPI section as one long string, with process
         FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
         . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
         DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,1) ;
-        NEW TEMP SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION)  ;"Parse note array into formatted array
+        NEW TEMP
+        SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION)  ;"Parse note array into formatted array
+        IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
+        IF DUZ=150 DO
+        . SET TEMP=$$REFRSHTB(.ITEMARRAY,DFN)
         IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
         SET OPTION("BULLETS")=(+$GET(DUZ)'=83)                
         NEW ZZTMG 
@@ -88,6 +91,40 @@ GETHPI(IEN8925,ITEMARRAY,OUT) ;"Get HPI section as one long string, with process
         ELSE  DO
         . SET TMGHPI=$$COMPHPI0(.ITEMARRAY,.OPTION,.OUT)  ;"EDDIE'S WORKING COMPILER OF HPI    
 LHDN    QUIT TMGHPI
+        ;
+REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES. 
+        ;"INPUT: ITEMARRAY -- PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
+        ;"          ITEMARRAY(Ref#)=<Full section text>
+        ;"          ITEMARRAY(Ref#,#)=different parts of section
+        ;"          ITEMARRAY("TEXT",Ref#)=Title of section  
+        ;"          ITEMARRAY("TEXT",Ref#,#)=sequential parts of section  
+        ;"             ITEMARRAY("TEXT",3)="Dyspepsia"  
+        ;"             ITEMARRAY("TEXT",3,1)=part 1, e.g. text, e.g. [GROUP A&B]
+        ;"                ITEMARRAY("TEXT",3,1)="[GROUP]"
+        ;"                ITEMARRAY("TEXT",3,1,"GROUP")="A&B"
+        ;"             ITEMARRAY("TEXT",3,2)=part 2, e.g. name of inline table
+        ;"                ITEMARRAY("TEXT",3,2)="[TABLE]"  <-- signal this part is a table. 
+        ;"                ITEMARRAY("TEXT",3,2,"TABLE")=WT   <-- WT is name of table
+        ;"                ITEMARRAY("TEXT",3,2,"TEXT")=<TEXT OF TABLE>
+        ;"                ITEMARRAY("TEXT",3,2,"INLINE")=0 or 1        
+        ;"            ITEMARRAY("TEXT",Ref#,3)=part 3, e.g. more text
+        ;"            ITEMARRAY("TEXT",Ref#,4)=part 4, e.g. name of table  
+        ;"            ITEMARRAY("TEXT",Ref#,"GROUPX",#)=""  <-- index of GROUP nodes
+        ;"            ITEMARRAY("TEXT",Ref#,"TABLEX",#)=""  <-- index of TABLE nodes        
+        ;"       DFN - IEN of the patient
+        ;"Result: 1^OK, or -1^Error message
+        NEW TMGRESULT SET TMGRESULT="1^OK"
+        NEW PARAIDX SET PARAIDX=0
+        FOR  SET PARAIDX=$ORDER(ITEMARRAY("TEXT",PARAIDX)) QUIT:PARAIDX'>0  DO
+        . NEW JDX SET JDX=0
+        . FOR  SET JDX=$ORDER(ITEMARRAY("TEXT",PARAIDX,JDX)) QUIT:JDX'>0  DO
+        . . IF $GET(ITEMARRAY("TEXT",PARAIDX,JDX))="[TABLE]" DO
+        . . . NEW TABLENAME SET TABLENAME=$GET(ITEMARRAY("TEXT",PARAIDX,JDX,"TABLE"))
+        . . . IF TABLENAME'="" DO
+        . . . . NEW TABLESTR,TABLEARR
+        . . . . SET TABLESTR=$$GETTABLX^TMGTIUOJ(DFN,TABLENAME,.TABLEARR)
+        . . . . SET ITEMARRAY("TEXT",PARAIDX,JDX,"TEXT")=TABLESTR
+        QUIT TMGRESULT
         ;
 PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array 
         ;"NOTE: See also TRIGGER1^TMGC0Q04 -> SUMNOTE^TMGTIUP1 --> PARSESCT^TMGTIUP1 for summarizing notes
