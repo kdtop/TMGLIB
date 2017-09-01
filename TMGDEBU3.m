@@ -66,6 +66,7 @@ ASKDUMP(FILE,IENS,OPTION) ;"A record dumper -- An alternative to Fileman Inquire
         ;"                 would be asked.
         ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:
         ;"                OPTION("NO LOOP")=1  Doesn't loop back and ask for another.
+        ;"RESULT: none
         WRITE !!,"  -= RECORD DUMPER =-",!
         NEW FIENS,FILENUM
 AL1     SET FIENS=$$ASKFIENS^TMGDBAP3(.FILE,.IENS)

@@ -8,94 +8,94 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15
  ;" to license terms outlined in separate file TMGLICNS.m, which should 
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
-  ;
-  ;"Terminal interface
-  ;"ANSI Standard (X3.64) Control Sequences for Video Terminals and Peripherals
-  ;"      in alphabetic order by mnemonic
-  ;
-  ;"Terminal interface
-  ;"ANSI Standard (X3.64) Control Sequences for Video Terminals and Peripherals
-  ;"      in alphabetic order by mnemonic
-  ;
-  ;"CBT(PN)     ;CBT  Cursor Backward Tab  Esc [ PN Z
-  ;"CCH         ;Cancel Previous Character Esc T
-  ;"CHA(PN)     ;Cursor Horzntal Absolute  Esc [ PN G
-  ;"CHT(PN)     ;Cursor Horizontal Tab     Esc [ PN I
-  ;"CNL(PN)     ;Cursor Next Line          Esc [ PN E
-  ;"CPL(PN)     ;Cursor Preceding Line     Esc [ PN F
-  ;"CPR(PN,P2)  ;Cursor Position Report Esc [ PN  ; PN R     VT100
-  ;"CTC(PN)     ;Cursor Tab Control        Esc [ Ps W
-  ;"CUB(PN)     ;Cursor Backward           Esc [ PN D          VT100
-  ;"CUD(PN)     ;Cursor Down               Esc [ PN B          VT100
-  ;"CUF(PN)     ;Cursor Forward            Esc [ PN C          VT100
-  ;"CUP(X,Y)    ;Cursor Position        Esc [ PN  ; PN H     VT100
-  ;"HOME        ;Cursor Home               Esc [ H     ('home' is top left)
-  ;"CUU(PN)     ;Cursor Up                 Esc [ PN A          VT100
-  ;"CVT(PN)     ;Cursor Vertical Tab       Esc [ PN Y
-  ;"DCH(PN)     ;Delete Character          Esc [ PN P
-  ;"DL(PN)      ;Delete Line               Esc [ PN M
-  ;"EA(PN)      ;Erase in Area             Esc [ Ps O
-  ;"ECH(PN)     ;Erase Character           Esc [ PN X
-  ;"ED(PN)      ;Erase in Display          Esc [ Ps J         VT100
-  ;"EF(PN)      ;Erase in Field            Esc [ Ps N
-  ;"EL(PN)      ;Erase in Line             Esc [ Ps K         VT100
-  ;"EPA         ;End of Protected Area     Esc W
-  ;"ESA         ;End of Selected Area      Esc G
-  ;"FNT(PN,P2)  ;Font Selection            Esc [ PN  ; PN Space D
-  ;"GSM(PN,P2)  ;Graphic Size Modify       Esc [ PN  ; PN Space B
-  ;"GSS(PN)     ;Graphic Size Selection    Esc [ PN Space C
-  ;"HPA(PN)     ;Horz Position Absolute    Esc [ PN `
-  ;"HPR(PN)     ;Horz Position Relative    Esc [ PN a
-  ;"HTJ         ;Horz Tab w/Justification  Esc I
-  ;"HTS         ;Horizontal Tab Set        Esc H             VT100
-  ;"HVP(PN,P2)  ;Horz & Vertical Position  Esc [ PN  ; PN f  VT100
-  ;"ICH(PN)     ;Insert Character          Esc [ PN @
-  ;"IL(PN)      ;Insert Line               Esc [ PN L
-  ;"IND         ;Index                     Esc D           VT100
-  ;"NEL         ;Next Line                 Esc E           VT100
-  ;"NP(PN)      ;Next Page                 Esc [ PN U
-  ;"PP(PN)      ;Preceding Page            Esc [ PN V
-  ;"IS          ;Reset to Initial State    Esc c
-  ;"RM(PN)      ;Reset Mode                Esc [ Ps l     VT100
-  ;"SD(PN)      ;Scroll Down               Esc [ PN T
-  ;"SL(PN)      ;Scroll Left               Esc [ PN Space @
-  ;"SM(PN)      ;Select Mode               Esc [ Ps h     VT100
-  ;"SPA         ;Start of Protected Area   Esc V
-  ;"SPI(PN,P2)  ;Spacing Increment         Esc [ PN  ; PN Space G
-  ;"SR(PN)      ;Scroll Right              Esc [ PN Space A
-  ;"SA          ;Start of Selected Area    Esc F
-  ;"ST          ;String Terminator         Esc \
-  ;"SU(PN)      ;Scroll Up                 Esc [ PN S
-  ;"TBC(PN)     ;Tab Clear                 Esc [ Ps g        VT100
-  ;"VPA(PN)     ;Vert Position Absolute    Esc [ PN d
-  ;"VPR(PN)     ;Vert Position Relative    Esc [ PN e
-  ;"VCULOAD     ;Unsave Cursor                              ESC [ u
-  ;"VCUSAV2     ;Save Cursor & Attrs                        ESC 7
-  ;"VCULOAD2    ;Restore Cursor & Attrs                     ESC 8
-  ;
-  ;"VT100 specific calls
-  ;"--------------------
-  ;"VCEL        ;Erase from cursor to end of line           Esc [ 0 K    or Esc [ K
-  ;"VCBL        ;Erase from beginning of line to cursor     Esc [ 1 K
-  ;"VEL         ;Erase line containing cursor               Esc [ 2 K
-  ;"VCES        ;Erase from cursor to end of screen         Esc [ 0 J    or Esc [ J
-  ;"VCBS        ;Erase from beginning of screen to cursor   Esc [ 1 J
-  ;"VCS         ;Erase entire screen                        Esc [ 2 J
-  ;"VCUSAV      ;Save Cursor                                ESC [ s
-  ;"ESSCR       ;Enable scrolling for entire display
-  ;"QCUP        ;Query cursor position
-  ;"VTATRIB(n)  ;Set Text attributes    <ESC>[{attr1};...;{attrn}m
-  ;"VFGCOLOR(n);Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
-  ;"VBGCOLOR(n);Set Text Background Color  <ESC>[{attr1};...;{attrn}m
-  ;"VCOLORS(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
-  ;"SETGBLCO  //Set Global Colors
-  ;"KILLGBLC  //Kill Global Colors
-  ;"DEMOCOLOR
-  ;"=======================================================================
-  ;"DEPENDENCIES: XLFSTR
-  ;"=======================================================================
-  ;
-  ;
+ ;
+ ;"Terminal interface
+ ;"ANSI Standard (X3.64) Control Sequences for Video Terminals and Peripherals
+ ;"      in alphabetic order by mnemonic
+ ;
+ ;"Terminal interface
+ ;"ANSI Standard (X3.64) Control Sequences for Video Terminals and Peripherals
+ ;"      in alphabetic order by mnemonic
+ ;
+ ;"CBT(PN)     ;CBT  Cursor Backward Tab    Esc [ PN Z
+ ;"CCH         ;Cancel Previous Character   Esc T
+ ;"CHA(PN)     ;Cursor Horzntal Absolute    Esc [ PN G
+ ;"CHT(PN)     ;Cursor Horizontal Tab       Esc [ PN I
+ ;"CNL(PN)     ;Cursor Next Line            Esc [ PN E
+ ;"CPL(PN)     ;Cursor Preceding Line       Esc [ PN F
+ ;"CPR(PN,P2)  ;Cursor Position Report      Esc [ PN  ; PN R     VT100
+ ;"CTC(PN)     ;Cursor Tab Control          Esc [ Ps W
+ ;"CUB(PN)     ;Cursor Backward             Esc [ PN D          VT100
+ ;"CUD(PN)     ;Cursor Down                 Esc [ PN B          VT100
+ ;"CUF(PN)     ;Cursor Forward              Esc [ PN C          VT100
+ ;"CUP(X,Y)    ;Cursor Position             Esc [ PN  ; PN H     VT100
+ ;"HOME        ;Cursor Home                 Esc [ H     ('home' is top left)
+ ;"CUU(PN)     ;Cursor Up                   Esc [ PN A          VT100
+ ;"CVT(PN)     ;Cursor Vertical Tab         Esc [ PN Y
+ ;"DCH(PN)     ;Delete Character            Esc [ PN P
+ ;"DL(PN)      ;Delete Line                 Esc [ PN M
+ ;"EA(PN)      ;Erase in Area               Esc [ Ps O
+ ;"ECH(PN)     ;Erase Character             Esc [ PN X
+ ;"ED(PN)      ;Erase in Display            Esc [ Ps J         VT100
+ ;"EF(PN)      ;Erase in Field              Esc [ Ps N
+ ;"EL(PN)      ;Erase in Line               Esc [ Ps K         VT100
+ ;"EPA         ;End of Protected Area       Esc W
+ ;"ESA         ;End of Selected Area        Esc G
+ ;"FNT(PN,P2)  ;Font Selection              Esc [ PN  ; PN Space D
+ ;"GSM(PN,P2)  ;Graphic Size Modify         Esc [ PN  ; PN Space B
+ ;"GSS(PN)     ;Graphic Size Selection      Esc [ PN Space C
+ ;"HPA(PN)     ;Horz Position Absolute      Esc [ PN `
+ ;"HPR(PN)     ;Horz Position Relative      Esc [ PN a
+ ;"HTJ         ;Horz Tab w/Justification    Esc I
+ ;"HTS         ;Horizontal Tab Set          Esc H             VT100
+ ;"HVP(PN,P2)  ;Horz & Vertical Position    Esc [ PN  ; PN f  VT100
+ ;"ICH(PN)     ;Insert Character            Esc [ PN @
+ ;"IL(PN)      ;Insert Line                 Esc [ PN L
+ ;"IND         ;Index                       Esc D           VT100
+ ;"NEL         ;Next Line                   Esc E           VT100
+ ;"NP(PN)      ;Next Page                   Esc [ PN U
+ ;"PP(PN)      ;Preceding Page              Esc [ PN V
+ ;"IS          ;Reset to Initial State      Esc c
+ ;"RM(PN)      ;Reset Mode                  Esc [ Ps l     VT100
+ ;"SD(PN)      ;Scroll Down                 Esc [ PN T
+ ;"SL(PN)      ;Scroll Left                 Esc [ PN Space @
+ ;"SM(PN)      ;Select Mode                 Esc [ Ps h     VT100
+ ;"SPA         ;Start of Protected Area     Esc V
+ ;"SPI(PN,P2)  ;Spacing Increment           Esc [ PN  ; PN Space G
+ ;"SR(PN)      ;Scroll Right                Esc [ PN Space A
+ ;"SA          ;Start of Selected Area      Esc F
+ ;"ST          ;String Terminator           Esc \
+ ;"SU(PN)      ;Scroll Up                   Esc [ PN S
+ ;"TBC(PN)     ;Tab Clear                   Esc [ Ps g        VT100
+ ;"VPA(PN)     ;Vert Position Absolute      Esc [ PN d
+ ;"VPR(PN)     ;Vert Position Relative      Esc [ PN e
+ ;"VCULOAD     ;Unsave Cursor               ESC [ u
+ ;"VCUSAV2     ;Save Cursor & Attrs         ESC 7
+ ;"VCULOAD2    ;Restore Cursor & Attrs      ESC 8
+ ;
+ ;"VT100 specific calls
+ ;"--------------------
+ ;"VCEL        ;Erase from cursor to end of line           Esc [ 0 K    or Esc [ K
+ ;"VCBL        ;Erase from beginning of line to cursor     Esc [ 1 K
+ ;"VEL         ;Erase line containing cursor               Esc [ 2 K
+ ;"VCES        ;Erase from cursor to end of screen         Esc [ 0 J    or Esc [ J
+ ;"VCBS        ;Erase from beginning of screen to cursor   Esc [ 1 J
+ ;"VCS         ;Erase entire screen                        Esc [ 2 J
+ ;"VCUSAV      ;Save Cursor                                ESC [ s
+ ;"ESSCR       ;Enable scrolling for entire display
+ ;"QCUP        ;Query cursor position
+ ;"VTATRIB(n)  ;Set Text attributes    <ESC>[{attr1};...;{attrn}m
+ ;"VFGCOLOR(n) ;Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
+ ;"VBGCOLOR(n) ;Set Text Background Color  <ESC>[{attr1};...;{attrn}m
+ ;"VCOLORS(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
+ ;"SETGBLCO  //Set Global Colors
+ ;"KILLGBLC  //Kill Global Colors
+ ;"DEMOCOLOR
+ ;"=======================================================================
+ ;"DEPENDENCIES: XLFSTR
+ ;"=======================================================================
+ ;
+ ;
 ESCN(NUM,N2,CMD)  ;
   NEW TEMPX,TEMPY
   SET TEMPX=$X
@@ -137,6 +137,11 @@ CPL(PN)  ;"Cursor Preceding Line     Esc [ PN F
   QUIT
   ;
 CPR(PN,P2)  ;"Cursor Position Report Esc [ PN  ; PN R     VT100
+  ;"NOTE: this appears to something that the terminal send to the host
+  ;"Evoked by command ESC [ 6 n  (according to here: http://vt100.net/docs/vt100-ug/chapter3.html)
+  ;"To use this, write ESC[6n to the screen, and then do a READ to get back reply 
+  ;"  device terminators will probably have to set up to get the entire response
+  ;"See also QCUP  ;"Query cursor position
   DO ESCN(.PN,.P2,"R") QUIT
   ;
 CTC(PN)  ;"Cursor Tab Control        Esc [ Ps W

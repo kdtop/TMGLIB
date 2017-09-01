@@ -35,8 +35,10 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;2/2/14, 7/22/15, 6/23/17
  ;"$$ENDQTPOS(STR,P1) -- return position of closing quotes 
  ;"$$GETWORD(STR,POS,OPENDIV,CLOSEDIV) -- Extract a word from a sentance, bounded by OPENDIV,CLOSEDIV 
  ;"$$NEXTTOKN(STR) --GET NEXT TOKEN
+ ;"$$NEXTWORD(STR,DIVCHS) --Get next word, based on first found divisor character 
+ ;"$$PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED) Get indexed word, based on first found divisor character 
  ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.  
-
+ ;"$$NEXTCH2(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.  
  ;"=======================================================================
  ;" Private Functions.
  ;"=======================================================================
@@ -378,17 +380,54 @@ NEXTTOKN(STR) ;"GET NEXT TOKEN
   SET STR=$EXTRACT(STR,$LENGTH(TOKEN)+1,$LENGTH(STR))
   QUIT TOKEN
   ;
-NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) ;"Get first next character (or string fragment), matching from 7 possible inputs.  
+NEXTWORD(STR,DIVCHS,DIVUSED)  ;"Get next word, based on first found divisor character
+  ;"INPUT: STR -- the string to work on
+  ;"       DIVCH -- This can be passed in 1 of two ways:
+  ;"                 e.g. "; ,./" , a series of single character divisors, or
+  ;"                 e.g. DIVCH("{{")=""
+  ;"                      DIVCH("}}")=""  And array of multiple character divisors
+  ;"                      DIVCH("--")=""  
+  ;"                 OR a combination of both.  
+  ;"       IDX -- the index to return
+  ;"       DIVUSED -- OPTIONAL.  PASS BY REFERENCE.  This will return the actual div used.    
+  ;"Result: Returns string for the sought piece
+  ;"        If one of the divisors is not found in string, the ENTIRE string is returned.
+  NEW RESULT SET RESULT=$$PIECE2(STR,.DIVCHS,1,1,.DIVUSED)
+  IF RESULT="",DIVUSED="" SET RESULT=STR
+  QUIT RESULT
+  ;
+PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED)  ;"Get indexed word, based on first found divisor character
+  ;"INPUT: STR -- the string to work on
+  ;"       DIVCH -- This can be passed in 1 of two ways:
+  ;"                 e.g. "; ,./" , a series of single character divisors, or
+  ;"                 e.g. DIVCH("{{")=""
+  ;"                      DIVCH("}}")=""  And array of multiple character divisors
+  ;"                      DIVCH("--")=""  
+  ;"                 OR a combination of both.  
+  ;"       IDX -- the index to return
+  ;"       IDX2 -- OPTIONAL.  If given, then a range of pieces returned.
+  ;"       DIVUSED -- OPTIONAL.  PASS BY REFERENCE.  This will return the actual div used.    
+  ;"Result: Returns string for the sought piece
+  ;"        If one of the divisors is not found in string, nothing is returned.
+  SET IDX2=+$GET(IDX2) IF IDX2=0 SET IDX2=IDX 
+  NEW JDX FOR JDX=1:1:$LENGTH(DIVCHS) SET DIVCHS($EXTRACT(DIVCHS,JDX))=""
+  SET DIVUSED=$$NEXTCH2(STR,0,.DIVCHS)
+  NEW RESULT SET RESULT=$PIECE(STR,DIVUSED,IDX,IDX2)
+  QUIT RESULT
+  ;
+NEXTCH2(STR,STARTPOS,FRAGS) ;"Get first next character (or string fragment), matching from array of possible inputs.  
   ;"Purpose: Check string to determine which string fragment comes first and return it
   ;"INPUTS: STR -- the string to check
   ;"        STARTPOS -- the index to start $FIND at, default is 0
-  ;"        A..G the inputs to test for.  
+  ;"        FRAGS. PASS BY REFERENCE.  Format:
+  ;"          FRAG("test string1")=""
+  ;"          FRAG("test string2")=""
   ;"Results: returns which of inputs is found first, or "" if none found.  
   NEW MAX SET MAX=$LENGTH(STR)+1
   NEW TEST,POS,MIN,IDX,JDX SET MIN=MAX,(IDX,JDX)=1
   SET STARTPOS=+$GET(STARTPOS)
-  FOR TEST=$G(A),$G(B),$G(C),$G(D),$G(E),$G(F),$G(G) DO
-  . IF TEST="" QUIT
+  NEW TEST SET TEST=""
+  FOR  SET TEST=$ORDER(FRAGS(TEST)) QUIT:TEST=""  DO
   . SET POS(IDX)=$FIND(STR,TEST,STARTPOS)-$LENGTH(TEST)
   . SET POS(IDX,"TEST")=TEST
   . IF POS(IDX)'>0 KILL POS(IDX) QUIT
@@ -399,7 +438,35 @@ NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) ;"Get first next character (or string fragmen
   . SET MIN=POS(JDX)
   . SET MINIDX=JDX
   QUIT $GET(POS(MINIDX,"TEST"))
-  ;  
+  ;      
+NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) ;"Get first next character (or string fragment), matching from 7 possible inputs.  
+  ;"Purpose: Check string to determine which string fragment comes first and return it
+  ;"INPUTS: STR -- the string to check
+  ;"        STARTPOS -- the index to start $FIND at, default is 0
+  ;"        A..G the inputs to test for.  
+  ;"Results: returns which of inputs is found first, or "" if none found.
+  SET A=$GET(A),B=$GET(B),C=$GET(C),D=$GET(D),E=$GET(E),F=$GET(F),G=$GET(G)
+  NEW FRAGS                  SET:A'="" FRAGS(A)=""      
+  SET:B'="" FRAGS(B)=""      SET:C'="" FRAGS(C)=""      
+  SET:D'="" FRAGS(D)=""      SET:E'="" FRAGS(E)=""      
+  SET:F'="" FRAGS(F)=""      SET:G'="" FRAGS(G)=""
+  QUIT $$NEXTCH2(.STR,.STARTPOS,.FRAGS)     
+  ;"NEW MAX SET MAX=$LENGTH(STR)+1
+  ;"NEW TEST,POS,MIN,IDX,JDX SET MIN=MAX,(IDX,JDX)=1
+  ;"SET STARTPOS=+$GET(STARTPOS)
+  ;"FOR TEST=$G(A),$G(B),$G(C),$G(D),$G(E),$G(F),$G(G) DO
+  ;". IF TEST="" QUIT
+  ;". SET POS(IDX)=$FIND(STR,TEST,STARTPOS)-$LENGTH(TEST)
+  ;". SET POS(IDX,"TEST")=TEST
+  ;". IF POS(IDX)'>0 KILL POS(IDX) QUIT
+  ;". SET IDX=IDX+1
+  ;"NEW MINIDX SET MINIDX=0
+  ;"FOR JDX=1:1:IDX-1 DO
+  ;". IF POS(JDX)'<MIN QUIT
+  ;". SET MIN=POS(JDX)
+  ;". SET MINIDX=JDX
+  ;"QUIT $GET(POS(MINIDX,"TEST"))
+  ;    
 LMATCH(STR,SUBSTR,CASESPEC) ;"Does left part of STR match SUBSTR?
   SET STR=$GET(STR),SUBSTR=$GET(SUBSTR) IF (STR="")!(SUBSTR="") QUIT 0
   IF $GET(CASESPEC)'=1 SET STR=$$UP^XLFSTR(STR),SUBSTR=$$UP^XLFSTR(SUBSTR)

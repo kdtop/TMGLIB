@@ -1,4 +1,4 @@
-TMGKERNL ;TMG/kst/OS Specific functions ;6/10/14, 3/6/15, 2/3/17
+TMGKERNL ;TMG/kst/OS Specific functions ;2/3/17, 8/30/17
          ;;1.0;TMG-LIB;**1**;04/24/09
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -598,8 +598,9 @@ GETSCRSZ(ROWS,COLS)  ;
   ;"Results: Row^Col  e.g. '24^80', or '24^60' as a default IF problem.
   ;"Note: thanks Bhaskar for figuring this out!
   SET ROWS=20,COLS=90 
-  GOTO GSS2  ;"TEMP!!!
+  ;"GOTO GSS2  ;"TEMP!!!
   ;"GOTO GSCRNSZ2+1 ;Sam's solution
+  DO GSCRNSZ3(.ROWS,.COLS)  GOTO GSSDN
   ;
 GSS1 ;
   NEW p SET p="myTerm"
@@ -614,12 +615,11 @@ GSS1 ;
 GSS2 ;
   IF (COLS=0)&(ROWS=0) DO
   . SET COLS=100,ROWS=24
-  ;
   NEW TROWS,TCOLS 
   IF $$GTMUMPW(.TROWS,.TCOLS)  ;"drop result
   IF TROWS<ROWS SET ROWS=TROWS ;"Use smaller of devices vs terminal window
   IF TCOLS<COLS SET COLS=TCOLS
-  ;
+GSSDN ;  
   QUIT ROWS_"^"_COLS
   ;      
 GSCRNSZ2(ROWS,COLS) ;
@@ -656,6 +656,18 @@ GSCRNSZ2(ROWS,COLS) ;
   SET IOM=ROWS,IOSL=COLS
   QUIT ROWS_"^"_COLS 
   ;
+GSCRNSZ3(ROWS,COLS) ;"YET ANOTHER TRY....  8/30/17
+  ;"NOTE: this gets the screen size based on what GT.M thinks it is.
+  ;"   This can be changed by software.  So during VistA login, when the terminal type
+  ;"   is set up, this will be set up (hopefully properly).
+  ;"   It does NOT try to determine the actual size of the terminal window.  So,
+  ;"   if the user has the window size smaller than the device calls for, there will 
+  ;"   be wrapping.  
+  NEW TEMP ZSHOW "D":TEMP SET TEMP=$GET(TEMP("D",1))
+  IF TEMP["WIDTH=" SET COLS=+$PIECE(TEMP,"WIDTH=",2)
+  IF TEMP["LENGTH=" SET ROWS=+$PIECE(TEMP,"LENGTH=",2)
+  QUIT
+  ;  
 GTMUMPW(ROWS,COLS) ;" GET MUMPS WIDTH        
   ;"Purpose: To query the GT.M mumps environment and get the dimensions of
   ;"       the terminal device.  E.g. this would be the width where a mumps 

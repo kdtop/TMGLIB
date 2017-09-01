@@ -1,4 +1,4 @@
-TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;2/2/14, 12/9/16
+TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;8/30/17
          ;;1.0;TMG-LIB;**1,17**;7/17/12
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -20,6 +20,7 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;2/2/14, 12/9/16
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"$$CAPWORDS(S,DIV) -- Capitalize the first letter of each word in a string
+ ;"$$CAP1ST(WORD)  -- Capitalize only first letter of word.    
  ;"CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB) ;Split string by divider
  ;"SPLITSTR(TMGTEXT,TMGWIDTH,TMGPARTB) ;Wrap string to specified width.
  ;"SETSTLEN(TMGTEXT,TMGWIDTH) ;Make string exactly TMGWIDTH in length
@@ -62,7 +63,6 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;2/2/14, 12/9/16
  ;"$$STRIP^XLFSTR(s,Char) -- returns string striped of all instances of Char
  ;"=======================================================================
  ;
- ;
 CAPWORDS(S,DIV)  ;
         ;"Purpose: convert each word in the string: '
         ;"       'test string' --> 'Test String'
@@ -70,20 +70,21 @@ CAPWORDS(S,DIV)  ;
         ;"Input: S -- the string to convert
         ;"        DIV -- [OPTIONAL] the character used to separate string (default is ' ' [space])
         ;"Result: returns the converted string
-        NEW S2,PART,IDX
-        NEW RESULT SET RESULT=""
+        NEW S2,PART,IDX,RESULT SET RESULT=""
         SET DIV=$GET(DIV," ")
         SET S2=$$LOW^XLFSTR(S)
-        ;
         FOR IDX=1:1 DO  QUIT:PART=""
-        . SET PART=$PIECE(S2,DIV,IDX)
-        . IF PART="" QUIT
+        . SET PART=$PIECE(S2,DIV,IDX) QUIT:PART=""
         . SET $EXTRACT(PART,1)=$$UP^XLFSTR($EXTRACT(PART,1))
         . IF RESULT'="" SET RESULT=RESULT_DIV
         . SET RESULT=RESULT_PART
-        ;
         QUIT RESULT
         ;
+CAP1ST(WORD)  ;"Capitalize only first letter of word.    
+        NEW RESULT SET RESULT=$$UP^XLFSTR($EXTRACT(WORD,1))
+        SET RESULT=RESULT_$$LOW^XLFSTR($EXTRACT(WORD,2,$LENGTH(WORD)))
+        QUIT RESULT
+        ;        
 CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS) ;
         ;"Purpse: To take a string, delineated by 'TMGDIV'
         ;"        and to split it into two parts: TMGTEXT and TMGPARTB

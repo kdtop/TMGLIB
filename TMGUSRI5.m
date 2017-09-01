@@ -46,7 +46,7 @@ READKY(TERMINATORS,TIMEOUT,NUM,INITVAL,ESCKEY) ;
   ;"       TIMEOUT --   OPTIONal -- the allowed lengh of time to wait before timeout.
   ;"                      default value is 999,999 seconds (~11 days)
   ;"       NUM --       OPTIONAL -- a number of characters to read, e.g. 5 to read just
-  ;"                      5 characters (or less than 5 IF terminator encountered)
+  ;"                      5 characters (or less than 5 if terminator encountered)
   ;"       INITVAL-- OPTIONAL -- This can be a value that presents the output
   ;"                      It also allows editing of former inputs.  Note: this function
   ;"                      assumes that INITVALue has been printed to the screen before
@@ -56,6 +56,8 @@ READKY(TERMINATORS,TIMEOUT,NUM,INITVAL,ESCKEY) ;
   ;"                      with a translated value for esc sequence, e.g. UP
   ;"                      (as found in ^XUTL("XGKB",*))
   ;"
+  ;"NOTE: to do a single keystroke read, and get back cursor keys etc, do this:
+  ;"      SET VAL=$$READKY^TMGUSRI5("e",,1,,.ESC) IF VAL="" SET VAL=ESC
   ;"Result: returns characters read.
   NEW RESULT SET RESULT=$GET(INITVAL)
   NEW TMGZB
@@ -63,7 +65,9 @@ READKY(TERMINATORS,TIMEOUT,NUM,INITVAL,ESCKEY) ;
   SET NUM=$GET(NUM)
   SET TERMINATORS=$GET(TERMINATORS)
   IF TERMINATORS="" SET TERMINATORS="r"
-  ELSE  IF TERMINATORS="NONE" SET TERMINATORS=""
+  ELSE  IF TERMINATORS="NONE" DO
+  . SET TERMINATORS=""
+  . IF NUM'>0 SET NUM=1  ;"//kt added 8/30/17
   NEW TEMP
   NEW DONE SET DONE=0
   SET ESCKEY=""
@@ -79,32 +83,62 @@ RLOOP ;
   ;"WRITE "  $l(TMGZB)=",$l(TMGZB)," TMGZB=" f i=1:1:$l(TMGZB) w $ASCII($E(TMGZB,IDX)),","
   IF TERMINATORS["e" USE $I:NOESCAPE
   XECUTE ^%ZOSF("EON")
-  IF (TEMP=13)&(TERMINATORS["r") DO
-  . SET DONE=1
-  ELSE  IF (TEMP=9)&(TERMINATORS["t") DO
-  . SET DONE=1
-  ELSE  IF (TEMP=32)&(TERMINATORS["s") DO
-  . SET DONE=1
+  ;"//kt begin mod 8/30/17 ---------------------------
+  ;"w "[",TEMP,"]"  ;"debugging...
+  IF (TEMP=13) DO                        ;"RETURN KEY
+  . IF (TERMINATORS["r") SET DONE=1
+  . IF NUM=1 SET ESCKEY="CR",DONE=1
+  ELSE  IF (TEMP=9) DO                   ;"TAB KEY
+  . IF (TERMINATORS["t") SET DONE=1
+  . IF NUM=1 SET ESCKEY="TAB",DONE=1
+  ELSE  IF (TEMP=32) DO                  ;"SPACE KEY
+  . IF (TERMINATORS["s") SET DONE=1
+  ELSE  IF (TEMP=127) DO                 ;"BACKSPACE KEY
+  . IF (TERMINATORS["b") SET DONE=1 QUIT
+  . IF NUM=1 SET ESCKEY="BACKSPC",DONE=1 QUIT
+  . IF RESULT'="" DO  
+  . . SET RESULT=$EXTRACT(RESULT,1,$LENGTH(RESULT)-1)
+  . . WRITE $CHAR(8)," ",$CHAR(8)
+  . SET TEMP=-1
+  ;"NOTE: The DELETE key generates an escape sequence
   ELSE  IF (TEMP=27)&(TERMINATORS["e") DO
   . SET ESCKEY=$GET(^XUTL("XGKB",TMGZB))
   . IF ESCKEY="" DO
   . . DO FXESCTBL
   . . SET ESCKEY=$GET(^XUTL("XGKB",TMGZB))
   . SET DONE=1
-  ELSE  IF (TEMP=127)&(TERMINATORS["b") DO
-  . SET DONE=1
-  ELSE  IF (TEMP=127)&(NUM=1) DO
-  . SET DONE=1
-  . SET ESCKEY="BACKSPC"
-  ELSE  IF (TEMP'=-1) DO
-  . IF TEMP=127 DO  QUIT
-  . . IF RESULT="" QUIT
-  . . SET RESULT=$EXTRACT(RESULT,1,$LENGTH(RESULT)-1)
-  . . WRITE $CHAR(8)," ",$CHAR(8)
+  IF ('DONE),(TEMP'=-1) DO
   . SET RESULT=RESULT_$CHAR(TEMP)
   . WRITE $CHAR(TEMP)
-  . IF NUM="" QUIT
+  . IF NUM="" QUIT   
   . IF $LENGTH(RESULT)'<+NUM SET DONE=1
+  ;"//kt end mod 8/30/17 ----------------------------      
+  ;"//kt original --> IF (TEMP=13)&(TERMINATORS["r") DO
+  ;"//kt original --> . SET DONE=1
+  ;"//kt original --> ELSE  IF (TEMP=9)&(TERMINATORS["t") DO
+  ;"//kt original --> . SET DONE=1
+  ;"//kt original --> ELSE  IF (TEMP=32)&(TERMINATORS["s") DO
+  ;"//kt original --> . SET DONE=1
+  ;"//kt original --> ELSE  IF (TEMP=27)&(TERMINATORS["e") DO
+  ;"//kt original --> . SET ESCKEY=$GET(^XUTL("XGKB",TMGZB))
+  ;"//kt original --> . IF ESCKEY="" DO
+  ;"//kt original --> . . DO FXESCTBL
+  ;"//kt original --> . . SET ESCKEY=$GET(^XUTL("XGKB",TMGZB))
+  ;"//kt original --> . SET DONE=1
+  ;"//kt original --> ELSE  IF (TEMP=127)&(NUM=1) DO  ;"//kt moved this block above block just below 8/30/17
+  ;"//kt original --> . SET DONE=1
+  ;"//kt original --> . SET ESCKEY="BACKSPC"
+  ;"//kt original --> ELSE  IF (TEMP=127)&(TERMINATORS["b") DO
+  ;"//kt original --> . SET DONE=1
+  ;"//kt original --> ELSE  IF (TEMP'=-1) DO
+  ;"//kt original --> . IF TEMP=127 DO  QUIT
+  ;"//kt original --> . . IF RESULT="" QUIT
+  ;"//kt original --> . . SET RESULT=$EXTRACT(RESULT,1,$LENGTH(RESULT)-1)
+  ;"//kt original --> . . WRITE $CHAR(8)," ",$CHAR(8)
+  ;"//kt original --> . SET RESULT=RESULT_$CHAR(TEMP)
+  ;"//kt original --> . WRITE $CHAR(TEMP)
+  ;"//kt original --> . IF NUM="" QUIT
+  ;"//kt original --> . IF $LENGTH(RESULT)'<+NUM SET DONE=1
   IF 'DONE GOTO RLOOP
   QUIT RESULT
   ;

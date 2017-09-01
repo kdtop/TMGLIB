@@ -1305,3 +1305,48 @@ FIX36329
         . . . WRITE !,"WON'T CLEAR",!
         QUIT
         ;"
+FIXLAB  ;
+        NEW LRDFN,FIXARRAY
+        NEW % DO NOW^%DTC
+        SET ^TMG("TMG LAB FIX XREF",%)="STARTED"
+        SET LRDFN=0
+        FOR  SET LRDFN=$ORDER(^LR(LRDFN)) QUIT:LRDFN'>0  DO
+        . NEW DFN
+        . SET DFN=$ORDER(^DPT("ATMGLR",LRDFN,0))
+        . IF DFN'>0 DO  QUIT
+        . . WRITE "LRDFN: ",LRDFN," DOES NOT HAVE AN DFN.",!
+        . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        . WRITE "STORING FOR PATIENT ",NAME,"(",DFN,"-",LRDFN,")-----",!
+        . NEW IDT SET IDT=0
+        . FOR  SET IDT=$ORDER(^LR(LRDFN,"CH",IDT)) QUIT:IDT'>0  DO
+        . . NEW DATE
+        . . SET DATE=$PIECE($GET(^LR(LRDFN,"CH",IDT,0)),"^",1)
+        . . NEW TMGFLD SET TMGFLD=0
+        . . ;"QUIT  ;"TEMP...
+        . . FOR  SET TMGFLD=$ORDER(^LR(LRDFN,"CH",IDT,TMGFLD)) QUIT:TMGFLD'>0  DO
+        . . . NEW IEN60
+        . . . SET IEN60=$PIECE($GET(^LR(LRDFN,"CH",IDT,TMGFLD)),"^",3)
+        . . . SET IEN60=$PIECE(IEN60,"!",7)
+        . . . IF IEN60'>0 QUIT  ;"WRITE "NO IEN60!",! QUIT
+        . . . NEW NODE
+        . . . SET NODE=LRDFN_";CH;"_IDT_";"_TMGFLD
+        . . . WRITE "      ->",DATE,"- ",IEN60,!
+        . . . ;"DO SLAB^LRPX(DFN,DATE,IEN60,NODE)
+        . . . IF $$SLABNEEDED(DFN,DATE,IEN60,NODE) DO
+        . . . . WRITE "FIX NEEDED HERE!",!
+        . . . . SET FIXARRAY(DFN,DATE,IEN60,NODE)=1
+        . . . . DO SLAB^LRPX(DFN,DATE,IEN60,NODE)
+        DO NOW^%DTC
+        SET ^TMG("TMG LAB FIX XREF",%)="FINISHED"        
+        QUIT
+        ;
+SLABNEEDED(DFN,DATE,ITEM,NODE) ; from SLAB^LRPX
+        ; SET index for lab data.
+        NEW NEEDED SET NEEDED=1
+        IF $DATA(^PXRMINDX(63,"PI",DFN,ITEM,DATE,NODE))=0 GOTO SLNDDN
+        IF $DATA(^PXRMINDX(63,"IP",ITEM,DFN,DATE,NODE))=0 GOTO SLNDDN
+        I ITEM=+ITEM SET NEEDED=0 GOTO SLNDDN
+        IF $DATA(^PXRMINDX(63,"PDI",DFN,DATE,ITEM,NODE))=0 GOTO SLNDDN
+        SET NEEDED=0
+SLNDDN  Q NEEDED
+ ;      

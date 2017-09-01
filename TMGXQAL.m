@@ -55,3 +55,34 @@ ALTEXIST(DUZ,TIUIEN)  ;"
     . IF THISTIU=TIUIEN SET TMGRESULT=1
     QUIT TMGRESULT
     ;"
+PRINTRPT
+ALERTRPT  ;"This is a report to display all alerts that are over 2 weeks
+          ;"old
+    NEW DFN SET DFN=0
+    NEW DAYS SET DAYS="-14"
+    NEW CUTOFFDATE SET CUTOFFDATE=$$ADDDAYS^TMGDATE(DAYS)
+    NEW RETARRAY
+    FOR  SET DFN=$O(^XTV(8992,DFN)) QUIT:DFN'>0  DO
+    . NEW DATE SET DATE=0
+    . FOR  SET DATE=$O(^XTV(8992,DFN,"XQA",DATE)) QUIT:DATE'>0  DO
+    . . IF DATE>CUTOFFDATE QUIT
+    . . NEW ZN SET ZN=$G(^XTV(8992,DFN,"XQA",DATE,0))
+    . . SET RETARRAY(DFN,DATE)=$P(ZN,"^",3)
+    . . ;"WRITE $$EXTDATE^TMGDATE(DATE)," - ",$P(ZN,"^",3),!
+    IF '$D(RETARRAY) GOTO ARDN
+    WRITE !
+    WRITE "************************************************************",!
+    WRITE "              ALL USER ALERTS OLDER THAN ",DAYS," OLD",!
+    WRITE "                      Printed: ",$$TODAY^TMGDATE(1),!
+    WRITE "           Please deliver this report to the OFFICE MANAGER",!
+    WRITE "************************************************************",!
+    WRITE "                                            (From TMGXQAL.m)",!!
+    SET DFN=0
+    FOR  SET DFN=$O(RETARRAY(DFN)) QUIT:DFN'>0  DO
+    . WRITE "==== USER: ",$P($G(^VA(200,DFN,0)),"^",1)," ========",!
+    . SET DATE=0
+    . FOR  SET DATE=$O(RETARRAY(DFN,DATE)) QUIT:DATE'>0  DO
+    . . WRITE $$EXTDATE^TMGDATE(DATE)," - ",$G(RETARRAY(DFN,DATE)),!
+    . WRITE !!
+ARDN
+    QUIT

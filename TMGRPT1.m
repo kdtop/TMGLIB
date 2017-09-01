@@ -738,3 +738,18 @@ PT2BINAC()   ;" Print a list of patients who should be inactivated
        . WRITE NAME,?50,"[  ]",!
        DO ^%ZISC  ;" Close the output device 
        QUIT
+       ;"
+PRINTRPT(MUMPSCODE)  ;"
+       ;"AUTO PRINT A REPORT TO THE PRINTER
+       ;"MUMPSCODE WILL BE CALLED AFTER PRINTER IS SET UP
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO PRDN
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       X MUMPSCODE
+       DO ^%ZISC
+PRDN   QUIT
+       ;"

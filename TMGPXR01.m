@@ -901,6 +901,26 @@ DMMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         . SET DATE=X
         QUIT
         ;"
+PTOWBMI(TMGDFN,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Determine if patient's BMI is overweight
+        ;"Input: DFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ; FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0
+        SET DATE=0
+        NEW X DO NOW^%DTC
+        NEW BMI SET BMI=$$ONEVITAL^TMGTIUOJ(+$GET(DFN),.TIU,"BMI")
+        IF BMI>25 DO
+        . SET TEST=1
+        . SET DATE=X
+        QUIT
 
 
 
