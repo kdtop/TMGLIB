@@ -14,7 +14,8 @@ TMGUSRI6 ;TMG/kst/USER INTERFACE API FUNCTIONS ;8/30/17
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"$$EDITBOX(INITVAL,WIDTH)  -- Edit box for editing strings
+ ;"$$EDITBOX(INITVAL,WIDTH,FILLCH,X,Y)  -- Edit box for editing strings
+ ;"$$EDITBOX2(INITVAL,OPTION)  -- Edit box for editing strings
  ;
  ;"=======================================================================
  ;"Private Functions
@@ -29,8 +30,8 @@ EDITBOX(INITVAL,WIDTH,FILLCH,X,Y)  ;"Edit box for editing strings
   NEW OPTION 
   SET OPTION("WIDTH")=$GET(WIDTH)
   SET OPTION("FILLCH")=$GET(FILLCH)
-  SET OPTION("X")=$GET(X)
-  SET OPTION("Y")=$GET(Y)
+  IF $GET(X)>0 SET OPTION("X")=X
+  IF $GET(Y)>0 SET OPTION("Y")=Y
   QUIT $$EDITBOX2(.INITVAL,.OPTION)
   ;           
 EDITBOX2(INITVAL,OPTION)  ;"Edit box for editing strings
@@ -43,11 +44,9 @@ EDITBOX2(INITVAL,OPTION)  ;"Edit box for editing strings
   ;"          OPTION("Y") -- OPTION. Position for editing.  Default is $Y
   ;"Result: Returns edited value of string
   NEW WIDTH SET WIDTH=+$GET(OPTION("WIDTH")) SET:(WIDTH'>0) WIDTH=40
-  ;"NEW MAXX,MAXY IF $$GETSCRSZ^TMGKERNL(.MAXY,.MAXX) ;DROP RESULT
-  ;"IF WIDTH>MAXX SET WIDTH=MAXX IF $X+WIDTH>MAXX WRITE !
   NEW VAL SET VAL=$GET(INITVAL)
   SET FILLCH=$EXTRACT($GET(FILLCH),1) IF FILLCH="" SET FILLCH=" "
-  NEW HOMEX,HOMEY 
+  NEW HOMEX,HOMEY,USEY SET USEY=$DATA(OPTION("Y"))
   SET HOMEX=+$GET(OPTION("X")) IF HOMEX'>0 SET HOMEX=$X+1
   SET HOMEY=+$GET(OPTION("Y")) IF HOMEY'>0 SET HOMEY=$Y
   NEW DRAWIDX SET DRAWIDX=1
@@ -56,23 +55,24 @@ EDITBOX2(INITVAL,OPTION)  ;"Edit box for editing strings
   NEW LNUMHIDE,RNUMHIDE,LNUMDOTS,RNUMDOTS,RNUMSPC,SCRNCPOS,LENVAL
 LOOP ;  
   SET LENVAL=$LENGTH(VAL)
+  IF DRAWIDX<1 SET DRAWIDX=1
   SET LNUMHIDE=DRAWIDX-1
   SET RNUMHIDE=LENVAL-WIDTH-LNUMHIDE SET:(RNUMHIDE<0) RNUMHIDE=0
   SET LNUMDOTS=$SELECT(LNUMHIDE>2:2,1:LNUMHIDE)
   SET RNUMDOTS=$SELECT(RNUMHIDE>2:2,1:RNUMHIDE)
   SET SCRNCPOS=CPOS-DRAWIDX+1
   DO  ;"DRAW TO SCREEN 
-  . DO CUP^TMGTERM(HOMEX,HOMEY)  ;"move cursor to starting position
-  . IF DRAWIDX<1 SET DRAWIDX=1
+  . IF USEY DO CUP^TMGTERM(HOMEX,HOMEY)  ;"move cursor to starting position
+  . ELSE  DO CHA^TMGTERM(HOMEX)
   . NEW STR,LEN SET STR=$EXTRACT(VAL,DRAWIDX,DRAWIDX+WIDTH-1),LEN=$LENGTH(STR)
   . NEW JDX FOR JDX=1:1:LNUMDOTS SET $EXTRACT(STR,JDX)="."
   . FOR JDX=1:1:RNUMDOTS SET $EXTRACT(STR,LEN-JDX+1)="."
   . SET RNUMSPC=WIDTH-$LENGTH(STR)
-  . ;"IF FILLCH'=" " SET STR=$$LJ^XLFSTR(STR,WIDTH,FILLCH)
   . IF FILLCH'=" " FOR JDX=1:1:RNUMSPC SET STR=STR_FILLCH
   . WRITE STR,"  "
   . NEW TEMPX SET TEMPX=HOMEX+SCRNCPOS-1
-  . DO CUP^TMGTERM(TEMPX,HOMEY)
+  . IF USEY DO CUP^TMGTERM(TEMPX,HOMEY)
+  . ELSE  DO CHA^TMGTERM(TEMPX)
   SET INPUT=$$READKY^TMGUSRI5("e",,1,,.ESCKEY) ;"read one char, with ESC processing
   SET STRA=$EXTRACT(VAL,1,CPOS-1)       ;"text to left of cursor
   SET CH=$EXTRACT(VAL,CPOS)             ;"text under cursor
@@ -107,10 +107,17 @@ LOOP ;
   . . SET CPOS=LENVAL+1
   . . SET DRAWIDX=(LENVAL+1)-WIDTH
   . IF ESCKEY="" DO  QUIT
-  . . DO CUP^TMGTERM(HOMEX,HOMEY+1) 
+  . . IF USEY DO CUP^TMGTERM(HOMEX,HOMEY+1)
+  . . ELSE  DO
+  . . . DO CNL^TMGTERM(1)  ;"Cursor Next Line  
+  . . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
   . . SET %=2 WRITE "Abort edit" DO YN^DICN
-  . . DO CUP^TMGTERM(HOMEX,HOMEY+1) 
+  . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
   . . WRITE "                        "
+  . . IF USEY DO CUP^TMGTERM(HOMEX,HOMEY+1)
+  . . ELSE  DO
+  . . . DO CPL^TMGTERM(1)  ;"Cursor Preceding Line  
+  . . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
   . . IF %'=2 SET (DONE,ABORT)=1
   ELSE  DO
   . SET VAL=STRA_INPUT_CH_STRB

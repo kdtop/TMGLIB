@@ -334,7 +334,7 @@ FUITEMS(DFN)  ;"Return the followup table if data is contained
         NEW TEMP SET TEMP=$P(X,$C(13,10),2)
         SET TEMP=$$TRIM^XLFSTR(TEMP)
         IF TEMP="" SET X=TEMP
-        IF TEMP'="" SET "<FONT style=""BACKGROUND-COLOR:#ff0000"">}"_TEMP_"{HTML:</FONT>}"
+        IF TEMP'="" SET TEMP="<FONT style=""BACKGROUND-COLOR:#ff0000"">}"_TEMP_"{HTML:</FONT>}"
         QUIT X
         ;"
 LASTHPI(DFN)  ;"Return the last HPI section
