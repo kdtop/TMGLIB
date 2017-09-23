@@ -410,6 +410,7 @@ FORMATTL(TITLE)  ;"FORMAT TITLE
 FORMATTX(TEXT) ;"FORMAT BODY TEXT OF ONE SECION
         NEW TMGRESULT 
         SET TMGRESULT="<I>"_TEXT_"</I>"_"... "
+        IF DUZ'=83 SET TMGRESULT=TMGRESULT_$$TODAY^TMGDATE(1,1)_": "
         ;"SET TMGRESULT=$$ITALICS(TEXT)    ;"This will remove the italics and add one single
         QUIT TMGRESULT
         ;
@@ -526,9 +527,9 @@ ITALICS(SECTION)    ;"This will remove the italics and add one single
         . SET P2=$E(SECTION,POS1+1,$L(SECTION))
         . IF $E(P1,$L(P1)-2,$L(P1))="..." DO
         . . SET P1=$E(P1,1,$L(P1)-3)
-        . SET SECTION=P1_"</I>..."_P2_"<BR>"
+        . SET SECTION=P1_"</I>... "_$$TODAY^TMGDATE(1)_" "_P2_"<BR>"
         ELSE  DO
-        . SET SECTION=SECTION_"</I>..."
+        . SET SECTION=SECTION_"</I>..."_$$TODAY^TMGDATE(1)_" "
         ;"Add beginning tags
         NEW POS SET POS=$F(SECTION,">:")
         IF POS'>0 DO

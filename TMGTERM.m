@@ -118,7 +118,7 @@ CCH      ;"Cancel Previous Character Esc T
   WRITE $CHAR(27)_"T"
   QUIT
   ;
-CHA(PN)  ;"Cursor Horzntal Absolute  Esc [ PN G
+CHA(PN)  ;"Cursor Horizontal Absolute  Esc [ PN G
   DO ESCN(.PN,,"G")
   SET $X=PN
   QUIT

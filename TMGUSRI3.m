@@ -196,6 +196,7 @@ IES1    IF SORT=1 DO
 IS1     ;
         NEW NUMBERLINES SET NUMBERLINES=0  ;"1--> number each line
         NEW ADDNEW SET ADDNEW=0 ;"1-> Allow adding NEW entry
+        USE $I:(NOESCAPE)  ;"//kt 9/19/17
         WRITE "Passing off to selector..."
         DO SELECT^%ZVEMKT(REF,NUMBERLINES,ADDNEW,"PRESELARRAY")
         ;
@@ -317,7 +318,8 @@ SELECTR2(PARRAY,PRESULTS,HEADER) ;
         ;"      array(number)=""  <-- number is same number as above, shows selected
         ;"      array(number)=""
         ;"      array(number)=""
-        ;"      pass array by name:  SELECT^%ZVEMKT(REF,,"array")        
+        ;"      pass array by name:  SELECT^%ZVEMKT(REF,,"array")     
+        USE $P  ;"//kt 9/19/17
         DO SELECT^%ZVEMKT(REF,NUMBERLINES,ADDNEW,"PRESELARRAY")
         ;
         ;"Format selected options.

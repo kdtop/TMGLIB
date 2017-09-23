@@ -1285,6 +1285,73 @@ ANS3    WRITE "WOULD YOU LIKE TO RENAME "_$P(SOURCEPT,"^",2)
         WRITE "DONE",!
 XPDn    QUIT
         ;"
+XFERTIU()    ;"TRANSFER ONE TIU NOTE FROM ONE PATIENT TO ANOTHER
+        WRITE "*******************************************************",!
+        WRITE "**                  WARNING!!!!                      **",!
+        WRITE "** This function will completely transfer a TIU      **",!
+        WRITE "** note from one patient to another.                 **",!
+        WRITE "*******************************************************",!!
+        NEW RESPONSE
+ANS4    READ "DO YOU WANT TO CONTINUE? (Y/N) ",RESPONSE,!
+        SET RESPONSE=$$UP^XLFSTR(RESPONSE)
+        IF RESPONSE="N" GOTO XTIUDN
+        IF RESPONSE'="Y"  WRITE "INVALID RESPONSE",! GOTO ANS4
+        NEW SOURCENOTE,SOURCEPT,DESTPT
+        ;"
+        ;" Get SOURCE patient
+        ;"WRITE "SELECT TIU NOTE"
+        NEW DIC,X,Y
+        SET DIC=8925
+        SET DIC(0)="AMEQ"
+        SET DIC("A")="ENTER PATIENT TO FIND NOTES: "
+        DO ^DIC WRITE !
+        IF +Y'>0 QUIT
+        SET SOURCENOTE=Y
+        WRITE "IEN ",Y,!
+        ;"
+        ;" Get DESTINATION patient
+        WRITE "SELECT DESTINATION PATIENT"
+        NEW DIC,X,Y
+        SET DIC=2
+        SET DIC(0)="MAEQ"
+        DO ^DIC WRITE !
+        IF +Y'>0 QUIT
+        SET DESTPT=Y
+        ;"
+        ;" Verify
+        SET RESPONSE=""
+        WRITE !,"YOU ARE ABOUT TO TRANSFER THIS NOTE INTO ",$P(DESTPT,"^",2)
+ANS5    READ ". CONTINUE? (Y/N) ",RESPONSE
+        SET RESPONSE=$$UP^XLFSTR(RESPONSE)
+        IF RESPONSE="N" GOTO XTIUDN
+        IF RESPONSE'="Y" WRITE "INVALID RESPONSE",! GOTO ANS5
+        ;"
+        ;"Transfer
+        NEW SOURCEIEN,DESTIEN,TMGFDA,TMGIEN,TMGMSG
+        SET SOURCEIEN=$P(SOURCENOTE,"^",1)
+        SET DESTIEN=$P(DESTPT,"^",1)
+        ;"
+        ;"-> Images
+        WRITE !,"TRANSFERRING IMAGES TO ",$P(DESTPT,"^",2),!
+        NEW IMGDA SET IMGDA=0
+        FOR  SET IMGDA=$O(^TIU(8925.91,"ADI",SOURCEIEN,IMGDA)) QUIT:+IMGDA'>0  DO
+        . WRITE " ->Transferring image #",IMGDA," to ",$P(DESTPT,"^",2),!
+        . KILL TMGFDA,TMGMSG
+        . SET TMGFDA(2005,IMGDA_",",.01)=$P(DESTPT,"^",2)_" "_$P($GET(^DPT(DESTIEN,0)),"^",9)
+        . SET TMGFDA(2005,IMGDA_",",5)="`"_DESTIEN
+        . DO FILE^DIE("E","TMGFDA","TMGMSG")
+        . DO SHOWDIER^TMGDEBU2(.TMGMSG)
+        ;"
+        ;"-> TIU Notes
+        WRITE !,"TRANSFERRING TIU NOTE TO ",$P(DESTPT,"^",2),!
+        KILL TMGFDA,TMGMSG
+        SET TMGFDA(8925,SOURCEIEN_",",.02)="`"_DESTIEN
+        DO FILE^DIE("E","TMGFDA","TMGMSG")
+        DO SHOWDIER^TMGDEBU2(.TMGMSG)
+        ;"
+XTIUDN        
+        QUIT
+        ;"
 FIX36329
         NEW DATE,ARRAY SET DATE=0
         FOR  SET DATE=$ORDER(^OR(100,"AC","36329;DPT(",DATE)) QUIT:DATE'>0  DO

@@ -41,13 +41,11 @@ LISTCT(PARRAY) ;" SAAC complient entry point.
   ;"            ARRAY("DOG","COLLAR")=5213  <-- not highest level,not counted.
   ;"        The above array would have a count of 3
   ;"Results: returns count, or count up to point of any error
-  NEW I
+  NEW IDX SET IDX=""
   NEW RESULT SET RESULT=0
   DO
-  . NEW $ETRAP
-  . SET $ETRAP="WRITE ""?? Error Trapped ??"",! SET $ECODE="""" QUIT"
-  . SET I=$ORDER(@PARRAY@("")) QUIT:I=""
-  . FOR  SET RESULT=RESULT+1 SET I=$ORDER(@PARRAY@(I)) QUIT:I=""
+  . NEW $ETRAP SET $ETRAP="WRITE ""?? Error Trapped ??"",! SET $ECODE="""" QUIT"
+  . FOR  SET IDX=$ORDER(@PARRAY@(IDX)) QUIT:IDX=""  SET RESULT=RESULT+1
   QUIT RESULT
   ;
 DTFORMAT(FMDATE,FORMAT,ARRAY) ;

@@ -992,7 +992,7 @@ AskFIENS()
 AskIENS(FILENum,IENS)
         QUIT $$ASKIENS^TMGDBAP3()
         ;
-FIENS2Root(FIENS)
+FIENS2Root(FIENS)  ;"depreciated
         QUIT $$FIENS2Root^TMGDBAP2(FIENS)
         ;
 GetRef(file,IENS,field)

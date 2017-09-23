@@ -1,4 +1,4 @@
-TMGIDE ;TMG/kst/A debugger/tracer for GT.M ;6/27/12, 2/2/14, 6/8/16
+TMGIDE ;TMG/kst/A debugger/tracer for GT.M ;9/6/17
          ;;1.0;TMG-LIB;**1**;03/29/09
  ;
  ;" A Debug/Tracer for GT.M
@@ -208,9 +208,15 @@ Ppt1   SET tmgMode=$GET(tmgMode,"AllInOne")
 Ppt2   IF $DATA(tmgCodeLine)=0 WRITE !,"Restoring TMGIDE variables...",! GOTO Ppt1
        IF tmgCodeLine="" DO
        . DO CHA^TMGTERM(1) WRITE tmgDbgBlankLine
-       . DO CHA^TMGTERM(1) WRITE "(^ to QUIT) //",tmgDbgLine
+       . ;"DO CHA^TMGTERM(1) WRITE "(^ to QUIT) //",tmgDbgLine
+       . ;"SET tmgDbgLine=$$READKY^TMGUSRI5("er",1200,,tmgDbgLine,.tmgXGRT)
        . ;
-       . SET tmgDbgLine=$$READKY^TMGUSRI5("er",1200,,tmgDbgLine,.tmgXGRT)
+       . DO CHA^TMGTERM(1) WRITE "(^ to QUIT) //"
+       . NEW tmgDbgLineOptions
+       . SET tmgDbgLineOptions("ON-UP")="Q",tmgDbgLineOptions("ON-DOWN")="Q"
+       . SET tmgDbgLineOptions("WIDTH")=60,tmgDbgLineOptions("FILLCH")=" "
+       . SET tmgDbgLine=$$EDITBOX2^TMGUSRI6(tmgDbgLine,.tmgDbgLineOptions)
+       . IF tmgDbgLineOptions("ESCKEY")'="" SET tmgXGRT=tmgDbgLineOptions("ESCKEY")
        ELSE  DO
        . SET tmgDbgLine=tmgCodeLine
        . SET tmgXGRT=""
@@ -865,12 +871,16 @@ DebugWrite(tmgDbgIndent,s,AddNewline)
         IF TMGIDEDEBUG=0 QUIT
         IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3),$DATA(DebugFile) use DebugFile
         WRITE s
-        IF $GET(AddNewline)=1 WRITE !
+        IF $GET(AddNewline)=1 DO
+        . NEW ENDSPACE SET ENDSPACE=20
+        . IF +$GET(IOM)>0,(IOM-$X)<20 SET ENDSPACE=IOM-$X
+        . NEW IDX FOR IDX=1:1:ENDSPACE WRITE " "        
+        . WRITE !
         IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3) use $PRINCIPAL
         QUIT
 
 
-DebugIndent(tmgDbgIndentForced)
+DebugIndent(tmgDbgIndent,Forced)
         ;"NOTE: Duplicate of function in TMGIDEDEBUG
         ;"PUBLIC FUNCTION
         ;"Purpose: to provide a unified indentation for debug messages
@@ -888,6 +898,7 @@ DebugIndent(tmgDbgIndentForced)
 
 
 ArrayDump(ArrayP,TMGIDX,indent)
+        ;"NOTE: Similar to ARRDUMP^TMGMISC3
         ;"PUBLIC FUNCTION
         ;"Purpose: to get a custom version of GTM's "zwr" command
         ;"Input: Uses global scope var tmgDbgIndent (if defined)
@@ -943,6 +954,7 @@ AD1     IF $DATA(ArrayP)=0 GOTO ADDone
         . IF $DATA(@ArrayP@(TMGIDX))#10=1 DO
         . . NEW s SET s=@ArrayP@(TMGIDX)
         . . IF s="" SET s=""""""
+        . . IF $LENGTH(s)'=$LENGTH($$TRIM^XLFSTR(s)) set s=""""_s_""""  ;"//kt 9/6/17
         . . NEW qt SET qt=""
         . . IF +TMGIDX'=TMGIDX SET qt=""""
         . . DO DebugWrite(tmgDbgIndent,qt_TMGIDX_qt_" = "_s,1)
@@ -970,7 +982,7 @@ AD1     IF $DATA(ArrayP)=0 GOTO ADDone
         ;"Put in a blank space at end of subbranch
         DO DebugIndent(tmgDbgIndent)
 
-        IF indent>0 DO
+        IF 1=0,indent>0 DO
         . FOR TMGi=1:1:indent-1 DO
         . . NEW s SET s=""
         . . IF $GET(indent(TMGi),-1)=0 SET s="  "

@@ -27,6 +27,13 @@ TMGUSRI6 ;TMG/kst/USER INTERFACE API FUNCTIONS ;8/30/17
  ;"=======================================================================
  ;
 EDITBOX(INITVAL,WIDTH,FILLCH,X,Y)  ;"Edit box for editing strings
+  ;"INPUT: INITVAL -- OPTIONAL.  This is the initial value.  Default is ""
+  ;"       WIDTH -- This is the width of the edit field.  Default is 40   
+  ;"       FILLCH -- OPTIONAL.  DEFAULT IS " "
+  ;"           If is "_", then a line is shown for edit field
+  ;"       X -- OPTION. X position for editing at given position on screen
+  ;"       Y -- OPTION. Y position for editing at given position on screen
+  ;"Result: Returns edited value of string
   NEW OPTION 
   SET OPTION("WIDTH")=$GET(WIDTH)
   SET OPTION("FILLCH")=$GET(FILLCH)
@@ -42,10 +49,14 @@ EDITBOX2(INITVAL,OPTION)  ;"Edit box for editing strings
   ;"                  If is "_", then a line is shown for edit field
   ;"          OPTION("X") -- OPTION. Position for editing.  Default is $X
   ;"          OPTION("Y") -- OPTION. Position for editing.  Default is $Y
+  ;"          OPTION("ON-UP")="Q"  -- quits on UP keystroke
+  ;"          OPTION("ON-DN")="Q"  -- quits on DOWN keystroke
+  ;"          OPTION("ON-<other keystroke name")="Q" -- quit on other stroke.  
+  ;"Output: OPTION("ESCKEY") holds last escape keystroke encountered.  
   ;"Result: Returns edited value of string
   NEW WIDTH SET WIDTH=+$GET(OPTION("WIDTH")) SET:(WIDTH'>0) WIDTH=40
   NEW VAL SET VAL=$GET(INITVAL)
-  SET FILLCH=$EXTRACT($GET(FILLCH),1) IF FILLCH="" SET FILLCH=" "
+  SET FILLCH=$EXTRACT($GET(OPTION("FILLCH")),1) IF FILLCH="" SET FILLCH=" "
   NEW HOMEX,HOMEY,USEY SET USEY=$DATA(OPTION("Y"))
   SET HOMEX=+$GET(OPTION("X")) IF HOMEX'>0 SET HOMEX=$X+1
   SET HOMEY=+$GET(OPTION("Y")) IF HOMEY'>0 SET HOMEY=$Y
@@ -74,6 +85,7 @@ LOOP ;
   . IF USEY DO CUP^TMGTERM(TEMPX,HOMEY)
   . ELSE  DO CHA^TMGTERM(TEMPX)
   SET INPUT=$$READKY^TMGUSRI5("e",,1,,.ESCKEY) ;"read one char, with ESC processing
+  SET OPTION("ESCKEY")=ESCKEY
   SET STRA=$EXTRACT(VAL,1,CPOS-1)       ;"text to left of cursor
   SET CH=$EXTRACT(VAL,CPOS)             ;"text under cursor
   SET STRB=$EXTRACT(VAL,CPOS+1,LENVAL)  ;"text to right of cursor
@@ -107,18 +119,14 @@ LOOP ;
   . . SET CPOS=LENVAL+1
   . . SET DRAWIDX=(LENVAL+1)-WIDTH
   . IF ESCKEY="" DO  QUIT
-  . . IF USEY DO CUP^TMGTERM(HOMEX,HOMEY+1)
-  . . ELSE  DO
-  . . . DO CNL^TMGTERM(1)  ;"Cursor Next Line  
-  . . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
+  . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
   . . SET %=2 WRITE "Abort edit" DO YN^DICN
   . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
   . . WRITE "                        "
-  . . IF USEY DO CUP^TMGTERM(HOMEX,HOMEY+1)
-  . . ELSE  DO
-  . . . DO CPL^TMGTERM(1)  ;"Cursor Preceding Line  
-  . . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
+  . . DO CHA^TMGTERM(HOMEX)  ;"GO TO X POS
   . . IF %'=2 SET (DONE,ABORT)=1
+  . IF $GET(OPTION("ON-"_ESCKEY))="Q" DO  QUIT
+  . . SET DONE=1
   ELSE  DO
   . SET VAL=STRA_INPUT_CH_STRB
   . SET CPOS=CPOS+1

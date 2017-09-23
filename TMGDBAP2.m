@@ -962,7 +962,7 @@ GetValidInput(FILE,Field)
 GVIDone
         QUIT Y
 
-FIENS2Root(FIENS)
+FIENS2Root(FIENS)  ;"depreciated
         ;"Purpose: to convert a Files^IENS string into a root reference
         ;"Input: FIENS: format: FILENumber^StandardIENS
         ;"Output: A global root in open format
@@ -1013,6 +1013,8 @@ GRF1
 GRF2
         QUIT ref
 
+
+        
 TrimFDA(FDA,Quiet)
         ;"Purpose: To take an FDA, and compare it to data already present in the
         ;"         record specified by the FDA.  If any values already in the record

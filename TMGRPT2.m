@@ -205,6 +205,17 @@ XTRADATA(TMGRESULT,DFN)  ;"
   QUIT
   ;"
 SETHTML(ROOT,RESULTS,TITLE,HEADING,COLNUMS)  ;
+  ;"Input: ROOT -- AN OUT PARAMETER 
+  ;"          @ROOT@(1)= HEADING
+  ;"          @ROOT@(2)=one long string with HTML codes.
+  ;"          @ROOT@(3)=END OF TABLE                
+  ;"       RESULTS -- INPUT DATA.  Pass by reference.  Format:  
+  ;"            RESULT(#)=<COL1>^<COL2)^<COL3>
+  ;"       TITLE -- STRING FOR TITLE OF TABLE
+  ;"       HEADING -- Column titles, carot deliminated
+  ;"             <Title1>^<Title2>^<Title3>
+  ;"       COLNUM -- number of colums
+  ;"Results -- none
   NEW END SET END=3
   MERGE ^EDDIE("TMGRPT2")=RESULTS
   NEW DATA
@@ -224,7 +235,6 @@ SETHTML(ROOT,RESULTS,TITLE,HEADING,COLNUMS)  ;
   . SET END=END+1
   SET @ROOT@(2)=DATA
   SET @ROOT@(3)="</TABLE></BODY></HTML>"
-  ;"NOTE: This function had no quit. Added below 4/9/15 ELH
   QUIT        
   ;"
 BILLRPC(TMGRESULT,BDATE,EDATE,FILTER)   ;"
@@ -751,3 +761,55 @@ DTTOFMDT(EXTDATE)  ;"RETURNS FMDATETIME
        SET FMDATE=Y       
        QUIT FMDATE
        ;"
+TICKLER(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"Tickler report
+  ;"Purpose: Entry point, as called from CPRS REPORT system
+  ;"Input: ROOT -- Pass by NAME.  This is where output goes
+  ;"       DFN -- Patient DFN ; ICN for foriegn sites
+  ;"       ID --
+  ;"       ALPHA -- Start date (lieu of DTRANGE)
+  ;"       OMEGA -- End date (lieu of DTRANGE)
+  ;"       DTRANGE -- # days back from today
+  ;"       REMOTE --
+  ;"       MAX    --
+  ;"       ORFHIE --
+  NEW TICKLIEN,ARRAY SET TICKLIEN=0
+  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>PATIENT TICKLERS</B>"
+  ;"SET HD=HD_"<BR> FAMILY PHYSICIANS OF GREENEVILLE<BR>1410 TUSCULUM BLVD  STE. 2600 <BR>"
+  ;"SET HD=HD_" GREENEVILLE, TN 37745
+  SET HD=HD_"</CAPTION><TR bgColor=#c4e3ed><TH>DUE DATE</TH><TH>STATUS</TH><TH>RECIPIENT</TH><TH>NOTE DATE</TH><TH>NOTE TITLE</TH></TR>"
+  NEW DATA,TEMPARR,TIU,STATUS,USER,DUE,IDX,TIUDATE,TIUNAME
+  FOR  SET TICKLIEN=$O(^TMG(22705.5,"B",DFN,TICKLIEN)) QUIT:TICKLIEN'>0  DO
+  . NEW ZN SET ZN=$G(^TMG(22705.5,TICKLIEN,0))
+  . SET TIU=$P(ZN,"^",4),STATUS=$P(ZN,"^",3),USER=$P(ZN,"^",5),DUE=$P(ZN,"^",2)
+  . IF +$G(TIU)'>0 QUIT
+  . SET TIUDATE=$$EXTDATE^TMGDATE($P($G(^TIU(8925,TIU,0)),"^",7))
+  . SET TIUNAME=$P($G(^TIU(8925.1,$P($G(^TIU(8925,TIU,0)),"^",1),0)),"^",1)
+  . NEW OVERDUE SET OVERDUE=$$OVERDUE(STATUS,DUE)
+  . SET TEMPARR(DUE,TIU,OVERDUE)=$$TSTATUS(STATUS)_"^"_$P($G(^VA(200,USER,0)),"^",1)_"^"_TIUDATE_"^"_TIUNAME
+  SET DUE=9999999,IDX=1
+  FOR  SET DUE=$O(TEMPARR(DUE),-1) QUIT:DUE'>0  DO
+  . SET TIU=0
+  . FOR  SET TIU=$O(TEMPARR(DUE,TIU)) QUIT:TIU'>0  DO
+  . . NEW OVERDUE SET OVERDUE=$O(TEMPARR(DUE,TIU,-1))
+  . . IF OVERDUE>0 DO
+  . . . SET DATA(IDX)="<b>"_$$EXTDATE^TMGDATE(DUE)_"^<b>"_$G(TEMPARR(DUE,TIU,OVERDUE))_"</b>"
+  . . ELSE  DO
+  . . . SET DATA(IDX)=$$EXTDATE^TMGDATE(DUE)_"^"_$G(TEMPARR(DUE,TIU,OVERDUE))
+  . . SET IDX=IDX+1
+  DO SETHTML(.ROOT,.DATA,"PATIENT TICKLER MESSAGES",HD,5)
+  QUIT
+  ;"
+TSTATUS(STATUS)
+  NEW RESULT SET RESULT=""
+  IF STATUS="C" QUIT "COMPLETED"
+  IF STATUS="U" QUIT "UNSIGNED"
+  IF STATUS="S" QUIT "PENDING"
+  IF STATUS="O" QUIT "DISCARDED"
+  QUIT RESULT
+  ;"
+OVERDUE(STATUS,DUE)
+  NEW RESULT SET RESULT=0
+  IF (STATUS'="C")&(STATUS'="O") DO
+  . IF DUE<$$TODAY^TMGDATE(0) SET RESULT=1
+  QUIT RESULT
+  ;"

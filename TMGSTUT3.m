@@ -1,54 +1,56 @@
-TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;2/2/14, 7/22/15, 6/23/17
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17
          ;;1.0;TMG-LIB;**1,17**;7/17/12
- ;
- ;
- ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
- ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
- ;"
- ;"This file is part of the TMG LIBRARY, and may only be used in accordence
- ;" to license terms outlined in separate file TMGLICNS.m, which should 
- ;" always be distributed with this file.
- ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
- ;
- ;"TMG STRING UTILITIES v2
- ;"SAAC Compliant Version.
- ;"This file will be used to hold SACC compliant versions of
- ;"  routines found in TMGSTUTL.
- ;"I don't initially have time to convert them all at once, so will
- ;"  slowly move them over, as needed.
- ;
- ;"=======================================================================
- ;" API -- Public Functions.
- ;"=======================================================================
- ;"NICESPLT(S,LEN,S1,S2,S2MIN,DIVCH) -- Split string to length, at spaces
- ;"$$REPLSTR(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
- ;"$$MATCHXTR(STR,DIVCH,GROUP,MAP) -- Extract a string bounded by DIVCH, honoring matching encapsulators
- ;"$$LMATCH(STR,SUBSTR) -- Does left part of STR match SUBSTR?
- ;"$$RMATCH(STR,SUBSTR) -- Does right part of STR match SUBSTR? 
- ;"MAPMATCH(STR,MAP) -- map a string with nested braces, parentheses etc (encapsulators)
- ;"$$MAKEWS(N)  -- Return a whitespace string that is n characters long
- ;"$$QTPROTCT(STR)-- Protects quotes by converting all quotes to double quotes
- ;"$$ISNUM(STR) -- Return IF STR is numeric
- ;"STRIPCMD(STR)  -- Strip command characters
- ;"$$POS(SUBSTR,S,COUNT)  ;return the beginning position of SUBSTR in S
- ;"$$POSSET(STR,SUBSTRSET,STARTPOS) --POSITION OF CHARACTER FROM SET -- different from $$POS()
- ;"$$ENDQTPOS(STR,P1) -- return position of closing quotes 
- ;"$$GETWORD(STR,POS,OPENDIV,CLOSEDIV) -- Extract a word from a sentance, bounded by OPENDIV,CLOSEDIV 
- ;"$$NEXTTOKN(STR) --GET NEXT TOKEN
- ;"$$NEXTWORD(STR,DIVCHS) --Get next word, based on first found divisor character 
- ;"$$PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED) Get indexed word, based on first found divisor character 
- ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.  
- ;"$$NEXTCH2(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.  
- ;"=======================================================================
- ;" Private Functions.
- ;"=======================================================================
- ;"$$NEEDEDWS(S,SPECIALINDENT,INDENT) -- create white space need for wrapped lines
- ;"=======================================================================
- ;"Dependancies: XLFSTR
- ;
- ;"=======================================================================
- ;"=======================================================================
- ;
+  ;
+  ;
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
+  ;"
+  ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+  ;" to license terms outlined in separate file TMGLICNS.m, which should 
+  ;" always be distributed with this file.
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;
+  ;"TMG STRING UTILITIES v2
+  ;"SAAC Compliant Version.
+  ;"This file will be used to hold SACC compliant versions of
+  ;"  routines found in TMGSTUTL.
+  ;"I don't initially have time to convert them all at once, so will
+  ;"  slowly move them over, as needed.
+  ;
+  ;"=======================================================================
+  ;" API -- Public Functions.
+  ;"=======================================================================
+  ;"NICESPLT(S,LEN,S1,S2,S2MIN,DIVCH) -- Split string to length, at spaces
+  ;"$$REPLSTR(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
+  ;"$$MATCHXTR(STR,DIVCH,GROUP,MAP) -- Extract a string bounded by DIVCH, honoring matching encapsulators
+  ;"$$LMATCH(STR,SUBSTR) -- Does left part of STR match SUBSTR?
+  ;"$$RMATCH(STR,SUBSTR) -- Does right part of STR match SUBSTR? 
+  ;"MAPMATCH(STR,MAP) -- map a string with nested braces, parentheses etc (encapsulators)
+  ;"$$MAKEWS(N)  -- Return a whitespace string that is n characters long
+  ;"$$QTPROTCT(STR)-- Protects quotes by converting all quotes to double quotes
+  ;"$$ISNUM(STR) -- Return IF STR is numeric
+  ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB
+  ;"STRIPCMD(STR)  -- Strip command characters
+  ;"$$POS(SUBSTR,S,COUNT)  ;return the beginning position of SUBSTR in S
+  ;"$$POSSET(STR,SUBSTRSET,STARTPOS) --POSITION OF CHARACTER FROM SET -- different from $$POS()
+  ;"$$ENDQTPOS(STR,P1) -- return position of closing quotes 
+  ;"$$GETWORD(STR,POS,OPENDIV,CLOSEDIV) -- Extract a word from a sentance, bounded by OPENDIV,CLOSEDIV 
+  ;"$$NEXTTOKN(STR) --GET NEXT TOKEN
+  ;"$$NEXTWORD(STR,DIVCHS) --Get next word, based on first found divisor character 
+  ;"$$PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED) Get indexed word, based on first found divisor character 
+  ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.  
+  ;"$$NEXTCH2(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.
+  ;"$$SUBASCII(STR)  --TAKES INPUT OF AAC AND RETURNS AAB (useful for finding just before, to $ORDER to STR)
+  ;"=======================================================================
+  ;" Private Functions.
+  ;"=======================================================================
+  ;"$$NEEDEDWS(S,SPECIALINDENT,INDENT) -- create white space need for wrapped lines
+  ;"=======================================================================
+  ;"Dependancies: XLFSTR
+  ;
+  ;"=======================================================================
+  ;"=======================================================================
+  ;
 NICESPLT(S,LEN,S1,S2,S2MIN,DIVCH) ;
   ;"Purpose: to split S into two strings, S1 & S2
   ;"      Furthermore, S1's length must be <= length.
@@ -246,14 +248,65 @@ QTPROTCT(STR) ;QUOTE PROTECT
   SET TEMPS=$$REPLSTR^TMGSTUT3(TEMPS,"<^@^>","""""")  ;"reverse protection
   QUIT TEMPS
   ;
-ISNUM(STR) ;" Return IF STR is numeric.  Remember +"9.0" --> "9" ('cardinal form')        
-  NEW RESULT SET RESULT=(+STR=STR)
-  IF (RESULT=1)!(STR'[".") GOTO ISNMDN
-  SET RESULT=1
-  NEW J FOR J=1:1:$L(STR) QUIT:(RESULT=0)  DO
-  . SET RESULT=("1234567890.-+"[$E(STR,J))
+ISNUM(STR) ;" Return if STR is numeric (and a VALID numerical string.)  
+  ;"NOTE:  This is different than just doing +STR.  It handles fractions and commas
+  ;"Self reminder: +"9.0" --> "9" ('cardinal form')
+  ;"NOTE: See TESTISNUM for examples of inputs and outputs
+  NEW RESULT SET RESULT=(+STR=STR) 
+  IF (RESULT=1)!(STR="") GOTO ISNMDN
+  IF STR[".",$LENGTH(STR,".")>2 GOTO ISNMDN  ;"Only allow 1 decimal
+  IF STR["/" DO  GOTO ISNMDN
+  . IF $LENGTH(STR,"/")>2 QUIT  ;"Result=0.  Only allow 1 division
+  . SET RESULT=($$ISNUM($PIECE(STR,"/",1)))&($$ISNUM($PIECE(STR,"/",2)))
+  NEW S2 SET S2=STR 
+  IF S2?1(1"+",1"-").E SET S2=$EXTRACT(S2,2,$LENGTH(S2))  ;"Trim any leading + or -
+  NEW IDX FOR IDX=1:1:$LENGTH(S2) SET RESULT=("1234567890.,"[$EXTRACT(S2,IDX)) QUIT:RESULT=0
+  IF RESULT=0 GOTO ISNMDN
+  IF S2["." DO  GOTO:(RESULT=0) ISNMDN
+  . NEW SA,SB SET SA=$PIECE(S2,".",1),SB=$PIECE(S2,".",2)
+  . IF SA="",SB="" SET RESULT=0 QUIT  ;"An isolated "." is not a number
+  . IF SB["," SET RESULT=0 QUIT      ;"No commas after decimal
+  IF S2["," DO  GOTO:(RESULT=0) ISNMDN
+  . NEW STRA,S3 SET S3=$PIECE(S2,".",1)  ;"ALL COMMA GROUPINGS MUST =3 EXCEPT LEFT-MOST
+  . FOR IDX=$LENGTH(S3,","):-1:2 SET RESULT=($LENGTH($PIECE(S3,",",IDX))=3) QUIT:RESULT=0
+  QUIT RESULT
 ISNMDN  ;
   QUIT RESULT
+  ;     
+NUMSTR(STR,PARTB)  ;"Return numeric of string, and residual back in PARTB
+  ;"Note: this will be different than +STR.  +"002" --> "2", but this would return "002"
+  ;"NOTE: See TESTNUMSTR for examples of inputs and outputs
+  NEW DONE SET DONE=0
+  NEW LEN SET LEN=$LENGTH(STR)
+  NEW NUM SET NUM="",PARTB=""
+  NEW IDX FOR IDX=1:1:LEN DO  QUIT:DONE
+  . NEW CH SET CH=$EXTRACT(STR,IDX)
+  . IF "1234567890.,+-/"'[CH DO  QUIT
+  . . SET PARTB=$EXTRACT(STR,IDX,LEN),DONE=1
+  . SET NUM=NUM_CH
+  FOR  QUIT:(NUM="")!($$ISNUM(NUM)=1)  DO  ;"Shorten NUM until it is a valid number string
+  . NEW LEN SET LEN=$LENGTH(NUM)
+  . SET PARTB=$EXTRACT(NUM,LEN)_PARTB
+  . SET NUM=$EXTRACT(NUM,1,LEN-1)
+  QUIT NUM
+  ;
+TESTISNUM ;" 
+  NEW NUM
+  WRITE "SHOULD ACCEPT (1):",!
+  FOR NUM="5","005","5.0","5.00","5,000","5,000,000","5/10","+5","-5.00","5,000/10,000" DO
+  . WRITE NUM," --> ",$$ISNUM(NUM),!
+  WRITE !,"SHOULD FAIL (0):",!
+  FOR NUM="5A","ABC","5,","5,00,00","5,000.000,000","9/11/17","9.11.17","--5","5-3","-4-2",".","," DO
+  . WRITE NUM," --> ",$$ISNUM(NUM),!
+  QUIT
+  ;
+TESTNUMSTR ;" 
+  NEW NUM  
+  FOR NUM="5","005","5.0","5.00","5,00mg","5,000,000","5/10","+5","-5.00","5,000/10,000" DO
+  . WRITE NUM," --> ",$$NUMSTR(NUM,.PARTB)," residual = '",PARTB,"'",!
+  FOR NUM="5A","ABC","5,apple","9/11/17","9.11.17","--5","5-3","-4-2" DO
+  . WRITE NUM," --> ",$$NUMSTR(NUM,.PARTB)," residual = '",PARTB,"'",!
+  QUIT
   ;
 STRIPCMD(STR)  ;"Strip command characters
   ;"Purpose: Strip all characters < #32 from string.
@@ -382,7 +435,7 @@ NEXTTOKN(STR) ;"GET NEXT TOKEN
   ;
 NEXTWORD(STR,DIVCHS,DIVUSED)  ;"Get next word, based on first found divisor character
   ;"INPUT: STR -- the string to work on
-  ;"       DIVCH -- This can be passed in 1 of two ways:
+  ;"       DIVCHS -- This can be passed in 1 of two ways:
   ;"                 e.g. "; ,./" , a series of single character divisors, or
   ;"                 e.g. DIVCH("{{")=""
   ;"                      DIVCH("}}")=""  And array of multiple character divisors
@@ -451,21 +504,6 @@ NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) ;"Get first next character (or string fragmen
   SET:D'="" FRAGS(D)=""      SET:E'="" FRAGS(E)=""      
   SET:F'="" FRAGS(F)=""      SET:G'="" FRAGS(G)=""
   QUIT $$NEXTCH2(.STR,.STARTPOS,.FRAGS)     
-  ;"NEW MAX SET MAX=$LENGTH(STR)+1
-  ;"NEW TEST,POS,MIN,IDX,JDX SET MIN=MAX,(IDX,JDX)=1
-  ;"SET STARTPOS=+$GET(STARTPOS)
-  ;"FOR TEST=$G(A),$G(B),$G(C),$G(D),$G(E),$G(F),$G(G) DO
-  ;". IF TEST="" QUIT
-  ;". SET POS(IDX)=$FIND(STR,TEST,STARTPOS)-$LENGTH(TEST)
-  ;". SET POS(IDX,"TEST")=TEST
-  ;". IF POS(IDX)'>0 KILL POS(IDX) QUIT
-  ;". SET IDX=IDX+1
-  ;"NEW MINIDX SET MINIDX=0
-  ;"FOR JDX=1:1:IDX-1 DO
-  ;". IF POS(JDX)'<MIN QUIT
-  ;". SET MIN=POS(JDX)
-  ;". SET MINIDX=JDX
-  ;"QUIT $GET(POS(MINIDX,"TEST"))
   ;    
 LMATCH(STR,SUBSTR,CASESPEC) ;"Does left part of STR match SUBSTR?
   SET STR=$GET(STR),SUBSTR=$GET(SUBSTR) IF (STR="")!(SUBSTR="") QUIT 0
@@ -480,3 +518,11 @@ RMATCH(STR,SUBSTR,CASESPEC) ;"Does right part of STR match SUBSTR?
   NEW PARTB SET PARTB=$EXTRACT(STR,L1-L2+1,L1)
   QUIT (PARTB=SUBSTR)    
   ;
+SUBASCII(STR)  ;"TAKES INPUT OF 'AAC' AND RETURNS 'AAB' 
+  ;"(useful for finding string just before input, to $ORDER to STR)
+  SET STR=$GET(STR) IF STR="" QUIT ""
+  NEW RESULT SET RESULT=$EXTRACT(STR,1,$LENGTH(STR)-1)
+  NEW CH SET CH=$EXTRACT(STR,$LENGTH(STR)),CH=$CHAR($ASCII(CH)-1)
+  SET RESULT=RESULT_CH
+  QUIT RESULT
+  ;  
