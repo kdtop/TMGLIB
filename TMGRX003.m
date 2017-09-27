@@ -209,18 +209,9 @@ GETFORM(ARR,MODE)  ;"GET RX FORM, BASED ON MODE
   QUIT RESULT
   ;
 GETDOSE(ARR,MODE)  ;"GET DOSE, BASED ON MODE
-  ;"  ARR("DOSE","IENS",<IENS>)=<DOSE_NAME> , e.g. TAB
   ;"  ARR("DOSE")=<DOSE>  <-- dose as found on input line (if provided)
   ;"  ARR("DOSE","DATABASE")=<registered dose strength for last IENS found> <-- if found.   
   ;"  ARR("DOSE","IENS",<IENS IN 22733.03>)=<FORM>^<Strength>^<Preferred Alias>  <-- may be multiple.
-  ;-------------------
-  ;"DO  ;"DOSE
-  ;". NEW DOSE SET DOSE=$GET(ARR("DOSE","DATABASE")) 
-  ;". IF DOSE="" SET DOSE=$GET(ARR("DOSE")) 
-  ;". NEW OPTIONAL SET OPTIONAL=$PIECE($GET(^TMG(22733,IEN22733,1.5)),"^",4)
-  ;". IF DOSE="",OPTIONAL="Y" QUIT
-  ;". IF DOSE="" SET DOSE="_?_dose"
-  ;". SET RESULT=RESULT_DOSE_" "
   ;-------------------
   NEW RESULT SET RESULT=""
   IF MODE="NO" QUIT ""     ;"NEVER SHOW   
@@ -240,7 +231,9 @@ GETDOSE(ARR,MODE)  ;"GET DOSE, BASED ON MODE
   . NEW IENS SET IENS=$ORDER(ARR("DOSE","IENS","")) QUIT:IENS=""
   . NEW TEMP SET TEMP=$GET(ARR("DOSE","IENS",IENS))
   . IF $PIECE(TEMP,"^",3)="" QUIT
-  . SET RESULT=$PIECE(TEMP,"^",3)                      
+  . SET RESULT=$PIECE(TEMP,"^",3)    
+  ELSE  IF MODE="GMD" DO  ;"GIVEM MATCHED DOSE
+  . SET RESULT=$GET(ARR("DOSE"))
   QUIT RESULT
   ;
 GETUNITS(ARR,MODE)  ;"GET UNITS, BY MODE
@@ -248,24 +241,6 @@ GETUNITS(ARR,MODE)  ;"GET UNITS, BY MODE
   ;"  ARR("UNITS","IEN50.607")=#  <-- this is UNITS IEN (if units provided)
   ;"  ARR("UNITS","DATABASE")=<units> from database  
   ;"  ARR("UNITS","PREFERRED")=<PREFERRED UNITS>-- if form determined
-  ;--------------------
-  ;" DO  ;"UNITS
-  ;" . NEW UNITS SET UNITS=""
-  ;" . NEW UNITIEN SET UNITIEN=+$GET(ARR("IEN50.607"))
-  ;" . SET UNITS=$PIECE($GET(^PS(50.607,UNITIEN,0)),"^",1)
-  ;" . IF UNITS="" DO
-  ;" . . NEW IENS SET IENS=$ORDER(ARR("DOSE","IENS",""))
-  ;" . . QUIT:IENS=""
-  ;" . . SET UNITS=$$GET1^DIQ(22733.03,IENS,.02)
-  ;" . IF UNITS="" DO
-  ;" . . NEW RAWUNITS SET RAWUNITS=$GET(ARR("UNITS"))
-  ;" . . IF RAWUNITS'="" SET UNITS="["_$GET(ARR("UNITS"))_"]"  
-  ;" . IF 1=0,UNITS="" DO   ;"<--- REMOVE 1=0, TO FORCE UNITS PROMPT
-  ;" . . SET UNITS="_?_units"
-  ;" . IF UNITS="" QUIT
-  ;" . IF UNITS="%" DO
-  ;" . . SET RESULT=$$TRIM^XLFSTR(RESULT)_UNITS_" "
-  ;" . ELSE  SET RESULT=RESULT_$$LOW^XLFSTR(UNITS)_" "
   ;--------------------
   NEW RESULT SET RESULT=""
   IF MODE="NO" QUIT ""       ;"NEVER SHOW 
@@ -276,6 +251,8 @@ GETUNITS(ARR,MODE)  ;"GET UNITS, BY MODE
   . SET RESULT=$GET(ARR("UNITS","DATABASE"))
   ELSE  IF MODE="PUA" DO     ;"PREFERRED UNIT ALIAS
   . SET RESULT=$GET(ARR("UNITS","PREFERRED"))
+  ELSE  IF MODE="GMU" DO     ;"GIVEN MATCHED UNITS.
+  . SET RESULT=$GET(ARR("UNITS"))
   QUIT RESULT
   ;
 CAPBYMOD(STR,MODE)  ;"CAPITALIZE STR BY MODE
