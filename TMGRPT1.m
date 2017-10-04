@@ -312,7 +312,13 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        . . . IF line'["An appointment has been scheduled" QUIT
        . . . SET found=1
        . . . SET line=$GET(^GMR(123,idx,20,idxWP+1,0))
-       . . . NEW apptDate SET apptDate=$PIECE(line,"*",2)
+       . . . NEW apptDate
+       . . . if line["*" do
+       . . . . SET apptDate=$PIECE(line,"*",2)
+       . . . else  do
+       . . . . set apptDate=$$TRIM^XLFSTR(line)
+       . . . IF apptDate[" at " do
+       . . . . SET apptDate=$p(apptDate," at ",1)_"@"_$p(apptDate," at ",2)
        . . . SET Y=$$FMDate^TMGFMUT(apptDate)
        . . . NEW FMDate SET FMDate=Y
        . . . IF Y>0 do
@@ -335,9 +341,9 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        ELSE  SET dueDate=""
        SET X1=X,X2=6
        DO C^%DTC
-       SET endDate=X
-       SET NowDate=3170926
-       SET endDate=3171003
+       SET endDate=X+.999999
+       ;"SET NowDate=3170926
+       ;"SET endDate=3171003
        FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
        . IF (RECORDS>0)&(dueDate>endDate) QUIT
        . IF (dueDate>NowDate)&(future=0) do

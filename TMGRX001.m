@@ -67,9 +67,9 @@ PARSELN(OUT,LINE,TRAIN) ;"PARSE ONE MED LINE
   ;"         OUT("MEDICATION","GENERIC ABBRV","PREFERRED")=<preferred generic abbreviation> from database  
   ;"         OUT("MEDICATION","BRAND")=<NAME OF RX> <-- Brand name, as found on input line (if provided)
   ;"         OUT("MEDICATION","BRAND","PREFERRED")=<Preferred brand name from database>  
-  ;"         OUT("DOSE")=<DOSE>  <-- dose as found on input line (if provided)
-  ;"         OUT("DOSE","DATABASE")=<registered dose strength for last IENS found> <-- if found.   
-  ;"         OUT("DOSE","IENS",<IENS IN 22733.03>)=<FORM>^<Strength>^<Preferred Alias>  <-- may be multiple. 
+  ;"         OUT("STRENGTH")=<STRENGTH>  <-- strength as found on input line (if provided)
+  ;"         OUT("STRENGTH","DATABASE")=<registered strength strength for last IENS found> <-- if found.   
+  ;"         OUT("STRENGTH","IENS",<IENS IN 22733.03>)=<FORM>^<Strength>^<Preferred Alias>  <-- may be multiple. 
   ;"         OUT("UNITS")=E.G. "MG"  <-- units as found on input line (if provided)
   ;"         OUT("UNITS","IEN50.607")=#  <-- this is UNITS IEN (if units provided)
   ;"         OUT("UNITS","DATABASE")=<units> from database  
@@ -88,7 +88,7 @@ PARSELN(OUT,LINE,TRAIN) ;"PARSE ONE MED LINE
   NEW SUMRY,RESULT
   DO FIXLINE(.OUT,.LINE)  ;"FIX LINE
   SET RESULT=$$PARS2SUM(.OUT,.SUMRY,.TRAIN)
-  IF (RESULT>0)!(RESULT["MISSING DOSE") DO
+  IF (RESULT>0)!(RESULT["MISSING STRENGTH") DO
   . DO XTRCTDAT(.OUT,.SUMRY) ;"Extract data based on summry
   . DO FIXINFO(.OUT)  ;"FIX INFORMATION ARRAY    
 PRSLNDN  
@@ -107,14 +107,14 @@ FIXLINE(OUT,LINE)  ;"FIX LINE
 FIXINFO(OUT)  ;"FIX INFORMATION ARRAY
   ;"Input: OUT -- PASS BY REFERENCE, AN IN AND OUT PARAMETER
   ;"RESULT: None  
-  NEW DOSEIENS SET DOSEIENS=$ORDER(OUT("DOSE","IENS",""))
-  IF DOSEIENS'="",$ORDER(ARR("DOSE","IENS",DOSEIENS))'="" DO  ;"multiple DOSE IENS's present
-  . SET DOSEIENS=$$MOD2FRM^TMGRX004(.OUT)
-  . KILL ARR("DOSE","IENS") QUIT:DOSEIENS=""
-  . NEW FORMIENS SET FORMIENS=$PIECE(DOSEIENS,",",2,3)_","
-  . SET ARR("DOSE","IENS",DOSEIENS)=$$GET1^DIQ(22733.02,FORMIENS,.01)
-  IF $GET(OUT("FORM","SUBIEN"))="",(DOSEIENS'="") DO
-  . SET OUT("FORM","SUBIEN")=+$PIECE(DOSEIENS,",",2)  
+  NEW STRENGTHIENS SET STRENGTHIENS=$ORDER(OUT("STRENGTH","IENS",""))
+  IF STRENGTHIENS'="",$ORDER(ARR("STRENGTH","IENS",STRENGTHIENS))'="" DO  ;"multiple STRENGTH IENS's present
+  . SET STRENGTHIENS=$$MOD2FRM^TMGRX004(.OUT)
+  . KILL ARR("STRENGTH","IENS") QUIT:STRENGTHIENS=""
+  . NEW FORMIENS SET FORMIENS=$PIECE(STRENGTHIENS,",",2,3)_","
+  . SET ARR("STRENGTH","IENS",STRENGTHIENS)=$$GET1^DIQ(22733.02,FORMIENS,.01)
+  IF $GET(OUT("FORM","SUBIEN"))="",(STRENGTHIENS'="") DO
+  . SET OUT("FORM","SUBIEN")=+$PIECE(STRENGTHIENS,",",2)  
   ; 
   NEW IEN22733 SET IEN22733=+$GET(OUT("IEN22733"))
   IF ($GET(OUT("MEDICATION","GENERIC","DATABASE"))=""),(IEN22733>0) DO
@@ -132,13 +132,13 @@ FIXINFO(OUT)  ;"FIX INFORMATION ARRAY
   . . SET FORMS=+$GET(FORMS)+1,FORMS(FORMS)=IEN
   . IF FORMS=1 SET FORMIEN=FORMS(1)  ;"<--- later, consider picking first even if there is more than one form defined
   NEW IEN50D607 SET IEN50D607=+$GET(OUT("UNITS","IEN50.607"))
-  IF (IEN50D607'>0),(DOSEIENS'="") DO 
-  . SET IEN50D607=+$$GET1^DIQ(22733.03,DOSEIENS,.02,"I")
+  IF (IEN50D607'>0),(STRENGTHIENS'="") DO 
+  . SET IEN50D607=+$$GET1^DIQ(22733.03,STRENGTHIENS,.02,"I")
   . SET OUT("UNITS","IEN50.607")=IEN50D607
   IF $GET(OUT("UNITS","DATABASE"))="" DO
   . SET OUT("UNITS","DATABASE")=$PIECE($GET(^PS(50.607,IEN50D607,0)),"^",1)
   IF $GET(OUT("UNITS","PREFERRED"))="" DO
-  . SET OUT("UNITS","PREFERRED")=$$GETPRUNT^TMGRX004(IEN22733,FORMIEN,+DOSEIENS,0) ;"GET PREFERRED UNITS FOR FORM
+  . SET OUT("UNITS","PREFERRED")=$$GETPRUNT^TMGRX004(IEN22733,FORMIEN,+STRENGTHIENS,0) ;"GET PREFERRED UNITS FOR FORM
   ;  
   SET OUT("FORM","DATABASE")=$$GET1^DIQ(22733.02,FORMIEN_","_IEN22733_",",.01)
   SET OUT("FORM","PREFERRED")=$$GETPRFAL^TMGRX004(IEN22733,FORMIEN) ;"GET PREFERRED FORM ALIAS
@@ -176,10 +176,10 @@ XTRCTDAT(OUT,SUMRY) ;"Extract data based on summary
   ;"         OUT("MEDICATION","GENERIC ABBRV")=SOURCE <-- Generic abbreviation, as found on input line (if provided)
   ;"         OUT("MEDICATION","BRAND")=<NAME OF RX> <-- Brand name, as found on input line (if provided)
   ;"         OUT("MEDICATION","BRAND","PREFERRED")=<Preferred brand name from database> (if brand provided)    
-  ;"         OUT("DOSE","IENS",<IENS>)=<DOSE_NAME> , e.g. TAB
-  ;"         OUT("DOSE")=<DOSE>  <-- dose as found on input line (if provided)
-  ;"         OUT("DOSE","DATABASE")=<registered dose strength for last IENS found> <-- if found.   
-  ;"         OUT("DOSE","IENS",<IENS IN 22733.03>)=<FORM>^<Strength>^<Preferred Alias>  <-- may be multiple. 
+  ;"         OUT("STRENGTH","IENS",<IENS>)=<STRENGTH_NAME> , e.g. TAB
+  ;"         OUT("STRENGTH")=<STRENGTH>  <-- strength as found on input line (if provided)
+  ;"         OUT("STRENGTH","DATABASE")=<registered strength strength for last IENS found> <-- if found.   
+  ;"         OUT("STRENGTH","IENS",<IENS IN 22733.03>)=<FORM>^<Strength>^<Preferred Alias>  <-- may be multiple. 
   ;"         OUT("UNITS")=E.G. "MG"  <-- units as found on input line (if provided)
   ;"         OUT("UNITS","IEN50.607")=#  <-- this is UNITS IEN (if units provided)
   ;"         OUT("FORM")=<FORM> <-- form as found on input line (if provided)
@@ -192,16 +192,20 @@ XTRCTDAT(OUT,SUMRY) ;"Extract data based on summary
   NEW IEN22733 SET IEN22733=+$GET(OUT("IEN22733"))
   IF IEN22733>0 SET OUT("MEDICATION","GENERIC","DATABASE")=$$GET1^DIQ(22733,IEN22733_",",.01)
   NEW LINE SET LINE=OUT("WORKING")
+  NEW DONE SET DONE=0
   NEW LOSTWORDS
   NEW MATCHSUMRY SET MATCHSUMRY=$GET(SUMRY("MATCH"))
   NEW IDX SET IDX=0
-  FOR  SET IDX=$ORDER(SUMRY(IDX)) QUIT:IDX'>0  DO
+  FOR  SET IDX=$ORDER(SUMRY(IDX)) QUIT:(IDX'>0)!(DONE)  DO
   . NEW WORD MERGE WORD=SUMRY(IDX) SET WORD=$GET(WORD)
   . NEW SOURCE SET SOURCE=$GET(WORD("SOURCE"))
   . IF WORD'["{{" DO  QUIT
   . . NEW JDX SET JDX=+$GET(LOSTWORDS)+1
   . . MERGE LOSTWORDS(JDX)=WORD
   . . SET LOSTWORDS=JDX
+  . . ;"NEW KDX SET KDX=IDX-1,DONE=1
+  . . ;"FOR  SET KDX=$ORDER(SUMRY(KDX)) QUIT:(KDX'>0)!(DONE=0)  DO
+  . . ;". SET:($GET(SUMRY(KDX))["{{") DONE=0
   . ELSE  IF WORD="{{DRUG_GENERIC}}" DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
   . . IF $GET(OUT("MEDICATION","GENERIC"))'="" QUIT  ;"ONLY USE 1ST VALUE 
@@ -227,12 +231,12 @@ XTRCTDAT(OUT,SUMRY) ;"Extract data based on summary
   . . SET OUT("MEDICATION","BRAND","PREFERRED")=$$GETPRBRD^TMGRX004(IEN22733)  ;"GET PREFERRED BRAND NAME    
   . . IF SOURCE'="" SET OUT("MEDICATION","INPUT NAME")=SOURCE
   . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
-  . ELSE  IF (WORD="{{DOSE}}")!(WORD="{{DOSE_ALIAS}}") DO  QUIT
+  . ELSE  IF (WORD="{{STRENGTH}}")!(WORD="{{STRENGTH_ALIAS}}") DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
-  . . IF $GET(OUT("DOSE"))'="" QUIT  ;"ONLY USE 1ST VALUE 
-  . . SET OUT("DOSE")=SOURCE
+  . . IF $GET(OUT("STRENGTH"))'="" QUIT  ;"ONLY USE 1ST VALUE 
+  . . SET OUT("STRENGTH")=SOURCE
   . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
-  . . DO MATCHDSE^TMGRX004(.OUT,.WORD)  ;"TRY TO MATCH DOSES TO DATABASE. 
+  . . DO MTCHSTRT^TMGRX004(.OUT,.WORD)  ;"TRY TO MATCH STRENGTHS TO DATABASE. 
   . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF WORD="{{MODIFIER}}" DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
@@ -281,11 +285,11 @@ P2SDN ;
   ;
 GETSUMRY(SUMRY,LINE,IEN22733,PARSESIG)  ;"GET A SUMMARY OF LINE
   ;"INPUT:  SUMRY -- PASS BY REFERENCE.  AN OUT PARAMETER.  FORMAT:    
-  ;"           SUMRY={{DRUG_BRAND}} {{DOSE_ALIAS}} {{UNIT_ALIAS}} ONCE {{FREQ}}                     
+  ;"           SUMRY={{DRUG_BRAND}} {{STRENGTH_ALIAS}} {{UNIT_ALIAS}} ONCE {{FREQ}}                     
   ;"           }~1 = {{DRUG_BRAND}}                                                            
   ;"           | }~"DIV" = " "                                                                 
   ;"           | }~"SOURCE" = ANORO ELLIPTA                                                    
-  ;"           }~2 = {{DOSE_ALIAS}}                                                            
+  ;"           }~2 = {{STRENGTH_ALIAS}}                                                            
   ;"           | }~"DIV" = " "                                                                 
   ;"           | }~"SOURCE" = 62.5MG/25                                                        
   ;"           }~3 = {{UNIT_ALIAS}}                                                            
@@ -322,11 +326,11 @@ GETSUMRY(SUMRY,LINE,IEN22733,PARSESIG)  ;"GET A SUMMARY OF LINE
   ;
  ;"GETSUMRY(SUMRY,LINE,IEN22733,PARSESIG)  ;"GET A SUMMARY OF LINE
  ;"  ;"INPUT:  SUMRY -- PASS BY REFERENCE.  AN OUT PARAMETER.  FORMAT:    
- ;"  ;"           SUMRY={{DRUG_BRAND}} {{DOSE_ALIAS}} {{UNIT_ALIAS}} ONCE {{FREQ}}                     
+ ;"  ;"           SUMRY={{DRUG_BRAND}} {{STRENGTH_ALIAS}} {{UNIT_ALIAS}} ONCE {{FREQ}}                     
  ;"  ;"           }~1 = {{DRUG_BRAND}}                                                            
  ;"  ;"           | }~"DIV" = " "                                                                 
  ;"  ;"           | }~"SOURCE" = ANORO ELLIPTA                                                    
- ;"  ;"           }~2 = {{DOSE_ALIAS}}                                                            
+ ;"  ;"           }~2 = {{STRENGTH_ALIAS}}                                                            
  ;"  ;"           | }~"DIV" = " "                                                                 
  ;"  ;"           | }~"SOURCE" = 62.5MG/25                                                        
  ;"  ;"           }~3 = {{UNIT_ALIAS}}                                                            
@@ -433,7 +437,7 @@ VERFYSUM(SUMRY,TRAIN,LINE)  ;
   NEW MATCH,VALUE SET VALUE=""
   NEW DONE SET DONE=0
   NEW TEMPSUMRY MERGE TEMPSUMRY=SUMRY
-  NEW DOSESEEN SET DOSESEEN=""
+  NEW STRENGTHSEEN SET STRENGTHSEEN=""
   NEW SHOWNMATCHLEN SET SHOWNMATCHLEN=0 
   NEW EDITED SET EDITED=0
   DO NORMLSUM(.TEMPSUMRY)  ;"NORMALIZE SUMMARY into standard text output
@@ -445,20 +449,25 @@ VL1 ;
   ;"NEW I FOR I=1:1:16 WRITE "*",!  ;"<--- DELETE LATER
   WRITE "TRAINING MODE: ON.  Verifying when no exact matches.",!
   WRITE "ORIG: ",LINE,!
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(TEMPSUMRY(IDX)) QUIT:IDX'>0  DO
+  . NEW AWORD SET AWORD=$GET(TEMPSUMRY(IDX)) 
+  . IF AWORD'["{{" QUIT
+  . WRITE AWORD," <-- ",$GET(TEMPSUMRY(IDX,"SOURCE"),"?"),!
   WRITE "SUMMARY: ",TEMPSUMRY,!
-  NEW HASDOSE SET HASDOSE=((TEMPSUMRY["{{DOSE}}")!(TEMPSUMRY["{{DOSE_ALIAS}}"))
-  IF 'HASDOSE DO  GOTO:(+RESULT=-1) VFPTDN
-  . IF DOSESEEN'="" SET %=DOSESEEN  ;"prevent asking same question twice after loopback.  
+  NEW HASSTRENGTH SET HASSTRENGTH=((TEMPSUMRY["{{STRENGTH}}")!(TEMPSUMRY["{{STRENGTH_ALIAS}}"))
+  IF 'HASSTRENGTH DO  GOTO:(+RESULT=-1) VFPTDN
+  . IF STRENGTHSEEN'="" SET %=STRENGTHSEEN  ;"prevent asking same question twice after loopback.  
   . ELSE  DO
-  . . WRITE "NOTE: dose was not parsed.  Do you see dose in ORIG"   
+  . . WRITE "NOTE: strength was not parsed.  Do you see strength in ORIG"   
   . . SET %=2 DO YN^DICN WRITE !
-  . . SET DOSESEEN=%
-  . IF %=1 SET RESULT="-1^MISSING DOSE",MATCH=TEMPSUMRY
+  . . SET STRENGTHSEEN=%
+  . IF %=1 SET RESULT="-1^MISSING STRENGTH",MATCH=TEMPSUMRY
   . IF %=-1 SET RESULT="-1^ABORT"                 
   SET %=0 
   IF EDITED,($LENGTH(MATCH)=SHOWNMATCHLEN),(VALUE'="") GOTO VL3
   IF MATCH'="",($LENGTH(MATCH)>SHOWNMATCHLEN) DO
-  . WRITE "MATCH:   ",MATCH,!
+  . WRITE "MATCH: ",MATCH,!
   . SET SHOWNMATCHLEN=$LENGTH(MATCH)
   . WRITE "MATCH would have been used if not in training mode.",!
   . SET %=1 WRITE "Would MATCH have been OK to identify Med (but NOT SIG)" DO YN^DICN WRITE !

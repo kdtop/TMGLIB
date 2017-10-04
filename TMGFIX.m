@@ -738,28 +738,23 @@ TSTS2ST  ;"TEST S2STR
   FOR SEC=1:41:32000000 WRITE SEC,"= ",$$S2STR(SEC),!
   QUIT
   ;
-KK ;
-  NEW SPEC,ARR  
-  SET SPEC("(")=" "
-  SET SPEC(")")=" "
-  SET SPEC("-")=" "
-  SET SPEC("/")=" "
-  ;"SET SPEC("}}{{")="}}**{{"
+FIXSUM ;
   NEW IEN SET IEN=0
   FOR  SET IEN=$ORDER(^TMG(22733.1,IEN)) QUIT:IEN'>0  DO
   . NEW LINE SET LINE=$GET(^TMG(22733.1,IEN,0))
-  . SET LINE=$$REPLACE^XLFSTR(LINE,.SPEC)
-  . DO FIXDBLSP^TMGRX004(.LINE)
-  . SET LINE=$$TRIM^XLFSTR(LINE)
-  . SET ^TMG(22733.1,IEN,0)=LINE
-  . SET ARR(LINE,IEN)=""
-  ;"ZWR ARR
-  NEW MATCH SET MATCH=""
-  FOR  SET MATCH=$ORDER(ARR(MATCH)) QUIT:MATCH=""  DO
-  . NEW FIRST SET FIRST=1
-  . SET IEN=0 FOR  SET IEN=$ORDER(ARR(MATCH,IEN)) QUIT:IEN'>0  DO
-  . . WRITE MATCH
-  . . IF FIRST SET FIRST=0 WRITE "]",! QUIT
-  . . WRITE "] <-- KILL",IEN,!
-  . . ;"KILL ^TMG(22733.1,IEN)
+  . NEW LINE2 SET LINE2=$$REPLSTR^TMGSTUT3(LINE,"DOSE","STRENGTH")  ;"REPLACE STRING
+  . WRITE "-",LINE,!,"+",LINE2,!
+  . SET ^TMG(22733.1,IEN,0)=LINE2
   QUIT
+  ;
+TESTPARSE ;
+  NEW LINE SET LINE="<SPAN style=""FONT-SIZE: 14px; FONT-FAMILY: Arial,"" initial? text-decoration-color: initial; "
+  SET LINE=LINE_"text-decoration-style: 0px; -webkit-text-stroke-width: normal; font-variant-caps: font-variant-ligatures: "
+  SET LINE=LINE_"TEXT-INDENT: rgb(255,255,255); BACKGROUND-COLOR: LETTER-SPACING: !important; inline DISPLAY: 2; "
+  SET LINE=LINE_"WIDOWS: ORPHANS: left; TEXT-ALIGN: FONT-STYLE: rgb(0,0,0); COLOR: FONT-WEIGHT: none; "
+  SET LINE=LINE_"FLOAT: TEXT-TRANSFORM: WORD-SPACING: WHITE-SPACE: sans-serif; Helvetica, Neue?, Helvetica>"
+  NEW ATTR,ERR
+  DO parseElement^%zewdHTMLParser(LINE,.ATTR,.ERR,1)
+  ZWR ATTR
+  QUIT
+  
