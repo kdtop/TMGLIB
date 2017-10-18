@@ -87,6 +87,10 @@ TRIGGER1(TIUIEN,QUIET,TMGDOCSCANMODS,ONLYOV) ;
         ;"       TMGDOCSCANMODS -- OPTIONAL.  Holding array for title modifiers, for effeciency with looping runs.
         ;"       ONLYOV -- OPTIONAL.  If 1, then test is made to see if note
         ;"                  is an office visit type note, and ignores if not
+        DO 
+        . NEW TMGSTACK ZSHOW "S":TMGSTACK
+        . KILL ^TMG("TMP","TRIGGER1^TMGV0Q04","STACK")        
+        . MERGE ^TMG("TMP","TRIGGER1^TMGV0Q04","STACK")=TMGSTACK        
         SET TIUIEN=+$GET(TIUIEN) GOTO:(TIUIEN'>0) TGDN
         DO FIREINH1^TMGTIUT4(.TIUIEN)  ;"Fire inherited post-signature event-handlers first.  //kt 5/2016
         SET ONLYOV=$GET(ONLYOV,0)

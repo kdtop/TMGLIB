@@ -30,25 +30,63 @@ TMGRX001 ;TMG/kst/Patient medication code; 08/23/17
  ;"Uses:  
  ;"=======================================================================
  ;        
-T2 ; "TEST THE PARSED MED LIST FOR A PATIENT 
+TEST ; "TEST THE PARSED MED LIST FOR A PATIENT 
   NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
+TL1 ;  
   DO ^DIC WRITE !
   IF +Y'>0 QUIT
   NEW DFN SET DFN=+Y
   NEW ARR,TEMP
   DO MEDLIST^TMGTIUOJ(.TEMP,DFN,.ARR)
+  WRITE !,"--this is before parsing  -------------",!
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  . WRITE $GET(ARR(IDX)),!  
   NEW ARR2 DO PARSEARR(.ARR2,.ARR)
-  ZWR ARR2
+  WRITE !,"--Below is parsed med list -------------",!
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARR2(IDX)) QUIT:IDX'>0  DO
+  . WRITE $GET(ARR2(IDX)),!
+  WRITE !,"--Appearance in FOLLOWING runs -------------",!
+  NEW ARR3 DO PARSEARR(.ARR3,.ARR2)
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARR3(IDX)) QUIT:IDX'>0  DO
+  . WRITE $GET(ARR3(IDX)),!  
+  SET %=1 WRITE !,"Try another patient" DO YN^DICN WRITE !
+  IF %=1 GOTO TL1
   QUIT
   ;
 PARSEARR(OUT,ARR)  ;"PARSE A MED LIST  
-  NEW IDX SET IDX=0 
+  NEW OLD,IDX,JDX SET (IDX,JDX)=0 
   FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
-  . NEW LINE SET LINE=$GET(ARR(IDX)) 
-  . IF $EXTRACT(LINE,1)="*" QUIT
+  . NEW LINE,LINE2 SET LINE=$$TRIM^XLFSTR($GET(ARR(IDX))),LINE2=LINE 
+  . IF LINE["[OLD ENTRY]" QUIT
+  . SET OUT(IDX)=LINE
   . IF LINE["[MEDICATION" QUIT
-  . NEW TEMP
-  . SET ARR(IDX)=$$PARSELN(.TEMP,LINE) 
+  . IF $EXTRACT(LINE,1)'="*" DO
+  . . NEW TEMP DO PARSELN(.TEMP,LINE)
+  . . SET LINE2=$$TRIM^XLFSTR($$EXTERNAL^TMGRX003(.TEMP))
+  . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(LINE2,0,":","=")
+  . IF DIV'="" DO
+  . . NEW KEY SET KEY=$$TRIM^XLFSTR($PIECE(LINE2,DIV,1))
+  . . NEW VALUE SET VALUE=$$TRIM^XLFSTR($PIECE(LINE2,DIV,2,99))
+  . . SET OUT("KEY-VALUE",KEY)=VALUE
+  . . SET OUT("KEY-VALUE",KEY,"LINE")=LINE2
+  . SET OUT(IDX)=LINE2
+  . IF LINE2'=LINE DO
+  . . SET LINE="[OLD ENTRY] "_LINE
+  . . SET JDX=JDX+1,OLD(JDX)=LINE
+  . . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(LINE,0,":","=") 
+  . . QUIT:DIV=""
+  . . NEW KEY SET KEY=$$TRIM^XLFSTR($PIECE(LINE,DIV,1))
+  . . NEW VALUE SET VALUE=$$TRIM^XLFSTR($PIECE(LINE,DIV,2,99))
+  . . SET OUT("KEY-VALUE",KEY)=VALUE
+  . . SET OUT("KEY-VALUE",KEY,"LINE")=LINE2
+  SET IDX=$ORDER(OUT("@"),-1)
+  SET JDX=0
+  FOR  SET JDX=$ORDER(OLD(JDX)) QUIT:JDX'>0  DO
+  . NEW LINE SET LINE=$GET(OLD(JDX)) QUIT:LINE=""
+  . SET IDX=IDX+1,OUT(IDX)=LINE
   QUIT
   ;
 PARSELN(OUT,LINE,TRAIN) ;"PARSE ONE MED LINE
@@ -84,6 +122,7 @@ PARSELN(OUT,LINE,TRAIN) ;"PARSE ONE MED LINE
   ;"         OUT("NOTE")=<any notes>  DELIMITED BY "<---" OR '>---" ...
   ;"       LINE -- a string of text representing one medication line from med table.
   ;"       TRAIN -- OPTIONAL.  If 1 then user is queried at command-line if needed during training
+  ;"Result: None  
   SET ^TMP("PARSELN^TMGRX001",$J)=LINE
   NEW SUMRY,RESULT
   DO FIXLINE(.OUT,.LINE)  ;"FIX LINE
@@ -101,6 +140,7 @@ FIXLINE(OUT,LINE)  ;"FIX LINE
   DO XTRCTNTE^TMGRX004(.OUT,.LINE)  ;"EXTRACT NOTE, IF ANY
   DO FIXDBLSP^TMGRX004(.LINE)       ;"FIX DOUBLE SPACES
   DO CHKPREFX^TMGRX004(.OUT,.LINE)  ;"CHECK AND REMOVE PREFIXES (INCLUDING OTC)
+  IF LINE["_?_STRENGTH" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"_?_STRENGTH","")  
   SET OUT("WORKING")=LINE
   QUIT
   ;
@@ -208,55 +248,55 @@ XTRCTDAT(OUT,SUMRY) ;"Extract data based on summary
   . . ;". SET:($GET(SUMRY(KDX))["{{") DONE=0
   . ELSE  IF WORD="{{DRUG_GENERIC}}" DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("MEDICATION","GENERIC"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("MEDICATION","GENERIC")=SOURCE
   . . IF SOURCE'="" SET OUT("MEDICATION","INPUT NAME")=SOURCE
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF WORD="{{DRUG_ALIAS}}" DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("MEDICATION","GENERIC ALIAS"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("MEDICATION","GENERIC ALIAS")=SOURCE   
   . . IF SOURCE'="" SET OUT("MEDICATION","INPUT NAME")=SOURCE  ;"<-- last Rx name encountered on input line
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF WORD="{{DRUG_ABBREV}}" DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("MEDICATION","GENERIC ABBRV"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("MEDICATION","GENERIC ABBRV")=SOURCE
   . . IF SOURCE'="" SET OUT("MEDICATION","INPUT NAME")=SOURCE
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF WORD="{{DRUG_BRAND}}" DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("MEDICATION","BRAND"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("MEDICATION","BRAND")=SOURCE
   . . SET OUT("MEDICATION","BRAND","PREFERRED")=$$GETPRBRD^TMGRX004(IEN22733)  ;"GET PREFERRED BRAND NAME    
   . . IF SOURCE'="" SET OUT("MEDICATION","INPUT NAME")=SOURCE
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF (WORD="{{STRENGTH}}")!(WORD="{{STRENGTH_ALIAS}}") DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("STRENGTH"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("STRENGTH")=SOURCE
   . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . DO MTCHSTRT^TMGRX004(.OUT,.WORD)  ;"TRY TO MATCH STRENGTHS TO DATABASE. 
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF WORD="{{MODIFIER}}" DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("MODIFIER"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("MODIFIER")=SOURCE  
   . . SET OUT("MODIFIER","PREFERRED")=$$GETPMOD1^TMGRX004(IEN22733,SOURCE)  ;"GET PREFERRED MODIFIER, IN SAME GROUP AS MOD  
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF (WORD="{{FORM}}")!(WORD="{{FORM_ALIAS}}") DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("FORM"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("FORM")=SOURCE
   . . SET OUT("FORM","SUBIEN")=+$$GTFRMIEN^TMGRX004(IEN22733,SOURCE)  ;"GET FORM SUBIEN BASED ON INPUT FORM
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF (WORD="{{UNIT}}")!(WORD="{{UNIT_ALIAS}}") DO  QUIT
   . . IF MATCHSUMRY'[WORD QUIT
+  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . . IF $GET(OUT("UNITS"))'="" QUIT  ;"ONLY USE 1ST VALUE 
   . . SET OUT("UNITS")=SOURCE
   . . SET OUT("UNITS","IEN50.607")=$GET(WORD("UNIT IEN"))
   . . DO MATCHUNT^TMGRX004(.OUT,.WORD)
-  . . SET OUT("SIG")=$GET(WORD("DIV"))_$$ARR2LN3^TMGRX004("SUMRY",IDX+.1)
   . ELSE  IF WORD="{{ROUTE}}" DO
   . . IF MATCHSUMRY'[WORD QUIT
   . . IF $GET(OUT("SIG","ROUT"))'="" QUIT  ;"ONLY USE 1ST VALUE 
@@ -309,6 +349,7 @@ GETSUMRY(SUMRY,LINE,IEN22733,PARSESIG)  ;"GET A SUMMARY OF LINE
   ;"        PARSESIG -- 0 OR 1, if 1 then parsing in sig is done.  
   ;"RESULT: none
   NEW DICT DO GETDICT^TMGRX004(.DICT,IEN22733)
+  DO FIXSPLNG^TMGRX004(IEN22733,.LINE)
   SET SUMRY("ORIG")=LINE
   NEW WORD,LINEARR,REFNUM SET REFNUM=1
   DO LINE2ARR^TMGRX004(.LINEARR,LINE,.DICT) ;"Parse LINE into LINEARR
@@ -324,96 +365,6 @@ GETSUMRY(SUMRY,LINE,IEN22733,PARSESIG)  ;"GET A SUMMARY OF LINE
   SET SUMRY=$$ARR2LINE^TMGRX004(.LINEARR)
   QUIT 
   ;
- ;"GETSUMRY(SUMRY,LINE,IEN22733,PARSESIG)  ;"GET A SUMMARY OF LINE
- ;"  ;"INPUT:  SUMRY -- PASS BY REFERENCE.  AN OUT PARAMETER.  FORMAT:    
- ;"  ;"           SUMRY={{DRUG_BRAND}} {{STRENGTH_ALIAS}} {{UNIT_ALIAS}} ONCE {{FREQ}}                     
- ;"  ;"           }~1 = {{DRUG_BRAND}}                                                            
- ;"  ;"           | }~"DIV" = " "                                                                 
- ;"  ;"           | }~"SOURCE" = ANORO ELLIPTA                                                    
- ;"  ;"           }~2 = {{STRENGTH_ALIAS}}                                                            
- ;"  ;"           | }~"DIV" = " "                                                                 
- ;"  ;"           | }~"SOURCE" = 62.5MG/25                                                        
- ;"  ;"           }~3 = {{UNIT_ALIAS}}                                                            
- ;"  ;"           | }~DBSOURCE                                                                    
- ;"  ;"           | | }~"22733.32^.01^1,2,1,215," = ""                                            
- ;"  ;"           | }~"DIV" = " "                                                                 
- ;"  ;"           | }~"SOURCE" = MG                       
- ;"  ;"           | }~"UNIT IEN" = 20                                                      
- ;"  ;"           }~4 = ONCE                    
- ;"  ;"           | }~"DIV" = " "                    
- ;"  ;"           }~5 = {{FREQ}}                    
- ;"  ;"           | }~"DIV" = " "                    
- ;"  ;"           | }~"SOURCE" = DAILY                    
- ;"  ;"           }~"ORIG" = "ANORO ELLIPTA 62.5MG/25 MG ONCE DAILY " 
- ;"  ;"        LINE  -- THE LINE TO PASS
- ;"  ;"        IEN22733 -- THE IEN OF THE DRUG TO WORK WITH
- ;"  ;"        PARSESIG -- 0 OR 1, if 1 then parsing in sig is done.  
- ;"  ;"RESULT: none
- ;"  NEW DICT DO GETDICT^TMGRX004(.DICT,IEN22733)
- ;"  NEW RESULT SET RESULT("ORIG")=LINE
- ;"  SET PARSESIG=$GET(PARSESIG)
- ;"  SET SUMRY=LINE
- ;"  NEW WORD,LINEARR,REFNUM SET REFNUM=1
- ;"  DO  ;"Before checking word by word, first look for combo words, e.g. LISINOPRIL/HCTZ or 'VITAMIN D'
- ;"  . NEW ALEN SET ALEN=""
- ;"  . FOR  SET ALEN=$ORDER(DICT("ZZLEN",ALEN),-1) QUIT:ALEN'>0  DO
- ;"  . . NEW AWORD SET AWORD=""
- ;"  . . FOR  SET AWORD=$ORDER(DICT("ZZLEN",ALEN,AWORD)) QUIT:AWORD=""  DO
- ;"  . . . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(AWORD,0,"/","-"," ")
- ;"  . . . IF DIV="" QUIT  ;"WORD doesn't contain / or -, so not combo word, handle below
- ;"  . . . IF LINE'[AWORD QUIT
- ;"  . . . NEW SKIP SET SKIP=0 IF AWORD?1N.E DO  QUIT:SKIP  ;"PREVENT 5-325 FROM MATCHING IN 7.5-325 ETC
- ;"  . . . . NEW STRA SET STRA=$PIECE(LINE,AWORD,1)
- ;"  . . . . IF $EXTRACT(STRA,$LENGTH(STRA))?1(1".",1"N") SET SKIP=1 QUIT
- ;"  . . . . NEW STRB SET STRB=$PIECE(LINE,AWORD,2)  ;"PREVENT 5 FROM MATCHING IN 5-325
- ;"  . . . . IF STRB?1(1"-",1"/").E SET SKIP=1 QUIT
- ;"  . . . NEW TYPE SET TYPE=$GET(DICT("ZZLEN",ALEN,AWORD))
- ;"  . . . SET SUMRY=$$REPLSTR^TMGSTUT3(SUMRY,AWORD,"{{"_TYPE_"^"_REFNUM_"}}")
- ;"  . . . SET SUMRY("SOURCE",REFNUM)=AWORD
- ;"  . . . SET REFNUM=REFNUM+1
- ;"  SET LINE=SUMRY
- ;"  DO LINE2ARR^TMGRX004(.LINEARR,LINE,.DICT) ;"Parse LINE into LINEARR
- ;"  NEW IDX SET IDX=0
- ;"  FOR  SET IDX=$ORDER(LINEARR("WORD",IDX)) QUIT:IDX=""  DO
- ;"  . KILL WORD MERGE WORD=LINEARR("WORD",IDX) SET WORD=$GET(WORD)
- ;"  . QUIT:$EXTRACT(WORD,1,2)="{{"
- ;"  . NEW TYPE SET TYPE=$GET(WORD("TYPE"))
- ;"  . IF TYPE="" DO
- ;"  . . NEW STRIPWORD SET STRIPWORD=$$STRIPWD^TMGRX004(WORD)           
- ;"  . . IF $DATA(DICT(STRIPWORD))>0 DO
- ;"  . . . SET TYPE=$GET(DICT(STRIPWORD))
- ;"  . . . SET FRACT=($GET(DICT(STRIPWORD,"FRACT"))=1)  ;"<-----  ??   
- ;"  . . ELSE  DO
- ;"  . . . DO WORDINFO^TMGRX004(.STRIPWORD,.DICT)
- ;"  . . . IF $GET(STRIPWORD("TIME"))'="" SET TYPE="TIME" QUIT
- ;"  . . . IF $GET(STRIPWORD("NUM"))'="" SET TYPE="NUM" QUIT
- ;"  . . . IF $GET(STRIPWORD("DATE"))'="" SET TYPE="DATE" QUIT
- ;"  . . . IF $$ISFORM^TMGRX004(WORD) SET TYPE="FORM" QUIT
- ;"  . . . IF PARSESIG,$$ISROUTE^TMGRX004(WORD) SET TYPE="ROUTE" QUIT
- ;"  . . . IF PARSESIG,$$ISFREQ^TMGRX004(WORD) SET TYPE="FREQ" QUIT
- ;"  . IF TYPE'="" DO
- ;"  . . SET LINEARR("WORD",IDX)="{{"_TYPE_"^"_REFNUM_"}}"
- ;"  . . ;"SET SUMRY("SOURCE",REFNUM)=WORD,REFNUM=REFNUM+1  
- ;"  . . MERGE SUMRY("SOURCE",REFNUM)=WORD SET REFNUM=REFNUM+1  
- ;"  SET SUMRY=$$ARR2LINE^TMGRX004(.LINEARR)
- ;"  MERGE SUMRY=LINEARR
- ;"  SET RESULT=SUMRY
- ;"  SET IDX=0 FOR  SET IDX=$ORDER(SUMRY("WORD",IDX)) QUIT:IDX'>0  DO
- ;"  . NEW WORD MERGE WORD=SUMRY("WORD",IDX) SET WORD=$GET(WORD) 
- ;"  . SET RESULT(IDX)=WORD
- ;"  . SET RESULT(IDX,"DIV")=$GET(WORD("DIV"))
- ;"  . QUIT:(WORD'["^")!(WORD'["{{")
- ;"  . SET REFNUM=+$PIECE(WORD,"^",2)
- ;"  . SET RESULT(IDX)=$PIECE(WORD,"^",1)_"}}"
- ;"  . ;"NEW SOURCE SET SOURCE=$GET(SUMRY("SOURCE",REFNUM))
- ;"  . NEW SOURCE MERGE SOURCE=SUMRY("SOURCE",REFNUM)
- ;"  . SET RESULT(IDX,"SOURCE")=SOURCE 
- ;"  . MERGE RESULT(IDX,"DBSOURCE")=SOURCE("SOURCE")
- ;"  . IF $GET(WORD("UNIT IEN"))>0 SET RESULT(IDX,"UNIT IEN")=WORD("UNIT IEN")
- ;"  SET RESULT=$$ARR2LN2^TMGRX004("RESULT")
- ;"  KILL SUMRY MERGE SUMRY=RESULT
- ;"  QUIT 
- ;"  ;  
 RMVPREFX(OUT,SUMRY)  ;"REMOVE PREFACE FROM SUMARY ARRAY
   ;"NOTE: Everything that comes before first {{xxx}} code should be put into OUT("PREFIX")
   NEW PREARR
@@ -430,7 +381,8 @@ RMVPREFX(OUT,SUMRY)  ;"REMOVE PREFACE FROM SUMARY ARRAY
   ;  
 VERFYSUM(SUMRY,TRAIN,LINE)  ;
   ;"INPUT: SUMRY -- PASS BY REFERENCE.  The array, as created by PARS2SUM
-  ;"       TRAIN -- OPTIONAL.  If 1 then interactive process
+  ;"       TRAIN -- OPTIONAL.  If 1 then interactive process if needed. 
+  ;"                           2 is ALWAYS interactive
   ;"       LINE -- OPTIONAL IF TRAIN NOT 1. REQUIRED IF TRAIN=1.  Line being parsed
   ;"RESULT: 1 if successful, 0 if not, -1 if ABORT
   NEW RESULT SET RESULT=0
@@ -444,8 +396,8 @@ VERFYSUM(SUMRY,TRAIN,LINE)  ;
 VL1 ;  
   SET MATCH=$$LONGESTM(TEMPSUMRY)  ;"GET LONGEST MATCH FROM 22733.1  
   SET RESULT=(MATCH'="")
-  IF $GET(TRAIN)'=1 GOTO VFPTDN
-  IF TEMPSUMRY=MATCH GOTO VFPTDN
+  IF $GET(TRAIN)'>0 GOTO VFPTDN
+  IF (TEMPSUMRY=MATCH),(TRAIN<2) GOTO VFPTDN
   ;"NEW I FOR I=1:1:16 WRITE "*",!  ;"<--- DELETE LATER
   WRITE "TRAINING MODE: ON.  Verifying when no exact matches.",!
   WRITE "ORIG: ",LINE,!

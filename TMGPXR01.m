@@ -180,6 +180,29 @@ PTONASA(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         . . . SET DATE=X
         QUIT        
         ;
+PTONTEST(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To determine if the patient is on TESTOSTERONE
+        ;"Input: same as above
+        SET TEST=0
+        SET DATE=0
+        NEW TMGMEDLIST,TMGMEDARRAY
+        NEW TBLIEN SET TBLIEN=$O(^TMG(22708,"C","TESTOSTERONE",0))
+        DO MEDLIST^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)
+        IF $DATA(TMGMEDARRAY) DO
+        . DO CHECKTBLMEDS(.TMGMEDARRAY,.TBLIEN,.TEST,.DATE)
+        QUIT
+        ;
+CHECKTBLMEDS(TMGMEDARRAY,TBLIEN,TEST,DATE)
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(TMGMEDARRAY(IDX)) QUIT:IDX'>0  DO
+        . NEW MEDNAME SET MEDNAME=""
+        . FOR  SET MEDNAME=$ORDER(^TMG(22708,38,3,"B",MEDNAME)) QUIT:MEDNAME=""  DO
+        . . IF $$UP^XLFSTR($GET(TMGMEDARRAY(IDX)))[$$UP^XLFSTR(MEDNAME) DO
+        . . . DO NOW^%DTC
+        . . . SET TEST=1
+        . . . SET DATE=X
+        QUIT
+        ;"
 COPDINC(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"Purpose: To determine if the patient should be included in
         ;"         the COPD cohort based on insurance
@@ -592,6 +615,30 @@ ONOXYGEN(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . NEW CURHFIEN SET CURHFIEN=$PIECE($GET(^AUPNVHF(HFIEN,0)),"^",1)
         . IF CURHFIEN=O2HFIEN SET TEST=1
 OODN    QUIT
+        ;"
+APNEAPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;
+        ;"Purpose: Return whether patient uses CPAP machine
+        ;"Input: DFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0,DATE=0
+        NEW IEN22719 SET IEN22719=0
+        FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719)) QUIT:IEN22719'>0  DO
+        . NEW TOPICTEXT SET TOPICTEXT=""
+        . FOR  SET TOPICTEXT=$ORDER(^TMG(22719,IEN22719,2,"B",TOPICTEXT)) QUIT:TOPICTEXT=""  DO
+        . . NEW UPTOPIC SET UPTOPIC=$$UP^XLFSTR(TOPICTEXT)
+        . . IF UPTOPIC["APNEA" DO
+        . . . NEW TOPICDATE SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
+        . . . IF TOPICDATE>DATE SET DATE=TOPICDATE
+        . . . SET TEST=1
+CPAPDN  QUIT
         ;"
 PULSEOX(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient is on oxygen

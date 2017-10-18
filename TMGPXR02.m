@@ -1,4 +1,4 @@
-TMGPXR02 ;TMG/kst/TMG Reminder Text Table stuff ;3/24/14
+TMGPXR02 ;TMG/kst/TMG Reminder Text Table stuff ;3/24/14, 10/10,17
          ;;1.0;TMG-LIB;**1**;3/24/13
  ;
  ;"TMG REMINDER FUNCTIONS
@@ -39,6 +39,8 @@ RMDGTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Reminder dialog type TIU Text Tab
         ;"                   OUTARR(#)=<Line text>     <-- for entries that are not KEY-VALUE format
         ;"       OPTION("DT")=FMDT <-- if present, then table is to be returns AS OF given date
         ;"Result: returns string with embedded line-feeds to create text table.
+        ;"//NOTE: This table is different from a reminder dialog in CPRS.  I can't recall now
+        ;"        the thinking behind why this was called a reminder dialog type table. 10/2017
         QUIT $$DOTABL(.DFN,.LABEL,.GICODE,.OUTARR,.OPTION)  ;"could send OPTION later if needed.
         ; 
 DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
@@ -141,6 +143,21 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         ;"        Format is   'Label : Value'
         ;"NOTE: In the future, if multiple lines need to be returned, then
         ;"      lines can be separated by CR (#13)
+        NEW ZZDEBUG SET ZZDEBUG=0 ;"Change at runtime IF needed.
+        IF ZZDEBUG=1 DO
+        . SET DFN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","DFN"))
+        . SET IEN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","IEN"))
+        . SET SUBIEN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","SUBIEN"))
+        . SET MAXLEN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","MAXLEN"))
+        . KILL OUTARR
+        . KILL OPTION MERGE OPTION=^TMG("TMP","REM DLG TABLE GET ITEM","OPTION")        
+        ELSE  DO
+        . KILL ^TMG("TMP","REM DLG TABLE GET ITEM")
+        . SET ^TMG("TMP","REM DLG TABLE GET ITEM","DFN")=$GET(DFN)
+        . SET ^TMG("TMP","REM DLG TABLE GET ITEM","IEN")=$GET(IEN)
+        . SET ^TMG("TMP","REM DLG TABLE GET ITEM","SUBIEN")=$GET(SUBIEN)
+        . SET ^TMG("TMP","REM DLG TABLE GET ITEM","MAXLEN")=$GET(MAXLEN)
+        . MERGE ^TMG("TMP","REM DLG TABLE GET ITEM","OPTION")=OPTION
         NEW RESULT SET RESULT=""
         NEW ZN SET ZN=$GET(^TMG(22708,IEN,1,SUBIEN,0))
         NEW NAME SET NAME=$PIECE(ZN,"^",1)

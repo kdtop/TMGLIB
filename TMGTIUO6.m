@@ -255,7 +255,7 @@ GT1DONE ;
 GETTABLX(DFN,LABEL,ARRAY,OPTION) ;
     ;"Purpose: A call point for TIU objects, to return a table comprised from prior notes.
     ;"Input: DFN- the patient IEN
-    ;"       LABEL -- the table label, e.g. MEDICATIOSN
+    ;"       LABEL -- the table label, e.g. MEDICATIONS
     ;"       ARRAY -- OPTIONAL.  PASS BY REFERENCE to get back array of data.
     ;"       OPTION -- OPTIONAL.
     ;"              OPTION("DT")=FMDT <-- if present, then table is to be returns AS OF given date

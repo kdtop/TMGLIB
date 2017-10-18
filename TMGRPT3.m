@@ -195,4 +195,100 @@ GETINFO(DFN,ARR,FLDS) ;"Get needed patient info
   .. I CONTACT="S",$P($G(^DPT(DFN,.211)),U,11)]"" W !?7,"Work phone number:  ",$P(^DPT(DFN,.211),U,11)
   D KVAR^VADPT
   Q
-
+  ;"
+APPTRECS()  ;"
+  ;"Purpose: To generate a report with records needed for today's visit
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  IF POP DO  GOTO ARDN
+  . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+  use IO
+  ;"
+  NEW APPTARRAY,HEADER,LINES
+  SET HEADER=0
+  NEW SDT,EDT
+  SET SDT=$$TODAY^TMGDATE+0.00001
+  SET EDT=$$TODAY^TMGDATE+0.999999
+  DO APPT4DT^TMGSMS05(SDT,EDT,.APPTARRAY)
+  ;"
+  NEW DT,DFN,LINE SET DT=0,LINE=1
+  FOR  SET DT=$ORDER(APPTARRAY("DT",DT)) QUIT:DT'>0  DO
+  . SET DFN=0
+  . FOR  SET DFN=$ORDER(APPTARRAY("DT",DT,DFN)) QUIT:DFN'>0  DO
+  . . NEW REASON,STATUS,DOB
+  . . KILL LINES
+  . . SET LINE=1
+  . . SET STATUS=""
+  . . SET REASON=$G(APPTARRAY(DT,DFN,"REASON"))
+  . . IF REASON="FU ER" SET STATUS="NEED ER RECORDS"
+  . . IF REASON="FU HOSP" SET STATUS="NEED HOSPITAL RECORDS"
+  . . IF REASON="NEW PAT" SET STATUS="NEED PREVIOUS PHYSICIAN RECORDS"
+  . . IF STATUS'="" DO
+  . . . SET LINES(LINE)=STATUS
+  . . . SET LINE=LINE+1
+  . . DO CONSULTS(DFN,.LINES,.LINE)
+  . . IF '$D(LINES) QUIT
+  . . IF HEADER=0 DO
+  . . . WRITE !
+  . . . WRITE "****************************************************************",!
+  . . . WRITE "              MEDICAL RECORDS NEEDED FOR TODAY'S SCHEDULE",!
+  . . . WRITE "                            " WRITE $$TODAY^TMGDATE(1),!
+  . . . WRITE "               Please deliver this report to MEDICAL RECORDS",!
+  . . . WRITE "****************************************************************",!
+  . . . WRITE "                                            (From TMGRPT1.m)",!!
+  . . . SET HEADER=1
+  . . SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(DFN,0)),"^",3))
+  . . WRITE "[ ] ",$G(APPTARRAY(DT,DFN,"NAME")),?28,"(",DOB,")",?45,$$EXTDATE^TMGDATE(DT),!
+  . . SET LINE=0
+  . . FOR  SET LINE=$ORDER(LINES(LINE)) QUIT:LINE'>0  DO
+  . . . WRITE "        -> ",$G(LINES(LINE)),!
+  . . WRITE !
+ARDN
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+CONSULTS(DFN,ARRAY,X)  ;"
+  ;"Purpose: write a string of text for each overdue consult for a patient
+  NEW IDX SET IDX=0
+  NEW COMPIEN SET COMPIEN=+$ORDER(^ORD(100.01,"B","COMPLETE",""))
+  NEW DCIEN SET DCIEN=+$ORDER(^ORD(100.01,"B","DISCONTINUED",""))
+  NEW CANCELIEN SET CANCELIEN=+$ORDER(^ORD(100.01,"B","CANCELLED",""))
+  ;"
+  FOR  SET IDX=$ORDER(^GMR(123,"F",DFN,IDX)) QUIT:IDX'>0  DO
+  . NEW ZNODE SET ZNODE=$GET(^GMR(123,IDX,0))
+  . NEW STATUS SET STATUS=$PIECE(ZNODE,"^",12)
+  . IF (STATUS=COMPIEN)!(STATUS=DCIEN)!(STATUS=CANCELIEN) QUIT
+  . NEW ORDERTYPE SET ORDERTYPE=$PIECE($GET(^GMR(123.5,$P(ZNODE,"^",5),0)),"^",1)
+  . NEW DUEDATE SET DUEDATE=$$GETDUE(IDX)
+  . IF $$TODAY^TMGDATE>DUEDATE DO
+  . . SET Y=DUEDATE D DD^%DT
+  . . SET ARRAY(X)=ORDERTYPE_" CONSULT WAS SCHEDULED FOR "_Y
+  . . SET X=X+1
+  QUIT
+  ;"
+GETDUE(idx) ;"
+  ;"Purpose: Get the due date for a consult
+  NEW idxWP SET idxWP=0
+  NEW found SET found=0
+  FOR  SET idxWP=+$ORDER(^GMR(123,idx,20,idxWP)) QUIT:(idxWP'>0)!found  do
+  . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
+  . IF line'["An appointment has been scheduled" QUIT
+  . SET found=1
+  . SET line=$GET(^GMR(123,idx,20,idxWP+1,0))
+  . NEW apptDate
+  . if line["*" do
+  . . SET apptDate=$PIECE(line,"*",2)
+  . else  do
+  . . set apptDate=$$TRIM^XLFSTR(line)
+  . IF apptDate[" at " do
+  . . SET apptDate=$p(apptDate," at ",1)_"@"_$p(apptDate," at ",2)
+  . SET Y=$$FMDate^TMGFMUT(apptDate)
+  ;". IF Y>0 do
+  ;". . DO DD^%DT  ;"standardize date
+  ;". ELSE  do
+  ;". . SET Y=apptDate
+  QUIT Y
+  ;"
+  

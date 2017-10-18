@@ -1,4 +1,4 @@
-TMGHTM1 ;TMG/kst-HTML utilities ;7/1/15, 5/7/16, 7/14/17
+TMGHTM1 ;TMG/kst-HTML utilities ;7/14/17, 10/18/17
          ;;1.0;TMG-LIB;**1,17**;08/10/10
  ;
  ;"Utility functions related to documents with HTML formatting
@@ -26,6 +26,7 @@ TMGHTM1 ;TMG/kst-HTML utilities ;7/1/15, 5/7/16, 7/14/17
  ;"$$HTMLTRIM(STR,FLAG,CHARS) -- Trim from HTML text
  ;"STRIPSCR(IEN8925)  --Strip out any <SCRIPT> .. </SCRIPT> from documents
  ;"RMTAGS(TEXT,TAG,FOUND) --REMOVE TAGS
+ ;"RMTAG2(TEXT,OPENTAG,FOUND,KEEPCLOSER) --REMOVE TAGS, EXTENDED
  ;"RPTAGS(TEXT,TAG,NEWTAG,FOUND)  --REPLACE TAGS
  ;"MATCHTAG(HTMLSTR,ALLOWNESTING) --ENSURE MATCHING TAGS IN HTML STRING
  ;"PARSBYTG(HTMLSTR,OUT) --PARSE HTML STRING INTO ARRAY BY TAGS
@@ -390,7 +391,7 @@ SSL1 ;
   ;
 RMTAGS(TEXT,TAG,FOUND) ;"REMOVE TAGS
   ;"Input: TEXT -- PASS BY REFERENCE, AN IN AND OUT PARAMETER
-  ;"       TAG -- The string to search for and remove
+  ;"       TAG -- The string to search for and remove  (a Full-text match)  
   ;"       FOUND -- OPTIONAL.  PASS BY REFERENCE.  Set to 1 if match found, 0 if not
   ;"Results: none
   SET FOUND=0
@@ -399,6 +400,36 @@ RMTAGS(TEXT,TAG,FOUND) ;"REMOVE TAGS
   . SET TEXT=$P(TEXT,TAG,1)_$P(TEXT,TAG,2,999)
   QUIT
   ;"    
+RMTAG2(TEXT,OPENTAG,FOUND,KEEPCLOSER) ;"REMOVE TAGS, EXTENDED
+ ;"Purpose: to remove an ENTIRE tag, based on name of Tag.  For example:
+ ;"      If input string is "<SPAN myParam='baggage'>Crispy Clean</SPAN>"
+ ;"      and OPENTAG="SPAN", then output would be:
+ ;"           "Crispy Clean"
+ ;"Input: TEXT -- PASS BY REFERENCE, AN IN AND OUT PARAMETER
+ ;"       OPENTAG -- This is just the TAG NAME.  E.g. to look for FONT tags,
+ ;"                 then pass "FONT", not "<FONT"
+ ;"       FOUND -- OPTIONAL.  PASS BY REFERENCE.  Returned as 1 if found, otherwise 0
+ ;"       KEEPCLOSER -- OPTIONAL.  DEFAULT=0. If 1, then CLOSING tag that matches
+ ;"                 the opening tag is kept (not removed)
+ ;"Result: None
+ SET FOUND=0
+ SET KEEPCLOSER=+$GET(KEEPCLOSER)
+ NEW UPTAG SET UPTAG=$$UP^XLFSTR(OPENTAG)
+ NEW LOWTAG SET LOWTAG=$$LOW^XLFSTR(UPTAG)
+ NEW PREFIX FOR PREFIX="<","</" DO
+ . IF PREFIX["/",(KEEPCLOSER=1) QUIT
+ . NEW PARTFOUND
+ . FOR  DO  QUIT:(PARTFOUND=0)
+ . . SET PARTFOUND=0
+ . . NEW STR SET STR=$$NEXTCH^TMGSTUT3(.TEXT,0,PREFIX_UPTAG,PREFIX_LOWTAG) QUIT:(STR="")
+ . . NEW POS SET POS=$$POS^TMGSTUT3(STR,.TEXT) QUIT:(POS'>0)
+ . . NEW STRA SET STRA=$EXTRACT(TEXT,1,POS-1)
+ . . NEW P2 SET P2=$FIND(TEXT,">",POS)
+ . . NEW STRB SET STRB="" IF P2>0 SET STRB=$EXTRACT(TEXT,P2,$LENGTH(TEXT))
+ . . SET TEXT=STRA_STRB
+ . . SET PARTFOUND=1,FOUND=1
+ QUIT
+ ;
 RPTAGS(TEXT,TAG,NEWTAG,FOUND)  ;"REPLACE TAGS
   ;"Input: TEXT -- PASS BY REFERENCE, AN IN AND OUT PARAMETER
   ;"       TAG -- The string to search for and REPLACE

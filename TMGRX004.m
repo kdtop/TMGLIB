@@ -678,23 +678,44 @@ MEDIEN(OUT,NAME,LINE)  ;"GET MEDICATION IEN  -- older method
 MDINDN ;  
   QUIT IEN22733
   ;
+MEDXR() ;"GET STORAGE LOCATION OF MEDICATION XREF
+  ;"QUIT $NAME(^TMP("MEDIEN2^TMGRX004",$J))
+  QUIT $NAME(^TMG(22733,"MED_SPECIAL"))
+  ;
+KILLXR ;"Entry point for cross Fileman reference
+  ;"This will kill special array, and then it will be rebuild when next needed.  
+  NEW REF SET REF=$$MEDXR()
+  KILL @REF
+  QUIT
+  ;
+BLDMEDXR  ;"BUILD MEDICATION XREF
+  ;"Setup special formated version of XRef's
+  NEW REF SET REF=$$MEDXR()
+  KILL @REF  
+  NEW OREF SET OREF=$$OREF^DILF(REF)
+  FOR IDX="B","B2","BBV","BRAND" DO MDI2ADD(OREF_""""_IDX_""",","^TMG(22733,"""_IDX_""",")
+  SET @REF=$$NOW^XLFDT
+  QUIT
+  ;
+ENSURMXR  ;"ENSURE MEDICATION XREF
+  NEW REF SET REF=$$MEDXR()
+  ;"IF $DATA(@REF) DO  ;"See if special formated version of XRef's already exists
+  ;". NEW LASTUPDATE SET LASTUPDATE=+$GET(@REF)
+  ;". NEW DELTA SET DELTA=$$FMDIFF^XLFDT($$NOW^XLFDT,LASTUPDATE,2)  ;"results in seconds.
+  ;". IF DELTA>60*5 DO
+  ;". . KILL @REF  ;"delete if data is more than _5_ minutes old.  
+  IF $DATA(@REF)=0 DO BLDMEDXR ;"Setup special formated version of XRef's
+  QUIT
+  ;
 MEDIEN2(OUT,LINE,WORD)  ;"GET MEDICATION IEN, ALT VERSION
   ;"Input: OUT -- PASS BY REFERENCE.  The array that is being filled with information
   ;"       LINE -- the input line containing line from drug table.
   ;"       WORD -- PASS BY REFERENCE.  Filled with Rx name, if found.  
   ;"Result : IEN22733
   SET WORD=""
-  NEW REF SET REF=$NAME(^TMP("MEDIEN2^TMGRX004",$J))
-  NEW OREF SET OREF=$$OREF^DILF(REF)
+  NEW REF,OREF SET REF=$$MEDXR(),OREF=$$OREF^DILF(REF)
   NEW IDX,LONGEST SET LONGEST=0
-  IF $DATA(@REF) DO  ;"See if special formated version of XRef's already exists
-  . NEW LASTUPDATE SET LASTUPDATE=+$GET(@REF)
-  . NEW DELTA SET DELTA=$$FMDIFF^XLFDT($$NOW^XLFDT,LASTUPDATE,2)  ;"results in seconds.
-  . IF DELTA>60*5 DO
-  . . KILL @REF  ;"delete if data is more than _5_ minutes old.  
-  IF $DATA(@REF)=0 DO  ;"Setup special formated version of XRef's
-  . FOR IDX="B","B2","BBV","BRAND" DO MDI2ADD(OREF_""""_IDX_""",","^TMG(22733,"""_IDX_""",")
-  . SET @REF=$$NOW^XLFDT
+  DO ENSURMXR
   NEW TEMPARR,IEN22733 SET IEN22733=0
   FOR IDX="B","B2","BBV","BRAND" DO
   . NEW LONGEST SET LONGEST=$$MAXLMTCH(OREF_""""_IDX_""",",LINE)  ;"Get longest match. 
@@ -994,5 +1015,17 @@ MATCHFRM(IEN22733,OUT,FORM)  ;"GET PREFERRED ALIAS FORM, GIVEN INPUT FORM -- DEL
   NEW AFORM SET AFORM=$PIECE($GET(^PS(50.606,IEN50D606,0)),"^",1)
   SET OUT("FORM","DATABASE")=AFORM
   SET OUT("FORM","PREFERRED")=$$GETPRFAL(IEN22733,SUBIEN) ;"GET PREFERRED FORM ALIAS
+  QUIT
+  ;
+FIXSPLNG(IEN22733,LINE)  ;"FIX SPELLING
+  ;"Input: IEN22733 -- IEN of Rx
+  ;"       LINE -- PASS BY REFERENCE.  Spelling problems are searched and replaced
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(^TMG(22733,IEN22733,.07,IEN)) QUIT:IEN'>0  DO
+  . NEW ZN SET ZN=$GET(^TMG(22733,IEN22733,.07,IEN,0))
+  . NEW BAD SET BAD=$PIECE(ZN,"^",1) QUIT:BAD=""
+  . NEW GOOD SET GOOD=$PIECE(ZN,"^",2)
+  . IF LINE'[BAD QUIT
+  . SET LINE=$$REPLSTR^TMGSTUT3(LINE,BAD,GOOD)
   QUIT
   ;

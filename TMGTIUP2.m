@@ -1,4 +1,4 @@
-TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 4/11/17; 6/26/17
+TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 6/26/17, 10/18/17
          ;;1.0;TMG-LIB;**1,17**;4/11/17
  ;
  ;"Eddie Hagood
@@ -43,7 +43,7 @@ TESTLHPI ;
         ;
 T2()    ;
         NEW TIULASTOV 
-        SET TIULASTOV=478071 ;"//C. HICK   NOTE: DON'T PUT FULL PATIENT NAMES HERE        
+        SET TIULASTOV=505139 ;"//H. CARP.   NOTE: DON'T PUT FULL PATIENT NAMES HERE        
         QUIT $$GETHPI(TIULASTOV)
         ;       
 LASTHPI(DFN)  ;"Return the last HPI section, with processing, formatting etc.
@@ -156,8 +156,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         NEW TMGRESULT SET TMGRESULT="1^OK"
         ;        
         ;"NOTE: I encountered situation where there were so many <FONT ..> tags, that
-        ;"      the DOM processor (below) was blowing the stack. So this is a very
-        ;"      crude solution for that problem.
+        ;"      the DOM processor (below) was blowing the stack. 
         DO KILLFONT(.TIUARRAY)  
         ;
         ;"PROCESS NOTE VIA HTML DOM, using callback function.
@@ -215,7 +214,12 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         ;"                           
         ;"Parse Items
         NEW TABLES,SECTION SET IDX=1       
-        NEW DELIMITER SET DELIMITER=$SELECT(TMGHPI["<LI>":"<LI>",1:"*") 
+        ;"NEW DELIMITER SET DELIMITER=$SELECT(TMGHPI["<LI>":"<LI>",1:"*") 
+        ;"10-12-17, set delimiter below instead to catch the first delimiter
+        ;"          found rather than to give weight to ordered list items
+        NEW DELIMITER SET DELIMITER=$$NEXTCH^TMGSTUT3(TMGHPI,0,"<LI>","*")
+        ;"If the delimiter is *, then we will replace any <LI>'s to *
+        IF DELIMITER="*" SET TMGHPI=$$REPLACE^TMGHTM1(TMGHPI,"<LI>","*")
         SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)                            
         NEW PREVFOUND SET PREVFOUND=0
         SET OPTION("GROUPING")=0
@@ -564,16 +568,17 @@ GROUP(IDX,TOPICS,NUMOFGROUPS)
 GETLETTER(GRPNUMBER)  ;"
         QUIT $TR(GRPNUMBER,"123456789","ABCDEFGHI")
         ;"
-KILLFONT(TIUARRAY) ;"Kill certain FONT tags
+KILLFONT(TIUARRAY) ;"Kill FONT tags
         ;"Input: TIUARRAY -- PASS BY REFERENCE.  FORMAT:
         ;"          TIUARRAY(#)=<note text>  <-- array holds ENTIRE typical TMG note
+        ;"NOTE: I had to do this because some notes were getting so clogged with 
+        ;"      font tags, that the DOM processor was blowing it's stack.  
         ;"Results: none
         NEW IDX SET IDX=0
         FOR  SET IDX=$ORDER(TIUARRAY(IDX)) QUIT:IDX'>0  DO
         . NEW LINE SET LINE=$GET(TIUARRAY(IDX)) QUIT:LINE=""
-        . NEW INITLINE SET INITLINE=LINE
-        . DO RMTAGS^TMGHTM1(.LINE,"<FONT size=3>")   
-        . DO RMTAGS^TMGHTM1(.LINE,"<FONT size=1>")
+        . NEW INITLINE SET INITLINE=LINE   
+        . DO RMTAG2^TMGHTM1(.LINE,"FONT") 
         . IF LINE'=INITLINE SET TIUARRAY(IDX)=LINE
         QUIT
         ;
