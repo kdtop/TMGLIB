@@ -211,7 +211,7 @@ SETFMENV()  ;"SETUP FILE MESSAGE TYPE MESSAGES ENVIRONMENT.
         ;"Purpose: setup of environment for processing PATHGROUP txt files.
         ;"Input: Uses HLMTIEN,HLMTIENS in global scope. 
         ;"Output: Sets variables with global scope:
-        ;"        MSGSTORE, TMGHL7MSG, IEN22720,TMGU, IEN62D4
+        ;"        MSGSTORE, TMGHL7MSG, IEN22720, TMGU, IEN62D4, IEN772, IEN773
         ;"Results: 1 if OK, or -1^Message
         ;
         ;"NOTE: SETUPENV^TMGHL7U setups up environment for editing mapping etc.

@@ -560,6 +560,7 @@ PTADD(RESULT,INFO)  ;" ADD PATIENT  RPC Entry point
         . ELSE  IF TMGKEY="CITY" SET PATIENT("CITY")=INFO("CITY")
         . ELSE  IF TMGKEY="STATE" SET PATIENT("STATE")=INFO("STATE")
         . ELSE  IF TMGKEY="ZIP" SET PATIENT("ZIP")=INFO("ZIP")
+        . ELSE  IF TMGKEY="SEQUELNUM" SET PATIENT("SEQUELNUM")=INFO("SEQUELNUM")
         SET DFN=$$GETDFN^TMGGDFN(.PATIENT,1)  ;"1=will autoregister if needed
         IF DFN>0 DO
         . IF $PIECE(DFN,"^",2)=1 SET RESULT=+DFN  ;"Added new
@@ -771,7 +772,7 @@ GETURLS(RESULT,DFN) ;
         ;"SET RESULT(2)="Lab Test^http://{{ws}}:{{wp}}/filesystem/lab/index.html?DFN=9182"
         SET RESULT(IDX)=$$MAKEURL^TMGRST03(DFN),IDX=IDX+1
         ;"BELOW 1 LINE IS TEMP... REMOVE LATER
-        SET RESULT(IDX)="Allscripts^https://eprescribe.allscripts.com/Login.aspx?ReturnUrl=%2f",IDX=IDX+1
+        ;"SET RESULT(IDX)="Allscripts^https://eprescribe.allscripts.com/Login.aspx?ReturnUrl=%2f",IDX=IDX+1
         ;"Specify all web tabs not specified above to be hidden/removed in CPRS
         FOR  QUIT:IDX>4  DO  
         . SET RESULT(IDX)="^<!HIDE!>",IDX=IDX+1

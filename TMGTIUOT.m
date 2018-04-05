@@ -11,6 +11,15 @@ TMGTIUOT ;TMG/kst-Text objects for use in CPRS ; 7/2/14
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
+HRCOLOR() 
+        QUIT "#ffff99"
+        ;"
+HALFCOLOR() 
+        QUIT "#ffd5b2"
+        ;"
+AUTOCOLOR()
+        QUIT "#ffa55b"
+        ;"
 CSDBDATE ;"
         ;"Purpose: This is to test the value of *CSM Contract.
         ;"         If the date is older than 7 months, a warning will
@@ -36,9 +45,63 @@ FLAGMSG(TEST,MSG) ;
         IF TEST QUIT $$HLIGHT_MSG_$$EHLIGHT
         QUIT ""
         ;"
-HLIGHT()
-        QUIT "{HTML:<B><FONT style=""BACKGROUND-COLOR:#ff0000"">}"
+HLIGHT(COLOR)
+        SET COLOR=$G(COLOR)
+        IF COLOR="" SET COLOR="#ff0000"
+        QUIT "{HTML:<B><FONT style=""BACKGROUND-COLOR:"_COLOR_""">}"
         ;"
 EHLIGHT()
         QUIT "{HTML:</B></FONT>}"
+        ;"
+CHKMED(MED,AGE)  ;"
+        ;"Purpose: This function checks each medication 
+        SET AGE=+$G(AGE)
+        SET MED=$$HTML2TXS^TMGHTM1(MED)
+        IF AGE>64 SET MED=$$ISMEDHR(MED)
+        SET MED=$$ISHALF(MED)
+        SET MED=$$RPLCMEDS(MED)
+        SET MED=$$AUTOMED(MED)
+CHDN
+        QUIT MED
+        ;"
+ISMEDHR(MEDNAME)  ;"Is this med listed as High Risk
+        NEW TABLEIEN SET TABLEIEN=+$O(^TMG(22708,"B","HIGH RISK MEDS",0))
+        IF TABLEIEN'>0 QUIT MEDNAME
+        NEW ONEMED SET ONEMED=""
+        NEW FOUND SET FOUND=0
+        FOR  SET ONEMED=$O(^TMG(22708,TABLEIEN,3,"B",ONEMED)) QUIT:(ONEMED="")!(FOUND=1)  DO
+        . IF $$UP^XLFSTR(MEDNAME)[$$UP^XLFSTR(ONEMED) DO
+        . . SET MEDNAME=$$WRAPTEXT(MEDNAME,$$HRCOLOR)
+        . . SET FOUND=1
+        QUIT MEDNAME
+        ;"
+ISHALF(MEDNAME)  ;"Is this med dosage for half
+        NEW EXCLUDE SET EXCLUDE=$$EXCLHALF(MEDNAME)
+        IF EXCLUDE=1 GOTO HALFDN
+        IF (MEDNAME[" 1/2 ")!(MEDNAME["HALF") SET MEDNAME=$$WRAPTEXT(MEDNAME,$$HALFCOLOR)
+HALFDN
+        QUIT MEDNAME
+        ;"
+AUTOMED(MEDNAME)  ;"Was this med autoadded
+        IF MEDNAME[$$ERXSUFFX^TMGTIUO5() SET MEDNAME=$$WRAPSECT(MEDNAME,$$AUTOCOLOR,$$ERXSUFFX^TMGTIUO5())
+        QUIT MEDNAME
+        ;"
+WRAPTEXT(MEDNAME,COLOR)  ;"Highlight the med name with provided color
+        QUIT $$HLIGHT(COLOR)_MEDNAME_$$EHLIGHT
+        ;"
+WRAPSECT(MEDNAME,COLOR,SECTION)  ;"Highlight a specific section
+        QUIT $P(MEDNAME,SECTION,1)_$$HLIGHT(COLOR)_SECTION_$$EHLIGHT_$P(MEDNAME,SECTION,2,999)
+        ;"
+EXCLHALF(MEDNAME)  ;"EXCLUDE MEDICATION FROM CHECKING FOR HALF DOSE
+        NEW EXCLUDE SET EXCLUDE=0
+        NEW TABLEIEN SET TABLEIEN=+$O(^TMG(22708,"B","HALF DOSE EXCLUDE MEDS",0))
+        IF TABLEIEN'>0 QUIT EXCLUDE
+        NEW ONEMED SET ONEMED=""
+        FOR  SET ONEMED=$O(^TMG(22708,TABLEIEN,3,"B",ONEMED)) QUIT:(ONEMED="")!(EXCLUDE=1)  DO
+        . IF $$UP^XLFSTR(MEDNAME)[$$UP^XLFSTR(ONEMED) SET EXCLUDE=1
+        QUIT EXCLUDE
+        ;"
+RPLCMEDS(MEDLIST)  ;"
+        SET MEDLIST=$$REPLSTR^TMGSTUT3(MEDLIST,"ASA ","Aspirin ")
+        QUIT MEDLIST
         ;"

@@ -450,7 +450,7 @@ MENU(OPTIONS,DEFCHOICE,USERRAW)  ;
    ;"          OPTIONS(-1,"INDENT")=# of spaces to add to beginning of each line. 
    ;"        DEFCHOICE: OPTIONAL, the default menu value
    ;"        USERRAW : OPTIONAL, PASS BY REFERENCE, an OUT PARAMETER.  Returns users raw input
-   ;"Results: The selected ReturnValue (or DispNumber IF no ReturnValue provided), or ^ for abort
+   ;"Results: The selected ReturnValue (or DispNumber if no ReturnValue provided), or ^ for abort
    NEW RESULT SET RESULT="^"
    NEW S,FG,BG,HDREXTRA
    NEW WIDTH SET WIDTH=50

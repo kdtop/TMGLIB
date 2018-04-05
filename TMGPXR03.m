@@ -545,7 +545,7 @@ NEXTDATE(DATE,DAYSTOCHECK)   ;"
         . SET COUNT=COUNT+1
         QUIT TMGRESULT
         ;"
-GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES)  ;"
+GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES,EXCLUDE)  ;"
         ;"Purpose: This function returns an array
         ;"         of all appointment inside the given 
         ;"         date range.
@@ -553,7 +553,10 @@ GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES)  ;"
         ;"   BEGDT-FM START DATE
         ;"   ENDDT-(Optional)FM END DATE. Will default to BEGDT if not provided
         ;"   STATUSES-(Optional) Statuses to return. Defaults to "A[ctive]"
+        ;"   EXCLUDE- (Optional) Exclude nursing appointments
         NEW NUMOFAPPTS SET NUMOFAPPTS=0
+        SET EXCLUDE=$G(EXCLUDE)
+        IF EXCLUDE'=0 SET EXCLUDE=1
         SET STATUSES=$$UP^XLFSTR($G(STATUSES))
         IF STATUSES="" SET STATUSES="A"
         SET BEGDT=$PIECE($GET(BEGDT),",",1)
@@ -567,8 +570,13 @@ GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES)  ;"
         . . NEW IDX SET IDX=$ORDER(^TMG(22723,"DT",DTIDX,DFN,0))
         . . NEW STATUS SET STATUS=$GET(^TMG(22723,"DT",DTIDX,DFN,IDX))
         . . IF STATUSES[STATUS DO
-        . . . SET TMGRESULT(DFN,DTIDX)=""
-        . . . SET NUMOFAPPTS=NUMOFAPPTS+1
+        . . . IF EXCLUDE=1 DO
+        . . . . NEW REASON SET REASON=$P($GET(^TMG(22723,DFN,1,IDX,0)),"^",4)
+        . . . . IF REASON="INJ ONLY" QUIT
+        . . . . IF REASON["PROTIME" QUIT
+        . . . . IF REASON["SUTRE" QUIT
+        . . . . SET TMGRESULT(DFN,DTIDX)=""
+        . . . . SET NUMOFAPPTS=NUMOFAPPTS+1
         QUIT NUMOFAPPTS
         ;"
 APPTREMS(TMGRESULT,REMARR,BEGDT,ENDDT)  ;"

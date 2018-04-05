@@ -174,10 +174,10 @@ PTONASA(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         IF $DATA(TMGMEDARRAY) DO
         . NEW IDX SET IDX=0
         . FOR  SET IDX=$ORDER(TMGMEDARRAY(IDX)) QUIT:IDX'>0  DO
-        . . IF $$UP^XLFSTR($GET(TMGMEDARRAY(IDX)))["ASA " DO
+        . . IF ($$UP^XLFSTR($GET(TMGMEDARRAY(IDX)))["ASA ")!($$UP^XLFSTR($GET(TMGMEDARRAY(IDX)))["ASPIRIN") DO
         . . . DO NOW^%DTC
         . . . SET TEST=1
-        . . . SET DATE=X
+        . . . SET DATE=$$TODAY^TMGDATE
         QUIT        
         ;
 PTONTEST(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
@@ -200,7 +200,7 @@ CHECKTBLMEDS(TMGMEDARRAY,TBLIEN,TEST,DATE)
         . . IF $$UP^XLFSTR($GET(TMGMEDARRAY(IDX)))[$$UP^XLFSTR(MEDNAME) DO
         . . . DO NOW^%DTC
         . . . SET TEST=1
-        . . . SET DATE=X
+        . . . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
 COPDINC(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
@@ -216,7 +216,7 @@ COPDINC(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         . IF INS2INC[INSIEN DO
         . . DO NOW^%DTC
         . . SET TEST=1
-        . . SET DATE=X
+        . . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
 COPDRESV(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
@@ -273,6 +273,26 @@ BCADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         . IF THISIEN=BCBSAIEN DO
         . . SET TEST=1
 BCDN
+        QUIT
+        ;"
+A1CISDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To detmine if the patient is a DM range A1C
+        SET TEST=0
+        SET DATE=0
+        NEW GLUCOSEHIGH SET GLUCOSEHIGH=200
+        NEW A1CHIGH SET A1CHIGH="6.4"
+        NEW THRESHOLD,RESULTS,TESTRESULT
+        DO GETVALS^TMGLRR01(TMGDFN_"^2",97,.RESULTS)             
+        DO GETVALS^TMGLRR01(TMGDFN_"^2",175,.RESULTS)
+        NEW TESTNAME,DATE SET TESTNAME=1
+        FOR  SET TESTNAME=$O(RESULTS(TESTNAME)) QUIT:+TESTNAME'>0  DO
+        . IF TESTNAME["GLUCOSE" SET THRESHOLD=GLUCOSEHIGH
+        . IF TESTNAME["A1C" SET THRESHOLD=A1CHIGH
+        . SET DATE=0
+        . FOR  SET DATE=$O(RESULTS(TESTNAME,DATE)) QUIT:DATE'>0  DO
+        . . SET TESTRESULT=+$G(RESULTS(TESTNAME,DATE))
+        . . IF TESTRESULT>THRESHOLD SET TEST=1,DATE=$$TODAY^TMGDATE
+A1CDN
         QUIT
         ;"
 GETIUIEN(NAME) ;
@@ -903,7 +923,7 @@ HTNMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         NEW TMGRESULT SET TMGRESULT=$$ONHTNTX^TMGC0QT4(TMGDFN,X)
         IF TMGRESULT=1 DO
         . SET TEST=1
-        . SET DATE=X
+        . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
 LIPIDMED(TMGDFN,TEST,DATE,DATA,TEXT) ;
@@ -912,7 +932,7 @@ LIPIDMED(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
-        ; FINDING PARAMETER will be passed in here.
+        ;"FINDING PARAMETER will be passed in here.
         ;"       DATE -- AN OUT PARAMETER.  Date of finding.
         ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
         ;"       TEXT -- Text to be display in the Clinical Maintenance
@@ -920,11 +940,15 @@ LIPIDMED(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Results: none
         SET TEST=0
         SET DATE=0
-        NEW X DO NOW^%DTC
-        NEW TMGRESULT SET TMGRESULT=$$ONLIPDTX^TMGC0QT4(TMGDFN,X)
+        ;"//kt NEW X DO NOW^%DTC
+        ;"//kt NOTE: Something downstream was killing X, so using different var name
+        NEW ADT SET ADT=$$NOW^XLFDT\1
+        ;"//kt NEW TMGRESULT SET TMGRESULT=$$ONLIPDTX^TMGC0QT4(TMGDFN,X)
+        NEW TMGRESULT SET TMGRESULT=$$ONLIPDTX^TMGC0QT4(TMGDFN,ADT)
         IF TMGRESULT=1 DO
         . SET TEST=1
-        . SET DATE=X
+        . ;"//kt SET DATE=X   <--- was getting undefined error here.  
+        . SET DATE=ADT
         QUIT
         ;"
 DMMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
@@ -945,7 +969,7 @@ DMMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         NEW TMGRESULT SET TMGRESULT=$$ONDMTX^TMGC0QT4(TMGDFN,X)
         IF TMGRESULT=1 DO
         . SET TEST=1
-        . SET DATE=X
+        . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
 PTOWBMI(TMGDFN,TEST,DATE,DATA,TEXT) ;
@@ -966,17 +990,140 @@ PTOWBMI(TMGDFN,TEST,DATE,DATA,TEXT) ;
         NEW BMI SET BMI=$$ONEVITAL^TMGTIUOJ(+$GET(DFN),.TIU,"BMI")
         IF BMI>25 DO
         . SET TEST=1
-        . SET DATE=X
+        . SET DATE=$$TODAY^TMGDATE
         QUIT
-
-
-
-
-
-
-
-
-
-
-
-
+        ;"
+HASPNEUM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"PURPOSE: WILL BE TRUE IF THE PATIENT HAS HAD A PNEUMOCOCCAL
+        ;"         VACCINE IN THE LAST 12 MONTHS
+        SET TEST=0,DATE=0
+        NEW IMMLIST SET IMMLIST="^19^96^132^"
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$O(^AUPNVIMM("C",TMGDFN,IDX)) QUIT:IDX'>0  DO
+        . NEW IMMIEN SET IMMIEN="^"_$P($G(^AUPNVIMM(IDX,0)),"^",1)_"^"
+        . IF IMMLIST'[IMMIEN QUIT
+        . NEW VSTIEN SET VSTIEN=$P($G(^AUPNVIMM(IDX,0)),"^",3)
+        . NEW THISDATE SET THISDATE=$PIECE($GET(^AUPNVSIT(VSTIEN,0)),"^",1)
+        . NEW X1,X2,X
+        . ;"SET X1=THISDATE,X2=$$TODAY^TMGDATE
+        . SET X1=$$TODAY^TMGDATE,X2=THISDATE
+        . DO ^%DTC
+        . IF X<365 DO
+        . . SET TEST=1
+        . . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"
+NEEDSP23(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
+        ;"PURPOSE: WILL BE TRUE IF THE PATIENT IS BETWEEN 19-64 AND DIABETIC
+        ;"         OR 65+
+        ;"         WHY (OPTIONAL) - BY REFERENCE, RETURNS REASON WHY
+        SET TEST=0,DATE=0
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        SET WHY=$G(WHY)
+        IF AGE>64 DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        . SET WHY="Patient is over 65 ("_AGE_")."
+        ELSE  IF AGE>18 DO
+        . NEW DMTEST,DMDATE,DMDATA,DMTEXT
+        . DO PTHASDM(TMGDFN,.DMTEST,.DMDATE,.DMDATA,.DMTEXT)
+        . IF DMTEST=1 DO
+        . . SET TEST=1
+        . . SET DATE=$$TODAY^TMGDATE
+        . . SET WHY="Patient is between 18 and 65 ("_AGE_") and is diabetic."
+        QUIT
+P23RESVL(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
+        ;"PURPOSE: WILL BE TRUE IF THE PATIENT'S P23 IS RESOLVED.
+        ;"         CONSIDERED RESOLVED IF:
+        ;"               * IT WAS RECEIVED WHEN PATIENT WAS OVER 65
+        ;"               * PATIENT IS UNDER 65 AND HAS RECEIVED ONE
+        ;"               * PATIENT IS OVER 65, AND RECEIVED ONE WHEN
+        ;"                    UNDER 65, AND IT HAS BEEN LESS THAN 5 YEARS 
+        ;"                    SINCE ADMINISTRATION
+        SET TEST=0,DATE=0
+        SET WHY=$G(WHY)
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        NEW ADMINARR
+        DO P23ADMIN(TMGDFN,.ADMINARR)
+        IF AGE>64.99 DO
+        . NEW THISAGE SET THISAGE=0
+        . FOR  SET THISAGE=$O(ADMINARR(THISAGE)) QUIT:THISAGE'>0  DO
+        . . IF THISAGE>64.99 DO
+        . . . SET TEST=1
+        . . . SET DATE=$P($G(ADMINARR(THISAGE)),"^",1)
+        . . IF THISAGE<65 DO
+        . . . NEW YEARSINCE
+        . . . SET YEARSINCE=$P($G(ADMINARR(THISAGE)),"^",2)
+        . . . IF YEARSINCE<5 DO
+        . . . . SET TEST=1
+        . . . . SET DATE=$P($G(ADMINARR(THISAGE)),"^",1)
+        . . SET WHY=WHY_$C(13,10)_"*At "_THISAGE_" patient received one on "_$$EXTDATE^TMGDATE($P($G(ADMINARR(THISAGE)),"^",1))_"."
+        . IF TEST=1 SET WHY="THIS VACCINE REMINDER IS RESOLVED AND NOT DUE."
+        ELSE  DO
+        . NEW THISAGE SET THISAGE=0
+        . FOR  SET THISAGE=$O(ADMINARR(THISAGE)) QUIT:THISAGE'>0  DO
+        . . SET TEST=1
+        . . SET DATE=$P($G(ADMINARR(THISAGE)),"^",1) 
+        . IF TEST=0 SET WHY=WHY_" Patient has not previously had vaccination according to our records."
+        QUIT
+        ;"
+P23ADMIN(TMGDFN,AGEARR)  ;"Purpose: get a listing of ages when P23 was administered
+        ;"AGEARR (PASS BY REF):
+        ;"          AGEARR(AGE)=DATE ADMINISTERED^AGE WHEN RECEIVED
+        NEW IMMLIST SET IMMLIST="^19^96^"
+        NEW DOB SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3)
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$O(^AUPNVIMM("C",TMGDFN,IDX)) QUIT:IDX'>0  DO
+        . NEW IMMIEN SET IMMIEN=$P($G(^AUPNVIMM(IDX,0)),"^",1)
+        . IF IMMLIST'[IMMIEN QUIT
+        . NEW VSTIEN SET VSTIEN=$P($G(^AUPNVIMM(IDX,0)),"^",3)
+        . NEW THISDATE SET THISDATE=$PIECE($GET(^AUPNVSIT(VSTIEN,0)),"^",1)
+        . ;"GET AGE ADMINISTERED
+        . NEW X1,X2,X
+        . SET X1=THISDATE,X2=DOB
+        . DO ^%DTC
+        . NEW AGEATADMIN SET AGEATADMIN=X/365
+        . SET AGEATADMIN=$J(AGEATADMIN,"",2)
+        . ;"GET TIME SINCE ADMINISTERED
+        . SET X1=$$TODAY^TMGDATE,X2=THISDATE
+        . DO ^%DTC
+        . NEW YRSSINCE SET YRSSINCE=X/365
+        . SET YRSSINCE=$J(YRSSINCE,"",2)       
+        . SET AGEARR(AGEATADMIN)=THISDATE_"^"_YRSSINCE
+        QUIT
+        ;"
+P23WHY(TMGDFN)  ;"Purpose: To return the reason why P23 is due
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW TEST,DATE,DATA,TEXT
+        DO NEEDSP23(TMGDFN,.TEST,.DATE,.DATA,.TEXT,.TMGRESULT)
+        IF TEST=0 GOTO P23DN  DO
+        . SET TMGRESULT="NOT DUE"
+        DO P23RESVL(TMGDFN,.TEST,.DATE,.DATA,.TEXT,.TMGRESULT)
+P23DN
+        QUIT TMGRESULT
+        ;"
+CKDSTAGE(TMGDFN)  ;"Used by TMG CKD STAGE tiu object
+        ;"Purpose: to return the CKD stage for the given patient
+        IF +$G(TMGDFN)'>0 DO  GOTO CKDDN
+        . SET TMGRESULT="NO DFN RECEIVED BY TIU OBJECT"
+        NEW TMGRESULT SET TMGRESULT="NO CKD STAGE DETERMINED "
+        NEW LASTEGFR,RESULTS,DATEARR,DATE,LASTDATE
+        DO GETVALS^TMGLRR01(TMGDFN_"^2",5111,.RESULTS)   ;"eGFR_WHITE
+        DO GETVALS^TMGLRR01(TMGDFN_"^2",5070,.RESULTS)   ;"GLOMERULAR FILTRATION RATE PANEL
+        NEW LABNAME SET LABNAME=""
+        FOR  SET LABNAME=$O(RESULTS(LABNAME)) QUIT:LABNAME=""  DO
+        . SET DATE=0
+        . FOR  SET DATE=$O(RESULTS(LABNAME,DATE)) QUIT:DATE'>0  DO
+        . . SET DATEARR(DATE)=$GET(RESULTS(LABNAME,DATE))
+        SET DATE=9999999,LASTDATE=$O(DATEARR(DATE),-1)
+        SET LASTEGFR=+$G(DATEARR(LASTDATE))
+        IF LASTEGFR'>0 DO  GOTO CKDDN
+        IF LASTEGFR>89 SET TMGRESULT="CKD STAGE = 1. "
+        ELSE  IF LASTEGFR>59 SET TMGRESULT="CKD STAGE = 2. "
+        ELSE  IF LASTEGFR>44 SET TMGRESULT="CKD STAGE = 3a. "
+        ELSE  IF LASTEGFR>29 SET TMGRESULT="CKD STAGE = 3b. "
+        ELSE  IF LASTEGFR>14 SET TMGRESULT="CKD STAGE = 4. "
+        ELSE  IF LASTEGFR<15 SET TMGRESULT="CKD STAGE = 5. "
+        SET TMGRESULT=TMGRESULT_"(LAST EGFR="_LASTEGFR_" ON "_$$EXTDATE^TMGDATE(LASTDATE)_")"
+CKDDN   QUIT TMGRESULT
+        ;"

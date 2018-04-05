@@ -47,6 +47,15 @@ ERR     WRITE !,$PIECE($ZS,",",2,99),!
 EXIT    USE $PRINCIPAL:(ctrap="":exc="")
         QUIT
         ;"
+GETPCENT(PCENT,TOTBLOCKS)  ;"UPDATE PCENT & TOTBLOCKS (BOTH SHOULD BE SENT BY REFERENCE)
+        NEW DBARRAY
+        DO %FREECNT(0,"DBARRAY")
+        NEW DB SET DB=""
+        FOR  SET DB=$ORDER(DBARRAY(DB)) QUIT:DB=""  DO
+        . SET PCENT=$GET(DBARRAY(DB,"PERCENT FREE"))
+        . SET TOTBLOCKS=$GET(DBARRAY(DB,"TOTAL"))
+        QUIT
+        ;"
 TMGFCENT
         ;"Purpose: To find free database blocks and create an alert if any
         ;"         are below 1%
@@ -66,21 +75,64 @@ HNDLSIZ
         NEW DB,PCENT,TOTBLOCKS,DATA
         SET DATA=$GET(XQADATA)
         SET DB=$PIECE(DATA,"^",1)
-        SET PCENT=$PIECE(DATA,"^",2)
-        SET TOTBLOCKS=$PIECE(DATA,"^",3)
+        ;"SET PCENT=$PIECE(DATA,"^",2)
+        ;"SET TOTBLOCKS=$PIECE(DATA,"^",3)
+        DO GETPCENT(.PCENT,.TOTBLOCKS)
         WRITE !,"*****************************************************************************"
         WRITE !,DB_" ONLY HAS "_PCENT_"% SPACE REMAINING. THERE ARE "_TOTBLOCKS_" TOTAL BLOCKS.",!
         WRITE "*****************************************************************************",!
-        READ !,"HOW MANY BLOCKS WOULD YOU LIKE TO ADD TO THIS DATABASE? >> ",NUMBER:$GET(DTIME,3600)
-        SET NUMBER=+$GET(NUMBER)
-        IF NUMBER'>0 WRITE !,"NO SIZE INCREASE INDICATED.",!,"**NOTE: The size increase can be achieved manually by running: ",!,"  -> mupip extend -blocks=<# of blocks to increase> <Database name>" QUIT
-        WRITE !
-        NEW HOOKCMD SET HOOKCMD="mupip extend -blocks="_NUMBER_" "_DB
-        ZSYSTEM HOOKCMD
-        W !   ;",$ZSYSTEM&255,!   ;"WRITE RESULT
+        NEW MENU,USERPICK,PERCENT
+HDSZ1   KILL MENU
+        SET MENU(0)="Select option for growing database"
+        SET MENU(0,1)=DB_" HAS "_PCENT_"% SPACE REMAINING. "
+        SET MENU(0,2)="THERE ARE "_TOTBLOCKS_" TOTAL BLOCKS."
+        SET MENU(1)="Grow database by 10%"_$CHAR(9)_"GROW 10%"
+        SET MENU(2)="Set size to 10% free blocks"_$CHAR(9)_"SET 10% FREE"
+        SET MENU(3)="Enter a number of blocks to add"_$CHAR(9)_"ASK ADD"
+        SET MENU(4)="Enter a % to grow database by"_$CHAR(9)_"ASK GROW %"
+        SET MENU(5)="Enter a % to set for free space"_$CHAR(9)_"ASK % FREE"
+        SET MENU(6)="Quit"_$CHAR(9)_"^"
+        SET USERPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        IF USERPICK["^" GOTO HDSQ
+        IF USERPICK="GROW 10%" DO
+        . SET NUMBER=TOTBLOCKS*.1
+        ELSE  IF USERPICK="SET 10% FREE" DO
+        . SET PERCENT=(10-PCENT)*.01
+        . SET NUMBER=TOTBLOCKS*PERCENT
+        ELSE  IF USERPICK="ASK ADD" DO
+        . READ !,"HOW MANY BLOCKS WOULD YOU LIKE TO ADD TO THIS DATABASE? >> ",NUMBER:$GET(DTIME,3600)
+        . WRITE !
+        . SET NUMBER=+$GET(NUMBER)        
+        ELSE  IF USERPICK="ASK GROW %" DO 
+        . READ !,"WHAT PERCENTAGE WOULD YOU LIKE TO GROW THIS DATABASE? >> ",PERCENT:$GET(DTIME,3600)
+        . WRITE !
+        . SET PERCENT=PERCENT*.01
+        . SET NUMBER=TOTBLOCKS*PERCENT
+        ELSE  IF USERPICK="ASK % FREE" DO 
+        . READ !,"WHAT PERCENTAGE WOULD YOU LIKE THIS DATABASE TO HAVE FREE? >> ",PERCENT:$GET(DTIME,3600)
+        . WRITE !
+        . SET PERCENT=(PCENT-PERCENT)*.01
+        . SET NUMBER=TOTBLOCKS*PERCENT
+        IF NUMBER'>0 DO  
+        . WRITE !,"NO SIZE INCREASE INDICATED."
+        . WRITE "**NOTE: The size increase can be achieved manually by running: ",!
+        . WRITE "  -> mupip extend -blocks=<# of blocks to increase> <Database name>",!
+        ELSE  DO
+        . DO DOADDBLK(NUMBER) ;"ADD BLOCKS TO DATABASE
+        DO GETPCENT(.PCENT,.TOTBLOCKS)
+        GOTO HDSZ1
+HDSQ    ;        
         DO %FREECNT(1)   
         QUIT
         ;"
+DOADDBLK(NUMBER) ;"ADD BLOCKS TO DATABASE
+        NEW HOOKCMD SET HOOKCMD="mupip extend -blocks="_NUMBER_" "_DB
+        ZSYSTEM HOOKCMD
+        WRITE !   ;",$ZSYSTEM&255,!   ;"WRITE RESULT
+        NEW OUT
+        DO %FREECNT(1,.OUT)
+        QUIT
+        ;
 SENDALERT(RECIPIENT,HEADING,MSG,HANDLER,DATA) ;"SEND ALERT
   ;"Input -- RECIPIENT -- IEN in NEW PERSON file
   ;"         HEADING -- The header message (show in CPRS)

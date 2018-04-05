@@ -1,4 +1,4 @@
-TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ; 8/12/15, 5/12/17
+TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ; 5/12/17, 3/7/18
               ;;1.0;TMG-LIB;**1**;7/21/13
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS UTILITY
@@ -35,6 +35,8 @@ TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ; 8/12/15, 5/12/17
  ;"LOADMSG2(TMGTESTMSG) -- Get message by allowing user to pick from HFS
  ;"EDITMSG(TMGTESTMSG) --Edit message array via HFS (Linux) joe text editor.
  ;"VIEWMSG(MSG) -- Display currently loaded HL7 Message.
+ ;"VIEWDIFF(OUT,FPNAME1,FPNAME2,PARAMS) -- GET DIFF OUTPUT BETWEEN 2 HL7 MESSAGE FILES
+ ;"VWMSGDIF(OUT,MSG1,MSG2,PARAMS) -- GET DIFF OUTPUT BETWEEN 2 HL7 MESSAGE ARRAYS
  ;"SUPPTIME() -- Suppress time of labwork
  ;"=======================================================================
  ;" API - Private Functions
@@ -93,8 +95,13 @@ LOADHL7(FNAME,ARRAY,MSH) ;"LOAD FILE INTO ARRAY
         NEW TMGRESULT,OPTION
         SET OPTION("LINE-TERM")=$CHAR(13)  ;"NOTE: HL7 messages have just #13 as line terminator.    
         SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)
-        NEW LINE SET LINE=$ORDER(ARRAY(0))
-        SET MSH=$GET(ARRAY(LINE))        
+        NEW LINENUM SET LINENUM=$ORDER(ARRAY(0))
+        SET MSH=$GET(ARRAY(LINENUM)) 
+        NEW BOM SET BOM=$CHAR(239)_$CHAR(187)_$CHAR(191)
+        NEW PREFIX SET PREFIX=$EXTRACT(MSH,1,3)
+        IF PREFIX=BOM DO
+        . SET MSH=$EXTRACT(MSH,4,$LENGTH(MSH))
+        . SET ARRAY(LINENUM)=MSH
         IF MSH'["MSH" DO              
         . SET TMGRESULT="-1^'MSH' not found on first line.  Got: '"_MSH_"'"
 LDHL7DN QUIT TMGRESULT        
@@ -174,7 +181,7 @@ MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 
         . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)        
 M7MADN  QUIT TMGRESULT
         ;
-MKHLMAR2(MSGARRAY,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
+MKHLMAR2(MSGARRAY,IEN772,IEN773)  ;"Take input message array, and create a NEW HL7 message
         ;"Purpose: To take input message array, and create a NEW HL7 MESSAGE TEXT, for use by parsing system
         ;"Input: MSGARRAY --  PASS BY REFERENCE, Array holding text of full HL7 message.  Format:
         ;"            MSGARRAY(#)=<text> , **including MSH as first line**
@@ -458,7 +465,7 @@ EDITMSG(TMGTESTMSG) ;"Edit message array via HFS (Linux) joe text editor.
         . DO PRESS2GO^TMGUSRI2
         QUIT
         ;        
-VIEWMSG(MSG) ;
+VIEWMSG0(MSG) ;
         ;"Purpose: Display currently loaded HL7 Message.
         ;"Input: MSG -- Pass by reference.
         SET IOS=$GET(IOS,60)
@@ -478,6 +485,77 @@ VIEWMSG(MSG) ;
         DO PRESS2GO^TMGUSRI2
         QUIT
         ;        
+VIEWMSG(MSG) ;
+        ;"Purpose: Display currently loaded HL7 Message.
+        ;"Input: MSG -- Pass by reference.
+        NEW %ZIS
+        SET %ZIS("A")="Enter Output Device: "
+        SET %ZIS("B")="HOME"
+        DO ^%ZIS  ;"standard device call
+        IF POP DO  QUIT
+        . DO SHOWERR^TMGDEBU2(,"Error opening output.  Aborting.")
+        USE IO
+        NEW I SET I=""
+        FOR  SET I=$ORDER(MSG(I)) QUIT:(I="")  DO
+        . NEW S SET S=$GET(MSG(I))
+        . WRITE S,!
+        ;" Close the output device
+        DO ^%ZISC        
+        DO PRESS2GO^TMGUSRI2
+        QUIT
+        ;        
+VIEWDIFF(OUT,FPNAME1,FPNAME2,PARAMS) ;"GET DIFF OUTPUT BETWEEN 2 HL7 MESSAGE FILES
+        ;"INPUT: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER. Format:
+        ;"          OUT(#)=line of text from diff comparison. 
+        ;"       FPNAME1 -- path+filename of first HL7 file to compare
+        ;"       FPNAME2 -- path+filename of first HL7 file to compare
+        ;"       PARAMS: (optional)  Contains command options, all in one long string.
+        ;"          e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
+        NEW MSG1,MSG2
+        NEW RESULT
+        SET RESULT=$$LOADHL7(FPNAME1,.MSG1) ;"LOAD FILE INTO ARRAY
+        IF RESULT'>0 GOTO VWDIFDN
+        SET RESULT=$$LOADHL7(FPNAME2,.MSG2) ;"LOAD FILE INTO ARRAY
+        IF RESULT'>0 GOTO VWDIFDN
+        SET RESULT=$$VWMSGDIF(.MSG1,.MSG2,.PARAMS)
+VWDIFDN QUIT RESULT        
+        ;
+VIEWDIF2(FPNAME1,FPNAME2,PARAMS) ;"Use vimdiff on 2 HL7 MESSAGE FILES
+        ;"INPUT: FPNAME1 -- path+filename of first HL7 file to compare
+        ;"       FPNAME2 -- path+filename of first HL7 file to compare
+        ;"       PARAMS: (optional)  Contains command options, all in one long string.
+        ;"          e.g. "-o"   or "-O"   See Linux documentation for details
+        NEW MSG1,MSG2
+        NEW RESULT
+        SET RESULT=$$LOADHL7(FPNAME1,.MSG1) ;"LOAD FILE INTO ARRAY
+        IF RESULT'>0 GOTO VWDF2DN
+        SET RESULT=$$LOADHL7(FPNAME2,.MSG2) ;"LOAD FILE INTO ARRAY
+        IF RESULT'>0 GOTO VWDF2DN
+        SET RESULT=$$VWMDIF2(.MSG1,.MSG2,.PARAMS)
+VWDF2DN QUIT RESULT        
+        ;
+VWMSGDIF(OUT,MSG1,MSG2,PARAMS)  ;"GET DIFF OUTPUT BETWEEN 2 HL7 MESSAGE ARRAYS
+        ;"INPUT: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER. Format:
+        ;"          OUT(#)=line of text from diff comparison. 
+        ;"       MSG1 -- PASS BY REFERENCE.  First array to compare.  Format:
+        ;"          MSG1(#)=line of HL7 message
+        ;"       MSG2 -- PASS BY REFERENCE.  First array to compare.  Format:
+        ;"          MSG2(#)=line of HL7 message
+        ;"       PARAMS: (optional)  Contains command options, all in one long string.
+        ;"          e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
+        NEW RESULT SET RESULT=$$DIFF^TMGKERNL(.OUT,.MSG1,.MSG2,.PARAMS)
+        QUIT RESULT
+        ;
+VWMDIF2(MSG1,MSG2,PARAMS)  ;"USE vimdiff BETWEEN 2 HL7 MESSAGE ARRAYS
+        ;"INPUT: MSG1 -- PASS BY REFERENCE.  First array to compare.  Format:
+        ;"          MSG1(#)=line of HL7 message
+        ;"       MSG2 -- PASS BY REFERENCE.  First array to compare.  Format:
+        ;"          MSG2(#)=line of HL7 message
+        ;"       PARAMS: (optional)  Contains command options, all in one long string.
+        ;"          e.g. "-o"   or "-O"   See Linux documentation for details
+        NEW RESULT SET RESULT=$$VIMADIFF^TMGKERNL(.MSG1,.MSG2,.PARAMS)
+        QUIT RESULT
+        ;
 SUPPTIME() ;
         ;"Purpose: Determine if a lab test should have the
         ;"         time suppressed

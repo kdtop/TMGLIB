@@ -28,6 +28,7 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17
   ;"MAPMATCH(STR,MAP) -- map a string with nested braces, parentheses etc (encapsulators)
   ;"$$MAKEWS(N)  -- Return a whitespace string that is n characters long
   ;"$$QTPROTCT(STR)-- Protects quotes by converting all quotes to double quotes
+  ;"$$UNQTPROT(STR) --Reversed quotes protection by converting all double quotes to single quotes
   ;"$$ISNUM(STR) -- Return IF STR is numeric
   ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB
   ;"STRIPCMD(STR)  -- Strip command characters
@@ -248,6 +249,18 @@ QTPROTCT(STR) ;QUOTE PROTECT
   SET TEMPS=$$REPLSTR^TMGSTUT3(TEMPS,"<^@^>","""""")  ;"reverse protection
   QUIT TEMPS
   ;
+UNQTPROT(STR)  ;"REVERSE QUOTE PROTECTION
+  ;"Purpose: Reversed quotes protection by converting all double quotes to single quotes ("" --> ")
+  ;"         And all single quotes are removed
+  ;"Input : s -- The string to be modified.  Original string is unchanged.
+  ;"Result: returns a string with changes as above. 
+  ;"NOTE: If this is called on a string that was NOT FIRST PROTECTED via QTPROTCT, this will break string.
+  NEW TEMPS
+  SET TEMPS=$$REPLSTR^TMGSTUT3($GET(STR),"""""","<^@^>")  ;"protect original double quotes
+  SET TEMPS=$$REPLSTR^TMGSTUT3(TEMPS,"""","") ;"remove all single quotes
+  SET TEMPS=$$REPLSTR^TMGSTUT3(TEMPS,"<^@^>","""")  ;"convert origianl double quotes to singles
+  QUIT TEMPS
+  ;  
 ISNUM(STR) ;" Return if STR is numeric (and a VALID numerical string.)  
   ;"NOTE:  This is different than just doing +STR.  It handles fractions and commas
   ;"Self reminder: +"9.0" --> "9" ('cardinal form')
@@ -321,7 +334,7 @@ POS(SUBSTR,S,COUNT)  ;
   ;"Input: SUBSTR -- the string to be searched for in S
   ;"       S -- the string to search
   ;"       count -- OPTIONAL, the instance to return pos of (1=1st, 2=2nd, etc.)
-  ;"              IF count=2 and only 1 instance exists, then 0 returned
+  ;"              if count=2 and only 1 instance exists, then 0 returned
   ;"Result: the beginning position, or 0 if not found
   ;"Note: This function differs from $find in that $find returns the pos of the
   ;"      first character AFTER the subStr

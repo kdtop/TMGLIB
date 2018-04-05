@@ -1078,19 +1078,10 @@ CatArray(Words,i1,i2,DivChr)
         . SET RESULT=RESULT_word
         QUIT RESULT
 
-QTPROTECT(S) ;"SAAC compliant entry point
-        QUIT $$QtProtect(.S)
+QTPROTECT(S) 
+        QUIT $$QTPROTCT^TMGSTUT3(.S)
 QtProtect(s)
-        ;"Purpose: Protects quotes by converting all quotes DO double quotes (" --> "")
-        ;"Input : s -- The string to be modified.  Original string is unchanged.
-        ;"Result: returns a string with all instances of single instances of quotes
-        ;"        being replaced with two quotes.
-
-        NEW tempS
-        SET tempS=$$REPLSTR^TMGSTUT3($GET(s),"""""","<^@^>")  ;"protect original double quotes
-        SET tempS=$$REPLSTR^TMGSTUT3(tempS,"""","""""")
-        SET tempS=$$REPLSTR^TMGSTUT3(tempS,"<^@^>","""""")  ;"reverse protection
-        QUIT tempS
+        QUIT $$QTPROTCT^TMGSTUT3(.S)
 
 
 GetStrPos(s,StartPos,P1,P2)  ;"INCOMPLETE!!

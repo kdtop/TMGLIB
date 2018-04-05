@@ -41,7 +41,7 @@ BMI(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for BMI CPT codes.
   ;"             to show on report.  E.g. 'Influenza (90656)'
   ;"RESULT: integer result is also expected, that represents number of records returned.
   ;"        If this isn't done,0 is assumed.
-  QUIT $$STRSRCH(.OUTARRAY,BDATE,EDATE,TEXT,"BMI","3008F")
+  QUIT $$STRSRCH(.OUTARRAY,BDATE,EDATE,TEXT,"BMI ","3008F")
   ;"
 MEDLIST(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for med list documented CPT codes.
   ;"Params: OutArray: PASS BY REFERENCE.  Format:
@@ -102,7 +102,7 @@ STRSRCH(OUTARRAY,BDATE,EDATE,TEXT,STRING,CPT)  ;"
   QUIT TMGRESULT
   ;"
 BMIVALUE(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for BMI Value codes
-  NEW BMITEXT SET BMITEXT="BMI"  ;"<- This is the text to find in the note. Should be defined server side at a later date
+  NEW BMITEXT SET BMITEXT="BMI "  ;"<- This is the text to find in the note. Should be defined server side at a later date
   NEW TMGRESULT SET TMGRESULT=0
   NEW SDT SET SDT=$EXTRACT(BDATE,1,3)_"0101"  ;"BEGINNING OF PASSED-IN YEAR
   NEW EDT SET EDT=$EXTRACT(BDATE,1,3)_"1231"  ;"END OF PASSED-IN YEAR

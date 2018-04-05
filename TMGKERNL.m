@@ -1,4 +1,4 @@
-TMGKERNL ;TMG/kst/OS Specific functions ;2/3/17, 8/30/17
+TMGKERNL ;TMG/kst/OS Specific functions ;8/30/17, 3/8/18
          ;;1.0;TMG-LIB;**1**;04/24/09
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -17,13 +17,20 @@ TMGKERNL ;TMG/kst/OS Specific functions ;2/3/17, 8/30/17
  ;"=======================================================================
  ;"$$Dos2Unix^TMGKERNL(FullNamePath)
  ;"$$Unix2Dos(FullNamePath)
+ ;"$$FileSize(FullNamePath)  -- return the size of the file, in bytes.
+ ;"$$FSTAT(OUT,FPNAME,PARAMS) -- provide generic access to linux stat command.
+ ;"$$FDIFF(OUT,FPNAME1,FPNAME2,PARAMS) -- generic access to linux diff command.
+ ;"$$VIMDIFF(FPNAME1,FPNAME2,PARAMS) --FILES vimdiff command 
+ ;"$$ADIFF(OUT,ARR1,ARR2,PARAMS)  -- use diff command on 2 arrays
+ ;"$$VIMADIFF(ARR1,ARR2,PARAMS)  -- use vimdiff command on 2 arrays 
+ ;"$$CMDOK(CMDNAME) ;Check specified Linux command is available.
+ ;"$$LINUXCMD(CMD,OUT)  -- execute command on linux system, and return output
+ ;"$$ISFILE(FPNAME)  ;-- FileExists() type file.  See also $$FILEXIST^TMGIOUTL(FilePathName)
+ ;"$$ISDIR^TMGKERNL(Path) 
  ;"$$ENSURDIR(DIR) -- ensure directory path exists  
  ;"$$EnsureDir(Dir) -- ensure directory path exists
  ;"$$MOVE^TMGKERNL(Source,Dest)
  ;"$$Copy^TMGKERNL(Source,Dest)
- ;"$$ISFILE(FPNAME)  ;-- FileExists() type file.  See also $$FILEXIST^TMGIOUTL(FilePathName)
- ;"$$ISDIR^TMGKERNL(Path)
- ;"$$CMDOK(CMDNAME) ;Check specified Linux command is available.
  ;"$$MKDIR(Dir) -- provide a shell for the Linux command 'mkdir'
  ;"$$RMDIR(Dir) -- provide a shell for the Linux command 'rmdir'
  ;"$$WGET(URL,OPTIONS,DIR) Provide a shell for the linux command 'wget'
@@ -109,6 +116,90 @@ FSTAT(OUT,FPNAME,PARAMS)  ;
   CLOSE P USE $P
   QUIT
   ;
+FDIFF(OUT,FPNAME1,FPNAME2,PARAMS)  ;"FILEs diff command
+  ;"Purpose: Provide generic access to linux diff command.
+  ;"Input:  OUT: Returns result from reading command output.  Format
+  ;"          OUT(#)=<lines of text output from command"
+  ;"        FPNAME1: The first path+filename to compare
+  ;"        FPNAME2: The second path+filename to compare
+  ;"        PARAMS: (optional)  Contains command options, all in one long string.
+  ;"           e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
+  ;"Result: 0 if results are the same, 1 if different, 2 if problem
+  NEW CMD SET CMD="diff "_$GET(PARAMS)_" """_FPNAME1_""" """_FPNAME2_""""
+  NEW P SET P="TEMP" OPEN P:(COMMAND=CMD:readonly)::"pipe" USE P
+  KILL OUT NEW X,IDX SET IDX=1
+  FOR   QUIT:$ZEOF  DO
+  . READ X IF X=""&$ZEOF QUIT  
+  . SET OUT(IDX)=X,IDX=IDX+1
+  CLOSE P USE $P
+  NEW RESULT SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
+  QUIT RESULT  
+  ;
+VIMDIFF(FPNAME1,FPNAME2,PARAMS)  ;"FILES vimdiff command
+  ;"Purpose: Provide generic access to linux diff command.
+  ;"Input:  FPNAME1: The first path+filename to compare
+  ;"        FPNAME2: The second path+filename to compare
+  ;"        PARAMS: (optional)  Contains command options, all in one long string.
+  ;"           e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
+  ;"Result: 0 if results are the same, 1 if different, 2 if problem
+  WRITE !,!,"NOTE: entering Linux command 'vimdiff'",!
+  WRITE "To exit vimdiff, use '<esc>:qa'",!
+  DO PRESS2GO^TMGUSRI2
+  NEW CMD SET CMD="vimdiff "_$GET(PARAMS)_" """_FPNAME1_""" """_FPNAME2_""""
+  ZSYSTEM CMD
+  NEW RESULT SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
+  QUIT RESULT  
+  ;
+ADIFF(OUT,ARR1,ARR2,PARAMS)  ;"use diff command on 2 arrays
+  ;"Purpose: Provide generic access to linux diff command.
+  ;"Input:  OUT: Returns result from reading command output.  Format
+  ;"          OUT(#)=<lines of text output from command"
+  ;"        ARR1: The first array to compare.  Format: ARR1(#)=line of text
+  ;"        ARR2: The second array to compare  Format: ARR2(#)=line of text
+  ;"        PARAMS: (optional)  Contains command options, all in one long string.
+  ;"           e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
+  ;"Result: 0 if results are the same, 1 if different, 2 if problem, OR -1^Message  
+  NEW TMGRESULT
+  NEW PATH SET PATH="/tmp/"
+  NEW FNAME1 SET FNAME1=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_1.text")
+  NEW FNAME2 SET FNAME2=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_2.text")
+  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR1",PATH,FNAME1)
+  IF TMGRESULT'>0 GOTO DFDN
+  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR2",PATH,FNAME2)
+  IF TMGRESULT'>0 GOTO DFDN
+  NEW TEMP SET TEMP=$$FDIFF(.OUT,PATH_FNAME1,PATH_FNAME2,.PARAMS)
+  NEW TEMP2 SET TEMP2=$$DELFILE^TMGIOUTL(PATH_FNAME1)
+  NEW TEMP3 SET TEMP3=$$DELFILE^TMGIOUTL(PATH_FNAME2)
+  IF TEMP2'>0 SET TMGRESULT=TEMP2 GOTO DFDN 
+  IF TEMP3'>0 SET TMGRESULT=TEMP3 GOTO DFDN
+  SET TMGRESULT=TEMP  
+DFDN  ;
+  QUIT TMGRESULT
+  ;  
+VIMADIFF(ARR1,ARR2,PARAMS)  ;"use vimdiff command on 2 arrays
+  ;"Purpose: Provide generic access to linux diff command.
+  ;"Input:  ARR1: The first array to compare.  Format: ARR1(#)=line of text
+  ;"        ARR2: The second array to compare  Format: ARR2(#)=line of text
+  ;"        PARAMS: (optional)  Contains command options, all in one long string.
+  ;"           e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
+  ;"Result: 0 if results are the same, 1 if different, 2 if problem, OR -1^Message  
+  NEW TMGRESULT
+  NEW PATH SET PATH="/tmp/"
+  NEW FNAME1 SET FNAME1=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_1.text")
+  NEW FNAME2 SET FNAME2=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_2.text")
+  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR1",PATH,FNAME1)
+  IF TMGRESULT'>0 GOTO DFDN2
+  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR2",PATH,FNAME2)
+  IF TMGRESULT'>0 GOTO DFDN2
+  NEW TEMP SET TEMP=$$VIMDIFF(PATH_FNAME1,PATH_FNAME2,.PARAMS)
+  NEW TEMP2 SET TEMP2=$$DELFILE^TMGIOUTL(PATH_FNAME1)
+  NEW TEMP3 SET TEMP3=$$DELFILE^TMGIOUTL(PATH_FNAME2)
+  IF TEMP2'>0 SET TMGRESULT=TEMP2 GOTO DFDN2
+  IF TEMP3'>0 SET TMGRESULT=TEMP3 GOTO DFDN2
+  SET TMGRESULT=TEMP  
+DFDN2  ;
+  QUIT TMGRESULT
+  ;  
 CMDOK(CMDNAME) ;Check if specified Linux command is available.
   ;"Result: "1^OK" or "-1^Error Message"
   NEW OUT,TEMP
@@ -197,7 +288,7 @@ Copy(Source,Dest)  ;
   ;"Purpose to provide a shell for the Linux command 'cp'
   ;"      This can serve to move or rename a file
   ;"Note: a platform independant version of the this could be constructed later...
-  ;"Result: 0 IF no error; >0 IF error
+  ;"Result: 0 if no error; >0 if error
   ;"Notice!!!! The return code here is DIFFERENT from usual
   ;
   NEW HOOKCMD,RESULT

@@ -38,6 +38,7 @@ PROCESS(TMGRESULT,TMGIN,FORCE) ;
         ;"        TMGRESULT(2)=2nd line of return text, etc.
         ;"Result: none
         SET FORCE=+$GET(FORCE)
+        SET FORCE=1 ;"ELH  1/18/18 Always process note
         KILL TMGRESULT
         NEW TMGZZ SET TMGZZ=0  ;"Set to 1 during debug IF needed.
         IF TMGZZ=1 DO

@@ -211,7 +211,7 @@ APPTRECS()  ;"
   NEW SDT,EDT
   SET SDT=$$TODAY^TMGDATE+0.00001
   SET EDT=$$TODAY^TMGDATE+0.999999
-  DO APPT4DT^TMGSMS05(SDT,EDT,.APPTARRAY)
+  DO APPT4DT^TMGSMS05(SDT,EDT,.APPTARRAY,1)
   ;"
   NEW DT,DFN,LINE SET DT=0,LINE=1
   FOR  SET DT=$ORDER(APPTARRAY("DT",DT)) QUIT:DT'>0  DO
@@ -272,6 +272,7 @@ GETDUE(idx) ;"
   ;"Purpose: Get the due date for a consult
   NEW idxWP SET idxWP=0
   NEW found SET found=0
+  NEW Y SET Y=0
   FOR  SET idxWP=+$ORDER(^GMR(123,idx,20,idxWP)) QUIT:(idxWP'>0)!found  do
   . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
   . IF line'["An appointment has been scheduled" QUIT
@@ -291,4 +292,5 @@ GETDUE(idx) ;"
   ;". . SET Y=apptDate
   QUIT Y
   ;"
+GET
   

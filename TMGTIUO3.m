@@ -39,6 +39,22 @@ TMGTIUO3 ;TMG/kst-Text objects for use in CPRS ; 10/19/16
  ;"LNAME(DFN)-- Return Patient's last name
  ;"NICENAME(DFN) -- Return Patient's name format: Firstname Middlename Lastname
  ;"PHONENUM(DFN) -- return the patient's phone number
+ ;"BMI(DFN,BMI,IDEALWTS,USEWTDT,WHY) -- Return BMI
+ ;"WEIGHT(DFN,TIU) -- Return a string of the weight values 
+ ;"ALLERGY(DFN) ; ALLERGY LIST -- Get allergy list to populate TIU Object |TMG ALLERGY LIST|
+ ;"GETREACT(IEN120D8,COMMENTS,NOTHTML)  -- Return either signs/symptoms (if COMMENTS=0) or comments (COMMENTS=1)
+ ;"DETALRGY(DFN) -- FIND AND RETURN DETAILED ALLERGY INFORMATION
+ ;"ROSALRGY(TMGRESULT,DFN) -- RETURN DETAILED ALLERGY INFORMATION FOR THE ROS FORM, THROUGH "TMG GET ROS ALLERGY LIST" RPC
+ ;"PTPRPRO(DFN)  ;Returns patient's personal pronoun
+ ;"PTPOPRO(DFN)  ;Returns patient's possessive pronoun 
+ ;"GETLVITD(DFN) ;Return last lab data for Vitamin D
+ ;"FUITEMS(DFN)  ;Return the followup table if data is contained 
+ ;"XTRAFORM(TMGRESULT,DFN) -- return all documents that the user should have printed for them.
+ ;"NEEDPSA(TMGRESULT,DFN) -- determine if the patient needs a PSA handout
+ ;"GETSTATS(STATUS,TMGRESULT) -- Finds all TIU notes with a given status
+ ;"UNSIGNED(TMGRESULT)  - find all unsigned notes 
+ ;"ADDLSIGN(TMGRESULT)  -- find all notes where the add'l signer hasn't signed
+ ;"LASTOPTH(DFN) -- return the patient's last opthalmology note titles 
  ;"ENSURE(ARRAY,KEY,PIVOT,VALUE) --add one (empty) entry, IF a value for this doesn't already exist.
  ;"=======================================================================
  ;"Dependancies : TMGGRC1, XLFSTR, ^%DT, XLFDT, TIULS, %DTC, DIQ TMGGRC2 TMGSTUT2,
@@ -251,7 +267,6 @@ TMGVISDT(TIU)  ;" Visit date
 VDDONE  ;
   QUIT RESULT
   ;
-  ;
 AGEONDAT(DFN,REFDATE) ;
   ;"Purpose: return patient age on given date, in years
   ;"Input: DFN -- Patient's IEN
@@ -273,7 +288,6 @@ AGEONDAT(DFN,REFDATE) ;
   SET RESULT=+$JUSTIFY(X/365,0,2) GOTO AODDN
 AODDN   ;
   QUIT RESULT
-  ;
   ;
 PTAGE(DFN,NOTEDT) ;
   ;"Purpose: return patient's AGE (in years) on date of note (or current
@@ -299,7 +313,6 @@ PTAGE(DFN,NOTEDT) ;
   . . SET PTAGE=$JUSTIFY(X/365,0,4)
   QUIT PTAGE
   ;
-  ;
 HC(DFN,HC) ;
   ;"Purpose: Return formatedd head circumference reading
   ;"Input: DFN -- The patient's IEN
@@ -313,7 +326,6 @@ HC(DFN,HC) ;
   SET RESULT=$PIECE(HEADCIR,"^",2)_" in ["_HC_"cm] ("_$$FMTE^XLFDT(DATEOFHC,"5D")_")" ;"OUTPUT MM/DD/YYYY
 HCDN  ;
   QUIT RESULT
-  ;
   ;
 LASTHC(DFN)   ;
   ;"Purpose: Return the patient's last head circumference
@@ -398,6 +410,252 @@ PHONENUM(DFN) ;
 PNDONE  ;
   QUIT RESULT
   ;
+BMI(DFN,BMI,IDEALWTS,USEWTDT,WHY) ;"Return BMI
+  ;"Input: DFN--PATIENT IEN
+  ;"       BMI  -- OPTIONAL, AN OUT PARAMETER.  Numeric BMI
+  ;"       IDEALWTS -- OPTIONAL, AN OUT PARAMETER.  Ideal weight range-- Format : MinWt^MaxWt^PtWt
+  ;"       USEWTDT -- OPTIONAL.  DEFAULT=0.  IF 1, then use WT date rather than oldest date
+  ;"                     Also, IF 1, then WT date is used to calculate patient age, which
+  ;"                     is used to determine ideal weight range.
+  ;"       WHY -- OPTIONAL.  PASS BY REFERENCE.  AN OUT PARAMETER
+  ;"               If BMI is 0, APPENDS string with reason
+  ;"Result: BMI string. Format:  'BMI (date of oldest measurement)'
+  SET WHY=$GET(WHY)
+  NEW WT SET WT=$$WEIGHT^TIULO(DFN)
+  IF WT="" SET WHY=WHY_$$NURSEPRE^TMGC0QT1()_"No recorded weight found.] " ;"elh 7/12/13
+  NEW HT SET HT=$$HEIGHT^TIULO(DFN)
+  IF HT="" SET WHY=WHY_$$NURSEPRE^TMGC0QT1()_"No recorded height found.] " ;"elh 7/12/13
+  NEW ONDT,TEMPWT
+  IF (+$GET(USEWTDT)=1)&(WT'="") SET TEMPWT=$$PARSEWT^TMGTIUO4(WT,.ONDT)
+  ELSE  SET ONDT=$$NOW^XLFDT\1
+  NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(DFN,ONDT) ;
+  QUIT $$BMI^TMGTIUO4(PTAGE,HT,WT,.BMI,.IDEALWTS,.USEWTDT)
+  ;    
+WEIGHT(DFN,TIU)  ;         
+  ;"Purpose: Return a string of the weight values
+  ;"Input: DFN -- the patient's unique ID (record#)
+  ;"       TIU -- See documentation below.
+  ;"Output: returns RESULT
+  NEW STRING
+  SET STRING=$$ONEVITAL^TMGTBL01(.DFN,.TIU,"WT")_" "_$$ONEVITAL^TMGTBL01(.DFN,.TIU,"BMI-CMT")
+  IF STRING["Wt " SET STRING=$PIECE(STRING,"Wt ",2,999)
+  SET STRING="Wt "_STRING
+  SET STRING=$TR(STRING,$C(13,10))
+  SET STRING=$$REPLSTR^TMGSTUT3(STRING,"         ","")
+  SET STRING=$$REPLSTR^TMGSTUT3(STRING,"[See vital-signs documented in chart]","")
+  ;"FINISH PARSING STRING
+  SET ^TMP("EDDIE","WEIGHT")=STRING
+  QUIT STRING
+  ;"      
+ALLERGY(DFN) ; ALLERGY LIST
+  ;"Purpose: Get allergy list to populate TIU Object |TMG ALLERGY LIST|
+  ;"Input: DFN
+  ;"Result: Comma delimited list of allergies, 
+  ;"        or ***NEEDS ALLERGY ASSESSMENT*** (if no allergy assessment was found)
+  ;"        or Patient has answered NKA (if No Known Allergies was returned)
+  ;"                                                    
+  NEW RESULT SET RESULT=""
+  NEW ALRGYL,ALDESC,ALCNT
+  ;"Get allergy list
+  DO LIST^ORQQAL(.ALRGYL,DFN)
+  SET ALCNT=""
+  ;"Format allergy list into string
+  FOR  SET ALCNT=$O(ALRGYL(ALCNT)) QUIT:ALCNT=""  DO
+  . SET ALDESC=$P(ALRGYL(ALCNT),"^",2) ;allergy description
+  . IF RESULT="" SET RESULT=ALDESC
+  . ELSE  SET RESULT=RESULT_", "_ALDESC
+  ;"
+  ;"If no assessment done, alert provider
+  IF (RESULT["No Allergy Assessment")!(RESULT="") SET RESULT="***NEEDS ALLERGY ASSESSMENT***"
+  ;"If NKA, rephrase
+  IF RESULT["No Known Allergies" SET RESULT="Patient has answered NKA"
+  QUIT RESULT
+  ;  
+GETREACT(IEN120D8,COMMENTS,NOTHTML)  ;
+  ;" Purpose: Return either signs/symptoms (if COMMENTS=0) or comments (COMMENTS=1)
+  NEW REACTS,REACTIEN,SYMPIEN,SYMPNAME,LINENUM,COMMENT,HTMLBTAG,HTMLETAG,PREFIX
+  SET NOTHTML=$GET(NOTHTML,0)
+  IF NOTHTML=0 DO
+  . SET HTMLBTAG="{HTML:<I>}"
+  . SET HTMLETAG="{HTML:</I>}"
+  . SET PREFIX="Signs/Sym: "
+  ELSE  DO
+  . SET HTMLBTAG=""
+  . SET HTMLETAG=""
+  . SET PREFIX=""
+  SET REACTS="",REACTIEN=0
+  IF IEN120D8="" QUIT REACTS
+  IF COMMENTS=0 DO
+  . FOR  SET REACTIEN=$ORDER(^GMR(120.8,IEN120D8,10,REACTIEN)) QUIT:REACTIEN'>0  DO
+  . . SET SYMPIEN=$PIECE($GET(^GMR(120.8,IEN120D8,10,REACTIEN,0)),"^",1)
+  . . SET SYMPNAME=$PIECE($GET(^GMRD(120.83,SYMPIEN,0)),"^",1)
+  . . IF REACTS="" SET REACTS=PREFIX_SYMPNAME
+  . . ELSE  SET REACTS=REACTS_","_SYMPNAME
+  ELSE  DO
+  . SET LINENUM=0
+  . SET COMMENT=""
+  . FOR  SET LINENUM=$ORDER(^GMR(120.8,IEN120D8,26,1,2,LINENUM)) QUIT:LINENUM'>0  DO 
+  . . SET COMMENT=$GET(^GMR(120.8,IEN120D8,26,1,2,LINENUM,0))
+  . . IF REACTS="" SET REACTS=PREFIX_HTMLBTAG_COMMENT
+  . . ELSE  SET REACTS=REACTS_","_COMMENT
+  . IF REACTS'="" SET REACTS=REACTS_HTMLETAG
+  QUIT REACTS
+  ;
+DETALRGY(DFN)  ;
+  ;" PURPOSE: FIND AND RETURN DETAILED ALLERGY INFORMATION 
+  NEW RESULT,IEN120D8,ALRGYARR,LINE,IEN,Y,REACTIONS
+  SET IEN120D8=0,RESULT="{HTML:<BR>}"
+  SET IEN=0                     
+  FOR  SET IEN120D8=$ORDER(^GMR(120.8,"B",DFN,IEN120D8)) QUIT:IEN120D8'>0  DO
+  . ;WRITE $GET(^GMR(120.8,IEN120D8,0)),!
+  . IF $D(^GMR(120.8,IEN120D8,"ER")) QUIT  ;"Exclude if Entered In Error
+  . SET LINE=$GET(^GMR(120.8,IEN120D8,0))
+  . SET Y=$P(LINE,"^",4)  ;date
+  . X ^DD("DD")
+  . SET REACTIONS=$$GETREACT(IEN120D8,0)
+  . IF REACTIONS="" DO
+  . . SET REACTIONS=$$GETREACT(IEN120D8,1)
+  . SET RESULT=RESULT_"{HTML:<B>}"_$P(LINE,"^",2)_"{HTML:</B><FONT SIZE=""-1"">} (Entered: "_$P(Y,"@",1)_"){HTML:</FONT>}"_REACTIONS_"{HTML:<BR>}"   ;"$CHAR(13)_$CHAR(10)
+  . SET IEN=IEN+1
+  IF RESULT="{HTML:<BR>}" SET RESULT="No Known Allergies"
+  QUIT RESULT
+  ;
+ROSALRGY(TMGRESULT,DFN)  ;
+  ;" PURPOSE: FIND AND RETURN DETAILED ALLERGY INFORMATION
+  ;"          FOR THE ROS FORM, THROUGH "TMG GET ROS ALLERGY LIST" RPC 
+  NEW IEN120D8,ALRGYARR,LINE,IEN,Y,REACTIONS
+  SET IEN120D8=0,RESULT=""
+  FOR IEN=1:1:7 SET ALRGYARR(IEN)=","
+  SET IEN=0
+  FOR  SET IEN120D8=$ORDER(^GMR(120.8,"B",DFN,IEN120D8)) QUIT:IEN120D8'>0  DO
+  . IF $D(^GMR(120.8,IEN120D8,"ER")) QUIT  ;"Exclude if Entered In Error
+  . SET LINE=$GET(^GMR(120.8,IEN120D8,0))
+  . SET LINE=$TR(LINE,",",";")
+  . SET REACTIONS=$$GETREACT(IEN120D8,0,1)
+  . IF REACTIONS="" DO
+  . . SET REACTIONS=$$GETREACT(IEN120D8,1,1)
+  . SET REACTIONS=$TR(REACTIONS,",",";")
+  . SET IEN=IEN+1
+  . IF IEN=8 SET ALRGYARR(7)="(MORE... SEE COMPLETE LIST),"
+  . ELSE  IF IEN>8 QUIT
+  . ELSE  SET ALRGYARR(IEN)=$P(LINE,"^",2)_","_REACTIONS
+  SET IEN=0,TMGRESULT=""
+  FOR  SET IEN=$ORDER(ALRGYARR(IEN)) QUIT:IEN'>0  DO
+  . SET LINE=$GET(ALRGYARR(IEN))
+  . SET TMGRESULT=TMGRESULT_LINE
+  . IF IEN<7 SET TMGRESULT=TMGRESULT_","
+  IF TMGRESULT="" SET TMGRESULT=",No Known Allergies,,,,,,,,,,,,"
+  QUIT                                        
+  ;
+PTPRPRO(DFN)  ;Returns patient's personal pronoun
+  NEW GENDER,TMGRESULT
+  SET TMGRESULT=""
+  SET GENDER=$$SEX^TIULO(DFN)
+  IF GENDER="FEMALE" SET TMGRESULT="she"
+  ELSE  SET TMGRESULT="he"
+  QUIT TMGRESULT
+  ;
+PTPOPRO(DFN)  ;Returns patient's possessive pronoun
+  NEW GENDER,TMGRESULT
+  SET TMGRESULT=""
+  SET GENDER=$$SEX^TIULO(DFN)
+  IF GENDER="FEMALE" SET TMGRESULT="her"
+  ELSE  SET TMGRESULT="his"
+  QUIT TMGRESULT
+  ;   
+GETLVITD(DFN)  ;"Return last lab data for Vitamin D
+  NEW TMGRESULT,RESULTARR
+  SET TMGRESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
+  SET TMGRESULT=$GET(RESULTARR("KEY-VALUE","VIT-D"))_" [T]"
+  IF TMGRESULT=" [T]" SET TMGRESULT="NO DATA FOUND"
+  QUIT TMGRESULT
+  ;"  
+FUITEMS(DFN)  ;"Return the followup table if data is contained
+  NEW X
+  S X=$$GETTABLX^TMGTIUOJ(+$G(DFN),"[FOLLOWUP ITEMS]")      
+  NEW TEMP SET TEMP=$P(X,$C(13,10),2)
+  SET TEMP=$$TRIM^XLFSTR(TEMP)
+  IF TEMP="" SET X=TEMP
+  IF TEMP'="" SET TEMP="<FONT style=""BACKGROUND-COLOR:#ff0000"">}"_TEMP_"{HTML:</FONT>}"
+  QUIT X
+  ;"                                 
+XTRAFORM(TMGRESULT,DFN)  ;"
+  ;"Purpose: This function will take the DFN and return an array
+  ;"         of all documents that the user should have printed for
+  ;"         them.
+  ;"Input: TMGRESULT -- RPC output
+  ;"       TMGRESULT(0)=0 or # of documents due
+  ;"       TMGRESULT(#)=Name  <- This name MUST correspond with the
+  ;"                       name of the CSV as well as the DOC files
+  SET TMGRESULT(0)=0
+  IF $$NEEDPSA(.RESULT,DFN) DO
+  . SET TMGRESULT(0)=$GET(TMGRESULT(0))+1
+  . NEW IDX SET IDX=$GET(TMGRESULT(0))
+  . SET TMGRESULT(IDX)="PSA"
+  QUIT
+  ;          
+NEEDPSA(TMGRESULT,DFN)  ;"
+  ;"Purpose: To determine if the patient needs a PSA handout
+  SET TMGRESULT=0
+  NEW X DO NOW^%DTC       
+  NEW REMRESULT SET REMRESULT=$$DOREM^TMGPXR03(DFN,263,5,X)
+  IF REMRESULT["DUE NOW" SET TMGRESULT=1
+  QUIT TMGRESULT
+  ;"
+GETSTATS(STATUS,TMGRESULT) ;"
+  ;"Purpose: Finds all TIU notes with a given status
+  ;"Input: STATUS - IEN of the status to search for
+  ;"       TMGRESULT(Return array) - TMGRESULT(IEN,PATIENT IEN,AUTHOR IEN)=""
+  SET STATUS=+$GET(STATUS)
+  IF STATUS<1 QUIT
+  NEW NOTEIEN SET NOTEIEN=0
+  NEW THISSTATUS
+  FOR  SET NOTEIEN=$ORDER(^TIU(8925,NOTEIEN)) QUIT:NOTEIEN'>0  DO
+  . SET THISSTATUS=$PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",5)
+  . IF THISSTATUS=STATUS DO
+  . . NEW AUTHOR SET AUTHOR=+$PIECE($GET(^TIU(8925,NOTEIEN,12)),"^",2)
+  . . NEW PATIENT SET PATIENT=+$PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",2)
+  . . SET TMGRESULT(NOTEIEN,PATIENT,AUTHOR)=""
+  QUIT
+  ;"
+UNSIGNED(TMGRESULT)  ;"
+  ;"Purpose: find all unsigned notes
+  ;"Input: TMGRESULT(Return array) - as above
+  DO GETSTATS(5,.TMGRESULT)
+  QUIT
+  ;"
+ADDLSIGN(TMGRESULT)  ;"
+  ;"Purpose: To find all notes where the add'l signer hasn't signed
+  ;"Input: TMGRESULT(Return array) - as above
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(^TIU(8925.7,IEN)) QUIT:IEN'>0  DO
+  . NEW SIGNDT SET SIGNDT=+$PIECE($GET(^TIU(8925.7,IEN,0)),"^",4)
+  . IF SIGNDT'>0 DO
+  . . NEW NOTEIEN,EXPECTEDIEN,PATIENT
+  . . SET NOTEIEN=+$PIECE($GET(^TIU(8925.7,IEN,0)),"^",1)
+  . . IF +$PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",5)=15 QUIT  ;"Don't include retracted notes
+  . . SET EXPECTEDIEN=+$PIECE($GET(^TIU(8925.7,IEN,0)),"^",3)
+  . . SET PATIENT=+$PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",2)
+  . . SET TMGRESULT(NOTEIEN,PATIENT,EXPECTEDIEN)=""
+  . . ;"WRITE $PIECE($GET(^VA(200,EXPECTEDIEN,0)),"^",1)," NEEDS TO SIGN ",NOTEIEN,!
+  QUIT
+  ;"
+LASTOPTH(DFN)  ;"
+  ;"Purpose: To return the patient's last opthalmology note titles
+  NEW TMGRESULT
+  NEW EYEEARRAY,NOTEDATE,COUNT
+  SET NOTEDATE=9999999,COUNT=0
+  DO TIUDATES^TMGPXR01(TMGDFN,"OPHTHO / OPTO / EYE CONSULTANT NOTE (IMAGE)",.EYEEARRAY)
+  IF $DATA(EYEEARRAY) DO 
+  . SET TMGRESULT=TMGRESULT_"OPHTHO NOTE DATES : "
+  . FOR  SET NOTEDATE=$ORDER(EYEEARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
+  . . NEW Y SET Y=NOTEDATE
+  . . X ^DD("DD")
+  . . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
+  ELSE  DO
+  . SET TMGRESULT="NO OPHTHALMOLOGY NOTES FOUND"
+  QUIT TMGRESULT
+  ;"            
  ;"-------------------------------------------------------------
  ;"-------------------------------------------------------------
 ENSURE(ARRAY,KEY,PIVOT,VALUE) ;

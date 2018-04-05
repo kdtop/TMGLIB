@@ -524,6 +524,10 @@ GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
        NEW REMARR
        SET REMARR(232)="PAIN CONTRACT DUE"
        SET REMARR(233)="DRUG SCREEN DUE"
+       SET REMARR(266)="EKG DUE"
+       SET REMARR(272)="MAMMOGRAM DUE"
+       SET REMARR(228)="BONE DENSITY DUE"
+       SET REMARR(242)="EYE EXAM DUE"
        DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,BDATE,EDATE)
        QUIT
        ;" 
@@ -569,7 +573,28 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)   ;"
        . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?40,Y,!
+       . . . IF REMIEN=272 DO
+       . . . . NEW SCHEDULED SET SCHEDULED=$$MAMSCHED(DFN)
+       . . . . IF SCHEDULED'="" WRITE "       ["_SCHEDULED,"]",!
        . WRITE !!
+       ;"
+       ;"Check TSH values for patients. If one is H or L, add to list
+       WRITE "============= PATIENTS WITH OUT OF RANGE TSH ==================",!
+       NEW PTARRAY,DATE
+       DO GETSCHED^TMGPXR03(.PTARRAY,BDATE,EDATE)
+       NEW DFN SET DFN=0
+       FOR  SET DFN=$ORDER(PTARRAY(DFN)) QUIT:DFN'>0  DO
+       . NEW RESULTS,TESTRESULT
+       . DO GETVALS^TMGLRR01(DFN_"^2",110,.RESULTS)  ;"TSH. THIS CAN BE EXPANDED TO OTHER TESTS THOUGH
+       . NEW TESTNAME,DATE SET TESTNAME=1
+       . FOR  SET TESTNAME=$O(RESULTS(TESTNAME)) QUIT:+TESTNAME'>0  DO
+       . . SET DATE=9999999
+       . . SET DATE=$O(RESULTS(TESTNAME,DATE),-1)
+       . . SET TESTRESULT=$G(RESULTS(TESTNAME,DATE))
+       . . IF (TESTRESULT["H")!(TESTRESULT["L") DO
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . SET Y=DATE DO DD^%DT
+       . . . WRITE "  - ",NAME,?30,"had a TSH of ",TESTRESULT," on ",$P(Y,"@",1),!
 PRTDN  QUIT
        ;
 PREVNAR ;
@@ -761,3 +786,113 @@ PRINTRPT(MUMPSCODE)  ;"
        DO ^%ZISC
 PRDN   QUIT
        ;"
+EKGSDUE()  ;"SCRATCH FUNCTION
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO EKGDN
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       DO NOW^%DTC
+       WRITE !
+       WRITE "****************************************************************",!
+       WRITE "         Patients who have nursing reminders due today",!
+       WRITE "                " SET Y=X DO DD^%DT WRITE Y,!
+       WRITE "****************************************************************",!
+       WRITE "                                        (From TMGRPT1.m)",!!
+       WRITE " ",!
+       ;"Get patients with reminders due
+       NEW REMARR
+       SET REMARR(266)="EKG DUE"
+       SET REMARR(272)="MAMMOGRAM DUE"
+       SET REMARR(228)="BONE DENSITY DUE"
+       SET REMARR(242)="EYE EXAM DUE"
+       DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,$$TODAY^TMGDATE,3180131)
+       IF REMRESULT(0)=0 GOTO EKGDN
+       NEW REMIEN SET REMIEN=0
+       FOR  SET REMIEN=$ORDER(REMRESULT(REMIEN)) QUIT:REMIEN'>0  DO
+       . NEW REMDISP SET REMDISP=$PIECE($GET(^PXD(811.9,REMIEN,0)),"^",3)
+       . WRITE "============= PATIENTS DUE FOR ",REMDISP," ============",!
+       . NEW DATE SET DATE=0
+       . FOR  SET DATE=$ORDER(REMRESULT(REMIEN,DATE)) QUIT:DATE'>0  DO
+       . . NEW DFN SET DFN=0
+       . . FOR  SET DFN=$ORDER(REMRESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . SET Y=DATE DO DD^%DT
+       . . . WRITE "  - ",NAME,?40,Y,!
+       . WRITE !!
+EKGDN
+       DO ^%ZISC  ;" Close the output device
+       QUIT
+       ;"
+P23NEWRM  ;"SCRATCH FUNCTION WHICH CAN BE DELETED LATER   ELH    2/6/18
+       NEW REMARR
+       SET REMARR(257)="NEW PNEUMOCOCCAL REMINDER"
+       DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,$$TODAY^TMGDATE,3180430)
+       IF REMRESULT(0)=0 QUIT
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO EKGDN
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       NEW REMIEN SET REMIEN=0
+       FOR  SET REMIEN=$ORDER(REMRESULT(REMIEN)) QUIT:REMIEN'>0  DO
+       . NEW REMDISP SET REMDISP=$PIECE($GET(^PXD(811.9,REMIEN,0)),"^",3)
+       . WRITE "============= PATIENTS DUE FOR ",REMDISP," ============",!
+       . NEW DATE SET DATE=0
+       . FOR  SET DATE=$ORDER(REMRESULT(REMIEN,DATE)) QUIT:DATE'>0  DO
+       . . NEW DFN SET DFN=0
+       . . FOR  SET DFN=$ORDER(REMRESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
+       . . . NEW AGE K VADM SET AGE=$$AGE^TIULO(DFN)
+       . . . IF AGE>64 QUIT
+       . . . NEW SEQL SET SEQL=$P($G(^DPT(DFN,"TMG")),"^",2)
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)_" ("_SEQL_")"
+       . . . SET Y=DATE DO DD^%DT
+       . . . WRITE "  - ",NAME,?40,Y,?65,AGE,!
+       . WRITE !!
+       DO ^%ZISC  ;" Close the output device
+       QUIT
+       ;"
+MAMSCHED(DFN)  ;"IS MAMMO SCHEDULED
+       NEW RESULT SET RESULT=""
+       NEW MammoIEN SET MammoIEN=+$ORDER(^GMR(123.5,"B","MAMMOGRAM",""))
+       IF MammoIEN'>0 DO  GOTO MRPTDn
+       . WRITE "Can't locate record for MAMMOGRAM report.  Aborting.",!
+       NEW ComplIEN SET ComplIEN=+$ORDER(^ORD(100.01,"B","COMPLETE",""))
+       IF ComplIEN'>0 DO  GOTO MRPTDn
+       . WRITE "Can't find record for COMPLETE status.  Aborting.",!
+       NEW DCIEN SET DCIEN=+$ORDER(^ORD(100.01,"B","DISCONTINUED",""))
+       NEW X,Y DO NOW^%DTC NEW NowDate SET NowDate=X
+       ;
+       NEW idx SET idx=""
+       NEW matches,IENLIST
+       FOR  SET idx=+$ORDER(^GMR(123,"F",DFN,idx)) QUIT:(idx'>0)  do
+       . NEW TYPE
+       . NEW znode SET znode=$GET(^GMR(123,idx,0))
+       . SET TYPE=$P(znode,"^",5)
+       . IF TYPE'=MammoIEN QUIT
+       . NEW status SET status=$PIECE(znode,"^",12)
+       . IF status=ComplIEN QUIT
+       . IF status=DCIEN QUIT
+       . NEW Y SET Y=$PIECE(znode,"^",7)  ;"date of request
+       . DO DD^%DT SET RESULT="Mammogram is scheduled for "_Y
+       ;. ;"Now scan for appt scheduled date
+       ;. NEW idxWP SET idxWP=0
+       ;. NEW found SET found=0
+       ;. FOR  SET idxWP=+$ORDER(^GMR(123,idx,20,idxWP)) QUIT:(idxWP'>0)!found  do
+       ;. . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
+       ;. . IF line'["Scheduled Appointment:" QUIT
+       ;. . SET found=1
+       ;. . NEW apptDate SET apptDate=$PIECE(line,"Scheduled Appointment:",2)
+       ;. . SET Y=$$FMDate^TMGFMUT(apptDate)
+       ;. . NEW FMDate SET FMDate=Y
+       ;. . IF Y>0 do
+       ;. . . DO DD^%DT  ;"standardize date
+       ;. . ELSE  do
+       ;. . . SET Y=apptDate
+       ;. . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
+       ;. . SET s=s_"^"_Y
+       QUIT RESULT

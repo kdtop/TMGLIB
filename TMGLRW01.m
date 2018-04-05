@@ -1,4 +1,4 @@
-TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 5/23/17, 8/2/17
+TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18
               ;;1.0;TMG-LIB;**1**;06/20/13
  ;
  ;"TMG LAB RESULTS STORAGE API
@@ -17,8 +17,7 @@ TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 5/23/17, 8/2/17
  ;"=======================================================================
  ;"FILEMSG(IEN62D4,TMGHL7MSG) -- FILE HL7 MESSAGE INTO LAB DATA FILE (63)
  ;"LRWRITE(DFN,ARRAY,LABTYPE,FLAGS,ALERTS) -- Store data in LAB DATA (^LR), file# 63
- ;"PARSXTRA(REF,DATA,DIV1,DIV2) ;"Parse lab dataline back into XTRA array
- ;"ASKDELAB  -- Interact with user and delete stored
+ ;"PARSXTRA(REF,DATA,DIV1,DIV2) --Parse lab dataline back into XTRA array
  ;"
  ;"=======================================================================
  ;" API - Private Functions
@@ -38,9 +37,7 @@ TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 5/23/17, 8/2/17
  ;"SETUPFDA(FNUM,IEN,PARENTIENS,SRCARRAY,TMGFDA) -- Setup for FDA for fileman
  ;"NEWLRDFN(DFN,MSG) -- Make NEW LAB DATA store record (IEN is LRDFN)
  ;"SUBFNUM(FILE,FIELD) -- Determine IF field is a subfile
- ;"PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) -- PRIOR LAB DATES
  ;"DELPRIOR(FILEARR,DATESUSED,INFO)  -- DELETE PRIOR FILINGS 
- ;"DELLAB(LRDFN,DT,FLD)  -- DELETE 1 LAB 
  ;"TEST -- test filing.
  ;
  ;"=======================================================================
@@ -75,7 +72,7 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         SET MSGINFO("IEN 62.4")=IEN62D4
         SET TMGRESULT=$$GETINFO(.TMGHL7MSG,.MSGINFO)
         IF +TMGRESULT<0 GOTO FMGDN
-        DO PRIORLDT(.TMGHL7MSG,.DATESUSED,.MSGINFO) ;"Fill used prior lab dates
+        DO PRIORLDT^TMGLRWU3(.TMGHL7MSG,.DATESUSED,.MSGINFO) ;"Fill used prior lab dates
         ;        
         NEW IDX SET IDX=0
         NEW DONE SET DONE=0
@@ -117,7 +114,9 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         . SET TMGRESULT=$$STORNOTE(SUBFILE,IENS,.NTEARR)
         IF +TMGRESULT<0 GOTO FMGDN
         ;"Next, send alert that lab has been filed and is available for review.
-        NEW PROV SET PROV=$GET(MSGINFO("PROV IEN")) IF PROV'>0 GOTO FMGDN
+        NEW PROV SET PROV=$GET(MSGINFO("PROV IEN"))
+        IF PROV'>0 SET PROV=168 ;"NOTE!!! This hard codes KEVIN TOPPENBERG to get alerts if other provider not found.
+        IF PROV'>0 GOTO FMGDN
         NEW ALERTSTR,STR SET (ALERTSTR,STR)=""
         FOR  SET STR=$ORDER(ALERTS(STR)) QUIT:(STR="")  DO
         . IF +$PIECE(STR,"^",3)'<+$PIECE(ALERTSTR,"^",3) SET ALERTSTR=STR
@@ -174,12 +173,13 @@ GETINFO(TMGHL7MSG,MSGINFO)  ;"PARSE HEADER INFO INTO USABLE ARRAY
         . . IF $DATA(MSGINFO("PROV IEN")) QUIT
         . . SET MSGINFO("NPI")=$GET(TMGHL7MSG(IDX,8,1))
         . . SET MSGINFO("PROV IEN")=$ORDER(^VA(200,"ANPI",MSGINFO("NPI"),0))
-        . . IF MSGINFO("PROV IEN")'>0 SET TMGRESULT="-1^PROVIDER NPI '"_MSGINFO("NPI")_"' NOT FOUND" 
+        . . ;"//kt 12/13/17 IF MSGINFO("PROV IEN")'>0 SET TMGRESULT="-1^PROVIDER NPI '"_MSGINFO("NPI")_"' NOT FOUND"
+        . . ;"NOTE: Even if can't find via NPI, may be able to get PROV IEN from ORC segment, or else will default to 168 later.
         . IF SEGMENT="ORC" DO  ;"Process order information
         . . SET MSGINFO("LOCATION")=$GET(TMGHL7MSG(IDX,13,1))
         . . SET MSGINFO("LOCATION IEN")=$GET(TMGHL7MSG(IDX,13,2))
         . . SET MSGINFO("ORDER UID")=$GET(TMGHL7MSG(IDX,3))
-        . . IF ($GET(MSGINFO("PROV IEN"))=""),$GET(TMGHL7MSG(IDX,12,13))="TMGDUZ" DO
+        . . IF (+$GET(MSGINFO("PROV IEN"))'>0),$GET(TMGHL7MSG(IDX,12,13))="TMGDUZ" DO
         . . . SET MSGINFO("PROV IEN")=+$GET(TMGHL7MSG(IDX,12,1))
         NEW TMGDFN SET TMGDFN=$GET(MSGINFO("DFN"))
         NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(TMGDFN,"LR")),"^",1)
@@ -563,10 +563,10 @@ FILE1ARR(LRDFN,FNUM,IENS,ARRAY,FLAGS) ;
         NEW TMGFDA,TMGIEN,TMGMSG
         NEW FIELD SET FIELD=""
         NEW FLDD01 SET FLDD01=$GET(ARRAY(.01))
-        NEW INVDT SET INVDT=9999999-FLDD01
+        NEW RDT SET RDT=$$FMDT2RDT^TMGLRWU1(FLDD01)
         NEW NODE SET NODE=$SELECT(FNUM=63.04:"CH",FNAUM=63.05:"MI",1:"X")
-        NEW SUBIEN SET SUBIEN=INVDT
-        IF $DATA(^LR(+IENS,NODE,INVDT,0))=0 SET SUBIEN="+1"
+        NEW SUBIEN SET SUBIEN=RDT
+        IF $DATA(^LR(+IENS,NODE,RDT,0))=0 SET SUBIEN="+1"
         SET TMGRESULT=$$SETUPFDA(FNUM,SUBIEN,IENS,.ARRAY,.TMGFDA) 
         GOTO:(TMGRESULT'>0) FADN
         NEW TMGFDASAVE MERGE TMGFDASAVE=TMGFDA
@@ -582,7 +582,7 @@ FILE1ARR(LRDFN,FNUM,IENS,ARRAY,FLAGS) ;
         FOR  SET TMGIEN=$ORDER(TMGFDASAVE(FNUM,TMGIEN)) QUIT:TMGIEN'>0  DO
         . NEW TMGFLD SET TMGFLD=.01
         . FOR  SET TMGFLD=$ORDER(TMGFDASAVE(FNUM,TMGIEN,TMGFLD)) QUIT:TMGFLD'>0  DO
-        . . NEW NEWNODE SET NEWNODE=LRDFN_";"_NODE_";"_INVDT_";"_TMGFLD
+        . . NEW NEWNODE SET NEWNODE=LRDFN_";"_NODE_";"_RDT_";"_TMGFLD
         . . NEW IEN60 SET IEN60=$GET(ARRAY(TMGFLD,"XTRA",3,7))
         . . IF IEN60'>0 QUIT
         . . DO SLAB^LRPX(DFN,FLDD01,IEN60,NEWNODE)
@@ -674,41 +674,12 @@ SUBFNUM(FILE,FIELD) ;
         ;"QUIT ($GET(INFO("MULTIPLE-VALUED"))=1)
         QUIT SUBFILE
         ;
-PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) ;"PRIOR LAB DATES
-        ;"Purpose: Fill DATESUSED with dates already filed in database on same day
-        ;"Input: TMGHL7MSG -- PASS BY REFERNCE.  Array as created by PARSMSG2^TMGHL7X2
-        ;"       DATESUSED --PASS BY REFERENCE.  OUT PARAMETER. Array of other date/times already found.
-        ;"          DATESUSED(FMDT)="" <-- was DATESUSED(FMDT_" ")=""
-        ;"       MSGINFO.  PASS BY REFERENCE.  Array as created by GETINFO()
-        ;"Results: none
-        NEW LRDFN SET LRDFN=+$GET(MSGINFO("LRDFN"))
-        NEW TEMPARR
-        NEW OBRIDX SET OBRIDX=0
-        FOR   SET OBRIDX=$ORDER(TMGHL7MSG("B","OBR",OBRIDX)) QUIT:(+OBRIDX'>0)!(+TMGRESULT<0)   DO
-        . NEW DT SET DT=$GET(TMGHL7MSG(OBRIDX,7)) QUIT:DT=""
-        . SET DT=$$HL72FMDT^TMGHL7U3(DT)
-        . SET TEMPARR(DT\1)=""
-        NEW DT SET DT=0
-        FOR  SET DT=$ORDER(TEMPARR(DT)) QUIT:DT=""  DO
-        . NEW RDT SET RDT=9999999-DT
-        . NEW LABRDT SET LABRDT=RDT
-        . FOR  SET LABRDT=$ORDER(^LR(LRDFN,"CH",LABRDT),-1) QUIT:(+LABRDT'>0)!(LABRDT<(RDT-1))  DO
-        . . NEW FMDT SET FMDT=9999999-LABRDT
-        . . ;"SET DATESUSED(FMDT_" ")=""
-        . . SET DATESUSED(FMDT)=""
-        . . NEW ALAB SET ALAB=0 FOR  SET ALAB=$ORDER(^LR(LRDFN,"CH",LABRDT,ALAB)) QUIT:+ALAB'>0  DO
-        . . . ;"SET DATESUSED(FMDT_" ",ALAB)=""
-        . . . SET DATESUSED(FMDT,ALAB)=""
-        . . . ;"SET DATESUSED("B",ALAB,FMDT_" ")=""
-        . . . SET DATESUSED("B",ALAB,FMDT)=""
-        QUIT
-        ;
 DELPRIOR(FILEARR,DATESUSED,INFO)  ;"DELETE PRIOR FILINGS
-        ;"Input: FILEARR - PASS BY REFERENCE.  Array of new filings to be made, as created by FILESUBM()
+        ;"Input: FILEARR - PASS BY REFERENCE.  Array of new filings to be made, as created by FILESUBM^TMGLRW01()
         ;"       DATESUSED --PASS BY REFERENCE.  Array of other date/times already found
-        ;"             format: DATESUSED(FMDT)=""     <-- was DATESUSED(FMDT_" ")=""
-        ;"                     DATESUSED(FMDT,LabNum)=""  <-- was DATESUSED(FMDT_" ",LabNum)=""
-        ;"                     DATESUSED("B",LabNum,FMDT)=""  <-- was DATESUSED("B",LabNum,FMDT_" ")=""
+        ;"             format: DATESUSED(FMDT)=""
+        ;"                     DATESUSED(FMDT,LabNum)=""  
+        ;"                     DATESUSED("B",LabNum,FMDT)=""  
         ;"       INFO -- Array containing information needed for filing. 
         ;"Result: 1^OK , or  -1^Message
         NEW TMGRESULT SET TMGRESULT="1^OK"
@@ -717,68 +688,40 @@ DELPRIOR(FILEARR,DATESUSED,INFO)  ;"DELETE PRIOR FILINGS
         NEW SD1 SET SD1=$EXTRACT(DT,1,12)   ;"YYYMMDD.HHMM__
         SET SD1=$$LJ^XLFSTR(SD1,12,"0")  ;"add trailing 0's to achive 12 characters.        
         NEW LRDFN SET LRDFN=+$GET(INFO("LRDFN")) IF LRDFN'>0 GOTO DLPDN
+        NEW DELARR
+        ;"Setup array of what needs to be deleted from database.  
         NEW FLD SET FLD=1
         FOR  SET FLD=$ORDER(FILEARR(FLD)) QUIT:(+FLD'>0)!(+TMGRESULT'>0)  DO
         . IF $DATA(DATESUSED("B",FLD))=0 QUIT
-        . NEW OLDDT SET OLDDT=$ORDER(DATESUSED("B",FLD,"")) QUIT:OLDDT=""  ;"OLDDT here is cardinal number (no trailing 0's)
-        . SET OLDDT=$$LJ^XLFSTR(OLDDT,12,"0")  ;"add trailing 0's to achive 12 characters.
-        . IF $EXTRACT(OLDDT,1,12)'=SD1 QUIT
-        . SET TMGRESULT=$$DELLAB(LRDFN,+OLDDT,FLD) QUIT:+TMGRESULT'>0
-        . ;"KILL DATESUSED("B",FLD,OLDDT_" "),DATESUSED(OLDDT_" ",FLD)
-        . KILL DATESUSED("B",FLD,OLDDT),DATESUSED(OLDDT,FLD)
+        . NEW OLDDT SET OLDDT=0
+        . FOR  SET OLDDT=$ORDER(DATESUSED("B",FLD,OLDDT)) QUIT:OLDDT=""  DO  ;"OLDDT here is cardinal number (no trailing 0's)
+        . . NEW OLDDT12 SET OLDDT12=$EXTRACT($$LJ^XLFSTR(OLDDT,12,"0"),1,12)  ;"add trailing 0's to achive 12 characters.
+        . . IF OLDDT12'=SD1 QUIT
+        . . ;"SET TMGRESULT=$$DELLAB^TMGLRWU3(LRDFN,+OLDDT,FLD) QUIT:+TMGRESULT'>0
+        . . KILL DATESUSED("B",FLD,OLDDT),DATESUSED(OLDDT,FLD)
+        . . SET DELARR(OLDDT,FLD)=$$FMDT2RDT^TMGLRWU1(+OLDDT)
+        ;"Now actually delete the old entries. 
+        NEW ADT SET ADT=0
+        FOR  SET ADT=$ORDER(DELARR(ADT)) QUIT:ADT'>0  DO
+        . SET FLD=0 
+        . FOR  SET FLD=$ORDER(DELARR(ADT,FLD)) QUIT:(FLD'>0)!(+TMGRESULT'>0)  DO
+        . . SET TMGRESULT=$$DELLAB^TMGLRWU3(LRDFN,ADT,FLD)
 DLPDN   QUIT TMGRESULT
         ;
-ASKDELAB ;
-        WRITE !,!,"--------------------------------------------------------",!
-        WRITE "This utility will cause PERMANENT DELETION of store lab values. CAUTION!",!
-        WRITE "--------------------------------------------------------",!
-        NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE !
-        IF Y'>0 DO  GOTO ADLDN
-        . WRITE "No patient selected.  Aborting.",!
-        NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(+Y,"LR")),"^",1)
-        IF LRDFN'>0 DO  GOTO ADLDN
-        . WRITE "Unable to determine LRDFN in ^DPT("_+Y_",""LR"").  Aborting.",!
-        NEW %DT,X,Y SET %DT="AEP"
-        SET %DT("A")="Enter date of labs to delete: "
-        DO ^%DT WRITE !
-        IF Y'>0 DO  GOTO ADLDN
-        . WRITE "No date selected.  Aborting.",!
-        NEW MENU,MENUCT,USRPICK,ADT,FLD
-ADLL0   KILL MENU SET MENUCT=0
-        SET MENU(0)="Pick labs to delete"
-        NEW SRDT SET SRDT=9999999-(Y+1)
-        NEW ERDT SET ERDT=9999999-Y
-        NEW RDT SET RDT=SRDT
-        FOR  SET RDT=+$ORDER(^LR(LRDFN,"CH",RDT)) QUIT:(RDT>ERDT)!(RDT=0)  DO
-        . NEW LABFLD SET LABFLD=1
-        . FOR  SET LABFLD=+$ORDER(^LR(LRDFN,"CH",RDT,LABFLD)) QUIT:LABFLD'>0  DO
-        . . NEW DATANAME SET DATANAME=$PIECE($GET(^DD(63.04,LABFLD,0)),"^",1)
-        . . IF DATANAME="" SET DATANAME="(?? LAB NAME ??)"
-        . . NEW LINE SET LINE=$GET(^LR(LRDFN,"CH",RDT,LABFLD))
-        . . NEW VALUE SET VALUE=$PIECE(LINE,"^",1)
-        . . SET MENUCT=MENUCT+1,MENU(MENUCT)=DATANAME_" = "_VALUE_$CHAR(9)_LRDFN_";"_RDT_";"_LABFLD
-        IF MENUCT=0 DO  GOTO ADLDN
-        . WRITE "No labs found for patient on specified data.  Aborting."
-        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
-        IF "^"[USRPICK GOTO ADLDN
-        SET ADT=9999999-$PIECE(USRPICK,";",2)
-        SET FLD=$PIECE(USRPICK,";",3)
-        DO DELLAB(LRDFN,ADT,FLD)
-        SET %=1 WRITE !,"DELETE ANOTHER" DO YN^DICN WRITE !
-        IF %=1 GOTO ADLL0
-ADLDN   QUIT
+  ;"========================================
+  ;
+PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) ;"PRIOR LAB DATES -- MOVED.  DEPRECIATED, USE OTHER VERSION
+        DO PRIORLDT^TMGLRWU3(.TMGHL7MSG,.DATESUSED,.MSGINFO)
+        QUIT
         ;
-DELLAB(LRDFN,DT,FLD)  ;"DELETE 1 LAB
-        ;"IMPLEMENT
-        NEW TMGFDA,TMGMSG,TMGRESULT SET TMGRESULT="1^OK"
-        NEW RDT SET RDT=9999999-DT
-        SET TMGFDA(63.04,RDT_","_LRDFN_",",FLD)="@"
-        DO FILE^DIE("EK","TMGFDA","TMGMSG")
-        IF $DATA(TMGMSG("DIERR")) DO  GOTO DLBDN
-        . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
-        ;"Now kill all the field values that are non-standard Fileman 
-        KILL ^LR(LRDFN,"CH",RDT,FLD) ;"originally put her by SET in FILE1ARR()
-DLBDN   QUIT TMGRESULT
+ASKDELAB ;"MOVED.  DEPRECIATED, USE ASKDELAB^TMGLRWU3
+        DO ASKDELAB^TMGLRWU3
+        QUIT
+DELLAB(LRDFN,DT,FLD)  ;"DELETE 1 LAB  -- MOVED.  DEPRECITED, USE OTHER VERSION
+        QUIT $$DELLAB^TMGLRWU3
+        ;
+  ;"========================================
+  ;
 TEST ;
         NEW DFN SET DFN=70685  ;"PATIENT=TEST,KILLME
         NEW LABS

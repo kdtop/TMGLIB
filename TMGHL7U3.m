@@ -17,6 +17,9 @@ TMGHL7U3 ;TMG/kst-HL7 utility functions ; 12/11/17
  ;"=======================================================================
  ;"HL72FMDT(DATETIME) --Convert HL7 date time format into Fileman/Timson date.
  ;"FMDT2HL7(FMDT) -- Convert Fileman/Timson date into HL7 date time    
+ ;"GETNAME(TMGHL7MSG) ;"GET PATIENT NAME FROM TMGHL7MSG ARRAY
+ ;"GETDOB(TMGHL7MSG) ;"GET PATIENT DOB FROM TMGHL7MSG ARRAY
+ ;"GETNMDOB(TMGHL7MSG) ;"GET PATIENT NAME AND DOB FROM TMGHL7MSG ARRAY
  ;              
  ;"=======================================================================
  ;" API - Private Functions
@@ -27,6 +30,8 @@ TMGHL7U3 ;TMG/kst-HL7 utility functions ; 12/11/17
  ;"=======================================================================
  ;"=======================================================================
  ;
+ ;"FYI -- $$FMDT2RDT and $$RDT2FMDT are in TMGLRWU1
+ ; 
 HL72FMDT(HL7DT) ;
   ;"Purpose: Convert HL7 date time format into Fileman/Timson date.
   ;"Input: HL7DT -- Expected format YYYYMMDD[HH[MM[SS]]]
@@ -40,7 +45,7 @@ HL72FMDT(HL7DT) ;
   NEW TIME,HR,MIN,SEC SET (HR,MIN,SEC)=""
   SET HR=$EXTRACT(HL7DT,9,10)
   SET MIN=$EXTRACT(HL7DT,11,12)
-  SET MIN=$EXTRACT(HL7DT,13,14)
+  SET SEC=$EXTRACT(HL7DT,13,14)
   IF $$SUPPTIME^TMGHL7U2()=1 DO  ;"ELH 2/10/15, //kt mod 12/11/16
   . IF HR'="" SET HR=00
   . IF MIN'="" SET MIN=00  

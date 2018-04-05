@@ -104,7 +104,7 @@ CASETAGS(HTMLSTR,MODE)  ;"Convert all HTML tag names to specified CASE
   ;"       MODE -- 1 means convert to upper case
   ;"               2 means convert to lower case
   ;"Results: returns converted string
-  s ^TMP("EDDIE","HTMLSTR")=HTMLSTR
+  ;"s ^TMP("EDDIE","HTMLSTR")=HTMLSTR
   NEW POS SET POS=0
   NEW DONE SET DONE=0
   NEW OUTSTR SET OUTSTR=HTMLSTR
@@ -119,7 +119,7 @@ CASETAGS(HTMLSTR,MODE)  ;"Convert all HTML tag names to specified CASE
   . NEW TAG SET TAG=$EXTRACT(OUTSTR,POS,P2-2)
   . NEW NEWTAG SET NEWTAG=$SELECT(MODE=1:$$UP^XLFSTR(TAG),2:$$LOW^XLFSTR(TAG),1:TAG)
   . SET OUTSTR=STRA_NEWTAG_STRB
-  s ^TMP("EDDIE","OUTSTR")=OUTSTR
+  ;"s ^TMP("EDDIE","OUTSTR")=OUTSTR
   QUIT OUTSTR
   
   ;================================================================

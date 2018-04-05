@@ -766,3 +766,58 @@ TESTHFTABLE
   WRITE $$GETITEM^TMGPXR02(DFN,TABLIEN,LNIEN,9999,.OUT),!
   WRITE $$GETITEM^TMGTIUO8(DFN,TABLIEN,LNIEN,9999,.OUT),!  
   QUIT
+  
+;"CHECK FOR DUPLICATE LAB TESTS BEING STORED IN SAME STORAGE FIELD
+TESTDUPLABSTOR ;
+  NEW DUPARR
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(^LAB(60,"C",IDX)) QUIT:IDX=""  DO
+  . NEW LASTIDX SET LASTIDX=""
+  . NEW JDX SET JDX=""
+  . FOR  SET JDX=$ORDER(^LAB(60,"C",IDX,JDX))  QUIT:JDX'>0  DO
+  . . IF LASTIDX'="" DO
+  . . . MERGE DUPARR(IDX)=^LAB(60,"C",IDX)
+  . . SET LASTIDX=JDX
+  SET IDX=""
+  FOR  SET IDX=$ORDER(DUPARR(IDX)) QUIT:IDX=""  DO
+  . NEW JDX SET JDX=""
+  . FOR  SET JDX=$ORDER(DUPARR(IDX,JDX)) QUIT:JDX=""  DO
+  . . SET DUPARR(IDX,JDX)=$GET(^LAB(60,JDX,0))
+  IF $DATA(DUPARR) ZWR DUPARR
+  ELSE  WRITE !,"NONE",!
+  ;
+
+TESTNULL0(TONULL)
+  WRITE "Text before trying to output to NULL",!
+  WRITE "----------------------------------------",!
+  IF TONULL DO
+  . SET TONULL("HANDLE")="TMGHNDL1"
+  . DO OPEN^%ZISUTL(TONULL("HANDLE"),"NULL")
+  . IF POP>0 SET TONULL=0 QUIT  ;"Unable to open NULL device
+  . USE IO
+  FOR X=1:1:10 WRITE "X=",X,!
+  IF TONULL DO CLOSE^%ZISUTL(TONULL("HANDLE"))  ;"Close NULL device if opened above. 
+  WRITE "----------------------------------------",!
+  WRITE "Text after trying to output to NULL",!
+  QUIT
+  ;
+
+TESTNULL(TONULL)
+  WRITE "Text before trying to output to NULL",!
+  WRITE "----------------------------------------",!
+  IF TONULL DO
+  . SET TONULL("HANDLE")="TMGHNDL1"
+  . SET IOP="NULL",%ZIS=""
+  . DO ^%ZIS
+  . ;"DO OPEN^%ZISUTL(TONULL("HANDLE"),"NULL")
+  . IF POP>0 SET TONULL=0 QUIT  ;"Unable to open NULL device
+  FOR X=1:1:10 WRITE "X=",X,!
+  IF TONULL DO
+  . DO CLOSE^%ZISUTL(TONULL("HANDLE"))  ;"Close NULL device if opened above. 
+  WRITE "----------------------------------------",!
+  WRITE "Text after trying to output to NULL",!
+  QUIT
+  ;
+
+
+  

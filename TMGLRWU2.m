@@ -1,4 +1,4 @@
-TMGLRWU2 ;TMG/kst-Utility filing LAB DATA ;1/4/17
+TMGLRWU2 ;TMG/kst-Utility filing LAB DATA ;1/4/17,4/1/18
               ;;1.0;TMG-LIB;**1**;1/4/17
  ;
  ;"TMG LAB ENTRY UTILITIES
@@ -77,7 +77,7 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   . IF LR6903 SET LROIFN=$PIECE($GET(^LRO(69,LRODT,1,LRSN,2,LR6903,0)),"^",7)
   . IF 'LROIFN SET LROIFN=$PIECE($GET(^LRO(69,LRODT,1,LRSN,0)),"^",11)
   . SET LROE=$PIECE($GET(^LRO(69,LRODT,1,LRSN,.1)),"^")
-  IF LRODT'>0 SET LRODT=9999999-LRIDT  ;"//kt
+  IF LRODT'>0 SET LRODT=$$RDT2FMDT^TMGLRWU1(LRIDT)  ;"//kt
   ;
   ;"          OK to be null "". OERR INTERNAL FILE #, an IEN100
   ;"          |             OK to be null "". ORDER # (field 9.5) in 69.01
@@ -142,6 +142,23 @@ CHKALERT(RECIPARR,DFN,ALERTMSG)
   . . SET ITEMDFN=$P($P(ZN,"^",2),",",2)
   . . SET ITEMMSG=$$TRIM^XLFSTR($P($P(ZN,"^",3),": ",2,999))
   . . IF (ITEMDFN=DFN)&(ITEMMSG=ALERTMSG) KILL RECIPARR(RECIP)
+  . . ;"ELH -- 11/16/17
+  . . ;"  Try to determine if:
+  . . ;"    current is abnormal, previous was normal... add (maybe remove normal later)
+  . . ;"    current is normal, previous was abnormal... don't add
+  . . IF ALERTMSG["Lab" DO
+  . . . ;"BELOW WILL JUST GET "results: - [DATE@TIME]" from each and test
+  . . . ;"   THIS WILL NOT ADD IF ABNORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
+  . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
+  . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
+  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) KILL RECIPARR(RECIP)
+  . . IF ALERTMSG["Abnormal" DO
+  . . . ;"BELOW WILL DETERMINE IF NORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
+  . . . ;"   THIS WILL DELETE THE EXISTING NORMAL ALERT
+  . . . ;"note: don't enact this portion yet until top has been tested
+  . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
+  . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
+  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) KILL ^XTV(8992,RECIP,"XQA",DTTIME)
   . ;"Just in case an alert was previously created in the same job, but 
   . ;"was tasked off and hasn't been fully completed yet... we will test
   . ;"a temp global and also store in the global
@@ -172,7 +189,7 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   SET NODE=$GET(NODE,"CH")
   IF "CH,MI,"'[NODE_"," DO  GOTO ALRTDN
   . SET TMGRESULT="-1^Invalid NODE provided.  Got ["_NODE_"]"
-  NEW RDT SET RDT=9999999-FMDT
+  NEW RDT SET RDT=$$FMDT2RDT^TMGLRWU1(FMDT)
   IF $DATA(^LR(LRDFN,NODE,RDT))=0 DO  GOTO ALRTDN
   . SET TMGRESULT="-1^No lab data to send alert for.  DFN=["_DFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
   SET LEVEL=$GET(LEVEL,1)
@@ -259,8 +276,59 @@ TEST1  ;
   ;"                                        = 0507.0201^^^73^^PATHGROUP
   ;" 32) ^LR(128,"CH",6839492.899498,"NPC") = 2
   NEW RDT SET RDT="6839492.899498"
-  NEW FMDT SET FMDT=9999999-RDT
+  NEW FMDT SET FMDT=$$FMDT2RDT^TMGLRWU1(RDT)
   NEW TEMP SET TEMP=$$ALERT(168,9182,FMDT)
   WRITE TEMP,!
   QUIT
   ;"
+CLEANALR()  ;"Remove duplicate lab alerts
+  ;"First: grab all alerts and stuff into an array
+  NEW ALERTARR  ;"DATA WILL BE ALERTARR(USER,PAT,MESSAGE)=DATETIME
+  NEW DTTIME
+  NEW RECIP SET RECIP=0
+  FOR  SET RECIP=$ORDER(^XTV(8992,RECIP)) QUIT:RECIP'>0  DO 
+  . SET DTTIME=0
+  . FOR  SET DTTIME=$ORDER(^XTV(8992,RECIP,"XQA",DTTIME)) QUIT:(DTTIME'>0)  DO
+  . . NEW ZN SET ZN=$GET(^XTV(8992,RECIP,"XQA",DTTIME,0))
+  . . NEW THISINFO,THISMSG
+  . . SET THISINFO=$P(ZN,"^",2)
+  . . SET THISMSG=$$TRIM^XLFSTR($P($P(ZN,"^",3),": ",2,999))
+  . . IF THISMSG["ab result" SET ALERTARR(RECIP,THISINFO,THISMSG)=DTTIME
+  ;"
+  NEW LASTMSG
+  SET RECIP=0
+  FOR  SET RECIP=$ORDER(ALERTARR(RECIP)) QUIT:RECIP'>0  DO
+  . SET THISINFO=0
+  . FOR  SET THISINFO=$ORDER(ALERTARR(RECIP,THISINFO)) QUIT:THISINFO=""  DO
+  . . SET THISMSG="",LASTMSG=""
+  . . WRITE THISINFO,!
+  . . FOR  SET THISMSG=$ORDER(ALERTARR(RECIP,THISINFO,THISMSG)) QUIT:THISMSG=""  DO
+  . . . WRITE "-->",THISMSG,!
+  . . . SET LASTMSG=THISMSG
+  . . . ;SET DTTIME=$G(ALERTARR(RECIP,THISINFO,THISMSG))
+  . . . ;KILL ^XTV(8992,RECIP,"XQA",DTTIME)
+
+
+  QUIT
+;  . . IF (ITEMDFN=DFN)&(ITEMMSG=ALERTMSG) KILL RECIPARR(RECIP)
+;  . . ;"ELH -- 11/16/17
+;  . . ;"  Try to determine if:
+;  . . ;"    current is abnormal, previous was normal... add (maybe remove normal later)
+;  . . ;"    current is normal, previous was abnormal... don't add
+;  . . IF ALERTMSG["Normal" DO
+;  . . . ;"BELOW WILL JUST GET "results: - [DATE@TIME]" from each and test
+;  . . . ;"   THIS WILL NOT ADD IF ABNORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
+;  . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
+;  . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
+;  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) KILL RECIPARR(RECIP)
+;  . . IF ALERTMSG["Abnormal" DO
+;  . . . ;"BELOW WILL DETERMINE IF NORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
+;  . . . ;"   THIS WILL DELETE THE EXISTING NORMAL ALERT
+;  . . . ;"note: don't enact this portion yet until top has been tested
+;  . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
+ ;; . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
+ ; . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) KILL ^XTV(8992,RECIP,"XQA",DTTIME)
+ ; . ;"Just in case an alert was previously created in the same job, but
+ ; . ;"was tasked off and hasn't been fully completed yet... we will test
+ ; . ;"a temp global and also store in the global
+ ; . IF $D(^TMP("TMG HL7 ALERT",$J,RECIP,DFN,ALERTMSG)) KILL 

@@ -1,4 +1,4 @@
-TMGHL72 ;TMG/kst-HL7 transformation engine processing ;6/23/16, 8/9/16, 5/9/17
+TMGHL72 ;TMG/kst-HL7 transformation engine processing ;5/9/17, 4/1/18
               ;;1.0;TMG-LIB;**1**;03/26/11
  ;
  ;"TMG HL7 TRANSFORMATION CALL-BACK FUNCTIONS
@@ -20,16 +20,63 @@ TMGHL72 ;TMG/kst-HL7 transformation engine processing ;6/23/16, 8/9/16, 5/9/17
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"TEST(DEFPATH) --Pick file and manually send through filing process.
- ;"HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH) -- Import files from a directory
- ;"HL7FIN(FNAME,NOALERT,DONEPATH) -- Entry point for processing HL7 files loaded from HFS
- ;"HL7IN(NOALERT) -- Entry point, that could be  called from HL7 lab import engine
- ;"HL7MSGIN(TMGMSG,NOALERT,OPTION) -- Entry point to process message, stored in TMGMSG
-
+ ;
  ;"=======================================================================
  ;" API - Private Functions
  ;"=======================================================================
- ;"<Many call-back hooks for transformation engine>
+ ;"<Many call-back hooks for transformation engine> 
+ ;"XMSG    Process entire message before processing segments
+ ;"XMSG2   Process entire message after processing segments
+ ;"XMSG2B  
+ ;"XMSH4   Process MSH segment, FLD 4 (Sending Facility)
+ ;"XMSH15  Process MSH segment, FLD 15
+ ;"XMSH16  Process MSH segment, FLD 16
+ ;"PID     transform the PID segment, esp SSN
+ ;"XORC1   Process empty ORC message, field 1
+ ;"ORC2    Process ORC message, field 2
+ ;"XORC12  Process empty ORC message, field 12
+ ;"XORC13  Process empty ORC message, field 13
+ ;"OBR     setup for OBR fields.
+ ;"OBR4    transform the OBR segment, field 4
+ ;"OBR15   Transform Secimen source
+ ;"OBR16   Transform Ordering provider.
+ ;"OBX     transform the entire OBX segment before any fields are processed
+ ;"OBX3    transform the OBX segment, field 3 -- Observation Identifier
+ ;"OBX5    transform the OBX segment, field 5 -- Observation value
+ ;"OBX14   transform the OBX segment, field 14 ---- Date/Time of observation
+ ;"OBX15   transform the OBX segment, field 15 ---- Producer's ID
+ ;"OBX16   transform the OBX segment, field 16 ---- Responsibile Observer
+ ;"OBX18   transform the OBX segment, field 18 ---- Equipment Identifier (EI)
+ ;"NTE3    transform the NTE segment, field 3 (the comments)
+ ;"SUPROV  Setup TMGINFO("PROV") -- Ordering provider.
+ ;"HL7N2FMN(TMGU,HL7NAME,LNAME,FNAME,MNAME)  --CONVERT HL7-FORMAT NAME TO FILEMAN-FORMAT NAME
+ ;"SUORL   --Purpose: Setup TMGINFO("ORL") and TMGINFO("LOC") -- Ordering locations
+ ;"VALIDVAL(TMGENV,TMGWKLD,TMGVALUE,MAP) --Determine IF a lab/result value can be stored of a given lab
+ ;"SUSPEC  --Transform Secimen source
+ ;"ADD2NTE(ARR,TMGHL7MSG,TMGU)   -- Add lines from ARR as extra NTE segments
+ ;"ADD2ARRI(ARR,LABEL,VALUE)  --ADD TO ARRAY IF VALUE IS NOT ""
+ ;"ADDTOARR(ARR,LINE)   ;
+ ;"ADDA2ARR(OUT,INARR) -- ADD ARRY TO OUTPUT ARRAY
+ ;"ISFINALN(TMGHL7MSG,SEGN)  -- IS NTE BLOCK AT THE END OF THE MESSAGE?  I.E. NO FOLLOWING SEGMENTS?
+ ;"DBLN()  -- Return ascii text line
+ ;"NUMNTEFO(SEGN)  -- NUMBER OF NTE SEGMENTS THAT FOLLOW AFTER SEGN
+ ;"LABLDATA(OUT,TMGHL7MSG,SEG,SEGN)  ;
+ ;"INSRTNTE(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   -- Insert note segment after SEGNPRIOR from ARR
+ ;"PREFIXNT(LINE,TMGHL7MSG,TMGU,SEGN)  -- PREFIX NOTE (INSERT LINE BEFORE INDEX LINE)
+ ;"PREFXNTA(ARR,TMGHL7MSG,TMGU,SEGN)  -- PREFIX NOTE ARRAY (INSERT ARRAY BEFORE INDEX LINE)
+ ;"APPNDNTE(ARR,TMGHL7MSG,TMGU,LASTNTESEGN)   -- APPEND NOTE 
+ ;"KILLDNRS(TMGHL7MSG)  -- Scan an remove all OBX's with lab value of "DNR", and also associated NTE segs.
+ ;"DELSEG(TMGHL7MSG,SEGN)  -- DELETE SEGMENT, AND REFERENCES TO IT IN THE CROSS REFERENCES
+ ;"GETSEGAR(TMGHL7MSG,SEGN,SEGNAME,OUT) -- Return array with all segments matching SEGNAME *following* SEGN, until non-match found
+ ;"GETOBXAR(TMGHL7MSG,SEGN,OUT) -- Return array with all "OBX" segments *following* SEGN, until non-OBX found
+ ;"GETNTARR(TMGHL7MSG,SEGN,OUT) -- Return array with all "NTE" segments *following* SEGN, until non-NTE found
+ ;"SUMOBXAR(OBXAR,OUT)  -- Summarize OBX Array 
+ ;"ADD2RSLT(RESULT,ARR,SEGN,FLD,PREFIX) -- A utility function for HNDUPOBX below
+ ;"HNDUPOBX(TMGHL7MSG,SEGN,TMGU) -- Handle situation with an OBR having duplicate OBX's
+ ;"SUMOBXSTA(TMGHL7MSG,SEGN,OUT) -- Get net status from OBX's after an OBR
+ ;"SUMNTARR(TMGHL7MSG,SEGN,OUT) -- Convert NTE's after SEGN into simple ARR(#)=Text array
+ ;"CHKOBRNT(TMGHL7MSG,SEGN,OBRCOMMENTS) -- CHECK / Handle NTE's that follow OBR (i.e. order comments) 
+ ;
  ;"=======================================================================
  ;"Dependancies
  ;"=======================================================================
@@ -281,7 +328,9 @@ OBX5    ;"Purpose: To transform the OBX segment, field 5 -- Observation value
         . DO TMGLOG^HLCSTCP1("In OBX5.TMGHL72:Success.  New TMGVALUE="_TMGVALUE)
 OBX5DN  IF TMGRESULT<0 SET TMGXERR=$PIECE(TMGRESULT,"^",2,99)
         QUIT
-
+OBX14   ;"Purpose: To transform the OBX segment, field 14 ---- Date/Time of observation
+        ;"THIS NEEDS TO BE COMPLETED
+        QUIT
 OBX15   ;"Purpose: To transform the OBX segment, field 15 ---- Producer's ID
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE, IEN62D4,TMGINFO
         NEW ORL SET ORL=$GET(TMGINFO("ORL"))

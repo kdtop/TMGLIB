@@ -217,6 +217,10 @@ PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), ACH (addit
         . SET OUT(SECTION,OUTIDX)=S,OUTIDX=OUTIDX+1        
         QUIT
         ;
+OBX14   ;"Purpose: To transform the OBX segment, field 14 -- Date/Time of the Observation
+        DO OBX14^TMGHL72
+        QUIT
+        ;
 OBX15   ;"Purpose: To transform the OBX segment, field 15 ---- Producer's ID
         DO OBX15^TMGHL72
         QUIT

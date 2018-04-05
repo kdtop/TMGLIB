@@ -79,6 +79,17 @@ ISHTMREF(REFARRAY,ZN) ;
 ISHRDN  ;
   QUIT RESULT
   ;
+REMHTML(LINESTR)  ;"REMOVE {HTML...} TAGS
+  FOR  QUIT:(LINESTR'["{HTML:")!(LINESTR'["}")  DO  ;" aaa<bbb>ccc  or aaa>bbb<ccc
+  . NEW S1,S2,S3
+  . SET S1=$PIECE(LINESTR,"{HTML:",1)
+  . IF S1["}" DO  QUIT
+  . . SET LINESTR=$PIECE(LINESTR,"}",1)_""_$PIECE($PIECE(LINESTR,"}",2,999),"{HTML:",1)_""_$PIECE(LINESTR,"{HTML:",2,999)
+  . SET S2=$PIECE($PIECE(LINESTR,"{HTML:",2,999),"}",1)
+  . SET S3=$PIECE(LINESTR,"}",2,999)
+  . SET LINESTR=S1_S3
+  QUIT LINESTR
+  ;"
 HTML2TXT(ARRAY,LISUB) ;
   ;"Purpose: text a WP array that is HTML formatted, and strip <P>, and
   ;"         return in a format of 1 line per array node.

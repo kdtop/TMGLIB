@@ -84,7 +84,7 @@ HFS2WP(PATH,FILENAME,GLOBALP) ;
         . . IF $DATA(TMGWP(IDX,"OVF")) DO
         . . . NEW JDX SET JDX=$ORDER(TMGWP(IDX,"OVF",""))
         . . . IF JDX'="" FOR  DO  QUIT:(JDX="")
-        . . . . NEW NUM SET NUM=IDX+(JDX/10)
+        . . . . NEW NUM SET NUM=IDX+(JDX/1000)
         . . . . SET TMGWP(NUM,0)=TMGWP(IDX,"OVF",JDX)
         . . . . SET JDX=$ORDER(TMGWP(IDX,"OVF",JDX))
         . . . KILL TMGWP(IDX,"OVF")
@@ -148,37 +148,40 @@ HFS2ARR(PATH,FILENAME,REF,OPTION)  ;
         ;"                        If 0, null or "" then overflow lines are turned into normal lines
         ;"                        If 1 then the overflow portion is concat'd to the orig line (making length>255)
         ;"                        If 2 then over lines are left with index values with decimal (e.g. 123.1)
+        ;"NOTE: This will support loading lines of length 255*1000000 = ~255 MB
         ;"Result: 0 if failure, 1 if success
-        NEW TMGRESULT,TMGWP
-        SET TMGRESULT=$$FTG^%ZISH(PATH,FILENAME,"TMGWP(1,0)",1)
+        
+        NEW TMGRESULT,%ZZWP
+        SET TMGRESULT=$$FTG^%ZISH(PATH,FILENAME,"%ZZWP(1,0)",1)
         IF TMGRESULT=0 GOTO H2ARDN
         NEW LINETERM SET LINETERM=$GET(OPTION("LINE-TERM"))
         ;"Scan for overflow nodes, and integrate into main body
         IF LINETERM'="" GOTO H2AR2  ;"different processing.
         NEW IDX SET IDX=""
-        FOR  SET IDX=$ORDER(TMGWP(IDX)) QUIT:(IDX="")  DO
-        . IF $DATA(TMGWP(IDX,"OVF")) DO
+        FOR  SET IDX=$ORDER(%ZZWP(IDX)) QUIT:(IDX="")  DO
+        . IF $DATA(%ZZWP(IDX,"OVF")) DO
         . . NEW JDX SET JDX=""
-        . . FOR  SET JDX=$ORDER(TMGWP(IDX,"OVF",JDX)) QUIT:(JDX="")  DO
-        . . . SET TMGWP(IDX+(JDX/10),0)=TMGWP(IDX,"OVF",JDX)
-        . . KILL TMGWP(IDX,"OVF")
+        . . FOR  SET JDX=$ORDER(%ZZWP(IDX,"OVF",JDX)) QUIT:(JDX="")  DO
+        . . . SET %ZZWP(IDX+(JDX/1000000),0)=%ZZWP(IDX,"OVF",JDX)
+        . . KILL %ZZWP(IDX,"OVF")
         NEW OVERFLOWMODE SET OVERFLOWMODE=+$GET(OPTION("OVERFLOW"))
         ;"Now copy into destination variable, renumbering lines, and handling overflow lines
         SET (IDX,JDX)=0
-        FOR  SET IDX=$ORDER(TMGWP(IDX)) QUIT:(IDX="")  DO
+        FOR  SET IDX=$ORDER(%ZZWP(IDX)) QUIT:(IDX="")  DO
         . IF (OVERFLOWMODE'=0)&(IDX\1'=IDX) DO  QUIT
         . . IF OVERFLOWMODE=1 DO  QUIT
         . . . NEW PRIORIDX SET PRIORIDX=$ORDER(@REF@(""),-1)
         . . . NEW PRIORSTR SET PRIORSTR=$GET(@REF@(PRIORIDX))
-        . . . NEW THISSTR SET THISSTR=$GET(TMGWP(IDX,0))
+        . . . NEW THISSTR SET THISSTR=$GET(%ZZWP(IDX,0)) 
         . . . SET @REF@(PRIORIDX)=PRIORSTR_THISSTR
         . . IF OVERFLOWMODE=2 DO  QUIT
         . . . NEW KDX SET KDX=JDX_"."_$PIECE(IDX,".",2)
-        . . . SET @REF@(KDX)=TMGWP(IDX,0)
-        . ELSE  SET JDX=JDX+1,@REF@(JDX)=TMGWP(IDX,0)
+        . . . SET @REF@(KDX)=%ZZWP(IDX,0)
+        . ELSE  SET JDX=JDX+1,@REF@(JDX)=%ZZWP(IDX,0)
+        . KILL %ZZWP(IDX,0)
         GOTO H2ARDN
 H2AR2   ;" handle dividing up by custom line terminator character(s)  Added 8/30/13
-        NEW TEMPREF SET TEMPREF="TMGWP(0)"
+        NEW TEMPREF SET TEMPREF="%ZZWP(0)"
         NEW TEMPARR,IDX SET IDX=0
         NEW RESIDUAL SET RESIDUAL=""
         FOR  SET TEMPREF=$QUERY(@TEMPREF) QUIT:(TEMPREF="")  DO

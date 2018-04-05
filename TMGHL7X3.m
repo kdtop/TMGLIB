@@ -375,4 +375,5 @@ HL7SEGS ; HL7 Segment Headers
   ;;"ZL7
   ;;"<DONE>
   ;
-  QUIT          
+  QUIT         
+  ;

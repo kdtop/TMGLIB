@@ -1,4 +1,4 @@
-TMGLRWU1 ;TMG/kst-Utility for entering data to LAB DATA file ;9/13/13, 2/2/14
+TMGLRWU1 ;TMG/kst-Utility for entering data to LAB DATA file ;2/2/14, 4/1/18
               ;;1.0;TMG-LIB;**1**;9/13/13
  ;
  ;"TMG LAB ENTRY UTILITY
@@ -16,6 +16,8 @@ TMGLRWU1 ;TMG/kst-Utility for entering data to LAB DATA file ;9/13/13, 2/2/14
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"CONSOLE ;
+ ;"FMDT2RDT(FMDT)  --CONVERT FMDT --> LAB RDT
+ ;"RDT2FMDT(RDT)   --CONVERT LAB RDT --> FMDT
  ;"
  ;"=======================================================================
  ;" API - Private Functions
@@ -305,3 +307,12 @@ ORXX(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notificatio
 ORDN     QUIT TMGRESULT
          ;
          ;        
+ ;"NOTE:    IF Y=C-X  THEN X=C-Y   e.g. 100-7=93, and 100-93=7         
+FMDT2RDT(FMDT)  ;"CONVERT FMDT --> LAB RDT
+  ;"QUIT 9999999.999999-FMDT
+  QUIT 9999999-FMDT
+  ;
+RDT2FMDT(RDT)   ;"CONVERT LAB RDT --> FMDT
+  ;"QUIT 9999999.999999-RDT
+  QUIT 9999999-RDT
+  ;

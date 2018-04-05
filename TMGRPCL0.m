@@ -18,6 +18,8 @@ TMGRPCL0 ;TMG/kst/CPRS Lab Entry support routines ; 9/4/13, 2/2/14M 3/21/15
  ;"LISTSPEC(TMGOUT,FROM,DIR) -- Return a SET of specimens from TOPOGRAPHY FIELD file.
  ;"CHLDINFO(TMGOUT,IEN) -- Get info regarding child complents for a lab, IF any. (RPC CALL) 
  ;"DFLTSPEC(TMGOUT,IEN60) --GET DEFAULT SPECIMEN (FILE 61) FOR GIVEN LAB TEST (IEN60) (RPC CALL)
+ ;"GETGRPS(TMGOUT) -- GET LAB GROUPINGS
+ ;"GRPLABS(TMGOUT,GRPIEN) -- GET LABS FOR ONE GROUP
  ;
  ;"=======================================================================
  ;" Private Functions.
@@ -462,3 +464,27 @@ SDEFSPEC(TMGOUT,IEN60,IEN61) ;"SET DEFAULT SPECIMEN (FILE 61) FOR GIVEN LAB TEST
         . SET TMGOUT(0)="-1^"_$PIECE(TMGOUT(0),"^",2)_"; "_$PIECE(TEMPOUT(0),"^",2)
 SDSPCDN QUIT        
         ;
+GETGRPS(TMGOUT) ;-- GET LAB GROUPINGS FOR CPRS
+        ;"TMGOUT(IEN)=NAME
+        NEW NAME SET NAME=""
+        NEW IDX SET IDX=1
+        FOR  SET NAME=$O(^TMG(22734,"B",NAME)) QUIT:NAME=""  DO
+        . NEW IEN SET IEN=$O(^TMG(22734,"B",NAME,0))
+        . NEW USE SET USE=$P($G(^TMG(22734,IEN,0)),"^",2)
+        . IF USE'="C" QUIT
+        . SET TMGOUT(IDX)=IEN_"^"_NAME
+        . SET IDX=IDX+1
+        QUIT
+        ;"
+GRPLABS(TMGOUT,GRPIEN) ;-- GET LABS FOR ONE GROUP
+        ;"TMGOUT(IDX)=IEN60
+        NEW IDX,IEN60,STORE,NAME
+        SET IDX=0
+        FOR  SET IDX=$O(^TMG(22734,GRPIEN,1,IDX)) QUIT:IDX'>0  DO
+        . SET IEN60=$G(^TMG(22734,GRPIEN,1,IDX,0))
+        . SET NAME=$PIECE($GET(^LAB(60,IEN60,0)),"^",1)
+        . SET NAME=$$UP^XLFSTR(NAME)
+        . SET STORE=$PIECE($GET(^LAB(60,IEN60,0)),"^",5)
+        . SET TMGOUT(IDX)=IEN60_"^"_NAME_"^"_NAME_"^"_STORE
+        QUIT
+        ;"
