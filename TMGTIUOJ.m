@@ -31,6 +31,7 @@ TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 3/30/15, 1/13/17
  ;"$$LNAME(DFN)
  ;"$$PHONENUM(DFN)
  ;"$$GETTABLX(DFN,LABEL,OUT,ARRAY) -- return a table compiled from prior notes.
+ ;"TESTTABL 
  ;"$$MEDLIST(RESULT,DFN)  -- RPC Entry point (TMG GET MED LIST).  Return a patient's med list
  ;"$$ALLERGY(DFN) -- Get allergy list to populate TIU Object |TMG ALLERGY LIST|
  ;"$$PTPRPRO(DFN) -- Returns patient's personal pronoun

@@ -1,4 +1,4 @@
-TMGSELED ;TMG/kst/Group record selected editer ;03/25/06; 10/12/12, 2/2/14
+TMGSELED ;TMG/kst/Group record selected editer ;10/12/12, 2/2/14, 4/15/18
          ;;1.0;TMG-LIB;**1**;01/25/07
 
  ;"TMG -- Group record selected editer
@@ -33,18 +33,17 @@ TMGSELED ;TMG/kst/Group record selected editer ;03/25/06; 10/12/12, 2/2/14
  ;"                      FldNum3 is a value in file3
  ;"
  ;"$$EditRecs(pList,Options,LookupFn) -- get NEW values for fields in records
+ ;"GETFLDS(OPTIONS)  -- Interact with user to choose fields, and their display widths
  ;"$$GetFields(Options) -- Interact with user to choose fields, and their display widths
-
+ ;"GETIENS(OPTIONS)  - Interact with user to choose IENs to be edited 
+ ;"GetIENs(Options) -- Interact with user to choose IENs to be edited
  ;"=======================================================================
  ;" Private Functions.
  ;"=======================================================================
- ;"GetIENs(Options) -- Interact with user to choose IENs to be edited
-
  ;"GetFldVScreen(File,FieldNum,ScrnCode,pResults,Flags) -- get List of IENs in File matching ScreenCode
- ;"GetFldValue(File,FieldNum,Value,pResults) --get List of IENs in File with missing Field
+ ;"GTFLDVAL(FILE,FIELDNUM,VALUE,REFRESULTS,FLAGS)  --get List of IENs in File with missing Field
+ ;"GetFldValue(File,FieldNum,Value,pResults)       --get List of IENs in File with missing Field
  ;"FixValue(pList,FileNum,FieldNum) -- Ask user for a valid value & apply to all entries in pList
-
-
 
 ASKSELED
         ;"Scope: PUBLIC
@@ -127,7 +126,9 @@ AK2     KILL DIC
 AKDone
         QUIT
 
-
+GETFLDS(OPTIONS)  ;"SAAC-compliant entry point
+        QUIT $$GetFields(.OPTIONS)
+        ;
 GetFields(Options)
         ;"Purpose: Interact with user to choose fields, and their display widths
         ;"Input: Options -- PASS BY REFERENCE, (used for input and as OUT PARAMETER)
@@ -333,7 +334,9 @@ GetDispStr(Options)
 
         QUIT outS
 
-
+GETIENS(OPTIONS)  ;"SAAC-compliant entry point
+        QUIT $$GetIENs(.OPTIONS)
+        ;       
 GetIENs(Options)
         ;"Purpose: Interact with user to choose IENs to be edited
         ;"              User will be able to pick IENs from a SORT TEMPLATE, or
@@ -446,7 +449,9 @@ GetFldVScreen(File,FieldNum,ScrnCode,pResults,Flags)
 
         QUIT
 
-
+GTFLDVAL(FILE,FIELDNUM,VALUE,REFRESULTS,FLAGS)  ;"SAAC-compliant entry point
+        QUIT $$GetFldValue(.FILE,.FIELDNUM,.VALUE,.REFRESULTS,.FLAGS)
+        ;
 GetFldValue(File,FieldNum,Value,pResults,Flags)
         ;"Purpose: get List of IENs in File with matching Field
         ;"Input: File -- the File to scan
@@ -586,6 +591,9 @@ SLoop   KILL @pList
 SEDone
         QUIT result
 
+EDITRECS(PLIST,OPTIONS,LOOKUPFN)  ;"SAAC-compliant entry point
+        QUIT $$EditRecs(.PLIST,.OPTIONS,.LOOKUPFN)
+        ;                
 EditRecs(pList,Options,LookupFn)
         ;"Purpose: To get NEW values for display fields in records
         ;"Input: pList -- PASS BY NAME.  A list of IENs to process

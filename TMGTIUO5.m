@@ -72,7 +72,7 @@ GNLDONE ;
   QUIT
   ;
 LASTNOTE(DFN,LIST,STARTMARKERS,OPTION) ;"GET LAST NOTE POINTED TO IN 22729
-  ;"Purpose: Return the note refereNced in 22729
+  ;"Purpose: Return the note referenced in 22729
   ;"Input: DFN - Patient IEN
   ;"       LIST - Return array
   ;"       STARTMARKERS - Beginning table marker

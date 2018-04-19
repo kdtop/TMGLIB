@@ -331,6 +331,7 @@ GTLKMDARR(OUT,DFN,IEN,OPTION)  ;"GET LINKED MEDS ARRAY
         ;"        IEN -- IEN IN 22708
         ;"        OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:
         ;"            OPTION("DT")=FMDT <-- will return info AS OF specified FM date-time
+        ;"            OPTION("ALL NOTES")=0 OR 1 <-- to use completed notes only or all
         ;"Result: none. 
         NEW MEDTABL
         ;"NEW REF SET REF=$NAME(^TMP("TMGTIU08 MEDS",$J))
@@ -340,22 +341,39 @@ GTLKMDARR(OUT,DFN,IEN,OPTION)  ;"GET LINKED MEDS ARRAY
         NEW DELTASEC SET DELTASEC=$$HDIFF^XLFDT($H,PRIORTIME,2)  ;"returns seconds
         IF DELTASEC<120 DO
         . MERGE MEDTABL=@REF@("D","TABLE")
-        ELSE  DO     
+        ELSE  DO           
         . NEW TEMPOPT MERGE TEMPOPT("DT")=OPTION("DT")
+        . SET TEMPOPT("ALL NOTES")=1  ;"elh added this to force med list to include non-signed notes 4/10/18
         . ;"//kt 1/15/17 original --> NEW TEMP SET TEMP=$$GETTABLX^TMGTIUO6(DFN,"MEDICATIONS TABLE",.MEDTABL,.TEMPOPT)
         . NEW TEMP SET TEMP=$$GETTABLX^TMGTIUO6(DFN,"MEDICATIONS",.MEDTABL,.TEMPOPT)
         . NEW ARR,H SET H=$H MERGE ARR("HTIME")=H 
         . MERGE ARR("TABLE")=MEDTABL
         . DO TMPSAVE^TMGMISC2(.ARR,STORENAME,"5M") 
+        NEW CLASSES,SUBIEN SET SUBIEN=0
+        FOR  SET SUBIEN=$ORDER(^TMG(22708,IEN,5,SUBIEN)) QUIT:SUBIEN'>0  DO
+        . NEW IEN50D605 SET IEN50D605=$PIECE($GET(^TMG(22708,IEN,5,SUBIEN,0)),"^",1)
+        . SET CLASSES(IEN50D605)=""
+        NEW CLASSMEDS DO GETCLARX^TMGRX006(.CLASSMEDS,.CLASSES,DFN)
+        ;"     CLASSMEDS("LINE",<original Rx table line>,IEN50.605)=""
+        ;"     CLASSMEDS("CLASS",IEN50.605)=<CLASS_NAME>^<External Description>  (VA drug class file)
+        ;"     CLASSMEDS("CLASS",IEN50.605,<original Rx table line>)="" 
+        ;" <--FINISH.... Go through CLASSMEDS to see what is returned and merge with MEDTABL
         NEW IDX SET IDX=0
         FOR  SET IDX=$ORDER(MEDTABL(IDX)) QUIT:+IDX'>0  DO
         . NEW ALINE SET ALINE=$GET(MEDTABL(IDX)) QUIT:ALINE=""
         . NEW MATCH SET MATCH=$$RXMATCH(IEN,ALINE) QUIT:'MATCH
+        . SET ALINE=$$REMTAGS(ALINE)
         . SET OUT(ALINE)=""
         . ;"//kt 11/25/15 NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1  ;"//kt 10/15
         . ;"//kt 11/25/15 SET OUTARR(LN)=ALINE                    ;"//kt 10/15
         QUIT
         ;
+REMTAGS(ALINE)  ;" REMOVE SPECIAL TAGS FROM MEDICATIONS
+        IF ALINE["[" DO
+        . SET ALINE=$P(ALINE,"[HOSP",1)
+        . SET ALINE=$P(ALINE,"[Auto",1)
+        QUIT ALINE
+        ;"
 GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,OPTION) ;
         ;"Purpose: GET PRIOR VALUES FROM PRIOR TABLE.
         ;"Input: DFN -- PATIENT IEN
@@ -378,6 +396,7 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         ;"                   OUTARR(#)=<Line text>     <-- for entries that are not KEY-VALUE format
         ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:
         ;"                   OPTION("DT")=FMDT <-- will return info AS OF specified FM date-time
+        ;"                   OPTION("ALL NOTES")=0 OR 1 <-- to search all notes or just completed ones
         ;"                   OPTION("CODE")=<CODE>   OPTIONAL, TO BE IMPLEMENTED (SEE GETPRIOR)
         ;"Result: returns string to show, or "" IF problem.
         ;"NOTE: IF multiple lines need to be returned, then
@@ -399,7 +418,7 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . IF TABLENAME["MEDICATIONS" DO
         . . DO PRIORRXT(DFN,48,.TEMPARR,1,.OPTION)  ;"48 months; 1 = only last table
         . ELSE  DO
-        . . DO GETSPECL^TMGTIUO4(DFN,TABLENAME,"BLANK_LINE",48,.TEMPARR,1)  ;"48 months; 1 = only last table
+        . . DO GETSPECL^TMGTIUO4(DFN,TABLENAME,"BLANK_LINE",48,.TEMPARR,1)  ;"48 months; 1 = only last table ELH added OPTION parameter  4/10/18
         . NEW KEY SET KEY=""
         . FOR  SET KEY=$ORDER(TEMPARR("KEY-VALUE",KEY)) QUIT:(KEY="")  DO
         . . IF (KEY?1"MEDICATION-"1.N) KILL TEMPARR("KEY-VALUE",KEY)

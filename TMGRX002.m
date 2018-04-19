@@ -54,6 +54,7 @@ CSL1 ;
   IF LISTCT>0 SET IDX=IDX+1,MENU(IDX)="DEBUG through TEST process"_$CHAR(9)_"DEBUG TEST"
   IF LISTCT>0 SET IDX=IDX+1,MENU(IDX)="DELETE selected RX LIST items"_$CHAR(9)_"DELETE"
   SET IDX=IDX+1,MENU(IDX)="Add custom line to RX LIST"_$CHAR(9)_"CUSTOMRXLINE"  
+  IF LISTCT>0 SET IDX=IDX+1,MENU(IDX)="Manage DRUG CLASSES"_$CHAR(9)_"RXCLASSES"
   IF $DATA(^TMP("PARSELN^TMGRX001",$J))>0 DO
   . NEW TEMPLN SET TEMPLN=$GET(^TMP("PARSELN^TMGRX001",$J)) QUIT:TEMPLN=""
   . SET IDX=IDX+1,MENU(IDX)="DEBUG parsing: "_TEMPLN_$CHAR(9)_"DEBUG PRIOR"
@@ -86,7 +87,7 @@ CSL1 ;
   . IF Y'>0 WRITE ! DO ^DIC QUIT:Y'>0
   . DO EDITRX^TMGRX005(+Y) 
   IF USRPICK="BIGLIST" DO  GOTO CSL1
-  . SET %=2 WRITE "Repopulate the big list of examples (takes ~5 minutes to complete"
+  . SET %=2 WRITE "Repopulate the big list of examples (takes ~5 minutes to complete)"
   . DO YN^DICN WRITE !
   . IF %'=1 QUIT
   . DO BIGLIST
@@ -113,6 +114,8 @@ CSL1 ;
   . IF (LINE["^")!(LINE="") QUIT
   . SET RXLIST(LINE)=""
   . DO SAVRXLST(.RXLIST)  ;"SAVE RX LIST
+  IF USRPICK="RXCLASSES" DO  GOTO CSL1
+  . DO HNDLCLSS^TMGRX006(.RXLIST) ;"HANDLE CLASSES
   GOTO CSL1
   ;
 CLSDN  ;

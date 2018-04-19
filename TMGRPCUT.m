@@ -1,4 +1,4 @@
-TMGRPCUT ;TMG/kst/RPC utility library ;5/14/12
+TMGRPCUT ;TMG/kst/RPC utility library ;5/14/12, 4/19/18
          ;;1.0;TMG-LIB;**1**;5/14/12
  ;
  ;"TMG RPC UTILITY FUNCTIONS
@@ -217,7 +217,7 @@ DRL0    KILL MENU
         . NEW DV SET DV=$DATA(PARAMS(IDX,"VAL"))
         . IF DV=0 SET S=S_" (Empty value)"
         . ELSE  IF DV=1 SET S=S_" (='"_PARAMS(IDX,"VAL")_"')"
-        . ELSE  IF D'<10 SET S=S_" (Array value with data)"
+        . ELSE  IF DV'<10 SET S=S_" (Array value with data)"
         . SET MENU(IDX-1)=S
         SET IDX=$ORDER(MENU(""),-1)+1
         SET S="Debug into RPC" IF IDX>1 SET S=S_" with above parameters"
@@ -245,18 +245,38 @@ SAVEPAR(CODEREF,PARAMS) ;
 EDITPAR(IDX,PARAMS) ;
         ;"Purpose: To edit the value of a parameters
         NEW TYPE SET TYPE=$GET(PARAMS(IDX,"TYPE"))
-        IF TYPE="" SET TYPE="LITERAL"
-        IF TYPE'="LITERAL" DO  GOTO EPDN
+        IF TYPE="" SET TYPE="LITERAL"        
+        IF TYPE="LIST" DO  GOTO EPDN
+        . NEW CT SET CT=0
+        . SET CT=CT+1,PREFIX(CT)="# Lines beginning with '#' are ignored."
+        . SET CT=CT+1,PREFIX(CT)="# Instructions for entring LIST type data:"
+        . SET CT=CT+1,PREFIX(CT)="# ----------------------------------------------------------"
+        . SET CT=CT+1,PREFIX(CT)="# Enter list information, following the examples below."   
+        . SET CT=CT+1,PREFIX(CT)="# Most RPC's will use simple numeric indices, but not always."   
+        . SET CT=CT+1,PREFIX(CT)="# More complex inputs are possible, as shown below."   
+        . SET CT=CT+1,PREFIX(CT)="# Generic name 'VAR' can be sustituted with any other name."   
+        . SET CT=CT+1,PREFIX(CT)="# "   
+        . SET CT=CT+1,PREFIX(CT)="# VAR(1)=1 "
+        . SET CT=CT+1,PREFIX(CT)="# VAR(2)=""apple""  "
+        . SET CT=CT+1,PREFIX(CT)="# VAR(""name"")=""John"" "
+        . SET CT=CT+1,PREFIX(CT)="# VAR(""age"")=25 "
+        . SET CT=CT+1,PREFIX(CT)="# VAR(""state"")=""MA"" "
+        . SET CT=CT+1,PREFIX(CT)="# VAR(""state"",""city"")=""Boston""  "
+        . SET CT=CT+1,PREFIX(CT)=" "
+        . DO EDITARR2^TMGKERN8("TMGRPCVAR","pico",.PREFIX)
+        . MERGE PARAMS(IDX,"VAL")=TMGRPCVAR
+        ELSE  IF TYPE="LITERAL" DO  GOTO EPDN
+        . NEW VAL SET VAL=$GET(PARAMS(IDX,"VAL"))
+        . WRITE "Enter value for ",PARAMS(IDX,"NAME")," (^ to abort, @ to delete): ",VAL,"// "
+        . NEW NEWVAL READ NEWVAL:$GET(DTIME,3600),!
+        . IF NEWVAL="^" GOTO EPDN
+        . IF NEWVAL="@" SET NEWVAL="",VAL=""
+        . IF NEWVAL="" SET NEWVAL=VAL
+        . SET VAL=NEWVAL
+        . SET PARAMS(IDX,"VAL")=VAL
+        ELSE  DO
         . WRITE "Editing of type ",TYPE," not yet supported",!
-        . DO PRESS2GO^TMGUSRI2
-        NEW VAL SET VAL=$GET(PARAMS(IDX,"VAL"))
-        WRITE "Enter value for ",PARAMS(IDX,"NAME")," (^ to abort, @ to delete): ",VAL,"// "
-        NEW NEWVAL READ NEWVAL:$GET(DTIME,3600),!
-        IF NEWVAL="^" GOTO EPDN
-        IF NEWVAL="@" SET NEWVAL="",VAL=""
-        IF NEWVAL="" SET NEWVAL=VAL
-        SET VAL=NEWVAL
-        SET PARAMS(IDX,"VAL")=VAL
+        . DO PRESS2GO^TMGUSRI2        
 EPDN    QUIT
         ;
 RUNRPC(CODEREF,PARAMS) ;

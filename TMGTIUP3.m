@@ -23,16 +23,19 @@ TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17
  ;" TMGHTM1, TMGTIUOJ, TMGTIUO6, XLFSTR, TMGSTUT2, TMGSTUT3
  ;"=======================================================================
  ;
-PROCESS(TMGRESULT,TMGIN,FORCE) ;
+PROCESS(TMGRESULT,TMGIN,FORCE,OPTION) ;
         ;"Purpose: Entrypoint for RPC to effect processing a note from CPRS
         ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
         ;"       TMGIN -- Input from client.  Format:
         ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
+        ;"              TMGIN("NoteIEN")=<TIUIEN>
         ;"              TMGIN("TEXT",1) = 1st line of text
         ;"              TMGIN("TEXT",2) = 2nd line of text, etc
         ;"       FORCE -- ADDED 12/12/16. If not sent, is set to 0
         ;"                If 1 is sent, note is processed even if
         ;"                tag is absent
+        ;"       OPTION("ALL NOTES")=(OPTIONAL) - Use all notes (as 
+        ;"                               opposed to only completed notes)
         ;"Output: TMGRESULT(0)="1^Success", or "-1^Error Message"
         ;"        TMGRESULT(1)=1st line of return text
         ;"        TMGRESULT(2)=2nd line of return text, etc.
@@ -52,6 +55,9 @@ PROCESS(TMGRESULT,TMGIN,FORCE) ;
         ;
         ;"REMOVE "PROCESS NOTE" REMINDER
         NEW NOTDONETAG SET NOTDONETAG="PROCESS NOTE NOT DONE"
+        NEW TIUIEN SET TIUIEN=+$G(TMGIN("NoteIEN"))
+        ;"SET ^TMP("NOTEIEN")=TIUIEN
+        ;"IF TIUIEN>0 DO TRIGGER1^TMGC0Q04(TIUIEN)    ;"GET ALL TOPICS CATALOGGED        
         NEW LINENUM SET LINENUM=0
         NEW TEMPARRAY,LINETEXT,DONTPROCESS
         SET DONTPROCESS=1
@@ -69,11 +75,12 @@ PROCESS(TMGRESULT,TMGIN,FORCE) ;
         MERGE TMGIN=TEMPARRAY
         ;"DONE REMOVING REMINDER
         NEW HTML SET HTML=$$ISHTMREF^TMGHTM1($NAME(TMGIN("TEXT")))
-        DO FRSHTABL(.TMGRESULT,.TMGIN,HTML) 
+        DO FRSHTABL(.TMGRESULT,.TMGIN,HTML,.OPTION) 
+        ;"IF TIUIEN>0 DO CLEAR1^TMGC0Q04(TIUIEN)  ;"REMOVE TOPICS FOR NOTE
         ;"NOTE: Later, other tasks could also be done at this time. 
 PRODN   QUIT
         ;        
-FRSHTABL(TMGRESULT,TMGIN,HTML) ;"REFRESH TABLES
+FRSHTABL(TMGRESULT,TMGIN,HTML,OPTION) ;"REFRESH TABLES
         ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
         ;"       TMGIN -- Input from client.  Format:
         ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
@@ -83,6 +90,8 @@ FRSHTABL(TMGRESULT,TMGIN,HTML) ;"REFRESH TABLES
         ;"                If 1 is sent, note is processed even if
         ;"                tag is absent
         ;"       HTML -- 1 if note is in HTML format
+        ;"       OPTION("ALL NOTES")=(OPTIONAL) - Use all notes (as
+        ;"                               opposed to only completed notes)
         ;"Result: None
         SET TMGRESULT(0)="1^Success"
         NEW ATABLE,TABLES DO GETTABLS(.TABLES,HTML)
@@ -117,7 +126,7 @@ FRSHTABL(TMGRESULT,TMGIN,HTML) ;"REFRESH TABLES
         . . . ELSE  SET ENDFOUND=(LINE="")
         . . IF 'ENDFOUND QUIT
         . . NEW TABLESTR,TABLEARR
-        . . SET TABLESTR=$$GETTABLX^TMGTIUOJ(TMGDFN,FOUNDTABLE,.TABLEARR)
+        . . SET TABLESTR=$$GETTABLX^TMGTIUOJ(TMGDFN,FOUNDTABLE,.TABLEARR,.OPTION)
         . . NEW TEMPARR
         . . IF 'INLINEMODE DO
         . . . DO SPLIT2AR^TMGSTUT2(TABLESTR,$CHAR(13,10),.TEMPARR,OUTLNUM+1)
@@ -434,3 +443,40 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . . SET STARTPOS=$LENGTH("["_TEMP_"]")+1
        QUIT
        ;
+MOVEMEDS(TMGIN)  ;"Used as part of the RPC: TMG CPRS PROCESS NOTE
+       ;"Purpose: This function replaces the FINAL MEDICATION table with the
+       ;"         MEDICATION table found within the note.
+       ;"Input:   TMGIN -- Input from client.  Format:
+       ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
+       ;"              TMGIN("NoteIEN")=<TIUIEN>
+       ;"              TMGIN("TEXT",1) = 1st line of text
+       ;"              TMGIN("TEXT",2) = 2nd line of text, etc
+       ;"Output: TMGIN will contain the text as sent, with changes
+       ;"Result: none
+       NEW IDX,TEMPNOTE,TEMPIDX,MEDARR,MEDIDX,FOUNDMED,ENDFOUND,PARTB
+       SET (IDX,TEMPIDX,MEDIDX,FOUNDMED)=0
+       NEW FOUNDFINAL SET FOUNDFINAL=0
+       FOR  SET IDX=$O(TMGIN("TEXT",IDX)) QUIT:IDX'>0  DO
+       . NEW LINE SET LINE=$G(TMGIN("TEXT",IDX))
+       . IF FOUNDMED=1 DO
+       . . IF LINE["<P>" SET FOUNDMED=0
+       . . ELSE  DO
+       . . . SET MEDIDX=MEDIDX+1
+       . . . SET MEDARR(MEDIDX)=LINE
+       . IF LINE["[MEDICATION" SET FOUNDMED=1
+       . ;"
+       . ELSE  DO
+       . . IF LINE["<P>" SET FOUNDFINAL=0
+       . IF FOUNDFINAL'=1 DO 
+       . . SET TEMPIDX=TEMPIDX+1
+       . . SET TEMPNOTE(TEMPIDX)=LINE
+       . IF LINE["[FINAL MED" DO
+       . . SET FOUNDFINAL=1
+       . . SET MEDIDX=0
+       . . FOR  SET MEDIDX=$O(MEDARR(MEDIDX)) QUIT:MEDIDX'>0  DO
+       . . . SET TEMPIDX=TEMPIDX+1
+       . . . SET TEMPNOTE(TEMPIDX)=$G(MEDARR(MEDIDX))
+       KILL TMGIN("TEXT")
+       MERGE TMGIN("TEXT")=TEMPNOTE
+       QUIT
+       ;"

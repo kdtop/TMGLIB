@@ -52,7 +52,7 @@ DEBUGIN ;
         NEW GREF,GREF1
         NEW RESULT
         ;
-        SET GREF=$NAME(^TMP("TMG","SEQUELIMPORT","DATA",1,$J))   ;"I use this to process array
+        SET GREF=$NAME(^TMP("TMG",$J,"SEQUELIMPORT","DATA",1))   ;"I use this to process array
         SET GREF1=$NAME(@GREF@(1))                   ;"I use this to load file
         KILL @GREF
         SET RESULT=$$FTG^%ZISH(FILEPATH,FILENAME,GREF1,6)  ;"load file into a global
@@ -210,7 +210,7 @@ IMPORTFILE(FILEPATH,FILENAME,ERRARRAY,PROGFN,DELFILES,USERID,BADICDLIST)
         ;"Result: 1 successful completion, 0=error
         ;
         NEW GREF,GREF1,RESULT
-        SET GREF=$NAME(^TMP("TMG","SEQUELIMPORT","DATA",1,$J))   ;"I use this to process array
+        SET GREF=$NAME(^TMP("TMG",$J,"SEQUELIMPORT","DATA",1))   ;"I use this to process array
         SET GREF1=$NAME(@GREF@(1))                   ;"I use this to load file
         KILL @GREF
         SET RESULT=$$FTG^%ZISH(FILEPATH,FILENAME,GREF1,6)  ;"load file into a global

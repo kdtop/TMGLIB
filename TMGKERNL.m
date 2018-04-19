@@ -18,6 +18,7 @@ TMGKERNL ;TMG/kst/OS Specific functions ;8/30/17, 3/8/18
  ;"$$Dos2Unix^TMGKERNL(FullNamePath)
  ;"$$Unix2Dos(FullNamePath)
  ;"$$FileSize(FullNamePath)  -- return the size of the file, in bytes.
+ ;"$$TIME(FORMAT)  --Get time from host OS
  ;"$$FSTAT(OUT,FPNAME,PARAMS) -- provide generic access to linux stat command.
  ;"$$FDIFF(OUT,FPNAME1,FPNAME2,PARAMS) -- generic access to linux diff command.
  ;"$$VIMDIFF(FPNAME1,FPNAME2,PARAMS) --FILES vimdiff command 
@@ -85,6 +86,23 @@ Unix2Dos(FullNamePath)  ;
 DUDone  ;
   QUIT RESULT
   ;
+TIME(FORMAT)  ;Get time from host operating system timer -- DEPRECIATED, USE TIME2
+  ;"SET FORMAT=$GET(FORMAT,"%T"".""%N")  ;"HH:MM:SS.nnnnnnnnn  (n=nanoseconds)
+  SET FORMAT=$GET(FORMAT,"%s"".""%N")    ;"seconds since 1970 with nanoseconds
+  NEW P SET P="MyTerm" OPEN P:(COMMAND="date +"_FORMAT:readonly)::"pipe"
+  USE P NEW X READ X CLOSE P USE $P
+  QUIT X
+  ;
+TIME2()  ;Get high resolution time
+  ;"Per Bhaskar, below is faster...
+  QUIT $ZUT/1000000
+  ;
+  ;"SET FORMAT=$GET(FORMAT,"%T"".""%N")  ;"HH:MM:SS.nnnnnnnnn  (n=nanoseconds)
+  SET FORMAT=$GET(FORMAT,"%s"".""%N")    ;"seconds since 1970 with nanoseconds
+  NEW P SET P="MyTerm" OPEN P:(COMMAND="date +"_FORMAT:readonly)::"pipe"
+  USE P NEW X READ X CLOSE P USE $P
+  QUIT X
+
 FileSize(FullNamePath)  ;
   ;"Purpose: To return the size of the file, in bytes.
   ;"Input:  FullNamePath: The filename to act on.

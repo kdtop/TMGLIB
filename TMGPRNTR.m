@@ -373,14 +373,12 @@ GETJOBNM()
         ;"UNIQUE will generate a filename based on time and job number
         ;"    i.e. 'Print-Job-628233034.tmp
 
-        ;"WRITE !,"here in GETJOBNM^TMGPRNTR",!
-        NEW cJobs SET cJobs="PRINT JOBS"
         NEW Filename SET Filename=$$UNIQUE^%ZISUTL("/tmp/Print-Job.tmp")
 
         ;"Now store Filename for later transfer to Linux lpr
-        NEW index SET index=$ORDER(^TMP("TMG",cJobs,$J,""))
+        NEW index SET index=$ORDER(^TMP("TMG",$J,"PRINT JOBS",""))
         IF index="" SET index=1
-        SET ^TMP("TMG",cJobs,$J,index)=Filename
+        SET ^TMP("TMG",$J,"PRINT JOBS",index)=Filename
 
         ;"WRITE !,"Print job name will be:",Filename,!
         QUIT Filename   ;"result returned by altering Filename
@@ -390,25 +388,18 @@ FINISH(Printer)
         ;"        to Linux CUPS (the printing system).
         ;"Note: The lpr system itself will delete this print file when done (option -r)
         ;"Input: Printer OPTIONAL -- the name of the linux printer to send the job to.
-
-        NEW cJobs SET cJobs="PRINT JOBS"
-        NEW index SET index=$ORDER(^TMP("TMG",cJobs,$J,""))
+        NEW index SET index=$ORDER(^TMP("TMG",$J,"PRINT JOBS",""))
         IF index="" GOTO FINDN
-        NEW Filename SET Filename=$GET(^TMP("TMG",cJobs,$J,index))
-
+        NEW Filename SET Filename=$GET(^TMP("TMG",$J,"PRINT JOBS",index))
         close IO
         KILL IO(1,IO)
-
-        KILL ^TMP("TMG",cJobs,$J,index)
-
+        KILL ^TMP("TMG",$J,"PRINT JOBS",$J,index)
         IF Filename'="" do
-        . NEW CmdStr
-        . SET CmdStr="lpr "
+        . NEW CmdStr SET CmdStr="lpr "
         . IF $GET(Printer)'="" SET CmdStr=CmdStr_"-P "_Printer_" "
         . SET CmdStr=CmdStr_"-r " ;"option -r --> lpr deletes file after printing done.
         . SET CmdStr=CmdStr_Filename_" &"
         . zsystem CmdStr
-
 FINDN   QUIT
         ;
 GETBRWNM() ;

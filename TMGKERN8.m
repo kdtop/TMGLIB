@@ -1,4 +1,4 @@
-TMGKERN8 ;TMG/kst/Interface to allow use of linux editor in Fileman ;6/23/15
+TMGKERN8 ;TMG/kst/Interface to allow use of linux editor in Fileman ;6/23/15, 4/18/18
          ;;1.0;TMG-LIB;**1**;6/23/15
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -15,8 +15,10 @@ TMGKERN8 ;TMG/kst/Interface to allow use of linux editor in Fileman ;6/23/15
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"$$EDIT(Editor)
- ;"EDITARR(REF,EDITOR) 
+ ;"EDITARR(REF,EDITOR) ;--DEPRECIATED, use EDITARR2
+ ;"EDITARR2(REF,EDITOR) -- use linux editor to edit an array.
  ;"LinuxEdit(Editor,FullPathName)  
+ ;"PRFXFILE(FPNAME,ARR)  -- PREFIX file with text
  ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -82,7 +84,7 @@ EditDone
 EditAbort
         QUIT
 
-EDITARR(REF,EDITOR) ;
+EDITARR(REF,EDITOR) ;"DEPRECIATED  ...  USE EDITARR2
         ;"Purpose: to use linux editor to edit an array.
         ;"Input: REF -- an reference (name of) to array to edit.  E.g. "ARRAY"
         ;"          ARRAY(1) -- 1st line
@@ -100,6 +102,69 @@ EDITARR(REF,EDITOR) ;
         DO EDIT(.EDITOR)
         DO WP2ARRAY^TMGSTUTL("TMGEWP",REF)
 EADN    QUIT
+
+EDITARR2(REF,EDITOR,PREFIX) ;
+        ;"Purpose: to use linux editor to edit an array.
+        ;"NOTE: For security reasons, this will not work with Globals, only memory arrays
+        ;"Input: REF -- an reference (name of) to array to edit.  E.g. "ARRAY"
+        ;"          ARRAY(1) -- 1st line
+        ;"          ARRAY(1,2) -- 2nd line  <-- sub-nodes OK
+        ;"          ARRAY(2) -- 3rd line ... etc.
+        ;"       EDITOR -- Optional.  Default is "vim"
+        ;"              Allowed values: joe,vim,pico
+        ;"       PREFIX -- OPTIONAL. If not provided, generic instructions will be given  
+        ;"           This can be a single line or an array
+        ;"           of text to prefix to the edit file.  If each line
+        ;"           starts with '#', then it will not be included in the 
+        ;"           output back into the REF variable.  E.g.   
+        ;"           PREFIX("#Instructions: Edit text below")
+        ;"Output: @REF is edited
+        SET REF=$GET(REF) IF REF="" GOTO EA2DN
+        IF $DATA(PREFIX)=0 DO
+        . SET PREFIX(1)="# Lines beginning with '#' are ignored."
+        . SET PREFIX(2)="# Edit lines below.  This does not work with global variables." 
+        . SET PREFIX(3)="# When done editing, exit with saving changes. "
+        . SET PREFIX(4)=" " 
+        NEW TMGEARRTEMP DO ZWR2ARR^TMGZWR(REF,"TMGEARRTEMP")
+        NEW TMGEWP
+        NEW CT SET CT=0
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(PREFIX(IDX)) QUIT:IDX'>0  DO
+        . SET CT=CT+1,TMGEWP(CT)=$GET(PREFIX(IDX))        
+        SET IDX=0
+        FOR  SET IDX=$ORDER(TMGEARRTEMP(IDX)) QUIT:IDX'>0  DO
+        . SET CT=CT+1,TMGEWP(CT)=$GET(TMGEARRTEMP(IDX))
+        NEW FPNAME SET FPNAME=$$UNIQUE^%ZISUTL("/tmp/vista_arr_edit.tmp")        
+        IF $$AR2HFSFP^TMGIOUT3("TMGEWP",FPNAME)=0 DO  GOTO EA2DN ; "Array to HFS via FilePath     
+        DO LinuxEdit(EDITOR,FPNAME)        
+        NEW OPTION SET OPTION("OVERFLOW")=1
+        KILL TMGEWP DO HFS2ARFP^TMGIOUT3(FPNAME,"TMGEWP",.OPTION)
+        KILL @REF
+        NEW IDX SET IDX=""
+        FOR  SET IDX=$ORDER(TMGEWP(IDX)) QUIT:IDX=""  DO
+        . NEW LINE SET LINE=$$TRIM^XLFSTR($GET(TMGEWP(IDX))) QUIT:LINE'["="
+        . IF $EXTRACT(LINE,1)="#" QUIT
+        . NEW PARTA SET PARTA=$PIECE(LINE,"=",1) QUIT:PARTA["^"
+        . SET PARTA=REF_$SELECT(PARTA["(":"("_$PIECE(PARTA,"(",2,999),1:"")
+        . NEW PARTB SET PARTB=$PIECE(LINE,"=",2,99)
+        . SET PARTB=$$UNQTPROT^TMGSTUT3(PARTB) ;"convert all double quotes to single quotes
+        . DO
+        . . NEW $ETRAP SET $ETRAP="write ""(Invalid M Code!.  Error Trapped.)"",! set $etrap="""",$ecode="""""
+        . . SET @PARTA=PARTB                
+        IF $$DELFILE^TMGIOUTL(FPNAME)
+        IF $$DELFILE^TMGIOUTL(FPNAME_"~")  ;"joe editor copies output to filename~ as a backup
+EA2DN   QUIT
+
+TESTEARR()
+        NEW TMGZZ
+        SET TMGZZ="Test"
+        SET TMGZZ(1)=1
+        SET TMGZZ(1,"ANIMAL")="COW"
+        SET TMGZZ("TREE",1)="APPLE TREE"
+        SET TMGZZ("TREE",2)="PEAR TREE"
+        DO EDITARR2("TMGZZ","pico")
+        DO ZWRITE^TMGZWR("TMGZZ")
+        QUIT
 
 LinuxEdit(Editor,FullPathName)
         ;"Purpose: This will be a shell for a linux editor
@@ -143,5 +208,38 @@ LEditDone
         ;"set temp=$$DELFILE^TMGIOUTL(EditErrFile)
 LEditAbort
         QUIT
+
+PRFXFILE(FPNAME,ARR)  ;"PREFIX file with text
+        ;"NOTE: This doesn't seem to be working.  I got it from here:
+        ;" https://superuser.com/questions/246837/how-do-i-add-text-to-the-beginning-of-a-file-in-bash
+        ;"But I have decided to solve my problem another way, so I will leave this here
+        ;"  in case I want to work on later.  
+        ;"Input: FPNAME -- the full path and file name of linux host file
+        ;"       ARR -- 2 METHODS OF USE:  
+        ;"          ARR=<desired text)  <-- just one line
+        ;"       or
+        ;"          ARR(1)=<LINE1>
+        ;"          ARR(2)=<LINE2>)
+        ;"          ...
+        ;"Result: 1 if OK, or 0 if Linux error.  
+        IF $GET(ARR)'="" DO
+        . DO PRFX1FL(FPNAME,ARR)  ;"PREFIX file with 1 line of text
+        ELSE  DO
+        . NEW IDX SET IDX=""
+        . FOR  SET IDX=$ORDER(ARR(IDX),-1) QUIT:IDX'>0  DO
+        . . NEW LINE SET LINE=$GET(ARR(IDX))
+        . . DO PRFX1FL(FPNAME,LINE)  ;"PREFIX file with 1 line of text
+        QUIT
+        ;
+PRFX1FL(FPNAME,LINE)  ;"PREFIX file with 1 line of text
+        ;"NOTE: This doesn't seem to be working.  I got it from here:
+        ;" https://superuser.com/questions/246837/how-do-i-add-text-to-the-beginning-of-a-file-in-bash
+        ;"But I have decided to solve my problem another way, so I will leave this here
+        ;"  in case I want to work on later.  
+        NEW HOOKCMD SET HOOKCMD="sed -i '1i"_LINE_"' "_FPNAME
+        ZSYSTEM HOOKCMD
+        NEW RESULT SET RESULT=($ZSYSTEM&255)=0  ;"get result of execution. (low byte only). 0=success
+        QUIT RESULT
+
 
 

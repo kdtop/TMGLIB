@@ -18,7 +18,13 @@ HALFCOLOR()
         QUIT "#ffd5b2"
         ;"
 AUTOCOLOR()
-        QUIT "#ffa55b"
+        QUIT "#ffa55b" 
+        ;"
+DCCOLOR()
+        QUIT "#d2ffb7"
+        ;"
+DCMEDTAG()
+        QUIT "[HOSP D/C Rx]"
         ;"
 CSDBDATE ;"
         ;"Purpose: This is to test the value of *CSM Contract.
@@ -61,6 +67,7 @@ CHKMED(MED,AGE)  ;"
         SET MED=$$ISHALF(MED)
         SET MED=$$RPLCMEDS(MED)
         SET MED=$$AUTOMED(MED)
+        SET MED=$$DCMED(MED)
 CHDN
         QUIT MED
         ;"
@@ -84,6 +91,10 @@ HALFDN
         ;"
 AUTOMED(MEDNAME)  ;"Was this med autoadded
         IF MEDNAME[$$ERXSUFFX^TMGTIUO5() SET MEDNAME=$$WRAPSECT(MEDNAME,$$AUTOCOLOR,$$ERXSUFFX^TMGTIUO5())
+        QUIT MEDNAME
+        ;"
+DCMED(MEDNAME)  ;"Was this med a discharge reconciliation med
+        IF MEDNAME[$$DCMEDTAG() SET MEDNAME=$$WRAPSECT(MEDNAME,$$DCCOLOR,$$DCMEDTAG())
         QUIT MEDNAME
         ;"
 WRAPTEXT(MEDNAME,COLOR)  ;"Highlight the med name with provided color

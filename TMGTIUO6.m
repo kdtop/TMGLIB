@@ -259,6 +259,8 @@ GETTABLX(DFN,LABEL,ARRAY,OPTION) ;
     ;"       ARRAY -- OPTIONAL.  PASS BY REFERENCE to get back array of data.
     ;"       OPTION -- OPTIONAL.
     ;"              OPTION("DT")=FMDT <-- if present, then table is to be returns AS OF given date
+    ;"       OPTION("ALL NOTES")=0 or 1  <- Use all notes (as
+    ;"                               opposed to only completed notes)
     ;"Note: If table label matches a Reminder Dialog type table, then handling shunted elsewhere.
     ;"Result: outputs string of result, with CRLF's as needed for multiple lines
     NEW TMGTABLDEBUG SET TMGTABLDEBUG=0
