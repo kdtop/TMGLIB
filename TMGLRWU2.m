@@ -34,6 +34,7 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   ;"               3 = NF_LAB_RESULTS 
   ;"               14 = NF_ABNORMAL_LAB_RESULTS
   ;"               57 = NF_CRITICAL_LAB_RESULTS
+  ;"              999 = Will alter to NF_LAB_RESULTS for CPRS   ;"4/24/18
   ;"           LRDFN  = file #63 IEN
   ;"           LRSS   = file #63 subscript -- "CH" OR "MI"
   ;"                    Only supports CH and MI. AP subscript handled by separate API.
@@ -56,7 +57,8 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   IF LRSS'?1(1"CH",1"MI") DO  GOTO ORDN
   . SET TMGRESULT="-1^Lab Subscript not supported"
   SET DFN=$PIECE(^LR(LRDFN,0),"^",3)
-  SET LRPREFIX=$SELECT(LRTYPE=3:"",LRTYPE=14:"Abnormal ",LRTYPE=57:"Critical ",1:"")
+  SET LRPREFIX=$SELECT(LRTYPE=3:"",LRTYPE=14:"Abnormal ",LRTYPE=57:"Critical ",LRTYPE=999:"Manually entered ",1:"")
+  IF LRTYPE=999 SET LRTYPE=3
   ;
   SET LRX=$$CHECKUID^LRWU4(LRUID,LRSS)  ;"RETURNS: 1(accession exists)^area^date^number, i.e. 1^IEN68^IEN68.01^IEN68.02       
   ;"IF LRX<1 QUIT "0^Accession's UID not valid"
@@ -89,7 +91,8 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   SET LRIENS=LROIFN_"@OR|"_LROE_";"_LRODT_";"_LRSN_";"_LRSS_";"_LRIDT_"@LRCH"
   ;
   IF LRSS="CH" DO
-  . IF LRTYPE=14!(LRTYPE=57) SET LRMSG=LRPREFIX_"lab results:"
+  . ;"4/24/18 IF LRTYPE=14!(LRTYPE=57) SET LRMSG=LRPREFIX_"lab results:"
+  . IF LRPREFIX'="" SET LRMSG=LRPREFIX_"lab results:"
   . ELSE   SET LRMSG="Lab results:"
   IF LRSS="MI" DO
   . IF LRTYPE=14!(LRTYPE=57) SET LRMSG=LRPREFIX_"microbiology results:"
@@ -170,7 +173,7 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   ;"Input: RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
   ;"       DFN -- IEN in 2
   ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)
-  ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal, 3->Critical
+  ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal,3->CriticalM 4->Manually Entered
   ;"       NODE -- Optional.  Default is "CH".  Should be "CH" or "MI" only. 
   ;"       SUPPRESS -- Optional. Default is 0. If value is 1, alert will be
   ;"                 checked against existing alerts for user and not sent
@@ -193,9 +196,9 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   IF $DATA(^LR(LRDFN,NODE,RDT))=0 DO  GOTO ALRTDN
   . SET TMGRESULT="-1^No lab data to send alert for.  DFN=["_DFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
   SET LEVEL=$GET(LEVEL,1)
-  IF "1,2,3,"'[LEVEL_"," DO  GOTO ALRTDN
+  IF "1,2,3,4"'[LEVEL_"," DO  GOTO ALRTDN  ;"ADDED 999      4/24/18
   . SET TMGRESULT="-1^Invalid LEVEL.  Expected 1, 2, or 3.  Got ["_LEVEL_"]"
-  NEW LRTYPE SET LRTYPE=$SELECT(LEVEL=3:57,LEVEL=2:14,1:3)  ;"//kt changed level 3 LRTYPE from 57 --> 24 (then changed it back)  
+  NEW LRTYPE SET LRTYPE=$SELECT(LEVEL=4:999,LEVEL=3:57,LEVEL=2:14,1:3)  ;"//kt changed level 3 LRTYPE from 57 --> 24 (then changed it back)  
   NEW TEMP SET TEMP=$GET(RECIP) IF TEMP>0 SET RECIP(TEMP)="",RECIP=""
   ;
   NEW FLD SET FLD=1
@@ -230,7 +233,13 @@ RPCALERT(OUT,RECIP,DFN,FMDT,LEVEL,NODE)  ;"RPC for sending Alert.  Wrapper for A
   ;"       RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
   ;"       DFN -- IEN in 2
   ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)
-  ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal, 3->Critical
+  ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal, 3->Critical 
+  ;"                ;"4/24/18. Added a LEVEL 4 for manually entered values.
+  ;"                ;"         This translates to 999 for the sake of a
+  ;"                ;"         alert message prefix. It is a valid server
+  ;"                ;"         value, but doesn't have a corresponding CPRS value
+  ;"                ;"         yet but one could be created. As of now it
+  ;"                ;"         just gets translated into a "3"
   ;"       NODE -- Optional.  Default is "CH".  Should be "CH" or "MI" only. 
   ;"Result:  None
   NEW TMGZZDEBUG SET TMGZZDEBUG=0

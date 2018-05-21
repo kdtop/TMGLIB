@@ -121,7 +121,7 @@ PROBLEM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;" PATIENT PROBLEMS
         F  S PBCNT=$O(PROBL(PBCNT)) Q:PBCNT=""  D
         . S PBDESC=$P(PROBL(PBCNT),U,2) ;problem description
         I PBDESC["No problems found" DO  ;"//kt added block.  Check for Text Table 'PROBLEM LIST'
-        . NEW S SET S=$$GETTABLX^TMGTIUOJ(DFN,"PROBLEM LIST")
+        . NEW S SET S=$$GETTABLX^TMGTIUO6(DFN,"PROBLEM LIST")
         . IF S'="" SET PBDESC=S
         I PBDESC["No problems found" DO
         . S C0QLIST(PROV,ZYR_"NoProblem",DFN)=""

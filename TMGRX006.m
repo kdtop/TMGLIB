@@ -13,11 +13,11 @@ TMGRX006 ;TMG/kst/Patient medication code; 04/13/18
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;
+ ;"CONSOLE -- A console for testing / demo functions
  ;"TEST1  -- TEST THE PARSED MED LIST FOR A PATIENT 
  ;"TEST2(DFN)-- TEST SHOWING CLASSES OF ALL MEDS OF A GIVEN PATIENT
  ;"GETCLARX(OUT,CLASSIENARR,DFN) --  Get a list of patients most recent medications, belonging to specified VA DRUG classes  
- ;"GETCLSRX(OUT,IEN,DFN)          -- Get a list of patients most recent medications, belonging to 1 specified VA DRUG class  
+ ;"GETCLSRX(OUT,IEN,DFN) -- Get a list of patients most recent medications, belonging to 1 specified VA DRUG class  
  ;"HNDLCLSS(LIST) -- HANDLE CLASSES -- called from menu in CONSOLE^TMGRX002
  ;"EDTTBLCL(IEN22708) --Interact with user and edit RELATED MED CLASSES field in TMG TIU PXRM TABLE (22708) file
  ;"PKEDTBLC() -- Interact with user, picking  TMG TIU PXRM TABLE, then editing RELATED MED CLASSES field 
@@ -32,7 +32,33 @@ TMGRX006 ;TMG/kst/Patient medication code; 04/13/18
  ;"=======================================================================
  ;"Uses:  
  ;"=======================================================================
- ;        
+ ;    
+CONSOLE  ;
+  NEW IDX,MENU
+CSL1 ;          
+  SET IDX=0  
+  KILL MENU SET MENU(IDX)="Select Option For Testing / Demo of Drug Classes"
+  SET IDX=IDX+1,MENU(IDX)="TEST parsing med list for 1 patient"_$CHAR(9)_"TEST1"
+  SET IDX=IDX+1,MENU(IDX)="SHOW meds matching classes for a given patient"_$CHAR(9)_"TEST3"
+  SET IDX=IDX+1,MENU(IDX)="BROWSE classes"_$CHAR(9)_"CLASSBROWSE"
+  SET IDX=IDX+1,MENU(IDX)="SHOW members of a class"_$CHAR(9)_"SHOWMEMBERS"
+  SET IDX=IDX+1,MENU(IDX)="TABLE edit of RELATED MED CLASSES"_$CHAR(9)_"TABLECLASSES"
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO CSDN  
+  IF USRPICK="CLASSBROWSE" DO  GOTO CSL1
+  . IF $$PICKCLAS^TMGRXU01  ;"IGNORE PICKED CLASS    
+  IF USRPICK="SHOWMEMBERS" DO  GOTO CSL1
+  . DO SHOWCMBR() ;"SHOW MEMBERS OF VA DRUG CLASS (including any children classes)
+  IF USRPICK="TABLECLASSES" DO  GOTO CSL1
+  . DO PKEDTBLC()  ;"Pick and edit table classes
+  IF USRPICK="TEST1" DO  GOTO CSL1
+  . DO TEST1
+  IF USRPICK="TEST3" DO  GOTO CSL1
+  . DO TEST3
+  GOTO CSL1
+CSDN  ;
+  QUIT
+  ;
 TEST1 ; "TEST THE PARSED MED LIST FOR A PATIENT 
   NEW X,Y,DIC
 TL1 ;  
@@ -47,7 +73,8 @@ TL1 ;
   ;
 TEST2(DFN) ;"TEST SHOWING CLASSES OF ALL MEDS OF A GIVEN PATIENT
   NEW ARR,TEMP
-  DO MEDLIST^TMGTIUOJ(.TEMP,DFN,.ARR)
+  ;"DO MEDLIST^TMGTIUOJ(.TEMP,DFN,.ARR)
+  DO MEDARR^TMGTIUOJ(.TEMP,DFN,.ARR)
   NEW OUT
   DO PARSEARR(.OUT,.ARR) 
   IF $DATA(OUT) ZWR OUT
@@ -73,7 +100,7 @@ TL3 ;
   QUIT
   ;
   ;"============================================
-GETCLARX(OUT,CLASSIENARR,DFN) ;"Get a list of patients most recent medications, belonging to specified VA DRUG classes  
+GETCLARX(OUT,CLASSIENARR,DFN,OPTION) ;"Get a list of patients most recent medications, belonging to specified VA DRUG classes  
   ;"INPUT: OUT -- PASS BY REFERENCE.  Prior entries are not killed. 
   ;"          OUT("LINE",<original Rx table line>,IEN50.605)=""
   ;"          OUT("CLASS",IEN50.605)=<CLASS_NAME>^<External Description>  (VA drug class file)
@@ -82,13 +109,40 @@ GETCLARX(OUT,CLASSIENARR,DFN) ;"Get a list of patients most recent medications, 
   ;"            Format: CLASSIENARR(IEN50D605)=""
   ;"                    CLASSIENARR(IEN50D605)=""
   ;"       DFN -- patient IEN
+  ;"       OPTION("USEOLDMETHOD")=1 if old method wanted.  
   ;"Result: none
+  NEW USEOLDMETHOD SET USEOLDMETHOD=+$GET(OPTION("USEOLDMETHOD"))  ;"//kt 5/6/18
   NEW IEN50D605 SET IEN50D605=0
   FOR  SET IEN50D605=$ORDER(CLASSIENARR(IEN50D605)) QUIT:IEN50D605'>0  DO
-  . DO GETCLSRX(.OUT,IEN50D605,DFN)
+  . IF USEOLDMETHOD DO
+  . . DO GETCLSRX0(.OUT,IEN50D605,DFN)  ;"//kt 5/6/18
+  . ELSE  DO
+  . . DO GETCLSRX(.OUT,IEN50D605,DFN)  ;"//kt 5/6/18  
   QUIT
-  ;  
+  ;
 GETCLSRX(OUT,CLASSIEN,DFN) ;"Get a list of patients most recent medications, belonging to 1 specified VA DRUG class  
+  ;"INPUT: OUT -- PASS BY REFERENCE.  Prior entries are not killed. 
+  ;"          OUT("LINE",<original Rx table line>,IEN50.605)=""
+  ;"          OUT("CLASS",IEN50.605)=<CLASS_NAME>^<External Description>  (VA drug class file)
+  ;"          OUT("CLASS",IEN50.605,<original Rx table line>)=""
+  ;"       CLASSIEN -- IEN in 50.605 (VA DRUG CLASS) of desired matching class
+  ;"       DFN -- patient IEN
+  ;"Result: none
+  NEW ACLASS SET ACLASS=0
+  FOR  SET ACLASS=$ORDER(^TMG(22733.2,DFN,"RX","ACLASS",ACLASS)) QUIT:ACLASS'>0  DO
+  . IF $$ISCLASS^TMGRXU01(ACLASS,CLASSIEN)=0 QUIT
+  . NEW CLASSNAME SET CLASSNAME=$PIECE($GET(^PS(50.605,ACLASS,0)),"^",1,2)
+  . SET OUT("CLASS",ACLASS)=CLASSNAME
+  . NEW SUBIEN SET SUBIEN=0
+  . FOR  SET SUBIEN=$ORDER(^TMG(22733.2,DFN,"RX","ACLASS",ACLASS,SUBIEN)) QUIT:SUBIEN'>0  DO
+  . . NEW ZN SET ZN=$GET(^TMG(22733.2,DFN,"RX",SUBIEN,0))
+  . . NEW LINE SET LINE=$PIECE(ZN,"^",2)
+  . . SET OUT("LINE",LINE,ACLASS)=""
+  . . SET OUT("CLASS",ACLASS,LINE)=""
+  QUIT
+  ;
+GETCLSRX0(OUT,CLASSIEN,DFN)  ;"DEPRECIATED //kt 5/6/18
+  ;"Get a list of patients most recent medications, belonging to 1 specified VA DRUG class  
   ;"INPUT: OUT -- PASS BY REFERENCE.  Prior entries are not killed. 
   ;"          OUT("LINE",<original Rx table line>,IEN50.605)=""
   ;"          OUT("CLASS",IEN50.605)=<CLASS_NAME>^<External Description>  (VA drug class file)
@@ -105,7 +159,8 @@ GETCLSRX(OUT,CLASSIEN,DFN) ;"Get a list of patients most recent medications, bel
   IF $DATA(@REF)>0 DO
   . MERGE PARSEDARR=@REF@("ARR")
   ELSE  DO
-  . DO MEDLIST^TMGTIUOJ(.TEMP,DFN,.ARR)
+  . ;"DO MEDLIST^TMGTIUOJ(.TEMP,DFN,.ARR)
+  . DO MEDARR^TMGTIUOJ(.TEMP,DFN,.ARR)
   . DO PARSEARR(.PARSEDARR,.ARR)
   . KILL @REF 
   . MERGE @REF@("ARR")=PARSEDARR
@@ -124,7 +179,7 @@ PARSEARR(OUT,ARR)  ;"PARSE A MED LIST
   ;"          OUT("LINE",<original Rx table line>,IEN50.605)=""
   ;"          OUT("CLASS",IEN50.605)=<CLASS_NAME>^<External Description>  (VA drug class file)
   ;"          OUT("CLASS",IEN50.605,<original Rx table line>)=""
-  ;"       ARR -- PASS BY REFERENCE. Format: Med list array as output by MEDLIST^TMGTIUOJ(), 3rd param
+  ;"       ARR -- PASS BY REFERENCE. Format: Med list array as output by MEDARR^TMGTIUOJ(), 3rd param
   ;"          ARR(#)=<line from medication table>
   ;"          ARR("KEY-VALUE","KEY")=<value>
   ;"

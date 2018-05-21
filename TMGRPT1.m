@@ -1,4 +1,4 @@
-TMGRPT1 ;TMG/kst/Misc Reports;8/14/13, 2/2/14, 10/12/16
+TMGRPT1 ;TMG/kst/Misc Reports;8/14/13, 2/2/14, 10/12/16, 5/8/17
          ;;1.0;TMG-LIB;**1**;05/01/09
 
  ;"TMG MISCELLANEOUS FUNCTIONS
@@ -235,6 +235,7 @@ COUMARPT ;
         NEW CPIEN SET CPIEN=""
         NEW DFN,TIUIEN,TIUDATE,PTNAME,ACTIVE
         NEW X1,X2
+        WRITE "--------------------- OLD SYSTEM ---------------------",!
         FOR  SET CPIEN=+$ORDER(^VEFA(19009,"C",COUMADINIEN,CPIEN)) QUIT:(CPIEN'>0)  DO
         . SET DFN=+$PIECE($GET(^VEFA(19009,CPIEN,0)),"^",1)
         . SET TIUIEN=$ORDER(^VEFA(19009,CPIEN,3,"B",""),-1)
@@ -251,9 +252,25 @@ COUMARPT ;
         . . . WRITE PTNAME,"(",DFN,")",!
         . . . WRITE "            Last Check: ",Y," (",X/7\1," WKS AGO)",!
         . . . WRITE "     ------------- ",!
+        WRITE !
+        DO NEWCOUMA
         WRITE !,"****************************END*****************************",!
 INRPTDn QUIT
         ;
+NEWCOUMA ;
+       NEW DATE SET DATE=$$TODAY^TMGDATE
+       WRITE "--------------------- NEW SYSTEM ---------------------",!
+       FOR  SET DATE=$O(^ORAM(103,"L",DATE),-1) QUIT:DATE'>0  DO
+       . NEW DFN SET DFN=0
+       . FOR  SET DFN=$O(^ORAM(103,"L",DATE,DFN)) QUIT:DFN'>0  DO
+       . . IF $$ACTIVEPT^TMGPXR03(DFN)'=1 QUIT
+       . . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+       . . IF NAME["ZZ" QUIT
+       . . WRITE NAME,"(",DFN,")",!
+       . . WRITE "            Was Due On ",$$EXTDATE^TMGDATE(DATE),!
+       . . WRITE "     ------------- ",!
+       QUIT
+       ;"
 CNSLTRPT(RECORDS,MAKENOTES) ;
        ;"Purpose: Show report of outstanding consults and extract schedule
        ; date from them. (All except mammograms)
@@ -497,10 +514,14 @@ PRTPAINR  ;"
        ;"Note: we are going to start printing reports in advance,
        ;"      so this will try to determine the next open date
        ;"      If returns 0, quit
-       NEW NEXTDATE SET NEXTDATE=$$NEXTDATE^TMGPXR03(NOWDATE,3)
+       ;"NOTE: 5/7/18 - Changing report to print for today only
+       ;"NEW NEXTDATE SET NEXTDATE=$$NEXTDATE^TMGPXR03(NOWDATE,3)
+       NEW NEXTDATE SET NEXTDATE=$$TODAY^TMGDATE
        IF NEXTDATE'>0 GOTO PPDN
        SET BDATE=NEXTDATE,EDATE=NEXTDATE
        DO GETPRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE)
+       NEW DUEARRAY
+       DO GETDBDUE(.DUERESULT,BDATE)
        ;"
        ;"If data is found in either one, proceed with printing else quit
        IF ('$D(CSPTRESULT))&(REMRESULT(0)=0) GOTO PPDN 
@@ -512,7 +533,7 @@ PRTPAINR  ;"
        IF POP DO  GOTO PPDN
        . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
        use IO
-       DO PAINRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE)
+       DO PAINRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE,.DUERESULT)
        DO ^%ZISC  ;" Close the output device
        ;"DO PRESS2GO^TMGUSRI2
 PPDN   QUIT
@@ -531,7 +552,7 @@ GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
        DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,BDATE,EDATE)
        QUIT
        ;" 
-PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)   ;"
+PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        ;"Purpose: Print report for patients due for UDS and Pain Contracts
        ;"Print heading
        NEW X,Y DO NOW^%DTC NEW NOWDATE SET NOWDATE=X
@@ -542,7 +563,7 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)   ;"
        . SET Y=EDATE DO DD^%DT SET DTRANGE=DTRANGE_"-"_Y
        WRITE !
        WRITE "************************************************************",!
-       WRITE "              Controlled substance reminders due ",DTRANGE,!
+       WRITE "              Nursing reminders due ",DTRANGE,!
        WRITE "                      Printed: " SET Y=NOWDATE DO DD^%DT WRITE Y,!
        WRITE "               Please deliver this report to the NURSE",!
        WRITE "************************************************************",!
@@ -559,7 +580,21 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)   ;"
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?40,Y,!
        . WRITE !,!
-       ;"              
+       ;"
+       ;"Print CSDB patient due
+       WRITE "============= PATIENTS DUE FOR CSDB REVIEW  ============",!
+       IF +$G(CSDBRESULT(0))>0 DO
+       . NEW DATE SET DATE=0
+       . FOR  SET DATE=$ORDER(DUERESULT(DATE)) QUIT:DATE'>0  DO
+       . . NEW DFN SET DFN=0
+       . . FOR  SET DFN=$ORDER(DUERESULT(DATE,DFN)) QUIT:DFN'>0  DO
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+       . . . SET Y=DOB DO DD^%DT SET DOB=Y
+       . . . NEW APPT SET Y=DATE DO DD^%DT SET APPT=Y
+       . . . WRITE "  - ",NAME," (",DOB,")",?40,APPT,!
+       . WRITE !
+       ;"
        ;"Print reminders due, if found in array
        IF REMRESULT(0)=0 GOTO PRTDN
        NEW REMIEN SET REMIEN=0
@@ -638,6 +673,7 @@ CSDBRPT   ;"CSMD report.
        . . SET Y=DOB DO DD^%DT SET DOB=Y
        . . NEW APPT SET Y=DATE DO DD^%DT SET APPT=Y
        . . WRITE "[ ] ",NAME,?28,"(",DOB,")",?45,APPT,!
+       WRITE !
 CSDn   QUIT
        ;"
 GETDBDUE(TMGRESULT,BEGDT,ENDDT)  ;"
@@ -652,6 +688,10 @@ GETDBDUE(TMGRESULT,BEGDT,ENDDT)  ;"
        FOR  SET DFN=$ORDER(PTARRAY(DFN)) QUIT:DFN'>0  DO
        . NEW MEDARRAY,OUT
        . DO MEDLIST^TMGTIUOJ(.OUT,DFN,.MEDARRAY)
+       . ;"Use old method for now since it includes the "NEEDS UPDATE" tag. 
+       . ;"In future, research below method to find out why new way doesn't
+       . ;"pull it, then use below method instead
+       . ;"DO MEDARR^TMGTIUOJ(.OUT,DFN,.MEDARRAY)   ;"//kt 5/7/18 
        . IF $GET(MEDARRAY("KEY-VALUE","*CSM-DATABASE REVIEW","LINE"))["NEEDS UPDATE" DO
        . . SET COUNT=COUNT+1
        . . SET TMGRESULT($ORDER(PTARRAY(DFN,0)),DFN)=""

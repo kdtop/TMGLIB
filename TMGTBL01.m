@@ -187,7 +187,7 @@ GCOLDN
         . SET NAME=$ORDER(NEWARR(DATE,""))
         . NEW Y
         . SET Y=DATE X ^DD("DD")
-        . SET TMGRESULT=TMGRESULT_$C(13,10)_"F/U HF DATA: "_NAME_" on "_Y
+        . SET TMGRESULT=TMGRESULT_$C(13,10)_"F/U HF DATA: "_NAME_" (Relative to most recent colonoscopy)"
         ;"Get FOBT dates
         DO GETOCCLT(.TMGRESULT,DFN)        
         QUIT TMGRESULT
@@ -329,6 +329,10 @@ GETLGLAS(DFN)  ;"Return last glaucoma screening
         . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
 GGSDN   QUIT TMGRESULT
         ;"        
+GETLPAP(DFN)  ;"Return
+        NEW TMGRESULT SET TMGRESULT="TEST STUFF HERE"
+        QUIT TMGRESULT
+        ;"
 ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were given/declined
         NEW TMGRESULT SET TMGRESULT=""
         SET DFN=$GET(DFN) IF DFN'>0 QUIT TMGRESULT
@@ -359,7 +363,9 @@ ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were g
         . . . SET TMGRESULT=TMGRESULT_$C(13,10)_HFNAME_" "_LATEST_" "_COMMENT_" [HF]"
         QUIT TMGRESULT
         ;"
-GETLLAB(DFN,LABNUM,NUM)   ;"Return the last urine culture
+GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
+        ;"ADDING DTONLY, IF 1 WILL ONLY RETURN THE DATE ONLY
+        SET DTONLY=+$G(DTONLY)
         NEW TMGRESULT SET TMGRESULT=""
         SET DFN=$GET(DFN) IF DFN'>0 QUIT TMGRESULT
         NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
@@ -371,17 +377,29 @@ GETLLAB(DFN,LABNUM,NUM)   ;"Return the last urine culture
         NEW DATEIDX SET DATEIDX=0
         NEW CURCOUNT SET CURCOUNT=0
         NEW FOUND SET FOUND=0
-        NEW ARR
+        NEW ARR,TOTARR
         FOR  SET DATEIDX=$ORDER(^LR(LRDFN,"CH",DATEIDX)) QUIT:(DATEIDX'>0)!(FOUND=1)  DO
         . IF '$DATA(^LR(LRDFN,"CH",DATEIDX,LABNUM)) QUIT
         . SET CURCOUNT=CURCOUNT+1
+        . NEW TEMP
+        . DO LABTOARR(.TEMP,LRDFN,DATEIDX)
         . IF CURCOUNT=NUM DO
-        . . SET FOUND=1
-        . . DO LABTOARR(.ARR,LRDFN,DATEIDX)
+        . . ;"SET FOUND=1
+        . . MERGE ARR=TEMP
+        . . ;"DO LABTOARR(.ARR,LRDFN,DATEIDX)
+        . MERGE TOTARR(DATEIDX)=TEMP
         ;"zwr ARR
         IF $DATA(ARR) DO
-        . DO LARR2TBL(.TMGRESULT,.ARR)
-        write TMGRESULT
+        . IF DTONLY=1 DO
+        . . NEW COUNT SET COUNT=0
+        . . SET DATEIDX=0
+        . . FOR  SET DATEIDX=$O(TOTARR(DATEIDX)) QUIT:(DATEIDX'>0)!(COUNT>3)  DO
+        . . . SET COUNT=COUNT+1
+        . . . IF TMGRESULT="" SET TMGRESULT=$G(TOTARR(DATEIDX,0))
+        . . . ELSE  SET TMGRESULT=TMGRESULT_", "_$G(TOTARR(DATEIDX,0))
+        . ELSE  DO
+        . . DO LARR2TBL(.TMGRESULT,.ARR)
+        ;"write TMGRESULT
         QUIT TMGRESULT
         ;"
 LABTOARR(RESULT,LRDFN,DATEIDX)  ;"Return lab results for a given date in array

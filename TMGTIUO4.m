@@ -95,7 +95,7 @@ PARSEHT(HTSTR,DT,DTSTR) ;
   QUIT NHT
   ;
 GETBMIRF(PTAGE,BMILO,BMIHI,BMIOVERWT,BMIOBESE1,BMIOBESE2) ;"Get BMI reference range, per age
-  IF PTAGE'<65 DO  ;"i.e. if (PTAGE >= 65)
+  IF (1=0),PTAGE'<65 DO  ;"i.e. if (PTAGE >= 65)   ;"//kt 4/3/18 -- changing to make all use same NIH standards.  
   . SET BMILO=22 ;"Age based raged based on NQF 0421's target BMI of 22-30
   . SET BMIHI=30 ;"Note: this target is +5 BMI compared to range for <65 yrs
   . SET BMIOVERWT=35 ;"Based on adding 5 to ranges below.

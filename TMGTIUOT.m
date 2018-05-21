@@ -26,6 +26,11 @@ DCCOLOR()
 DCMEDTAG()
         QUIT "[HOSP D/C Rx]"
         ;"
+AUTOADDB()
+        QUIT "[Auto added "
+AUTOADDE()
+        QUIT "]"
+        ;"
 CSDBDATE ;"
         ;"Purpose: This is to test the value of *CSM Contract.
         ;"         If the date is older than 7 months, a warning will
@@ -90,7 +95,11 @@ HALFDN
         QUIT MEDNAME
         ;"
 AUTOMED(MEDNAME)  ;"Was this med autoadded
-        IF MEDNAME[$$ERXSUFFX^TMGTIUO5() SET MEDNAME=$$WRAPSECT(MEDNAME,$$AUTOCOLOR,$$ERXSUFFX^TMGTIUO5())
+        ;"Old method -> IF MEDNAME[$$ERXSUFFX^TMGTIUO5() SET MEDNAME=$$WRAPSECT(MEDNAME,$$AUTOCOLOR,$$ERXSUFFX^TMGTIUO5())
+        IF MEDNAME[$$AUTOADDB() DO
+        . NEW TOTALTAG
+        . SET TOTALTAG=$$AUTOADDB_$P($P(MEDNAME,$$AUTOADDB(),2),$$AUTOADDE,1)_$$AUTOADDE
+        . SET MEDNAME=$$WRAPSECT(MEDNAME,$$AUTOCOLOR,TOTALTAG)
         QUIT MEDNAME
         ;"
 DCMED(MEDNAME)  ;"Was this med a discharge reconciliation med

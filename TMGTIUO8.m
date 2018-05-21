@@ -1,4 +1,4 @@
-TMGTIUO8 ;TMG/kst-Text objects for use in CPRS ; 2/2/14 1/15/17
+TMGTIUO8 ;TMG/kst-Text objects for use in CPRS ; 2/2/14 1/15/17, 5/17/18
          ;;1.0;TMG-LIB;**1,17**;8/21/13
  ;  
  ;"Kevin Toppenberg MD
@@ -33,6 +33,7 @@ LABCMTBL(DFN,LABEL,OUTARR,OPTION) ;"LAB & COMMENT TABLE
         ;"              OPTION("DT")=FMDT <-- if present, then table is to be returns AS OF given date
         ;"Result: returns string with embedded line-feeds to create text table.
         NEW TMGPRIORTABLE,TMGTABLEDEFS
+        DO INITPFIL^TMGMISC2("GETITEM^TMGTIUO8") ;"delete old timing data
         NEW TMGRESULT SET TMGRESULT=$$RMDGTABL^TMGPXR02(DFN,LABEL,"GETITEM^TMGTIUO8",.OUTARR,.OPTION)
         NEW TMPO SET TMPO="OLD TABLE (EDIT)-->"  ;"also in GETPRIOR^TMGTIUO8
         IF TMGRESULT'[TMPO GOTO LBCMTDN 
@@ -88,6 +89,7 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         ;"NOTE: If multiple lines need to be returned, then
         ;"      lines can be separated by CR (#13)
         NEW TMGRESULT SET TMGRESULT=""
+        NEW DESCR SET DESCR=""
         IF $DATA(TMGTABLEDEFS)=0 DO GETDEFS(IEN,.TMGTABLEDEFS)                 
         NEW TABLENAME SET TABLENAME=$PIECE($GET(^TMG(22708,IEN,0)),"^",1)
         NEW ZN SET ZN=$GET(^TMG(22708,IEN,1,SUBIEN,0))
@@ -128,6 +130,13 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         . IF $DATA(^TMG(22708,IEN,1,SUBIEN,2))>0 SET ISAHF=1 QUIT
         . IF $DATA(^TMG(22708,IEN,1,SUBIEN,3))>0 SET ISAHF=1 QUIT
         NEW CMD SET CMD=$$UP^XLFSTR($PIECE(PARSED,"^",1))
+        ;"//kt start debug  timer stuff ------------
+        NEW DESCRHDR SET DESCRHDR="TABLE#"_IEN_" "
+        IF CMD="" SET DESCR=DESCRHDR_"SUBIEN="_SUBIEN
+        ELSE  IF CMD="CODE" SET DESCR=DESCRHDR_"CODE:$$"_$PIECE(PARSED,"^",2)_"^"_$PIECE(PARSED,"^",3)_"("_DFN_")"
+        ELSE  SET DESCR=DESCRHDR_CMD
+        DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","ITEM^"_DESCR,1)  ;"RECORD START TIME
+        ;"//kt end debug  timer stuff ------------
         NEW VALSTR SET VALSTR=""
         IF CMD="LAB" DO
         . SET VALSTR=$$GETLABS(DFN,NAME,PARSED,SHOWNULL,LIMITNUM,.OUTARR,.OPTION) 
@@ -148,7 +157,9 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         . NEW I2 SET I2=+$ORDER(OUTARR("@"),-1)+1
         . SET OUTARR(I2)=VALSTR        
         SET TMGRESULT=VALSTR
-GIDN    QUIT TMGRESULT
+GIDN    ;
+        DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","ITEM^"_DESCR,0)  ;"RECORD END TIME
+        QUIT TMGRESULT
         ;
 TEST(DFN)  ;" Used to test the "CODE" command from up above
         QUIT "HELLO WORLD"
@@ -318,13 +329,28 @@ GETMEDS(DFN,LABEL,IEN,PARAMS,SHOWNULL,TABLEDEFS,OUTARR,OPTION) ;
         . SET OUTARR("KEY-VALUE",ALABEL,"LINE")=ALINE
         . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_$CHAR(13)
         . SET TMGRESULT=TMGRESULT_ALINE
-        . NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1   ;"//kt 10/15
-        . SET OUTARR(LN)=ALINE                     ;"//kt 10/15
+        . NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1   
+        . SET OUTARR(LN)=ALINE                      
         QUIT TMGRESULT
         ;
+GTMEDLST(RESULT,DFN,ARRAY,DT,OPTION)  ;"Purpose: RPC (TMG GET MED LIST) to return a patient's med list
+        ;"Input RESULT -- a string comprising medlist
+        ;"      DFN
+        ;"      ARRAY is optional.  Supply to get back array of table. Not used by RPC call.
+        ;"      DT -- OPTIONAL.  If supplied, then get med list AS OF the specified FM DT
+        ;"Result: none, but output in RESULT variable.  
+        IF $DATA(DT)#10 SET OPTION("DT")=DT
+        SET RESULT=$$GETTABLX^TMGTIUO6(DFN,"MEDICATIONS",.ARRAY,.OPTION)
+        SET RESULT=$$REMHTML^TMGHTM1(RESULT)   ;"ELH ADDED NEW FUNCTION 3/15/18 TO REMOVE {HTML: TAGS
+        SET RESULT=$$HTML2TXS^TMGHTM1(RESULT)
+        ;"not using below at the moment.
+        ;"SET RESULT=$$RPLCMEDS^TMGTIUOT(RESULT)  ;"ELH ADDED AS A WEDGE TO REPLACE MED NAMES AS NEEDED 3/22/18
+        QUIT
+        ;               
 GTLKMDARR(OUT,DFN,IEN,OPTION)  ;"GET LINKED MEDS ARRAY
         ;"Purpose: returns array with all medication line items found in
-        ;"         MEDICATIONS table that are also noted in RELATED MEDICATIONS field
+        ;"         MEDICATIONS table that are also noted in RELATED MEDICATIONS field,
+        ;"         or linked by drug CLASS(es) from table
         ;"Input:  OUT.  PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
         ;"            OUT(<medication line entry)=""
         ;"        DFN -- patient IEN
@@ -332,42 +358,51 @@ GTLKMDARR(OUT,DFN,IEN,OPTION)  ;"GET LINKED MEDS ARRAY
         ;"        OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:
         ;"            OPTION("DT")=FMDT <-- will return info AS OF specified FM date-time
         ;"            OPTION("ALL NOTES")=0 OR 1 <-- to use completed notes only or all
+        ;"            OPTION("USEOLDMETHOD")=1 if old method wanted.  
         ;"Result: none. 
-        NEW MEDTABL
-        ;"NEW REF SET REF=$NAME(^TMP("TMGTIU08 MEDS",$J))
-        NEW STORENAME SET STORENAME="MEDICATIONS TABLE-"_DFN
+        NEW USEOLDMETHOD SET USEOLDMETHOD=+$GET(OPTION("USEOLDMETHOD"))  ;"//kt 5/6/18
+        NEW STORENAME SET STORENAME="MEDICATIONS LINKED-TO-TABLE-"_IEN_" FOR DFN:"_DFN
         NEW REF SET REF=$$GETMPREF^TMGMISC2(STORENAME)        
         NEW PRIORTIME SET PRIORTIME=+$GET(@REF@("D","HTIME"))
         NEW DELTASEC SET DELTASEC=$$HDIFF^XLFDT($H,PRIORTIME,2)  ;"returns seconds
         IF DELTASEC<120 DO
-        . MERGE MEDTABL=@REF@("D","TABLE")
+        . MERGE OUT=@REF@("D","TABLE")
         ELSE  DO           
-        . NEW TEMPOPT MERGE TEMPOPT("DT")=OPTION("DT")
+        . NEW MEDTABL  
+        . ;"//kt 5/11/18 NEW TEMPOPT MERGE TEMPOPT("DT")=OPTION("DT")
+        . NEW TEMPOPT MERGE TEMPOPT=OPTION  ;"//kt 5/11/18
         . SET TEMPOPT("ALL NOTES")=1  ;"elh added this to force med list to include non-signed notes 4/10/18
-        . ;"//kt 1/15/17 original --> NEW TEMP SET TEMP=$$GETTABLX^TMGTIUO6(DFN,"MEDICATIONS TABLE",.MEDTABL,.TEMPOPT)
-        . NEW TEMP SET TEMP=$$GETTABLX^TMGTIUO6(DFN,"MEDICATIONS",.MEDTABL,.TEMPOPT)
+        . DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","GTLKMDARR^TMGTIUO8 CALLING GETTABLX",1) ;"RECORD START TIME
+        . IF USEOLDMETHOD DO
+        . . NEW TEMP SET TEMP=$$GETTABLX^TMGTIUO6(DFN,"MEDICATIONS",.MEDTABL,.TEMPOPT)  ;"//kt 5/6/18
+        . ELSE  DO
+        . . DO PRIORRXT(DFN,48,.MEDTABL,1,.TEMPOPT)    ;"//kt 5/6/18                                          ;"//kt 5/6/18                
+        . DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","GTLKMDARR^TMGTIUO8 CALLING GETTABLX",0) ;"RECORD STOP TIME
+        . ;"------------------------------------------------------
+        . ;"First, add linked medicines based on linked drug *classes* 
+        . NEW CLASSES,SUBIEN SET SUBIEN=0
+        . FOR  SET SUBIEN=$ORDER(^TMG(22708,IEN,5,SUBIEN)) QUIT:SUBIEN'>0  DO
+        . . NEW IEN50D605 SET IEN50D605=$PIECE($GET(^TMG(22708,IEN,5,SUBIEN,0)),"^",1)
+        . . SET CLASSES(IEN50D605)=""
+        . DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","GTLKMDARR^TMGTIUO8 CALLING GETCLARX",1) ;"RECORD START TIME
+        . NEW CLASSMEDS DO GETCLARX^TMGRX006(.CLASSMEDS,.CLASSES,DFN,.OPTION)  ;"CLASSMEDS("LINE",<original Rx table line>,IEN50.605)=""        
+        . DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","GTLKMDARR^TMGTIUO8 CALLING GETCLARX",0) ;"RECORD STOP TIME
+        . NEW ALINE SET ALINE=""
+        . FOR  SET ALINE=$ORDER(CLASSMEDS("LINE",ALINE)) QUIT:ALINE=""  DO
+        . . NEW TEMP SET TEMP=$$REMTAGS(ALINE)
+        . . SET OUT(TEMP)=""
+        . ;"Next, add meds that match with Associated Meds tied to table.  
+        . NEW IDX SET IDX=0
+        . FOR  SET IDX=$ORDER(MEDTABL(IDX)) QUIT:+IDX'>0  DO
+        . . NEW ALINE SET ALINE=$GET(MEDTABL(IDX)) QUIT:ALINE=""
+        . . NEW MATCH SET MATCH=$$RXMATCH(IEN,ALINE) QUIT:'MATCH
+        . . SET ALINE=$$REMTAGS(ALINE)
+        . . SET OUT(ALINE)=""        
         . NEW ARR,H SET H=$H MERGE ARR("HTIME")=H 
-        . MERGE ARR("TABLE")=MEDTABL
-        . DO TMPSAVE^TMGMISC2(.ARR,STORENAME,"5M") 
-        NEW CLASSES,SUBIEN SET SUBIEN=0
-        FOR  SET SUBIEN=$ORDER(^TMG(22708,IEN,5,SUBIEN)) QUIT:SUBIEN'>0  DO
-        . NEW IEN50D605 SET IEN50D605=$PIECE($GET(^TMG(22708,IEN,5,SUBIEN,0)),"^",1)
-        . SET CLASSES(IEN50D605)=""
-        NEW CLASSMEDS DO GETCLARX^TMGRX006(.CLASSMEDS,.CLASSES,DFN)
-        ;"     CLASSMEDS("LINE",<original Rx table line>,IEN50.605)=""
-        ;"     CLASSMEDS("CLASS",IEN50.605)=<CLASS_NAME>^<External Description>  (VA drug class file)
-        ;"     CLASSMEDS("CLASS",IEN50.605,<original Rx table line>)="" 
-        ;" <--FINISH.... Go through CLASSMEDS to see what is returned and merge with MEDTABL
-        NEW IDX SET IDX=0
-        FOR  SET IDX=$ORDER(MEDTABL(IDX)) QUIT:+IDX'>0  DO
-        . NEW ALINE SET ALINE=$GET(MEDTABL(IDX)) QUIT:ALINE=""
-        . NEW MATCH SET MATCH=$$RXMATCH(IEN,ALINE) QUIT:'MATCH
-        . SET ALINE=$$REMTAGS(ALINE)
-        . SET OUT(ALINE)=""
-        . ;"//kt 11/25/15 NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1  ;"//kt 10/15
-        . ;"//kt 11/25/15 SET OUTARR(LN)=ALINE                    ;"//kt 10/15
+        . MERGE ARR("TABLE")=OUT              
+        . DO TMPSAVE^TMGMISC2(.ARR,STORENAME,"5M") ;"Save for at least 5 minutes        
         QUIT
-        ;
+        ;       
 REMTAGS(ALINE)  ;" REMOVE SPECIAL TAGS FROM MEDICATIONS
         IF ALINE["[" DO
         . SET ALINE=$P(ALINE,"[HOSP",1)
@@ -426,8 +461,6 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . MERGE PRIORTABLE(TABLENAME)=TEMPARR
         . KILL PRIORTABLE(TABLENAME,"KEY-VALUE","SOURCE-DATE")
         . IF $DATA(PRIORTABLE(TABLENAME))=0 SET PRIORTABLE(TABLENAME,"EMPTY")=1
-        NEW PRIORTABLEUSE SET PRIORTABLEUSE=$$PRIORUSE(DFN,IEN)
-        SET ^TMG("EDDIE","GETPRIOR","PRIORTABLEUSE")=PRIORTABLEUSE
         IF PRIORLABEL="!MISC!" DO
         . ;"First, remove all from prior table that are already defined in this table. 
         . NEW SUBIEN SET SUBIEN=0 
@@ -449,14 +482,6 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . . . NEW TEMPREF SET TEMPREF=$NAME(PRIORTABLE(TABLENAME,"KEY-VALUE"))
         . . . IF LABEL[TMPO QUIT  ;"//leave in old info.  Only happens first time this NEW table is used
         . . . NEW UPLABEL SET UPLABEL=$$UP^XLFSTR(LABEL)
-        . . . ;"ELH 8/18/16 COMMENTED THE NEXT THREE LINES TO KEEP OLD TABLE data from being put into new tables  
-        . . . ;"IF ('PRIORTABLEUSE)&(LABEL'="!MISC!") DO
-        . . . ;". MERGE @TEMPREF@(TMPO_UPLABEL)=@TEMPREF@(UPLABEL)
-        . . . ;". SET @TEMPREF@(TMPO_UPLABEL,"LINE")=TMPO_$GET(@TEMPREF@(TMPO_UPLABEL,"LINE"))
-        . . . . ;"
-        . . . . ;"ELH 4/12/16 DON'T STORE PRIOR USE ANY LONGER IN 2 LINES BELOW
-        . . . . ;"   NEW TEMP SET TEMP=$$SAVPRIOR(DFN,IEN) ;"ENSURE PRIOR USE OF TABLE HAS BEEN STORED.
-        . . . . ;"   IF TEMP'>0 SET ERROR="1^"_$PIECE(TEMP,"^",2) 
         . . . KILL PRIORTABLE(TABLENAME,"KEY-VALUE",$$UP^XLFSTR(LABEL))
         . IF ERROR>0 SET RESULT=RESULT_$CHAR(13,10)_"ERROR: "_$PIECE(ERROR,"^",2) QUIT
         . ;"Next collect remaining entries, in KEY-VALUE form
@@ -507,14 +532,69 @@ GPRDN   QUIT TMGRESULT
 PRIORRXT(DFN,MONTHS,OUT,MODE,OPTION)  ;"GET PRIOR MEDICATIONS (RX) TABLE
         ;"INPUT: DFN -- patient IEN
         ;"       MONTHS -- number of months to search back
+        ;"       OUT -- PASS BY REFERENCE, AND OUT PARAMETER.  Format:
+        ;"           OUT(0)=<line count>
+        ;"           OUT(#)=<one line from medication table>   <--- Doesn't include [MEDICATIONS] etc table name      
+        ;"           OUT("KEY-VALUE",<KEY>)=<VALUE>  <-- KEY and VALUE are separated by "=", <KEY> is UPPERCASE
+        ;"           OUT("KEY-VALUE",<KEY>,"LINE")=<original line from medication table)
+        ;"           OUT("KEY-VALUE","SOURCE-DATE")=FMDT
+        ;"       MODE -- 1 = only last table
+        ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:
+        ;"                   OPTION("DT")=FMDT <-- will return info AS OF specified FM date-time
+        ;"                   OPTION("USEOLDMETHOD")) <--- change to alter flow default: NEW VS OLD.
+        ;"//kt 5/6/18 -- Modifying to leave medication table as global in variable table for speed.
+        ;"              This function was taking about 1 sec to run otherwise
+        ;"              Leaves TMGGSMEDLIST on variable stack
+        NEW USEOLDMETHOD SET USEOLDMETHOD=+$GET(OPTION("USEOLDMETHOD"))  ;"<--- change to alter flow default: NEW VS OLD.
+        SET MODE=+$GET(MODE)
+        NEW NOW SET NOW=$$NOW^XLFDT
+        IF $DATA(TMGGSMEDLIST) DO           
+        . NEW ADFN SET ADFN=0 FOR  SET ADFN=$ORDER(TMGGSMEDLIST(ADFN)) QUIT:ADFN'>0  DO
+        . . IF ADFN'=DFN KILL TMGGSMEDLIST(ADFN)  ;"kill off any variables from other patients
+        NEW MEDTABL MERGE MEDTABL=TMGGSMEDLIST(DFN)  ;"GLOBAL VARIABLE SCOPE MED LIST
+        IF $DATA(MEDTABL) DO
+        . NEW PRIORTIME SET PRIORTIME=+$GET(MEDTABL("RETRIEVAL-DATE")) KILL MEDTABL("RETRIEVAL-DATE")        
+        . NEW DELTASEC SET DELTASEC=$$FMDIFF^XLFDT(NOW,PRIORTIME,2) ;"returns seconds
+        . IF DELTASEC>120 KILL MEDTABL
+        IF $DATA(MEDTABL) DO  GOTO PRRXTDN 
+        . MERGE OUT=MEDTABL
+        ;"-------------------------------------------------        
+        NEW TEMP,DT SET DT=0         
+        IF (USEOLDMETHOD=1)!(MODE'=1) DO  GOTO PRRXTSV
+        . DO PRIORXT0(.DFN,.MONTHS,.OUT,.MODE,.OPTION)
+        ;"--------------------------------------------------
+        IF 'USEOLDMETHOD,$GET(OPTION("DT"))>0 DO
+        . IF OPTION("DT")\1=NOW\1 QUIT
+        . DO GETRXTBL^TMGRX007(.TEMP,.DT,DFN)                 ;"GET PRIOR MEDICATIONS (RX) TABLE from file 22733.2
+        . IF DT>0,OPTION("DT")<DT SET USEOLDMETHOD=1
+        ;"--------------------------------------------------
+        IF $DATA(TEMP)=0 DO GETRXTBL^TMGRX007(.OUT,.DT,DFN)  ;"GET PRIOR MEDICATIONS (RX) TABLE from file 22733.2
+        ;"NEW CT SET CT=0      
+        ;"SET OUT("KEY-VALUE","SOURCE-DATE")=DT
+        ;"IF $GET(OPTION("HEADER"))'="" SET CT=CT+1,OUT(CT)=OPTION("HEADER")
+        ;"NEW IDX SET IDX=0
+        ;"FOR  SET IDX=$ORDER(TEMP(IDX)) QUIT:IDX'>0  DO
+        ;". NEW LINE SET LINE=$$TRIM^XLFSTR($GET(TEMP(IDX))) QUIT:LINE=""
+        ;". IF LINE["=" DO
+        ;". . NEW KEY SET KEY=$$UP^XLFSTR($$TRIM^XLFSTR($PIECE(LINE,"=",1)))
+        ;". . NEW VALUE SET VALUE=$$TRIM^XLFSTR($PIECE(LINE,"=",2))
+        ;". . SET OUT("KEY-VALUE",KEY)=VALUE
+        ;". . SET OUT("KEY-VALUE",KEY,"LINE")=LINE
+        ;". ELSE  DO  
+        ;". . IF $EXTRACT(LINE,1)="*" QUIT
+        ;". . SET CT=CT+1,OUT(CT)=LINE,OUT(0)=CT
+PRRXTSV KILL TMGGSMEDLIST MERGE TMGGSMEDLIST(DFN)=OUT
+        SET TMGGSMEDLIST(DFN,"RETRIEVAL-DATE")=NOW
+PRRXTDN QUIT
+        ;
+PRIORXT0(DFN,MONTHS,OUT,MODE,OPTION)  ;"GET PRIOR MEDICATIONS (RX) TABLE
+        ;"INPUT: DFN -- patient IEN
+        ;"       MONTHS -- number of months to search back
         ;"       OUT -- PASS BY REFERENCE.  The output of this function
         ;"       MODE -- 1 = only last table
         ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:
         ;"                   OPTION("DT")=FMDT <-- will return info AS OF specified FM date-time
         ;"Results: none.  See OUT
-        ;"Modified from GMEDTABL^TMGTIUO6        
-        ;
-        ;"NEW REF SET REF=$NAME(^TMP("PRIORRXT^TMGTIUO8",$J,DFN))
         NEW STORENAME SET STORENAME="MEDICATIONS TABLE-"_DFN
         NEW REF SET REF=$$GETMPREF^TMGMISC2(STORENAME)                
         NEW RXDT,FRXDT,ARRAY1,ARRAY2 KILL OUT
@@ -542,30 +622,4 @@ PRIORRXT(DFN,MONTHS,OUT,MODE,OPTION)  ;"GET PRIOR MEDICATIONS (RX) TABLE
         DO TMPSAVE^TMGMISC2(.OUT,STORENAME,"5M")  ;"save for 5 minutes
 PRXTDN  ;        
         QUIT
-        ;
-PRIORUSE(DFN,IEN22708) ;"HAS TABLE BEEN USED BY PATIENT BEFORE?    
-        NEW TMGRESULT
-        IF $PIECE($GET(^TMG(22708,+$GET(IEN22708),0)),"^",7)="Y" SET TMGRESULT=1 GOTO PUDN
-        SET TMGRESULT=($ORDER(^TMG(22708,+$GET(IEN22708),2,"B",+$GET(DFN),0))>0)
-PUDN    QUIT TMGRESULT
-        ;
-SAVPRIOR(DFN,IEN22708) ;"ENSURE PRIOR USE OF TABLE HAS BEEN STORED.
-        ;"Input -- DFN -- IEN IN PATIENT FILE. 
-        ;"         IEN22708 -- IEN IN 22708 (TMG TIU PXRM TABLE)
-        ;"Result -- 1^OK, or -1^Message
-        NEW TMGRESULT SET TMGRESULT="1^OK"
-        IF $$PRIORUSE(.DFN,.IEN22708) GOTO SPRDN
-        NEW TMGFDA,TMGIEN,TMGMSG
-        SET IEN22708=+$GET(IEN22708) 
-        IF IEN22708'>0 DO  GOTO SPRDN
-        . SET TMGRESULT="-1^No value for TABLE IEN (22708) given."
-        SET DFN=+$GET(DFN)
-        IF DFN'>0 DO  GOTO SPRDN
-        . SET TMGRESULT="-1^No value for patient # (DFN) given."
-        SET TMGFDA(22708.04,"+1,"_IEN22708_",",.01)=DFN
-        SET TMGFDA(22708.04,"+1,"_IEN22708_",",1)=$$NOW^XLFDT
-        DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
-        IF $DATA(TMGMSG("DIERR")) DO  GOTO SPRDN  
-        . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
-SPRDN   QUIT TMGRESULT                
         ;

@@ -254,3 +254,45 @@ S2STR(SEC) ;"Seconds to string
   FOR IDX=1:1:5 SET NM=$P(PS,"^",IDX) SET:NM>0 STR=STR_$S(STR]"":", ",1:"")_NM_" "_$P(TAG,"^",IDX)
   QUIT STR
  ;  
+INITPFIL(GROUP)  ;"Initialize timing profile, by deleting old data
+  NEW ROOT SET ROOT=$NAME(^TMG("TMP","TIMER^TMGMISC2",GROUP))
+  KILL @ROOT
+  QUIT
+  ;
+TIMEPFIL(GROUP,ITEM,TOGGLE) ;"Turn a timer on or off. 
+  ;"Input: GROUP -- A user-determined name to describe a grouping for items
+  ;"       ITEM -- A user-determined name to describe item
+  ;"       TOGGLE -- should be 1 to turn on, or 0 to turn off
+  ;"Discussion: When toggled on, this will record start time.  When turned off,
+  ;"            this will store elapsed time.  Storage is in ^TMG("TMP","TIMER",<GROUP>,<ITEM>)
+  ;"Result: none
+  SET GROUP=$GET(GROUP,"??GROUP")
+  SET ITEM=$GET(ITEM,"??ITEM")
+  NEW ROOT SET ROOT=$NAME(^TMG("TMP","TIMER^TMGMISC2",GROUP))
+  SET TOGGLE=+$GET(TOGGLE)
+  IF TOGGLE DO
+  . SET @ROOT@(ITEM)="START^"_$$TIME2^TMGKERNL
+  ELSE  DO
+  . NEW PRIOR SET PRIOR=$GET(@ROOT@(ITEM))
+  . NEW STARTTIME SET STARTTIME=+$PIECE(PRIOR,"^",2)
+  . NEW CURRENT SET CURRENT=$$TIME2^TMGKERNL
+  . NEW DELTA SET DELTA=CURRENT-STARTTIME
+  . IF STARTTIME=0 DO
+  . . SET @ROOT@(ITEM)="END^"_$$TIME2^TMGKERNL
+  . ELSE  DO
+  . . SET @ROOT@(ITEM)="ELAPSED^"_DELTA
+  . . SET @ROOT@("TIME_INDEX",DELTA,ITEM)=""
+  QUIT
+  ;
+SHOWRPT(GROUP)  ;"show report of timer
+  NEW OUT DO TIMERRPT(.OUT,GROUP)
+  IF $DATA(OUT) ZWR OUT
+  QUIT
+  ;
+TIMERPT(OUT,GROUP)  ;"Get report of timer
+  SET GROUP=$GET(GROUP,"??GROUP")
+  SET ITEM=$GET(ITEM,"??ITEM")
+  NEW ROOT SET ROOT=$NAME(^TMG("TMP","TIMER^TMGMISC2",GROUP))
+  MERGE OUT(GROUP)=^TMG("TMP","TIMER^TMGMISC2",GROUP)
+  QUIT
+  ;

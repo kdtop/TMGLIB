@@ -1,4 +1,4 @@
-TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17
+TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18
          ;;1.0;TMG-LIB;**1**;5/1/13
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -12,105 +12,129 @@ TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17
  ;"=======================================================================
  ;" RPC -- Public Functions.
  ;"=======================================================================
- ;"PROCESS(TMGRESULT,TMGIN) -- Entrypoint for RPC to effect processing a note from CPRS
- ;"FRSHTABL(TMGRESULT,TMGIN,HTML) -- REFRESH TABLES
- ;"GETTABLS(TABLES,HTML) -- Get list of all defined text tables, minus protected ones
+ ;"PROCESS(TMGRESULT,TMGIN) -- 
+ ;"FRSHTABL(TMGRESULT,TMGIN,OPTION) -- REFRESH TABLES
+ ;"GETTABLS(TABLES,OPTION) -- Get list of all defined text tables, minus protected ones
  ;"TABLEND(LINE,PARTB) --Determine if HTML-coded line includes the end of a table.
  ;"PRTIUHTM(TEXT)  --PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO ARRAY (HANDLING TABLES)  
+ ;"SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2 
  ;"
  ;"=======================================================================
  ;"Dependancies:
  ;" TMGHTM1, TMGTIUOJ, TMGTIUO6, XLFSTR, TMGSTUT2, TMGSTUT3
  ;"=======================================================================
  ;
-PROCESS(TMGRESULT,TMGIN,FORCE,OPTION) ;
+PROCESS(TMGRESULT,TMGIN,OPTION) ;
+        ;"As of 5/20/18, called from:
+        ;"   PROCESS^TMGRPC1H <-- RPC call 'TMG CPRS PROCESS NOTE'
+        ;"   GETHPI^TMGTIUP2 <-- LASTHPI^TMGTIUP2 <-- LASTHPI^TMGTIUOJ <-- TIU TEXT OBJECT 'TMG LAST HPI'
         ;"Purpose: Entrypoint for RPC to effect processing a note from CPRS
         ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
         ;"       TMGIN -- Input from client.  Format:
-        ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
-        ;"              TMGIN("NoteIEN")=<TIUIEN>
-        ;"              TMGIN("TEXT",1) = 1st line of text
-        ;"              TMGIN("TEXT",2) = 2nd line of text, etc
-        ;"       FORCE -- ADDED 12/12/16. If not sent, is set to 0
-        ;"                If 1 is sent, note is processed even if
-        ;"                tag is absent
-        ;"       OPTION("ALL NOTES")=(OPTIONAL) - Use all notes (as 
-        ;"                               opposed to only completed notes)
+        ;"          TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
+        ;"          TMGIN("NoteIEN")=<TIUIEN>
+        ;"          TMGIN("TEXT",1) = 1st line of text
+        ;"          TMGIN("TEXT",2) = 2nd line of text, etc
+        ;"       OPTION -- PASS BY REFERENCE.  OPTIONAL
+        ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
+        ;"          OPTION("ALL NOTES")= Use all notes (instead of only completed notes)
+        ;"          OPTION("FORCE REFRESH TABLE",<TABLE_NAME>)=1 <-- don't allow <TABLE_NAME> to be excluded.         
         ;"Output: TMGRESULT(0)="1^Success", or "-1^Error Message"
         ;"        TMGRESULT(1)=1st line of return text
         ;"        TMGRESULT(2)=2nd line of return text, etc.
         ;"Result: none
-        SET FORCE=+$GET(FORCE)
-        SET FORCE=1 ;"ELH  1/18/18 Always process note
-        KILL TMGRESULT
-        NEW TMGZZ SET TMGZZ=0  ;"Set to 1 during debug IF needed.
+        NEW TMGZZ SET TMGZZ=0  ;"Set to 1 during debug if needed.
         IF TMGZZ=1 DO
-        . KILL TMGIN,TIU
+        . KILL TMGIN,OPTION
         . MERGE TMGIN=^TMG("TMG","RPC","TMG CPRS PROCESS NOTE","TMGIN")        
-        . MERGE TIU=^TMG("TMG","RPC","TMG CPRS PROCESS NOTE","TIU")        
+        . MERGE OPTION=^TMG("TMG","RPC","TMG CPRS PROCESS NOTE","OPTION")        
         ELSE  DO
         . KILL ^TMG("TMG","RPC","TMG CPRS PROCESS NOTE")
         . MERGE ^TMG("TMG","RPC","TMG CPRS PROCESS NOTE","TMGIN")=TMGIN
-        . MERGE ^TMG("TMG","RPC","TMG CPRS PROCESS NOTE","TIU")=TIU
+        . MERGE ^TMG("TMG","RPC","TMG CPRS PROCESS NOTE","OPTION")=OPTION
         ;
-        ;"REMOVE "PROCESS NOTE" REMINDER
-        NEW NOTDONETAG SET NOTDONETAG="PROCESS NOTE NOT DONE"
-        NEW TIUIEN SET TIUIEN=+$G(TMGIN("NoteIEN"))
-        ;"SET ^TMP("NOTEIEN")=TIUIEN
-        ;"IF TIUIEN>0 DO TRIGGER1^TMGC0Q04(TIUIEN)    ;"GET ALL TOPICS CATALOGGED        
-        NEW LINENUM SET LINENUM=0
-        NEW TEMPARRAY,LINETEXT,DONTPROCESS
-        SET DONTPROCESS=1
-        SET TEMPARRAY("DFN")=TMGIN("DFN")
-        FOR  SET LINENUM=$ORDER(TMGIN("TEXT",LINENUM)) QUIT:LINENUM'>0  DO
-        . SET LINETEXT=$GET(TMGIN("TEXT",LINENUM))
-        . IF LINETEXT[NOTDONETAG DO   ;"//kt 9/11/13
-        . . SET DONTPROCESS=0
-        . . SET LINETEXT=$PIECE(LINETEXT,NOTDONETAG,1)_$PIECE(LINETEXT,NOTDONETAG,2)
-        . SET TEMPARRAY("TEXT",LINENUM)=LINETEXT
-        IF (DONTPROCESS=1)&(FORCE=0) DO  GOTO PRODN 
+        NEW FORCE,TAGFOUND KILL TMGRESULT
+        SET FORCE=+$GET(OPTION("FORCE PROCESS"),1) ;"I.e. force processing regardless of tag presence.  
+        SET TAGFOUND=$$STRIPARR^TMGMISC3($NAME(TMGIN("TEXT")),"PROCESS NOTE NOT DONE")  ;"remove process tag
+        IF (TAGFOUND=0)&(FORCE=0) DO  GOTO PRODN 
         . MERGE TMGRESULT=TMGIN("TEXT")
-        . ;"DO SETPLAN(.TMGRESULT,.TMGIN)
-        KILL TMGIN
-        MERGE TMGIN=TEMPARRAY
-        ;"DONE REMOVING REMINDER
-        NEW HTML SET HTML=$$ISHTMREF^TMGHTM1($NAME(TMGIN("TEXT")))
-        DO FRSHTABL(.TMGRESULT,.TMGIN,HTML,.OPTION) 
-        ;"IF TIUIEN>0 DO CLEAR1^TMGC0Q04(TIUIEN)  ;"REMOVE TOPICS FOR NOTE
+        SET OPTION("HTML")=$$ISHTMREF^TMGHTM1($NAME(TMGIN("TEXT")))
+        DO FRSHTABL(.TMGRESULT,.TMGIN,.OPTION) 
         ;"NOTE: Later, other tasks could also be done at this time. 
 PRODN   QUIT
+        ;       
+REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES.  
+        ;"//NOTE: As of 5/20/18, this REFRSHTB() doesn't seem to be in use.  
+        ;"        This code refreshes tables that have already been parsed out from HPI
+        ;"        Section.  But it would be unable to parse the FINAL MEDICATIONS table, for example.
+        ;"        Compare to FRSHTABL() which uses a stream approach and can work with all tables.
+        ;"INPUT: ITEMARRAY -- PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
+        ;"          ITEMARRAY(Ref#)=<Full section text>
+        ;"          ITEMARRAY(Ref#,#)=different parts of section
+        ;"          ITEMARRAY("TEXT",Ref#)=Title of section  
+        ;"          ITEMARRAY("TEXT",Ref#,#)=sequential parts of section  
+        ;"             ITEMARRAY("TEXT",3)="Dyspepsia"  
+        ;"             ITEMARRAY("TEXT",3,1)=part 1, e.g. text, e.g. [GROUP A&B]
+        ;"                ITEMARRAY("TEXT",3,1)="[GROUP]"
+        ;"                ITEMARRAY("TEXT",3,1,"GROUP")="A&B"
+        ;"             ITEMARRAY("TEXT",3,2)=part 2, e.g. name of inline table
+        ;"                ITEMARRAY("TEXT",3,2)="[TABLE]"  <-- signal this part is a table. 
+        ;"                ITEMARRAY("TEXT",3,2,"TABLE")=WT   <-- WT is name of table
+        ;"                ITEMARRAY("TEXT",3,2,"TEXT")=<TEXT OF TABLE>
+        ;"                ITEMARRAY("TEXT",3,2,"INLINE")=0 or 1        
+        ;"            ITEMARRAY("TEXT",Ref#,3)=part 3, e.g. more text
+        ;"            ITEMARRAY("TEXT",Ref#,4)=part 4, e.g. name of table  
+        ;"            ITEMARRAY("TEXT",Ref#,"GROUPX",#)=""  <-- index of GROUP nodes
+        ;"            ITEMARRAY("TEXT",Ref#,"TABLEX",#)=""  <-- index of TABLE nodes        
+        ;"       DFN - IEN of the patient
+        ;"Result: 1^OK, or -1^Error message
+        NEW TMGRESULT SET TMGRESULT="1^OK"
+        NEW PARAIDX SET PARAIDX=0
+        FOR  SET PARAIDX=$ORDER(ITEMARRAY("TEXT",PARAIDX)) QUIT:PARAIDX'>0  DO
+        . NEW JDX SET JDX=0
+        . FOR  SET JDX=$ORDER(ITEMARRAY("TEXT",PARAIDX,JDX)) QUIT:JDX'>0  DO
+        . . IF $GET(ITEMARRAY("TEXT",PARAIDX,JDX))="[TABLE]" DO
+        . . . NEW TABLENAME SET TABLENAME=$GET(ITEMARRAY("TEXT",PARAIDX,JDX,"TABLE"))
+        . . . IF TABLENAME'="" DO
+        . . . . NEW TABLESTR,TABLEARR
+        . . . . SET TABLESTR=$$GETTABLX^TMGTIUO6(DFN,TABLENAME,.TABLEARR)
+        . . . . SET ITEMARRAY("TEXT",PARAIDX,JDX,"TEXT")=TABLESTR
+        QUIT TMGRESULT
         ;        
-FRSHTABL(TMGRESULT,TMGIN,HTML,OPTION) ;"REFRESH TABLES
+FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
+        ;"NOTE: As of 5/20/18, only called from PROCESS^TMGTIUP3()
         ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
         ;"       TMGIN -- Input from client.  Format:
         ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
         ;"              TMGIN("TEXT",1) = 1st line of text
         ;"              TMGIN("TEXT",2) = 2nd line of text, etc
-        ;"       FORCE -- ADDED 12/12/16. If not sent, is set to 0
-        ;"                If 1 is sent, note is processed even if
-        ;"                tag is absent
-        ;"       HTML -- 1 if note is in HTML format
-        ;"       OPTION("ALL NOTES")=(OPTIONAL) - Use all notes (as
+        ;"       OPTION -- PASS BY REFERENCE.  OPTIONAL
+        ;"            OPTION("HTML")=1 if text is in HTML format. 
+        ;"            OPTION("ALL NOTES")=(OPTIONAL) - Use all notes (as
         ;"                               opposed to only completed notes)
+        ;"             OPTION("FORCE REFRESH TABLE",<TABLE_NAME>)=1 <-- don't allow <TABLE_NAME> to be excluded.         
         ;"Result: None
         SET TMGRESULT(0)="1^Success"
-        NEW ATABLE,TABLES DO GETTABLS(.TABLES,HTML)
+        NEW ATABLE,TABLES DO GETTABLS(.TABLES,.OPTION)
         NEW TMGDFN SET TMGDFN=+$GET(TMGIN("DFN"))
         NEW TERMINALCHARS SET TERMINALCHARS=""
         NEW FOUNDTABLE SET FOUNDTABLE=""
         NEW OUTLNUM SET OUTLNUM=0
+        NEW HTML SET HTML=+$GET(OPTION("HTML"))
         NEW TAGS
         NEW DONE SET DONE=0
         NEW INSCRIPT SET INSCRIPT=0
         NEW LNUM SET LNUM=$ORDER(TMGIN("TEXT",0))
         NEW INLINEMODE SET INLINEMODE=0
-        ;"FOR  SET LNUM=$ORDER(TMGIN("TEXT",LNUM)) QUIT:(+LNUM'>0)!DONE  DO
         FOR  QUIT:(+LNUM'>0)!DONE  DO
-        . NEW LINE SET LINE=$$GETNEXTL($NAME(TMGIN("TEXT")),.LNUM,.INSCRIPT,.TAGS) ;"Get next line
+        . NEW LINE 
+        . IF HTML DO
+        . . SET LINE=$$GETNLHTM($NAME(TMGIN("TEXT")),.LNUM,.INSCRIPT,.TAGS) ;"Get next line (html)
+        . ELSE  DO
+        . . SET LINE=$$GETNL($NAME(TMGIN("TEXT")),.LNUM) ;"Get next line
         . IF INSCRIPT DO  QUIT  ;"don't search for tables to refresh inside script javascript code
         . . SET OUTLNUM=OUTLNUM+1,TMGRESULT(OUTLNUM)=LINE
         . IF LNUM="" SET DONE=1
-        . ;"NEW LINE SET LINE=$GET(TMGIN("TEXT",LNUM))
         . IF FOUNDTABLE'="" DO
         . . NEW TL SET TL=$SELECT(HTML:$$HTMLTRIM^TMGHTM1(LINE),1:$$TRIM^XLFSTR(LINE))
         . . NEW PARTB SET PARTB="" 
@@ -126,15 +150,12 @@ FRSHTABL(TMGRESULT,TMGIN,HTML,OPTION) ;"REFRESH TABLES
         . . . ELSE  SET ENDFOUND=(LINE="")
         . . IF 'ENDFOUND QUIT
         . . NEW TABLESTR,TABLEARR
-        . . SET TABLESTR=$$GETTABLX^TMGTIUOJ(TMGDFN,FOUNDTABLE,.TABLEARR,.OPTION)
+        . . SET TABLESTR=$$GETTABLX^TMGTIUO6(TMGDFN,FOUNDTABLE,.TABLEARR,.OPTION)
         . . NEW TEMPARR
         . . IF 'INLINEMODE DO
         . . . DO SPLIT2AR^TMGSTUT2(TABLESTR,$CHAR(13,10),.TEMPARR,OUTLNUM+1)
         . . . KILL TEMPARR("MAXNODE")
-        . . . IF HTML DO 
-        . . . . DO TXT2HTML^TMGHTM1(.TEMPARR)
-        . . . ;"NEW IDX SET IDX="" FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX=""  DO
-        . . . ;". ;"SET TEMPARR(IDX)=TEMPARR(IDX)_$CHAR(13,10)
+        . . . IF HTML DO TXT2HTML^TMGHTM1(.TEMPARR)
         . . . MERGE TMGRESULT=TEMPARR
         . . ELSE  DO
         . . . SET LINE=$$SYMENC^MXMLUTL(TABLESTR)_LINE
@@ -157,7 +178,7 @@ FRSHTABL(TMGRESULT,TMGIN,HTML,OPTION) ;"REFRESH TABLES
         . . . . . SET INPARTA=$PIECE(LINE,ATABLE,1)
         . . . . . IF LINE[TERMCHARS DO
         . . . . . . SET INPARTB=$PIECE(LINE,TERMCHARS,2)
-        . . . . . . NEW TABLESTR SET TABLESTR=$$GETTABLX^TMGTIUOJ(TMGDFN,ATABLE)
+        . . . . . . NEW TABLESTR SET TABLESTR=$$GETTABLX^TMGTIUO6(TMGDFN,ATABLE)
         . . . . . . SET TABLESTR=$$SYMENC^MXMLUTL(TABLESTR) 
         . . . . . . SET LINE=INPARTA_TABLESTR_INPARTB 
         . . . . . ELSE  DO
@@ -180,9 +201,9 @@ FRSHTABL(TMGRESULT,TMGIN,HTML,OPTION) ;"REFRESH TABLES
         . . SET OUTLNUM=OUTLNUM+1,TMGRESULT(OUTLNUM)=LINE
         QUIT        
         ; 
-GETNEXTL(REFARR,IDX,INSCRIPT,TAGS) ;"Get next line
+GETNLHTM(REFARR,IDX,INSCRIPT,TAGS) ;"Get next line (html text)
         ;"Input: REFARR -- pass by NAME <-- original array is modified during processing
-        ;"       IDX -- PASS BY REFERENCE.
+        ;"       IDX -- PASS BY REFERENCE. <-- modified during processing
         ;"       INSCRIPT -- PASS BY REFERENCE.  BOOLEAN
         NEW LINE SET LINE=""
         SET IDX=$GET(IDX)
@@ -233,12 +254,25 @@ GETNEXTL(REFARR,IDX,INSCRIPT,TAGS) ;"Get next line
         . . SET IDX=$ORDER(@REFARR@(IDX))
         . IF INSCRIPT SET DONE=1
 GNLDN   QUIT LINE        
-        
-GETTABLS(TABLES,HTML) ;"Get list of all defined text tables, minus protected ones
-        ;"Note: Some tables don't need refreshing becuase they are fresh from
+        ;
+GETNL(REFARR,IDX) ;"Get next line (non-html text)
+        ;"Input: REFARR -- pass by NAME <-- original array is modified during processing
+        ;"       IDX -- PASS BY REFERENCE. <-- modified during processing
+        SET IDX=+$GET(IDX)
+        NEW LINE SET LINE=$GET(@REFARR@(IDX))
+        SET @REFARR@(IDX)=""
+        SET IDX=$ORDER(@REFARR@(IDX))
+        QUIT LINE        
+        ;
+GETTABLS(TABLES,OPTION) ;"Get list of all defined text tables, minus protected ones
+        ;"Note: Some tables don't need refreshing because they are fresh from
         ;"      insertion as TIU TEXT OBJECTS.  These are removed from list.
         ;"Input: TABLES -- an OUT PARAMETER
         ;"       HTML -- 1 IF should be in HTML format.
+        ;"       OPTION -- OPTIONAL.
+        ;"             OPTION("HTML")=1 if text is in HTML format. 
+        ;"             OPTION("FORCE REFRESH TABLE",<TABLE_NAME>)=1 <-- don't allow <TABLE_NAME> to be excluded.         
+        ;"        e.g. OPTION("FORCE REFRESH TABLE","FINAL MEDICATIONS")=1 <-- don't allow "FINAL MEDICATIONS" to be excluded.         
         ;"Result : none
         ;
 GTL1    ;"Below are tables that will NOT be refreshed during PROCESS
@@ -255,9 +289,11 @@ GTL1    ;"Below are tables that will NOT be refreshed during PROCESS
         ;;FOLLOWUP ITEMS
         ;;
         DO GETTBLST^TMGTIUO6(.TABLES)
+        NEW HTML SET HTML=+$GET(OPTION("HTML"))
         NEW LINE SET LINE=1
         NEW LABEL
         FOR  SET LABEL=$$TRIM^XLFSTR($PIECE($TEXT(GTL1+LINE^TMGTIUP3),";;",2)),LINE=LINE+1 QUIT:LABEL=""  DO
+        . IF $GET(OPTION("FORCE REFRESH TABLE",LABEL))=1 QUIT ;"don't kill from TABLES array if FORCE exception found. 
         . KILL TABLES("["_LABEL_"]")        
         IF HTML DO
         . NEW TEMPARR,TEMPARR2,LBL,IDX SET IDX=0
@@ -310,37 +346,6 @@ TABLEND(LINE,PARTB) ;" HAS TABLE END
         . IF LINE="" SET PARTB="<BR>",TMGRESULT=1
         QUIT TMGRESULT
         ;
-SETPLAN(TMGRESULT,TMGIN)  ;"-- NOT CURRENTLY USED (?)
-        NEW LINENUM SET LINENUM=0 
-        NEW FOUNDHPI SET FOUNDHPI=0
-        NEW OUTLNUM SET OUTLNUM=0
-        NEW TMPTEXTARR,FOUNDAP,LINETEXT,NEWNUM
-        SET NEWNUM=0
-        SET FOUNDAP=0
-        FOR  SET LINENUM=$ORDER(TMGIN("TEXT",LINENUM)) QUIT:LINENUM'>0  DO
-        . SET LINETEXT=$GET(TMGIN("TEXT",LINENUM))
-        . IF FOUNDHPI=1 DO
-        . . IF LINETEXT["PAST MEDICAL HISTORY" DO
-        . . . SET FOUNDHPI=0
-        . . ELSE  DO
-        . . . SET OUTLNUM=OUTLNUM+1
-        . . . SET TMPTEXTARR(OUTLNUM)=LINETEXT
-        . . . SET NEWNUM=NEWNUM+1
-        . . . SET TMGRESULT(NEWNUM)=LINETEXT
-        . ELSE  IF FOUNDAP=1 DO
-        . . NEW TMPCOUNT
-        . . FOR TMPCOUNT=1:1:OUTLNUM DO
-        . . . SET LINETEXT=$GET(TMPTEXTARR(TMPCOUNT))
-        . . . SET NEWNUM=NEWNUM+1
-        . . . SET TMGRESULT(NEWNUM)=LINETEXT
-        . . SET FOUNDAP=0
-        . ELSE  DO
-        . . SET NEWNUM=NEWNUM+1
-        . . SET TMGRESULT(NEWNUM)=LINETEXT
-        . . IF LINETEXT["(HPI)" SET FOUNDHPI=1
-        . . IF LINETEXT["PLAN:" SET FOUNDAP=1
-        QUIT
-        ;"
 CHNGES(TMGRESULT,XU1) ;change ES, Return 0 = success
        SET TMGRESULT="0^SUCCESSFUL"
        N XU2,XU3,XU4 
@@ -359,6 +364,7 @@ CHNGES(TMGRESULT,XU1) ;change ES, Return 0 = success
 CESDN  QUIT        
        ;
 PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO ARRAY (HANDLING TABLES)  
+       ;"//As of 5/20/18, only called from PRCSSTXT^TMGTIUIP2() 
        ;"INPUT: TEXT -- PASS BY REFERENCE.  AN IN & OUT PARAMETER.  
        ;"           For input, TEXT = HTML string to process.  This is expected to be
        ;"             the text for one section of HPI part of progress note
@@ -376,8 +382,9 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        ;"           TEXT("GROUPX",#)=""  <-- index of GROUP nodes
        ;"           TEXT("TABLEX",#)=""  <-- index of TABLE nodes
        ;"           ... etc. 
-       ;"       TABLES -- OPTIONAL.  PASS BY REFERENCE.  Allows reuse from prior calls.  
-       IF '$DATA(TABLES) DO GETTABLS^TMGTIUP3(.TABLES,1) ;"Get list of all defined text tables, minus protected ones
+       ;"       TABLES -- OPTIONAL.  PASS BY REFERENCE.  Allows reuse from prior calls.
+       NEW OPTION SET OPTION("HTML")=1
+       IF '$DATA(TABLES) DO GETTABLS(.TABLES,.OPTION) ;"Get list of all defined text tables, minus protected ones
        NEW IDX SET IDX=0
        NEW STARTPOS SET STARTPOS=0
        NEW STR SET STR=TEXT
@@ -443,9 +450,9 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . . SET STARTPOS=$LENGTH("["_TEMP_"]")+1
        QUIT
        ;
-MOVEMEDS(TMGIN)  ;"Used as part of the RPC: TMG CPRS PROCESS NOTE
-       ;"Purpose: This function replaces the FINAL MEDICATION table with the
-       ;"         MEDICATION table found within the note.
+SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2 
+       ;"Purpose: This function scans through input text looking for [MEDICATION]
+       ;"         table, and saves this to storage, for use with refreshing tables. 
        ;"Input:   TMGIN -- Input from client.  Format:
        ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
        ;"              TMGIN("NoteIEN")=<TIUIEN>
@@ -453,30 +460,12 @@ MOVEMEDS(TMGIN)  ;"Used as part of the RPC: TMG CPRS PROCESS NOTE
        ;"              TMGIN("TEXT",2) = 2nd line of text, etc
        ;"Output: TMGIN will contain the text as sent, with changes
        ;"Result: none
-       NEW IDX,TEMPNOTE,TEMPIDX,MEDARR,MEDIDX,FOUNDMED,ENDFOUND,PARTB
-       SET (IDX,TEMPIDX,MEDIDX,FOUNDMED)=0
-       NEW FOUNDFINAL SET FOUNDFINAL=0
-       FOR  SET IDX=$O(TMGIN("TEXT",IDX)) QUIT:IDX'>0  DO
-       . NEW LINE SET LINE=$G(TMGIN("TEXT",IDX))
-       . IF FOUNDMED=1 DO
-       . . IF LINE["<P>" SET FOUNDMED=0
-       . . ELSE  DO
-       . . . SET MEDIDX=MEDIDX+1
-       . . . SET MEDARR(MEDIDX)=LINE
-       . IF LINE["[MEDICATION" SET FOUNDMED=1
-       . ;"
-       . ELSE  DO
-       . . IF LINE["<P>" SET FOUNDFINAL=0
-       . IF FOUNDFINAL'=1 DO 
-       . . SET TEMPIDX=TEMPIDX+1
-       . . SET TEMPNOTE(TEMPIDX)=LINE
-       . IF LINE["[FINAL MED" DO
-       . . SET FOUNDFINAL=1
-       . . SET MEDIDX=0
-       . . FOR  SET MEDIDX=$O(MEDARR(MEDIDX)) QUIT:MEDIDX'>0  DO
-       . . . SET TEMPIDX=TEMPIDX+1
-       . . . SET TEMPNOTE(TEMPIDX)=$G(MEDARR(MEDIDX))
-       KILL TMGIN("TEXT")
-       MERGE TMGIN("TEXT")=TEMPNOTE
+       NEW MEDARR,DFN SET DFN=TMGIN("DFN")
+       NEW TEMP MERGE TEMP=TMGIN("TEXT")
+       DO XTRCTREF^TMGTIUO5("TEMP","[MEDICATIONS]","BLANK_LINE",.MEDARR)       
+       DO FIXABVA^TMGTIUO6(.MEDARR)
+       DO SORTARR^TMGTIUO5(.MEDARR) ;"splits to KEY-VALUE pairs etc.              
+       DO SAVETABL^TMGRX007(DFN,.MEDARR)  ;"SAVE MEDICATION TABLE.
+       KILL TMGGSMEDLIST(DFN) ;"clear out any cached med table
        QUIT
-       ;"
+       ;"       

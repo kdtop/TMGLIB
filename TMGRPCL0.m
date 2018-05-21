@@ -226,7 +226,7 @@ LISTINST(TMGOUT,FROM,DIR)        ;" Return a SET of Institutions
         . . SET IDX=IDX+1,TMGOUT(IDX)=IEN_"^"_ENTRY
         QUIT
         ;
-POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL)
+POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL: TMG CPRS POST LAB VALUES)
         ;"Purpose: Post lab results, as passed in from CPRS client
         ;"Input: TMGRESULT -- this is an OUT parameter, and it is always passed by reference
         ;"       INARRAY -- this will be array of data sent from the GUI client.  Defined below:
@@ -236,10 +236,10 @@ POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL)
         ;"              Lines after this tag will be meta data, as follows
         ;"              e.g. INARRAY(#)="DT_TAKEN = 3130906.202858"
         ;"       removed-->       e.g. INARRAY(#)="DT_COMPLETED = 3130908.203019"
-        ;"              e.g. INARRAY(#)="PATIENT = 123^JONES,THOMAS
-        ;"              e.g. INARRAY(#)="PROVIDER = 168^Toppenberg,Kevin S^- MD"
-        ;"              e.g. INARRAY(#)="LOCATION = 69^Family Phys of Greeneville"  <-- IEN 4
-        ;"              e.g. INARRAY(#)="SPECIMEN = 71^URINE -- URINE^URINE"
+        ;"              e.g. INARRAY(#)="PATIENT = 123^JONES,THOMAS"                            (piece#2 optional)
+        ;"              e.g. INARRAY(#)="PROVIDER = 168^Toppenberg,Kevin S^- MD"                (piece#2 optional)
+        ;"              e.g. INARRAY(#)="LOCATION = 69^Family Phys of Greeneville"  <-- IEN 4   (piece#2 optional)
+        ;"              e.g. INARRAY(#)="SPECIMEN = 71^URINE -- URINE^URINE"                    (piece#2 optional)
         ;"            INARRAY(#)="<VALUES>"
         ;"              Lines after this tag will be lab values.  
         ;"              Order of pieces is as follows:
@@ -254,9 +254,9 @@ POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL)
         ;"
         ;"NOTE: The date information provided in the METADATA section is the default date.
         ;"      If a different date is provide for a given lab, then this OVERRIDES the default.
-        ;"NOTE: For specimen, IF the IEN is not provided, then the NAME will be used
+        ;"NOTE: For specimen, If the IEN is not provided, then the NAME will be used
         ;"      for lookup.
-        ;"RESULT: None, but TMGOUT var TMGRESULT(0) holds a result
+        ;"RESULT: None, but var TMGRESULT(0) holds a result
         SET TMGRESULT(0)="1^OK"
         NEW LABDEBUG SET LABDEBUG=0
         IF LABDEBUG=1 DO  
@@ -297,7 +297,7 @@ POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL)
         . . IF TAG="LOCATION" DO
         . . . SET LABINST=$PIECE(VALUE,"^",2)
         . . . SET FLD=.112,IEN4=+VALUE,VALUE="`"_+VALUE       ;"ACCESSIONING INSTITUION
-        . . IF TAG="SPECIMEN",(GROUPSPEC'>0) DO
+        . . IF TAG="SPECIMEN",(GROUPSPECIEN'>0) DO
         . . . ;"SET FLD=.05      ;"SPECIMEN TYPE
         . . . NEW TEMPIEN SET TEMPIEN=$$SPECIEN(VALUE)
         . . . IF TEMPIEN'>0 SET VALUE="" QUIT

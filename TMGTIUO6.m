@@ -1,4 +1,4 @@
-TMGTIUO6 ;TMG/kst-Text objects for use in CPRS ; 11/25/12, 2/2/14
+TMGTIUO6 ;TMG/kst-Text objects for use in CPRS ; 11/25/12, 2/2/14, 5/18/18
          ;;1.0;TMG-LIB;**1,17**;7/20/12
  ;
  ;"Kevin Toppenberg MD
@@ -19,11 +19,18 @@ TMGTIUO6 ;TMG/kst-Text objects for use in CPRS ; 11/25/12, 2/2/14
  ;"GETTABL1(DFN,LABEL)--Entry point for TIU objects, to return a table comprised from 1 prior table.
  ;"GETTABLX(DFN,LABEL) --Entry point for TIU objects, to return a table comprised from prior notes.
  ;"GETTBLST(OUT) -- return a list of all defined tables.
+ ;"FIXABREV(STR) -- Fix abbreviations in medication descriptions.    
+ ;"ISREMDLG(LABEL) -- IS LABEL A REMINDER DIALOG TYPE TABLE?
+ ;"ISREMDLG(LABEL) -- IS LABEL A REMINDER DIALOG TYPE TABLE?
+ ;"ISINLINE(LABEL) -- IS INLINE TYPE TABLE?
+ ;"TABLMODE(LABEL) -- Return mode of table.                            
  ;
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
  ;"=======================================================================
  ;"STUBRECS(DFN,ARRAY,LABEL)  -- add stubs for recommended studies to Array
+ ;"CHKTAGS(LABEL,ARRAY)  -- To add tags to appropriate lines
+ ;"TESTLABL(VALUE,CONST) ; 
  ;"=======================================================================
  ;"Dependancies : TMGPXR02
  ;"=======================================================================
@@ -126,74 +133,84 @@ TESTLABL(VALUE,CONST) ;
     ;
 FIXABREV(STR) ;"Fix abbreviations in medication descriptions.
     NEW ARR DO SPLIT2AR^TMGSTUT2(STR," ",.ARR) KILL ARR("MAXNODE")
+    NEW JDX,IDX 
+    DO FIXABVW(.ARR)
+    ;"SET IDX="" FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX=""  DO
+    ;". NEW WORD,UWORD SET WORD=$GET(ARR(IDX)),UWORD=$$UP^XLFSTR(WORD)
+    ;". IF UWORD="QD" SET ARR(IDX)="Daily"
+    ;". IF UWORD="QDAY" SET ARR(IDX)="Daily"
+    ;". IF UWORD["MG" DO
+    ;". . FOR JDX=IDX-1:-1:1 QUIT:($GET(ARR(JDX))'="")  KILL ARR(JDX) 
+    ;". . NEW L SET L=$LENGTH(WORD)
+    ;". . IF ($EXTRACT(UWORD,L-1,L)'="MG")!($EXTRACT(WORD,L-2)=" ") QUIT
+    ;". . NEW PREFIX SET PREFIX=$$TRIM^XLFSTR($EXTRACT(WORD,1,L-2))
+    ;". . IF PREFIX="" SET ARR(IDX)="mg"
+    ;". . ELSE  SET ARR(IDX)=PREFIX_" mg"
+    ;". IF UWORD="DAILY" SET ARR(IDX)="QDAY"
+    SET (STR,IDX)="" FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX=""  DO
+    . SET STR=STR_$GET(ARR(IDX))_" "
+    SET STR=$$TRIM^XLFSTR(STR)
+    QUIT STR
+    ;
+FIXABVA(ARR)  ;"Fix abreviations of medications in a line array
+    ;"INPUT -- ARR.  Format ARR(#)=<line of text>
+    NEW JDX,IDX SET IDX=0
+    FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+    . NEW LINE SET LINE=$GET(ARR(IDX)) QUIT:LINE=""
+    . NEW WORDARR DO SPLIT2AR^TMGSTUT2(LINE," ",.WORDARR) KILL WORDARR("MAXNODE")
+    . DO FIXABVW(.WORDARR)
+    . SET (LINE,JDX)="" 
+    . FOR  SET JDX=$ORDER(WORDARR(JDX)) QUIT:JDX=""  SET LINE=LINE_$GET(WORDARR(JDX))_" "
+    . SET ARR(IDX)=$$TRIM^XLFSTR(LINE)
+    QUIT
+    ;
+FIXABVW(ARR)  ;"Fix abreviations of medications in a word array
+    ;"INPUT -- ARR.  Format ARR(#)=<1 word>
     NEW JDX,IDX SET IDX="" FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX=""  DO
     . NEW WORD,UWORD SET WORD=$GET(ARR(IDX)),UWORD=$$UP^XLFSTR(WORD)
     . IF UWORD="QD" SET ARR(IDX)="Daily"
     . IF UWORD="QDAY" SET ARR(IDX)="Daily"
     . IF UWORD["MG" DO
     . . FOR JDX=IDX-1:-1:1 QUIT:($GET(ARR(JDX))'="")  KILL ARR(JDX) 
-    . . NEW L SET L=$LENGTH(WORD)
+    . . NEW L SET L=$LENGTH(WORD)  ;"10mg
     . . IF ($EXTRACT(UWORD,L-1,L)'="MG")!($EXTRACT(WORD,L-2)=" ") QUIT
     . . NEW PREFIX SET PREFIX=$$TRIM^XLFSTR($EXTRACT(WORD,1,L-2))
     . . IF PREFIX="" SET ARR(IDX)="mg"
     . . ELSE  SET ARR(IDX)=PREFIX_" mg"
     . IF UWORD="DAILY" SET ARR(IDX)="QDAY"
-    SET (STR,IDX)="" FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX=""  DO
-    . SET STR=STR_$GET(ARR(IDX))_" "
-    SET STR=$$TRIM^XLFSTR(STR)
-    QUIT STR
-    ;
-GMEDTABL(DFN,LABEL,ARRAY) ;
-    ;"Depreciated  -- but see also PRIORRXT^TMGTIUO8
-    ;"Note: The MEDICATIONS table should retrieve the prior '[FINAL MEDICATIONS]' IF possible (and dates are correct)
-    ;"SET ^TMG("EDDIE","GMEDTABL")="I'm running through the function!"
-    NEW RESULT SET RESULT=""
-    NEW RXDT,FRXDT
-    NEW SPACES SET SPACES=""
-    NEW SPACES1 SET SPACES1=""
-    NEW SPACES2 SET SPACES2=""
-    NEW ARRAY1,ARRAY2 KILL ARRAY
-    ;"Get both tables, and take the most recent one. 
-    DO GETSPECL^TMGTIUO4(DFN,"[FINAL MEDICATIONS]","BLANK_LINE",48,.ARRAY1,1,.SPACES1)  ;"mode 1 = only last table; 2=compile
-    SET FRXDT=+$GET(ARRAY1("KEY-VALUE","SOURCE-DATE"))
-    DO GETSPECL^TMGTIUO4(DFN,"[MEDICATIONS]","BLANK_LINE",48,.ARRAY2,1,.SPACES2)  ;"mode 1 = only last table; 2=compile
-    SET RXDT=$GET(ARRAY2("KEY-VALUE","SOURCE-DATE"))
-    IF RXDT>FRXDT DO  ;"If MEDICATIONS table has been reconcilled since FINAL MEDICATIONS table has, then use it. 
-    . SET SPACES=SPACES2 
-    . MERGE ARRAY=ARRAY2
-    ELSE  DO
-    . SET SPACES=SPACES1
-    . MERGE ARRAY=ARRAY1
-    NEW IDX SET IDX=0
-    FOR  SET IDX=$ORDER(ARRAY(IDX)) QUIT:(+IDX'>0)  DO
-    . SET ARRAY(IDX)=$$FIXABREV($GET(ARRAY(IDX)))
-    SET RESULT=SPACES_"-- "_LABEL_" ---------"_$CHAR(13)_$CHAR(10)
-    DO STUBRECS(.DFN,.ARRAY,LABEL)
-    NEW SAVEARRAY MERGE SAVEARRAY=ARRAY
-    SET RESULT=RESULT_$$ARRAY2ST^TMGTIUO4(.ARRAY,.SPACES)
-    KILL ARRAY MERGE ARRAY=SAVEARRAY
-GMTDONE QUIT RESULT
-    ;
-SETTABL(DFN,LABEL,KEY,VALUE) ;
-    ;"Purpose: to get a table, just like GETTABL1, but then SET KEY=VALUE in the table
-    ;"NOTE: not currently designed to handle MEDICATIONS table.
-    NEW RESULT SET RESULT=""
-    NEW ARRAY
-    IF $GET(LABEL)="" GOTO STDN
-    NEW SPACES SET SPACES=""
-    DO GETSPECL^TMGTIUO4(DFN,LABEL,"BLANK_LINE",48,.ARRAY,1,.SPACES)  ;"mode 1 = only last table; 2=compile
-    SET RESULT=SPACES_"-- "_LABEL_" ---------"_$CHAR(13)_$CHAR(10)
-    DO STUBRECS(.DFN,.ARRAY,LABEL)
-    IF $DATA(ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY))) DO
-    . NEW TS SET TS=$GET(ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY),"LINE"))
-    . SET $PIECE(TS,": ",2,99)=VALUE
-    . SET ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY),"LINE")=TS
-    ELSE  DO
-    . SET ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY))=VALUE
-    . SET ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY),"LINE")=SPACES_" "_VALUE
-    SET RESULT=RESULT_$$ARRAY2ST^TMGTIUO4(.ARRAY,.SPACES)
-STDN    QUIT RESULT
-    ;
+    QUIT
+    ;"
+    ;"//Delete later if no problems.  Removed 5/8/18
+    ;"GMEDTABL(DFN,LABEL,ARRAY) ;"Depreciated  -- but see also PRIORRXT^TMGTIUO8
+    ;"    ;"Note: The MEDICATIONS table should retrieve the prior '[FINAL MEDICATIONS]' IF possible (and dates are correct)
+    ;"    ;"SET ^TMG("EDDIE","GMEDTABL")="I'm running through the function!"
+    ;"    NEW RESULT SET RESULT=""
+    ;"    NEW RXDT,FRXDT
+    ;"    NEW SPACES SET SPACES=""
+    ;"    NEW SPACES1 SET SPACES1=""
+    ;"    NEW SPACES2 SET SPACES2=""
+    ;"    NEW ARRAY1,ARRAY2 KILL ARRAY
+    ;"    ;"Get both tables, and take the most recent one. 
+    ;"    DO GETSPECL^TMGTIUO4(DFN,"[FINAL MEDICATIONS]","BLANK_LINE",48,.ARRAY1,1,.SPACES1)  ;"mode 1 = only last table; 2=compile
+    ;"    SET FRXDT=+$GET(ARRAY1("KEY-VALUE","SOURCE-DATE"))
+    ;"    DO GETSPECL^TMGTIUO4(DFN,"[MEDICATIONS]","BLANK_LINE",48,.ARRAY2,1,.SPACES2)  ;"mode 1 = only last table; 2=compile
+    ;"    SET RXDT=$GET(ARRAY2("KEY-VALUE","SOURCE-DATE"))
+    ;"    IF RXDT>FRXDT DO  ;"If MEDICATIONS table has been reconcilled since FINAL MEDICATIONS table has, then use it. 
+    ;"    . SET SPACES=SPACES2 
+    ;"    . MERGE ARRAY=ARRAY2
+    ;"    ELSE  DO
+    ;"    . SET SPACES=SPACES1
+    ;"    . MERGE ARRAY=ARRAY1
+    ;"    NEW IDX SET IDX=0
+    ;"    FOR  SET IDX=$ORDER(ARRAY(IDX)) QUIT:(+IDX'>0)  DO
+    ;"    . SET ARRAY(IDX)=$$FIXABREV($GET(ARRAY(IDX)))
+    ;"    SET RESULT=SPACES_"-- "_LABEL_" ---------"_$CHAR(13)_$CHAR(10)
+    ;"    DO STUBRECS(.DFN,.ARRAY,LABEL)
+    ;"    NEW SAVEARRAY MERGE SAVEARRAY=ARRAY
+    ;"    SET RESULT=RESULT_$$ARRAY2ST^TMGTIUO4(.ARRAY,.SPACES)
+    ;"    KILL ARRAY MERGE ARRAY=SAVEARRAY
+    ;"GMTDONE QUIT RESULT
+    ;"    ;
 ISREMDLG(LABEL) ;"IS LABEL A REMINDER DIALOG TYPE TABLE?
     NEW MODE SET MODE=$$TABLMODE(LABEL)
     QUIT (MODE="R")
@@ -201,7 +218,7 @@ ISREMDLG(LABEL) ;"IS LABEL A REMINDER DIALOG TYPE TABLE?
 ISLABCMT(LABEL) ;"IS LABEL A LAB & COMMENTS TYPE TABLE?
     NEW MODE SET MODE=$$TABLMODE(LABEL)
     QUIT (MODE="LC")
-    ;
+    ;    
 ISINLINE(LABEL) ;"IS INLINE TYPE TABLE?
     NEW MODE SET MODE=$$TABLMODE(LABEL)
     QUIT (MODE="I")

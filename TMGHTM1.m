@@ -43,7 +43,7 @@ ISHTML(IEN8925) ;
   ;"Purpose: to determine IF the text held in the REPORT TEXT field is HTML markup
   ;"Input: IEN8925 -- record number in file 8925
   ;"Results: 1 IF HTML markup, 0 otherwise.
-  ;"Note: This is not a perfect test.  Also, will fail IF tag is not uppercase
+  ;"Note: This is not a perfect test.  Also, will fail if tag is not uppercase
   NEW REF SET REF=$NAME(^TIU(8925,IEN8925,"TEXT"))
   NEW RESULT SET RESULT=$$ISHTMREF(REF,1)
   QUIT RESULT
@@ -58,7 +58,7 @@ ISHTMLAR(TMGARRAY) ;
   ;        
 ISHTMREF(REFARRAY,ZN) ;
   ;"Purpose: To determine IF @REFARRAY text is HTML markup
-  ;"Input: ARRAY.  Format:  ARRAY(#)=text
+  ;"Input: ARRAY.  Format:  ARRAY(#)=text (unless ZN=1)
   ;"       ZN -- Optional.  Default is 0.  
   ;"              If 0, then @REFARRAY@(#)=text
   ;"              If 1, then @REFARRAY@(#,0)=text
@@ -75,7 +75,7 @@ ISHTMREF(REFARRAY,ZN) ;
   . SET LINESTR=$$UP^XLFSTR(LINESTR)        
   . IF (LINESTR["<!DOCTYPE HTML")!(LINESTR["<HTML>") SET RESULT=1 QUIT
   . IF (LINESTR["<P>")!(LINESTR["<B>")!(LINESTR["<I>") SET RESULT=1 QUIT
-  . IF (LINESTR["<BR>")!(LINESTR["<HTML>") SET RESULT=1 QUIT
+  . IF (LINESTR["<U>")!(LINESTR["<BR>")!(LINESTR["<HTML>") SET RESULT=1 QUIT
 ISHRDN  ;
   QUIT RESULT
   ;

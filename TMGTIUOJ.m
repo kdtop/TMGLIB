@@ -33,6 +33,7 @@ TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 3/30/15, 1/13/17
  ;"$$GETTABLX(DFN,LABEL,OUT,ARRAY) -- return a table compiled from prior notes.
  ;"TESTTABL 
  ;"$$MEDLIST(RESULT,DFN)  -- RPC Entry point (TMG GET MED LIST).  Return a patient's med list
+ ;"MEDARR(RESULT,DFN,ARRAY,DT) -- Get MED LIST ARRAY
  ;"$$ALLERGY(DFN) -- Get allergy list to populate TIU Object |TMG ALLERGY LIST|
  ;"$$PTPRPRO(DFN) -- Returns patient's personal pronoun
  ;"$$PTPOPRO(DFN) -- Returns patient's possessive pronoun
@@ -128,21 +129,34 @@ TESTTABL  ;
   SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET DFN=+Y IF DFN'>0 QUIT
   SET DIC=22708 DO ^DIC WRITE ! SET IEN22708=+Y,TABLENAME=$PIECE(Y,"^",2) IF IEN22708'>0 QUIT
   NEW ARRAY,RESULT
+  DO INITPFIL^TMGMISC2("GETITEM^TMGTIUO8")
   SET RESULT=$$GETTABLX(DFN,TABLENAME,.ARRAY)
   WRITE "Table output:",!,RESULT,!
   WRITE "Associated output array:",!
   ZWRITE ARRAY
+  WRITE !
+  DO SHOWRPT^TMGMISC2("GETITEM^TMGTIUO8")
   QUIT
   ;  
-MEDLIST(RESULT,DFN,ARRAY,DT)  ;"Purpose: RPC (TMG GET MED LIST) to return a patient's med list
-  ;"Input ARRAY is optional.  Supply to get back array of table. Not used by RPC call.
-  ;"      DT -- OPTIONAL.  If supplied, then get med list AS OF the specified FM DT
-  NEW OPTION IF $DATA(DT)#10 SET OPTION("DT")=DT
-  SET RESULT=$$GETTABLX(DFN,"MEDICATIONS",.ARRAY,.OPTION) 
-  SET RESULT=$$REMHTML^TMGHTM1(RESULT)   ;"ELH ADDED NEW FUNCTION 3/15/18 TO REMOVE {HTML: TAGS
-  SET RESULT=$$HTML2TXS^TMGHTM1(RESULT)
-  ;"not using below at the moment.
-  ;"SET RESULT=$$RPLCMEDS^TMGTIUOT(RESULT)  ;"ELH ADDED AS A WEDGE TO REPLACE MED NAMES AS NEEDED 3/22/18
+TESTMDLT ;
+  NEW DIC,X,Y,DFN,STR,ARR
+  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET DFN=+Y IF DFN'>0 QUIT
+  DO MEDLIST(.STR,DFN,.ARR)
+  WRITE STR,!
+  QUIT
+  ;
+MEDLIST(RESULT,DFN,ARRAY,DT,OPTION)  ;"Purpose: RPC (TMG GET MED LIST) to return a patient's med list
+  ;"NOTE!!: It is not effecient to call this just to get ARRAY.  
+  ;"        Use MEDARR() below instead!
+  ;"SET OPTION("USEOLDMETHOD")=1  ;"TEMP!, REMOVE LATER.
+  DO GTMEDLST^TMGTIUO8(.RESULT,.DFN,.ARRAY,.DT,.OPTION)
+  QUIT
+  ;
+MEDARR(RESULT,DFN,ARRAY,DT,OPTION) ;"Get MED LIST ARRAY
+  SET RESULT=1  ;"Does nothing.  I included to keep function signature same as MEDLIST()
+  IF $GET(DT)>0 SET OPTION("DT")=DT
+  ;"SET OPTION("USEOLDMETHOD")=1  ;"TEMP!, REMOVE LATER.
+  DO PRIORRXT^TMGTIUO8(DFN,48,.ARRAY,1,.OPTION)
   QUIT
   ;
 MEANFLUS(DFN) ;"Return text showing missing items for meaningful use.
@@ -204,8 +218,8 @@ GETTIUOJ(DFN,NAME) ;" return tiu text object for patient
 ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were given
   QUIT $$ADGIVEN^TMGTBL01(.DFN)
   ;
-GETLLAB(DFN,LABNUM,NUM)   ;"Return the last urine culture
-  QUIT $$GETLLAB^TMGTBL01(.DFN,.LABNUM,.NUM)
+GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
+  QUIT $$GETLLAB^TMGTBL01(.DFN,.LABNUM,.NUM,.DTONLY)
   ;
 ALLHFTBL(DFN)  ;"Return an HTML table containing all health factors
   QUIT $$ALLHFTBL^TMGTBL01(.DFN)
@@ -213,7 +227,7 @@ ALLHFTBL(DFN)  ;"Return an HTML table containing all health factors
 FUITEMS(DFN)  ;"Return the followup table if data is contained
   QUIT $$FUITEMS^TMGTIUO3(.DFN)  
   ;
-LASTHPI(DFN)  ;"Return the last HPI section
+LASTHPI(DFN)  ;"Return the last HPI section.  Called by TIU TEXT OBJECT 'TMG LAST HPI'
   QUIT $$LASTHPI^TMGTIUP2(.DFN)  ;"Moved to TMGTIUP2 to minimize file size 
   ;
 ADMINDOC(TMGRESULT);

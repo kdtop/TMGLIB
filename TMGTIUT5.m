@@ -25,22 +25,31 @@ TMGTIUT5 ;TMG/kst-TIU-related code ; 5/7/16
 TRIG1(IEN8925)  ;"HANDLE POST-SIGNATURE FOR TIU DOCUMENTS.
   ;"This routine is set up to fire from the POST-SIGNATURE CODE field (4.9) in file 8925
   ;"  It fires from the top level document type, CLINICAL DOCUMENTS.
-  ;"  As such, it should not try to fire any inherited handlers, as that leads to endless loop.  
-  ;"//KT NO--> DO FIREINH1^TMGTIUT4(.TIUIEN)  ;"Fire inherited post-signature event-handlers first.
-  ;"TO DO .... consider jobbing this off for faster processing.  
+  ;"  As such, it should NOT try to fire any inherited handlers, as that leads to endless loop.  
+  ;"       e.g. DON'T call: FIREINH1^TMGTIUT4(.TIUIEN) 
+  ;"NOTE: some documents (not all) also call TRIGGER^1^TMGC0Q04
+  ;"  A Fileman search for POST-SIGNATURE CODE field in file 8925.1 will show details.
+  ;
+  ;"Job task off for faster foreground processing.
+  JOB TRIGJOB^TMGTIUT5(+$GET(IEN8925))::10  ;"Wait for up to 10 seconds for launching background task
+  ELSE  DO  ;"$TEST is set to false if JOB timesout
+  . DO TRIGJOB^TMGTIUT5(+$GET(IEN8925))  ;"run in foreground task
+  QUIT 
+  ;
+TRIGJOB(IEN8925)  ;"HANDLE TRIGGER AS SEPARATE JOB
+  NEW TMPSTORE SET TMPSTORE=$NAME(^TMG("TMP","POST-SIGNATURE","TRIG1^TMGTIUT5"))
   NEW ZZDEBUG SET ZZDEBUG=0
   IF ZZDEBUG=1 DO
-  . SET IEN8925=$GET(^TMG("TMP","TRIG1^TMGTIUT5","IEN8925"))
+  . SET IEN8925=$GET(@TMPSTORE@("IEN8925"))
   ELSE  DO
-  . SET ^TMG("TMP","TRIG1^TMGTIUT5","IEN8925")=$GET(IEN8925)
-  . NEW TMGSTACK ZSHOW "S":TMGSTACK
-  . KILL ^TMG("TMP","TRIG1^TMGTIUIT5","STACK")
-  . MERGE ^TMG("TMP","TRIG1^TMGTIUIT5","STACK")=TMGSTACK
+  . KILL @TMPSTORE SET @TMPSTORE@("IEN8925")=$GET(IEN8925)
+  SET @TMPSTORE@("LAST CALL TIME")=$$NOW^XLFDT
   IF $$ISHTML^TMGHTM1(.IEN8925) DO STRIPSCR^TMGHTM1(.IEN8925)  ;"strip <SCRIPT> ..</SCRIPT>
   NEW OUT,DFN SET DFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
   IF DFN>0 DO SCANNOTE^TMGTIU10(DFN,IEN8925,"OUT",1)
   DO TABLDATA(IEN8925)  ;"POPULATE TMG TABLE DATA FILE
-  QUIT 
+  DO HANDLTIU^TMGRX007(IEN8925)  ;"EXTRACT AND SAVE MEDICATION FILE LIST INFORMATION
+  QUIT
   ;
 TABLDATA(IEN8925)  ;"POPULATE TMG TABLE DATA FILE
   ;"Purpose: This routine will search the note for any tables (as defined in the 

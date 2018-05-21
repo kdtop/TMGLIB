@@ -1,4 +1,4 @@
-TMGFIX3 ;TMG/kst/Fixes for meaningful use ;8/17/12, 5/28/13, 2/2/14
+TMGFIX3 ;TMG/kst/Fixes for meaningful use ;2/2/14, 5/18/18
          ;;1.0;TMG-LIB;**1**;8/17/12
  ;
  ;"FIXES related to TMG C0Q FUNCTIONS
@@ -129,7 +129,7 @@ MAKENOTE(VALUE,YN,DFN,TXTARRAY)  ;
         KILL TXTARRAY
         DO GETHDR(.TXTARRAY,"HEADER")
         SET VALUE=YN_". "_VALUE
-        NEW S SET S=$$SETTABL^TMGTIUO6(DFN,"SOCIAL HX","TOBACCO",VALUE)
+        NEW S SET S=$$SETTABL(DFN,"SOCIAL HX","TOBACCO",VALUE)
         NEW CT SET CT=+$ORDER(TXTARRAY(""),-1)+1
         NEW ARR DO SPLIT2AR^TMGSTUT2(S,$CHAR(13)_$CHAR(10),.ARR,CT)
         SET CT=0 FOR  SET CT=$ORDER(ARR(CT)) QUIT:+CT'>0  DO
@@ -140,6 +140,26 @@ MAKENOTE(VALUE,YN,DFN,TXTARRAY)  ;
         . SET TXTARRAY(CT,0)=" "
 MNDN    QUIT
         ;
+SETTABL(DFN,LABEL,KEY,VALUE) ;
+    ;"Purpose: to get a table, just like GETTABL1, but then SET KEY=VALUE in the table
+    ;"NOTE: not currently designed to handle MEDICATIONS table.
+    NEW RESULT SET RESULT=""
+    NEW ARRAY
+    IF $GET(LABEL)="" GOTO STDN
+    NEW SPACES SET SPACES=""
+    DO GETSPECL^TMGTIUO4(DFN,LABEL,"BLANK_LINE",48,.ARRAY,1,.SPACES)  ;"mode 1 = only last table; 2=compile
+    SET RESULT=SPACES_"-- "_LABEL_" ---------"_$CHAR(13)_$CHAR(10)
+    DO STUBRECS^TMGTIIUO6(.DFN,.ARRAY,LABEL)
+    IF $DATA(ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY))) DO
+    . NEW TS SET TS=$GET(ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY),"LINE"))
+    . SET $PIECE(TS,": ",2,99)=VALUE
+    . SET ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY),"LINE")=TS
+    ELSE  DO
+    . SET ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY))=VALUE
+    . SET ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY),"LINE")=SPACES_" "_VALUE
+    SET RESULT=RESULT_$$ARRAY2ST^TMGTIUO4(.ARRAY,.SPACES)
+STDN    QUIT RESULT
+    ;        
 SAVENOTE(DFN,TEXT,FORCE) ;
         ;"Purpose: save TEXT array as a NEW entry in file 8925
         ;"Result: 1 IF note saved, 0 IF not, -1 IF aborted
@@ -224,7 +244,7 @@ FIXPNEUM  ;"FIX AND STANDARDIZE PNEUMOVAX ENTRIES
         . SET PTNAME=$PIECE(^DPT(DFN,0),"^",1)
         . SET CT=CT+1
         . NEW ARRAY
-        . SET S=$$GETTABLX^TMGTIUOJ(DFN,"STUDIES",.ARRAY)
+        . SET S=$$GETTABLX^TMGTIUO6(DFN,"STUDIES",.ARRAY)
         . SET S=$GET(ARRAY("KEY-VALUE","PNEUMOVAX"))
         . SET S=$$UP^XLFSTR($$TRIM^XLFSTR(S))
         . IF S="<NO DATA>" SET S=""
@@ -294,7 +314,7 @@ MKNOTE2(VALUE,DFN,TXTARRAY)  ;
         ;"Input: VALUE -- PASS BY REFERENCE, to get NEW value back out.
         KILL TXTARRAY
         DO GETHDR(.TXTARRAY,"HDR3")
-        NEW S SET S=$$SETTABL^TMGTIUO6(DFN,"[STUDIES]","Pneumovax",VALUE)
+        NEW S SET S=$$SETTABL(DFN,"[STUDIES]","Pneumovax",VALUE)
         NEW CT SET CT=+$ORDER(TXTARRAY(""),-1)+1
         NEW ARR DO SPLIT2AR^TMGSTUT2(S,$CHAR(13)_$CHAR(10),.ARR,CT)
         SET CT=0 FOR  SET CT=$ORDER(ARR(CT)) QUIT:+CT'>0  DO
@@ -523,39 +543,39 @@ SCAN4MAM ;" Cycle through all mammogram consults
         . . SET PENDMATCHES(PTIEN,ORDDATE)=""
         ;
         ;
-        ;WRITE "AND NOW FOR THE RESULTS. PLEASE SPOT CHECK THESE.",!
-        ;NEW DFN SET DFN=1
-        ;NEW DATE,NAME,Y,TEMPARRAY
-        ;FOR  SET DFN=$ORDER(COMMATCHES(DFN)) QUIT:(DFN'>0)  DO
-        ;. SET DATE=1
-        ;. SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-        ;. FOR  SET DATE=$ORDER(COMMATCHES(DFN,DATE)) QUIT:(DATE'>0)  DO
-        ;. . SET Y=DATE
-        ;. . DO DD^%DT
-        ;. . ;WRITE "        DATE: ",Y,!
-        ;. . SET TEMPARRAY(NAME,Y)="COMPLETED"
-        ;. ;WRITE "SHOWS COMPLETED=======",!,!
-        ;SET DFN=1
-        ;FOR  SET DFN=$ORDER(PENDMATCHES(DFN)) QUIT:(DFN'>0)  DO
-        ;. SET DATE=1
-        ;. SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-        ;. FOR  SET DATE=$ORDER(PENDMATCHES(DFN,DATE)) QUIT:(DATE'>0)  DO
-        ;. . SET Y=DATE
-        ;. . DO DD^%DT
-        ;. . ;WRITE "        DATE: ",Y,!
-        ;. . SET TEMPARRAY(NAME,Y)="ORDERED"
-        ;. ;WRITE "SHOWS ORDERED=======",!,!
-        ;SET NAME=1
-        ;NEW DATE,STAT
-        ;FOR  SET NAME=$ORDER(TEMPARRAY(NAME)) QUIT:(NAME="")  DO
-        ;. WRITE NAME," =============",!
-        ;. SET DATE=1
-        ;. FOR  SET DATE=$ORDER(TEMPARRAY(NAME,DATE)) QUIT:(DATE="")  DO
-        ;. . SET STAT=$GET(TEMPARRAY(NAME,DATE))
-        ;. . IF STAT="ORDERED" WRITE "     ORDERED: ",DATE,!
-        ;. . ELSE  WRITE "     COMPLETED: ",DATE,!
-        ;. WRITE "=========================================",!,!
-        ;FILE THESE LISTS
+        ;"WRITE "AND NOW FOR THE RESULTS. PLEASE SPOT CHECK THESE.",!
+        ;"NEW DFN SET DFN=1
+        ;"NEW DATE,NAME,Y,TEMPARRAY
+        ;"FOR  SET DFN=$ORDER(COMMATCHES(DFN)) QUIT:(DFN'>0)  DO
+        ;". SET DATE=1
+        ;". SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        ;". FOR  SET DATE=$ORDER(COMMATCHES(DFN,DATE)) QUIT:(DATE'>0)  DO
+        ;". . SET Y=DATE
+        ;". . DO DD^%DT
+        ;". . ;WRITE "        DATE: ",Y,!
+        ;". . SET TEMPARRAY(NAME,Y)="COMPLETED"
+        ;". ;WRITE "SHOWS COMPLETED=======",!,!
+        ;"SET DFN=1
+        ;"FOR  SET DFN=$ORDER(PENDMATCHES(DFN)) QUIT:(DFN'>0)  DO
+        ;". SET DATE=1
+        ;". SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        ;". FOR  SET DATE=$ORDER(PENDMATCHES(DFN,DATE)) QUIT:(DATE'>0)  DO
+        ;". . SET Y=DATE
+        ;". . DO DD^%DT
+        ;". . ;WRITE "        DATE: ",Y,!
+        ;". . SET TEMPARRAY(NAME,Y)="ORDERED"
+        ;". ;WRITE "SHOWS ORDERED=======",!,!
+        ;"SET NAME=1
+        ;"NEW DATE,STAT
+        ;"FOR  SET NAME=$ORDER(TEMPARRAY(NAME)) QUIT:(NAME="")  DO
+        ;". WRITE NAME," =============",!
+        ;". SET DATE=1
+        ;". FOR  SET DATE=$ORDER(TEMPARRAY(NAME,DATE)) QUIT:(DATE="")  DO
+        ;". . SET STAT=$GET(TEMPARRAY(NAME,DATE))
+        ;". . IF STAT="ORDERED" WRITE "     ORDERED: ",DATE,!
+        ;". . ELSE  WRITE "     COMPLETED: ",DATE,!
+        ;". WRITE "=========================================",!,!
+        ;"FILE THESE LISTS
         WRITE "FILING ARRAYS NOW",!
         NEW TMGRESULT
         SET TMGRESULT=$$NSUREHAS^TMGPXRU1("COMMATCHES","HF.TMG MAMMOGRAM/IMAGING DONE")

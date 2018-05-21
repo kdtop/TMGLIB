@@ -61,7 +61,7 @@ ASKDUMP(FILE,IENS,OPTION) ;"A record dumper -- An alternative to Fileman Inquire
         ;"Input: FILE -- OPTIONAL.  File name or number.
         ;"       IENS: OPTIONAL.  Allows for supplying a partial IENS supplying a
         ;"                      partial path.  E.g. If a full IENS to FILENUM
-        ;"                    would be '2,3,4455,' and IF the IENS supplied is
+        ;"                    would be '2,3,4455,' and if the IENS supplied is
         ;"                  '3,4455,' then only the missing IEN (in this case 2)
         ;"                 would be asked.
         ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:

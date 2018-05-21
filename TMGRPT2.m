@@ -890,7 +890,12 @@ CPTIIRPT
   . ;"Include DC/Med Recs regardless of age
   . NEW FOUND,DATESTR
   . SET FOUND=$$CHKNOTE(DFN,2031,BEGINDATE,.DATESTR,"1111F",0)
-  . IF FOUND=1 SET DATAARR(NAME,"HOSPITAL DC-MED RECONCILIATION")=DATESTR
+  . IF FOUND=1 DO
+  . . ;"CYCLE THROUGH DATES HERE 
+  . . NEW IDX SET IDX=0
+  . . FOR  SET IDX=$O(DATESTR(IDX)) QUIT:IDX'>0  DO
+  . . . NEW ITEMNAME SET ITEMNAME="HOSPITAL DC-MED RECONCILIATION "_IDX
+  . . . SET DATAARR(NAME,ITEMNAME)=$G(DATESTR(IDX))
   . ;"Anything above this section will be included regardless of age
   . ;"
   . NEW AGE K VADM SET AGE=$$AGE^TIULO(DFN)
@@ -923,7 +928,11 @@ CPTIIRPT
   . ;"                         hardcoded for now.
   . NEW FOUND,DATESTR
   . SET FOUND=$$CHKNOTE(DFN,63,BEGINDATE,.DATESTR,"3066F",0)
-  . IF FOUND=1 SET DATAARR(NAME,"NEPHROLOGY VISIT")=DATESTR
+  . IF FOUND=1 DO
+  . . NEW IDX SET IDX=0
+  . . FOR  SET IDX=$O(DATESTR(IDX)) QUIT:IDX'>0  DO
+  . . . NEW TEMPNAME SET TEMPNAME="NEPHROLOGY VISIT "_IDX
+  . . . SET DATAARR(NAME,TEMPNAME)=DATESTR
   . ;"
   . NEW ACEARB,MEDSTR
   . SET ACEARB=$$CHKMEDS(DFN,49,.MEDSTR,"4010F")
@@ -986,15 +995,42 @@ GETCPT(DFN,KEY,VALUE,TMGRESULT)
   IF $$HASCPT^TMGRPU1(DFN,CPT,$$FIRSTYR^TMGDATE,9999999) SET TMGRESULT=TMGRESULT_" (ALREADY REPORTED)"
   QUIT REPORTED
   ;"  
-CHKNOTE(DFN,NOTEIEN,BEGINDATE,DATESTR,CPT,EXCLUDEFOUND)  
+CHKNOTE(DFN,NOTEIEN,BEGINDATE,DATESTR,CPT,EXCLUDEFOUND)
+  ;"Purpose: This function goes through a patient's notes and tries to find
+  ;"         whether the given note exists
+  ;"Input: DFN - Patient's IEN
+  ;"       NOTEIEN - The IEN of the note to look for
+  ;"       BEGINDATE - The date to start looking 
+  ;"       DATESTR - Return value. This will be returned one of 2 ways
+  ;"                 depending on the value of EXCLUDEFOUND
+  ;"                 If EXCLUDEFOUND=0, then multiple values will be returned
+  ;"                    DATESTR(IDX)=" on <Date> CPT: <CPT>"
+  ;"                 If EXCLUDEFOUND=1, then a single value will be returned
+  ;"                    DATESTR=" on <Date> CPT: <CPT>"
+  ;"       CPT - This is the CPT value to assign when a note is found
+  ;"       EXCLUDEFOUND - Default is 0. When set to 0, values will be return
+  ;"                      even if the CPT code is found to have been billed
+  ;"                      before. This is for codes that are billed
+  ;"                      everytime a note if found. Multiple values will
+  ;"                      also be returned.
+  ;"                      When set to 1, it will not return anything if the
+  ;"                      CPT code is found. These are for yearly billed
+  ;"                      codes that shouldn't be billed every time.
+  ;"                 
   NEW DATE,RESULT
   SET DATE=0,RESULT=0
   SET EXCLUDEFOUND=+$G(EXCLUDEFOUND)
   IF (EXCLUDEFOUND=1)&($$HASCPT^TMGRPU1(DFN,CPT,$$FIRSTYR^TMGDATE,9999999)) GOTO CHDN
+  NEW IDX SET IDX=1
   FOR  SET DATE=$O(^TIU(8925,"AA",DFN,NOTEIEN,DATE)) QUIT:DATE'>0  DO
   . NEW NEWDATE SET NEWDATE=9999999-DATE
   . IF NEWDATE<$$FIRSTYR^TMGDATE QUIT
-  . SET DATESTR=" on "_$$EXTDATE^TMGDATE(NEWDATE)_" CPT: "_CPT
+  . IF EXCLUDEFOUND=0 DO
+  . . SET DATESTR(IDX)=" on "_$$EXTDATE^TMGDATE(NEWDATE)_" CPT: "_CPT
+  . . IF $$HASCPT^TMGRPU1(DFN,CPT,NEWDATE,NEWDATE) SET DATESTR(IDX)=$G(DATESTR(IDX))_" (ALREADY REPORTED)"
+  . . SET IDX=IDX+1
+  . ELSE  DO
+  . . SET DATESTR=" on "_$$EXTDATE^TMGDATE(NEWDATE)_" CPT: "_CPT
   . SET RESULT=1
 CHDN
   QUIT RESULT
@@ -1039,3 +1075,70 @@ HASNOTES(DFN,BEGINDATE)  ;"This function returns 0 (if none) or date of note
   . SET TMGRESULT=1
   QUIT TMGRESULT
   ;"
+APPTTIME(BDATE,EDATE)    ;"
+  ;"This function will calculate the wait times for a given time period.
+  NEW %ZIS,IOP
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  IF POP DO  GOTO ATDn
+  . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+  USE IO
+  WRITE !
+  WRITE "************************************************************",!
+  WRITE "               WAIT TIMES FOR APPOINTMENTS FROM ",!
+  WRITE "               ",$$EXTDATE^TMGDATE(BDATE)," TO ",$$EXTDATE^TMGDATE(EDATE),!
+  WRITE "************************************************************",!
+  WRITE "                                            (From TMGRPT2.m)",!!
+  NEW DATE SET DATE=$P(BDATE,".",1)
+  NEW DAYNUM,DAYTOT,RPTNUM,RPTTOT  ;"Used to report totals
+  SET (DAYNUM,DAYTOT,RPTNUM,RPTTOT)=0
+  SET EDATE=$P(EDATE,".",1)_".9999"
+  NEW THISDAY SET THISDAY=0
+  WRITE "PATIENT NAME",?25,"TIME TO TRIAGE",?45,"TIME IN ROOM",?65,"TOTAL TIME",!
+  FOR  SET DATE=$O(^TMG(22723,"DT",DATE)) QUIT:(DATE>EDATE)!(DATE'>0)  DO
+  . NEW DFN SET DFN=0
+  . IF THISDAY'=$P(DATE,".",1) DO
+  . . SET THISDAY=$P(DATE,".",1)
+  . . IF DAYNUM>0 DO
+  . . . WRITE "  *AVERAGE WAIT FOR THIS DAY: ",$J(DAYTOT/DAYNUM,9,2)," MINUTES",!,!
+  . . WRITE "-------- DATE: ",$$EXTDATE^TMGDATE(THISDAY)," --------",!
+  . . SET DAYNUM=0,DAYTOT=0
+  . FOR  SET DFN=$O(^TMG(22723,"DT",DATE,DFN)) QUIT:DFN'>0  DO
+  . . NEW SUBIEN SET SUBIEN=0
+  . . FOR  SET SUBIEN=$O(^TMG(22723,"DT",DATE,DFN,SUBIEN)) QUIT:SUBIEN'>0  DO
+  . . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",DATE,DFN,SUBIEN))
+  . . . IF STATUS="C" QUIT
+  . . . NEW ZN,CHKIN,CHKOUT,DIFF
+  . . . SET ZN=$G(^TMG(22723,DFN,1,SUBIEN,0))
+  . . . SET CHKIN=+$P(ZN,"^",8),CHKOUT=+$P(ZN,"^",9)
+  . . . IF (CHKIN'>0)!(CHKOUT'>0) QUIT
+  . . . ;"
+  . . . ;"This section will review the note created for the visit
+  . . . NEW NOTEDT,NOTEDIFF
+  . . . SET NOTEDT=$O(^TIU(8925,"ZTMGPTDT",DFN,CHKIN))
+  . . . IF NOTEDT[$P(CHKIN,".",1) DO
+  . . . . SET NOTEDT=$J(NOTEDT,7,4)
+  . . . . SET CHKIN=$J(CHKIN,7,4)
+  . . . . SET CHKOUT=$J(CHKOUT,7,4)
+  . . . . ;"WRITE CHKIN," - ",NOTEDT," - ",CHKOUT," = "
+  . . . . SET NOTEDIFF=$$TIMEDIFF^TMGDATE(NOTEDT,CHKIN)
+  . . . . ;"WRITE NOTEDIFF,!
+  . . . ELSE  DO
+  . . . . SET NOTEDIFF="??"
+  . . . ;"
+  . . . SET DIFF=$$TIMEDIFF^TMGDATE(CHKOUT,CHKIN)
+  . . . NEW NOTE2CHKOUT 
+  . . . IF NOTEDIFF="??" DO
+  . . . . SET NOTE2CHKOUT="??"
+  . . . ELSE  DO
+  . . . . SET NOTE2CHKOUT=DIFF-NOTEDIFF
+  . . . WRITE $P($G(^DPT(DFN,0)),"^",1),?25,NOTEDIFF," MINS",?45,NOTE2CHKOUT," MINS",?65,DIFF," MINS",!
+  . . . SET DAYNUM=DAYNUM+1,DAYTOT=DAYTOT+DIFF,RPTNUM=RPTNUM+1,RPTTOT=RPTTOT+DIFF
+  IF DAYNUM>0 DO
+  . WRITE "  *AVERAGE WAIT FOR THIS DAY: ",$J(DAYTOT/DAYNUM,9,2)," MINUTES",!,!
+  WRITE "  ****AVERAGE WAIT PER PATIENT: ",$J(RPTTOT/RPTNUM,9,2)," MINUTES",!
+ATDn
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+            

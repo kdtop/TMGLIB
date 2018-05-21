@@ -401,7 +401,8 @@ ARRAY2WP(REFARRAY,REF) ;
   ;"                      ARRAY(1) -- 1st line
   ;"                      ARRAY(1,2) -- 2nd line  <-- sub-nodes OK
   ;"                      ARRAY(2) -- 3rd line ... etc.
-  ;"               NOTE: that the array is 'flattened' into top-level indices
+  ;"             NOTE: Although subnodes are OK for input, at storage, all are stored as same level. 
+  ;"                   Consider using ZWRITE^TMGZWR to convert array into text prior to calling this, if needed.
   ;"      REF -- The reference to the header node (e.g.  "^TMG(22702,99,1)" for example below)
   ;"              Prior data in @REF is killed
   ;"Note:  The format of a WP field is as follows:
@@ -421,13 +422,7 @@ ARRAY2WP(REFARRAY,REF) ;
   FOR  SET AREF=$QUERY(@AREF) QUIT:(AREF="")  DO
   . SET I=I+1
   . SET @REF@(I,0)=$GET(@AREF)
-  NEW S
-  SET $PIECE(S,"^",3)=I
-  SET $PIECE(S,"^",4)=I
-  NEW X,%
-  DO NOW^%DTC
-  SET $PIECE(S,"^",5)=X
-  SET @REFARRAY@(0)=S
+  SET @REF@(0)="^^"_I_"^"_I_"^"_$$NOW^XLFDT
 A2WDN   ;
   QUIT
   ;

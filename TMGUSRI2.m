@@ -1,59 +1,80 @@
-TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;10/14/15
+TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;10/14/15, 5/6/18
          ;;1.0;TMG-LIB;**1,17**;07/17/12
- ;
- ;"TMG USER INTERFACE API FUNCTIONS
- ;"SACC-Compliant version
- ;
- ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
- ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
- ;"
- ;"This file is part of the TMG LIBRARY, and may only be used in accordence
- ;" to license terms outlined in separate file TMGLICNS.m, which should 
- ;" always be distributed with this file.
- ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
- ;
- ;"NOTE: This will contain SACC-compliant versions of code from TMGUSRIF
- ;"      If routine is not found here, the please migrate the code
- ;"=======================================================================
- ;" API -- Public Functions.
- ;"=======================================================================
- ;"POPUPBOX(TMGHEADER,TMGTEXT,TMGWIDTH) -- Provide an easy text output box
- ;"PUARRAY(TMGINDENTW,TMGWIDTH,TMGARRAY,TMGMODAL) -- Draw a box and display text
- ;"PRESS2GO -- Provide a 'press key to continue' action
- ;"KEYPRESD(WANTCH,WAITTIME)  -- Check for a keypress
- ;"USRABORT(ABORTLABEL) -- Checks IF user pressed ESC key.  If so, verify
- ;"PROGBAR(VALUE,LABEL,MIN,MAX,WIDTH,STARTTIME)  -- Animate a progress bar
- ;"MENU(OPTIONS,DEFCHOICE,USERRAW) -- provide a simple menuing system
- ;"FINDMTCH(INPUT,OPTIONS)  ;Search OPTIONS for matching input
- ;
- ;"=======================================================================
- ;"Private Functions
- ;"=======================================================================
- ;
- ;"=======================================================================
- ;"DEPENDENCIES: TMGSTUT2, TMGTERM
- ;"              DICN, XGF, XLFDT, XLFSTR
- ;"=======================================================================
- ;
+  ;
+  ;"TMG USER INTERFACE API FUNCTIONS
+  ;"SACC-Compliant version
+  ;
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
+  ;"
+  ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+  ;" to license terms outlined in separate file TMGLICNS.m, which should 
+  ;" always be distributed with this file.
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;
+  ;"NOTE: This will contain SACC-compliant versions of code from TMGUSRIF
+  ;"      If routine is not found here, the please migrate the code
+  ;"=======================================================================
+  ;" API -- Public Functions.
+  ;"=======================================================================
+  ;"POPUPBOX(TMGHEADER,TMGTEXT,TMGWIDTH) -- Provide an easy text output box
+  ;"PUARRAY(TMGINDENTW,TMGWIDTH,TMGARRAY,TMGMODAL) -- Draw a box and display text
+  ;"PRESS2GO -- Provide a 'press key to continue' action
+  ;"KEYPRESD(WANTCH,WAITTIME)  -- Check for a keypress
+  ;"USRABORT(ABORTLABEL) -- Checks IF user pressed ESC key.  If so, verify
+  ;"PROGBAR(VALUE,LABEL,MIN,MAX,WIDTH,STARTTIME)  -- Animate a progress bar
+  ;"MENU(OPTIONS,DEFCHOICE,USERRAW) -- provide a simple menuing system
+  ;"FINDMTCH(INPUT,OPTIONS)  ;Search OPTIONS for matching input
+  ;
+  ;"=======================================================================
+  ;"Private Functions
+  ;"=======================================================================
+  ;
+  ;"=======================================================================
+  ;"DEPENDENCIES: TMGSTUT2, TMGTERM
+  ;"              DICN, XGF, XLFDT, XLFSTR
+  ;"=======================================================================
+  ;
 PROGTEST ;
-        ;"Purpose: test progress bar.
-        NEW IDX,MAX
-        NEW STARTH SET STARTH=$H
-        SET MAX=200
-        FOR IDX=0:1:MAX DO
-        . DO PROGBAR^TMGUSRI2(IDX,"%",1,MAX,60,STARTH)
-        . HANG 0.5
-        QUIT
-        ;
+  ;"Purpose: test progress bar.
+  NEW IDX,MAX
+  NEW STARTH SET STARTH=$H
+  SET MAX=200
+  FOR IDX=0:1:MAX DO
+  . DO PROGBAR^TMGUSRI2(IDX,"%",1,MAX,60,STARTH)
+  . HANG 0.5
+  QUIT
+  ;
 SPINTEST ;
-        ;"Purpose: test progress bar.
-        NEW IDX,MAX
-        SET MAX=3000
-        FOR IDX=0:10:MAX DO
-        . DO PROGBAR^TMGUSRI2(IDX,"<A Label> "_IDX,-1,-1)
-        . HANG 0.1
-        QUIT
-        ; 
+  ;"Purpose: test progress bar.
+  NEW IDX,MAX
+  SET MAX=3000
+  FOR IDX=0:10:MAX DO
+  . DO PROGBAR^TMGUSRI2(IDX,"<A Label> "_IDX,-1,-1)
+  . HANG 0.1
+  QUIT
+  ; 
+TESTMENU ;
+  NEW MENU,IDX
+TML1 ;                    
+  SET IDX=0  
+  KILL MENU SET MENU(IDX)="Select Option For Testing Menu"
+  SET MENU(IDX,1)="(2nd line here)"
+  SET IDX=IDX+1,MENU(IDX)="Hello world!"_$CHAR(9)_"HELLO"
+  SET IDX=IDX+1,MENU(IDX)="Ask HAL 9000"_$CHAR(9)_"HAL"
+  SET IDX=IDX+1,MENU(IDX)="Shrug"_$CHAR(9)_"SHRUG"  
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO TMDN  
+  IF USRPICK="HELLO" DO  GOTO TML1
+  . WRITE "The world says 'Hello' back",!   
+  IF USRPICK="HAL" DO  GOTO TML1
+  . WRITE "I'm sorry, I can't do that, Dave.",!   
+  IF USRPICK="SHRUG" DO  GOTO TML1
+  . WRITE "Yeah, I'm cool with it too.",!   
+  GOTO TML1
+TMDN  ;
+  QUIT
+  ;
 POPUPBOX(TMGHEADER,TMGTEXT,TMGWIDTH,TMGINDENT) ;
    ;"PUBLIC FUNCTION
    ;"Purpose: To provide easy text output box
@@ -507,18 +528,19 @@ MNUDONE ;
    QUIT RESULT
    ;
 FINDMTCH(INPUT,OPTIONS)  ;"Search OPTIONS for matching input
-        ;"Input: INPUT -- user response
-        ;"       OPTIONS -- by reference.  This is the array that defines the menu
-        ;"Result: Number of found match, or "?" IF no match
-        NEW TMGRESULT SET TMGRESULT="?"
-        NEW IDX SET IDX=0
-        NEW OPTTEXT,INPUTLEN
-        SET INPUTLEN=$LENGTH(INPUT)
-        SET INPUT=$$UP^XLFSTR(INPUT)
-        FOR  SET IDX=$ORDER(OPTIONS(IDX)) QUIT:(IDX'>0)!(TMGRESULT'="?")  DO
-        . SET OPTTEXT=$GET(OPTIONS(IDX))
-        . SET OPTTEXT=$EXTRACT(OPTTEXT,0,INPUTLEN)
-        . SET OPTTEXT=$$UP^XLFSTR(OPTTEXT)
-        . IF OPTTEXT=INPUT SET TMGRESULT=IDX
-FMDN    QUIT TMGRESULT
-        ; 
+  ;"Input: INPUT -- user response
+  ;"       OPTIONS -- by reference.  This is the array that defines the menu
+  ;"Result: Number of found match, or "?" IF no match
+  NEW TMGRESULT SET TMGRESULT="?"
+  NEW IDX SET IDX=0
+  NEW OPTTEXT,INPUTLEN
+  SET INPUTLEN=$LENGTH(INPUT)
+  SET INPUT=$$UP^XLFSTR(INPUT)
+  FOR  SET IDX=$ORDER(OPTIONS(IDX)) QUIT:(IDX'>0)!(TMGRESULT'="?")  DO
+  . SET OPTTEXT=$GET(OPTIONS(IDX))
+  . SET OPTTEXT=$EXTRACT(OPTTEXT,0,INPUTLEN)
+  . SET OPTTEXT=$$UP^XLFSTR(OPTTEXT)
+  . IF OPTTEXT=INPUT SET TMGRESULT=IDX
+FMDN  ;
+  QUIT TMGRESULT
+  ; 
