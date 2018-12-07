@@ -819,5 +819,21 @@ TESTNULL(TONULL)
   QUIT
   ;
 
-
+STRIP(STR) ;
+ N I
+ F I=1:1:$L(STR) D       
+ . S X=$E(STR,I)         
+ . I X="*" S STR=$P(STR,X,1)_$P(STR,X,2,99)
+ Q STR                                     
+ ;
   
+STRIP2(STR) ;
+ N I SET I=1
+ F  Q:I>$L(STR)  DO
+ . S X=$E(STR,I)         
+ . I X'="*" S I=I+1 QUIT
+ . S STR=$E(STR,1,I-1)_$E(STR,I+1,$L(STR))
+ Q STR                                     
+ ;
+ 
+ 

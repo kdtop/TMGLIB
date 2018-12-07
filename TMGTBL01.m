@@ -391,10 +391,13 @@ GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         ;"zwr ARR
         IF $DATA(ARR) DO
         . IF DTONLY=1 DO
+        . . NEW LASTDT SET LASTDT=0
         . . NEW COUNT SET COUNT=0
         . . SET DATEIDX=0
-        . . FOR  SET DATEIDX=$O(TOTARR(DATEIDX)) QUIT:(DATEIDX'>0)!(COUNT>3)  DO
+        . . FOR  SET DATEIDX=$O(TOTARR(DATEIDX)) QUIT:(DATEIDX'>0)!(COUNT=NUM)  DO
         . . . SET COUNT=COUNT+1
+        . . . IF $G(TOTARR(DATEIDX,0))=LASTDT QUIT
+        . . . SET LASTDT=$G(TOTARR(DATEIDX,0))
         . . . IF TMGRESULT="" SET TMGRESULT=$G(TOTARR(DATEIDX,0))
         . . . ELSE  SET TMGRESULT=TMGRESULT_", "_$G(TOTARR(DATEIDX,0))
         . ELSE  DO

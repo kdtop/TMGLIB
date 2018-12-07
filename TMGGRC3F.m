@@ -267,10 +267,12 @@ ADDDESC(ROOT,GRAPHTYP)	  ;
 	      ;"Results: none
 	      ;"Output: writes out table via SETITEM
 	      NEW IEN,TEXT
-	      SET IEN=$ORDER(^TMG(22700001,"C",GRAPHTYP,1,0))
+	      ;"SET IEN=$ORDER(^TMG(22700001,"C",GRAPHTYP,1,0))
+              SET IEN=$ORDER(^TMG(22738,"C",GRAPHTYP,1,0))
 	      IF IEN'>0 SET TEXT="No description defined."
 	      ELSE  DO
-	      . SET TEXT=$PIECE($GET(^TMG(22700001,1,1,IEN,0)),"^",2)
+	      . ;"SET TEXT=$PIECE($GET(^TMG(22700001,1,1,IEN,0)),"^",2)
+              . SET TEXT=$PIECE($GET(^TMG(22738,1,1,IEN,0)),"^",2)
 	      . IF TEXT="" SET TEXT="No description defined."
 	      DO SETITEM^TMGGRC2A(.ROOT,"}")
 	      DO SETITEM^TMGGRC2A(.ROOT,"    ")

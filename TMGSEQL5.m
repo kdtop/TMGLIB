@@ -116,6 +116,8 @@ PROCESS1(ONELINE) ;"Process one line from the CSV file.
   DO ADDCPTS(.PCELIST,.IDX,.ONELINE,.ENTRY)
   ;"
   ;"FILE PCELIST
+  ;"note: CONSIDER if this is the correct API or not.  Perhaps won't cause
+  ;taskman problems.  DATA2PCE^PXAI() or similar
   DO SAVE^ORWPCE(.TMGRESULT,.PCELIST,.NOTEIEN,.ORLOC)
 PRODN ;
   QUIT TMGRESULT

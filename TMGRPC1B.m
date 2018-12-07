@@ -214,6 +214,16 @@ L1      ;"LIST OF CPRS FOR TMG-CPRS
         ;;TMG SMS SEND LAB MSG
         ;;TMG TIU NOTE CAN BE SIGNED
         ;;TMG VERIFY PN FOR IMAGES
+        ;;TMG CPRS FIND PATIENT DFN
+        ;;TMG CPRS GET CURRENT PROVIDER
+        ;;TMG CPRS GET NOTES TO PRINT
+        ;;TMG CPRS GET PATIENT LOAD
+        ;;TMG CPRS LAB GET DATES
+        ;;TMG CPRS LAB GET HTML REPORT
+        ;;TMG CPRS SET HTML MODE
+        ;;TMG LAB GROUP LISTS
+        ;;TMG LAB GROUP TESTS
+        ;;TMG SCANNER PHQ9 NEEDED
         ;;<END>
         ;
 GETLIST(OUT)  ;"Read list at L1 into an array
@@ -323,6 +333,7 @@ CHKMSNG ;"MENU TO CHECK PATCH FOR MISSING PARTS
         SET MENU(4)="Show missing RPC's in a BUILD, compared to L1^TMGRPC1B list"_$C(9)_"SHWMSNG2"        
         SET MENU(5)="Show misssing RPC's in a BUILD, compared to REMOTE PROCEDURE file"_$C(9)_"SHWMSNG3"        
         SET MENU(6)="Show missing ROUTINES in a BUILD, compared to ROUTINES file"_$C(9)_"SHWMSNGF"
+        SET MENU(7)="Show missing Fileman FILES in a BUILD, compared to system"_$C(9)_"SHWMSNGF2"
         NEW USRINPUT,CMD
 CHKL    SET USRINPUT=$$MENU^TMGUSRI2(.MENU)
         IF (USRINPUT="")!("^?"[USRINPUT) QUIT
@@ -475,4 +486,57 @@ SHWMSNGF ;"Show missing ROUTINES (source files) in a BUILD
         . WRITE "SUMMARY OF MISSING ROUTINES'S, that should be added to BUILD'",!
         . DO ZWRITE^TMGZWR("MISSING")
         QUIT
-        ;        
+        ;  
+SHWMSNGF2 ;"Show missing FILEMAN FILES in a BUILD
+        ;"Looks at available FILEMAN FILES and sees if any are missing from BUILD.
+        NEW DIC,X,Y SET DIC(0)="MAEQ",DIC=9.6  ;"9.6 = BUILD file
+        DO ^DIC WRITE !
+        IF +Y'>0 QUIT
+        NEW BLDIEN SET BLDIEN=+Y
+        ;
+        NEW CURFILES DO GETFMFILES(.CURFILES)
+        ;"        
+        ;"COMPARE WITH FIELD#6 (FILE) IN FILE 9.6
+        NEW FILENUM,MISSING SET FILENUM=0
+        FOR  SET FILENUM=$O(CURFILES(FILENUM)) QUIT:FILENUM'>0  DO
+        . IF '$D(^XPD(9.6,BLDIEN,4,FILENUM)) DO
+        . . SET MISSING(FILENUM)=$P($G(^DIC(FILENUM,0)),"^",1)
+        WRITE !
+        IF $D(MISSING) DO
+        . WRITE "SUMMARY OF MISSING FILEMAN FILES'S, that should be added to BUILD'",!
+        . DO ZWRITE^TMGZWR("MISSING")
+        QUIT
+        ;
+GETFMFILES(OUT)  ;"GET LIST OF FILEMAN FILES
+        ;"OUT:  an OUT PARAMETER.  Format:
+        ;"   OUT(<FILE NUMBER>)=<FILE NAME>
+        ;
+        ;"Ask user if they want to scan by namespace or by number space
+        ;"I think it is file #1 that contains the system files.  
+        
+        ;"load fileman file info into OUT array
+        NEW MENU
+        SET MENU(0)="Select Option"
+        SET MENU(1)="Select Fileman files by NAMESPACE"_$C(9)_"NAMESPACE"
+        SET MENU(2)="Use file NUMBER range to select Fileman files"_$C(9)_"NUMBERSPACE"
+        NEW USRINPUT,CMD
+        SET USRINPUT=$$MENU^TMGUSRI2(.MENU)
+        IF (USRINPUT="")!("^?"[USRINPUT) QUIT
+        IF USRINPUT="NAMESPACE" DO  QUIT
+        . NEW NS SET NS=""
+        . DO  QUIT:NS="^"
+        . . WRITE "Enter a namespace (e.g. 'TMG') to scan for (ENTER when done, or ^ to abort): "
+        . . READ NS:$GET(DTIME,3600) WRITE !
+        . . IF NS="" SET NS="^" 
+        . . IF NS="^" QUIT
+        . . NEW LEN SET LEN=$LENGTH(NS)
+        . . NEW NAME SET NAME=$EXTRACT(NS,1,LEN-1)_$CHAR($ASCII($EXTRACT(NS,LEN))-1)
+        . . FOR  SET NAME=$ORDER(^DIC("B",NAME)) QUIT:($EXTRACT(NAME,1,LEN)'=NS)  DO
+        . . . NEW FNUM SET FNUM=+$ORDER(^DIC("B",NAME,""))
+        . . . SET OUT(FNUM)=NAME
+        IF USRINPUT="NUMBERSPACE" DO  QUIT
+        . WRITE "Enter beginning number of Fileman number range: "
+        .         
+        ;"TO BE COMPLETED
+        
+        QUIT

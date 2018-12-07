@@ -174,6 +174,10 @@ SP2    USE $P:(WIDTH=tmgScrWidth:NOWRAP)  ;"reset IO to the screen
        ;"I have it such that the condition is recognized.  But now I need to
        ;"Differientate between stepping through code, and a breakpoint from
        ;"a full speed run.
+       ;"Part of the problem is recognizing the breakpoint position.  Sometimes
+       ;"   tmgIDEPos (derived from $ZPOS) is different than the address stored
+       ;"   for breakpoints (or viewable via ZSHOW "B").  See EquivalentBreakpoint(pos1, pos2) 
+       ;"   which needs to be implemented.  
        NEW tmgStpSkip SET tmgStpSkip=0
        IF $$IsBreakpoint(tmgIDEPos) DO  ;"GOTO:(tmgStpSkip=1) SPDone
        . NEW ifS SET ifS=$$GetBrkCond(tmgIDEPos) IF ifS="" QUIT
@@ -1068,10 +1072,18 @@ IsBreakpoint(pos)
         NEW result SET result=0
         NEW tmgDbgJNum SET tmgDbgJNum=$J
         IF +$GET(tmgDbgRemoteJob) SET tmgDbgJNum=+tmgDbgRemoteJob
-        IF $GET(pos)'="" SET result=$DATA(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",pos))
+        ;"IF $GET(pos)'="" SET result=$DATA(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",pos))
+        new aPos set aPos=""
+        for  set aPos=$order(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",aPos)) quit:(aPos="")!(result=1)  do
+        . set result=$$EquivalentBreakpoint(pos,aPos)
         QUIT (result'=0)
 
-
+EquivalentBreakpoint(pos1,pos2) 
+        ;"PURPOSE: see if two positions are equivalent.  E.g. +35^TMGRPC1H and PROCESS+10^TMGRPC1H are really equivalent
+        ;"//to do... finish
+        NEW result set result=(pos1=pos2)   ;<-- implement later
+        QUIT result
+          
 EnsureBreakpoints()
         ;"Purpose: When an module is recompiled, GT.M drops the breakpoints for
         ;"         that module.  However, the breakpoints are still stored for this

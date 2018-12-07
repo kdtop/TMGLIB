@@ -62,6 +62,11 @@ SUMNOTE(TIUIEN,ARRAY) ;
         NEW LINEI SET LINEI=0
         SET TIUIEN=+$GET(TIUIEN) GOTO:TIUIEN'>0 SNDN
         NEW TEXTARR MERGE TEXTARR=^TIU(8925,TIUIEN,"TEXT")
+        NEW ITEMARRAY,OUT,OPTION
+        SET OPTION("FORCE PROCESS")=0
+        IF $$GETHPI^TMGTIUP2(TIUIEN,.ITEMARRAY,.OUT,.OPTION)  ;"IGNORE RESULT
+        DO PARSESCT2(.ITEMARRAY,.ARRAY,TIUIEN)
+        GOTO SNDN ;"OLD CODE BELOW
         IF $$ISHTML^TMGHTM1(TIUIEN) DO
         . NEW POS,LINE SET POS=0,LINE=0
         . FOR  SET LINE=$ORDER(TEXTARR(LINE)) QUIT:LINE'>0  DO
@@ -179,6 +184,58 @@ PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;
         . . SET ARRAY(TIUIEN,"TITLE",TITLE)=ORIGTITLE
         QUIT
         ;
+TESTPARSE(TIUIEN)
+        NEW ITEMARRAY,OUT,OPTION,ARRAY
+        IF $$GETHPI^TMGTIUP2(TIUIEN,.ITEMARRAY,.OUT,.OPTION)  ;"IGNORE RESULT
+        DO PARSESCT2(.ITEMARRAY,.ARRAY,TIUIEN)
+        ZWR ARRAY
+        QUIT
+        ;"
+PARSESCT2(ITEMARRAY,ARRAY,TIUIEN)  ;
+        ;"NOTE: see also PARSEARR^TMGTIUP2 regarding parsing sections
+        ;"Purpose: parse one section on note array
+        ;"Input:  ITEMARRAY -- PASS BY REFERENCE.  FORMAT:
+        ;"               ITEMARRAY(Ref#)=<Full section text>
+        ;"               ITEMARRAY(Ref#,#)=different parts of section
+        ;"               ITEMARRAY("TEXT",Ref#)=Title of section   
+        ;"               ITEMARRAY("TEXT",Ref#,#)=sequential parts of section   
+        ;"                   ITEMARRAY("TEXT",3)="Dyspepsia"   
+        ;"                   ITEMARRAY("TEXT",3,1)=part 1, e.g. text, e.g. [GROUP A&B]
+        ;"                        ITEMARRAY("TEXT",3,1)="[GROUP]"
+        ;"                        ITEMARRAY("TEXT",3,1,"GROUP")="A&B"
+        ;"                   ITEMARRAY("TEXT",3,2)=part 2, e.g. name of inline table
+        ;"                        ITEMARRAY("TEXT",3,2)="[TABLE]"   <-- signal this part is a table. 
+        ;"                        ITEMARRAY("TEXT",3,2,"TABLE")=WT    <-- WT is name of table
+        ;"                        ITEMARRAY("TEXT",3,2,"TEXT")=<TEXT OF TABLE>
+        ;"                        ITEMARRAY("TEXT",3,2,"INLINE")=0 or 1            
+        ;"                  ITEMARRAY("TEXT",Ref#,3)=part 3, e.g. more text
+        ;"                  ITEMARRAY("TEXT",Ref#,4)=part 4, e.g. name of table   
+        ;"                  ITEMARRAY("TEXT",Ref#,"GROUPX",#)=""   <-- index of GROUP nodes
+        ;"                  ITEMARRAY("TEXT",Ref#,"TABLEX",#)=""   <-- index of TABLE nodes 
+        ;"Output: ARRAY filled as below
+        ;"          -    ARRAY(TIUIEN,"FULL",<SECTION>,<TOPIC NAME>,Line#)=text
+        ;"          -    ARRAY(TIUIEN,<SECTION>,#)=<TOPIC NAME>^<First line of paragraph>
+        ;"          -    ARRAY(TIUIEN,"TITLE",<TOPIC NAME>)=<topic name as originally in text>
+        ;"          -    ARRAY(TIUIEN,"SEQ#",<SECTION>,#)=<TOPIC NAME>
+        ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>)=# OF TOPICS
+        ;"          -    ARRAY(TIUIEN,"FULL","HPI",<TOPIC NAME>,Line#)=text
+        ;"              ARRAY(TIUIEN,"HPI",#)=<TOPIC NAME>^<First line of paragraph>
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$O(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
+        . NEW TITLE SET TITLE=$G(ITEMARRAY("TEXT",IDX))
+        . NEW TEXT,TEXTIDX SET TEXT="",TEXTIDX=0
+        . FOR  SET TEXTIDX=$O(ITEMARRAY("TEXT",IDX,TEXTIDX)) QUIT:TEXTIDX'>0  DO
+        . . NEW THISTEXT SET THISTEXT=$G(ITEMARRAY("TEXT",IDX,TEXTIDX))
+        . . IF THISTEXT["[TABLE" SET THISTEXT=$G(ITEMARRAY("TEXT",IDX,TEXTIDX,"TEXT"))
+        . . IF THISTEXT["[GROUP" SET THISTEXT=""
+        . . SET TEXT=TEXT_THISTEXT
+        . SET ARRAY(TIUIEN,"FULL","HPI",TITLE,IDX)=TEXT
+        . ;"The below element is what is used to file the data
+        . SET ARRAY(TIUIEN,"HPI",IDX)=TITLE_"^"_$EXTRACT(TEXT,1,45)
+        . SET ARRAY(TIUIEN,"TITLE",TITLE)=TITLE
+        . SET ARRAY(TIUIEN,"SEQ#","HPI",IDX)=TITLE
+        QUIT
+        ;"
 ADDLINE(REF,TEXT) ;
         ;"Purpose: add text line to end of array.  
         ;"Input: REF -- Close reference, not including index

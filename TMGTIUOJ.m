@@ -121,7 +121,6 @@ WTTREND(DFN,TIU) ;"Purpose: return text showing patient's trend in change of wei
   QUIT $$WTTREND^TMGTIUO4(DFN,.TIU)
   ;
 GETTABLX(DFN,LABEL,ARRAY,OPTION) ;"Purpose: A call point for TIU objects, to return a table comprised from prior notes.
-  ;"Input ARRAY is optional.  Supply to get back array of table.
   QUIT $$GETTABLX^TMGTIUO6(.DFN,.LABEL,.ARRAY,.OPTION)
   ;
 TESTTABL  ;
@@ -138,11 +137,25 @@ TESTTABL  ;
   DO SHOWRPT^TMGMISC2("GETITEM^TMGTIUO8")
   QUIT
   ;  
-TESTMDLT ;
+TESTMEDLIST ;
   NEW DIC,X,Y,DFN,STR,ARR
   SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET DFN=+Y IF DFN'>0 QUIT
   DO MEDLIST(.STR,DFN,.ARR)
   WRITE STR,!
+  QUIT
+  ;
+TESTTIUOBJ ; ;"Interact with user to select a patient and TIU TEXT OBJECT and test it.
+  NEW DIC,X,Y,DFN,STR,ARR,IEN8925D1
+  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET DFN=+Y IF DFN'>0 DO  QUIT
+  . WRITE "No patient selected.  Aborting.",! 
+  SET DIC=8925.1 DO ^DIC WRITE ! SET IEN8925D1=+Y IF IEN8925D1'>0 DO  QUIT
+  . WRITE "No TIU TEXT OBJECT selected.  Aborting.",! 
+  NEW CODE SET CODE=$GET(^TIU(8925.1,IEN8925D1,9)) IF CODE="" DO  QUIT
+  . WRITE "The selected item does not have an OBJECT METHOD.  Aborting.",!
+  DO
+  . NEW $ETRAP SET $ETRAP="write ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ECODE="""" "
+  . XECUTE CODE
+  . WRITE "OUTPUT:",!,$GET(X),!
   QUIT
   ;
 MEDLIST(RESULT,DFN,ARRAY,DT,OPTION)  ;"Purpose: RPC (TMG GET MED LIST) to return a patient's med list

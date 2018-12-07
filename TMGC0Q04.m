@@ -74,9 +74,11 @@ ASKTRIG ;
 TRIGGER1(TIUIEN,QUIET,TMGDOCSCANMODS,ONLYOV) ;
   ;"INPUT: (see TRIGJOB documentation below)
   ;"Job task off for faster foreground processing.
-  JOB TRIGJOB(+$GET(TIUIEN))::10  ;"Wait for up to 10 seconds for launching background task
-  ELSE  DO  ;"$TEST is set to false if JOB timesout
-  . DO TRIGJOB(+$GET(TIUIEN))  ;"run in foreground task
+  S ^TMG("EDDIE","TRIGGER1",TIUIEN)=""
+  DO TRIGJOB(+$GET(TIUIEN))
+  ;JOB TRIGJOB(+$GET(TIUIEN))::10  ;"Wait for up to 10 seconds for launching background task
+  ;ELSE  DO  ;"$TEST is set to false if JOB timesout
+  ;. DO TRIGJOB(+$GET(TIUIEN))  ;"run in foreground task
   QUIT 
   ;
 TRIGJOB(TIUIEN,QUIET,TMGDOCSCANMODS,ONLYOV) ;

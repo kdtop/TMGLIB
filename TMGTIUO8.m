@@ -31,43 +31,59 @@ LABCMTBL(DFN,LABEL,OUTARR,OPTION) ;"LAB & COMMENT TABLE
         ;"                 NOTE: doesn't include lines containing 'OLD TABLE (EDIT)-->' 
         ;"       OPTION -- OPTIONAL.
         ;"              OPTION("DT")=FMDT <-- if present, then table is to be returns AS OF given date
+        ;"              OPTION("DIRECT HTML INSERTION")=1  <-- Output should be ready to insert directly into HTML DOM
         ;"Result: returns string with embedded line-feeds to create text table.
         NEW TMGPRIORTABLE,TMGTABLEDEFS
         DO INITPFIL^TMGMISC2("GETITEM^TMGTIUO8") ;"delete old timing data
         NEW TMGRESULT SET TMGRESULT=$$RMDGTABL^TMGPXR02(DFN,LABEL,"GETITEM^TMGTIUO8",.OUTARR,.OPTION)
-        NEW TMPO SET TMPO="OLD TABLE (EDIT)-->"  ;"also in GETPRIOR^TMGTIUO8
-        IF TMGRESULT'[TMPO GOTO LBCMTDN 
-        ;"Now remove empty or redundant elements from OLD TABLE 
-        NEW CHANGED SET CHANGED=0
-        NEW TEMPARR DO SPLIT2AR^TMGSTUT2(TMGRESULT,$CHAR(13,10),.TEMPARR)
-        NEW IDX
-        ;"Set up a temp xref
-        SET IDX="" FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
-        . NEW STR SET STR=$GET(TEMPARR(IDX)) QUIT:STR=""
-        . SET TEMPARR("B",STR,IDX)=""
-        ;"Delete redundant lines
-        SET IDX="" FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
-        . NEW STR SET STR=$GET(TEMPARR(IDX))
-        . IF STR'[TMPO QUIT
-        . SET STR=$$TRIM^XLFSTR($PIECE(STR,TMPO,2))
-        . IF (STR="")!(+$ORDER(TEMPARR("B",STR,0))>0) DO
-        . . KILL TEMPARR(IDX)  ;"only kills redundant lines beginning with 'OLD TABLE (EDIT) -->'
-        . . SET CHANGED=1
-        ;"Reassemble final result if changes made. 
-        IF CHANGED=1 DO
-        . SET TMGRESULT=""
-        . SET IDX="" FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
-        . . NEW STR SET STR=$GET(TEMPARR(IDX))
-        . . SET TMGRESULT=TMGRESULT_STR_$CHAR(13,10)
+        ;" NEW TMPO SET TMPO="OLD TABLE (EDIT)-->"  ;"also in GETPRIOR^TMGTIUO8
+        ;" IF TMGRESULT'[TMPO GOTO LBCMTDN 
+        ;" ;"Now remove empty or redundant elements from OLD TABLE 
+        ;" NEW CHANGED SET CHANGED=0
+        ;" NEW TEMPARR DO SPLIT2AR^TMGSTUT2(TMGRESULT,$CHAR(13,10),.TEMPARR)
+        ;" NEW IDX
+        ;" ;"Set up a temp xref
+        ;" SET IDX="" FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
+        ;" . NEW STR SET STR=$GET(TEMPARR(IDX)) QUIT:STR=""
+        ;" . SET TEMPARR("B",STR,IDX)=""
+        ;" ;"Delete redundant lines
+        ;" SET IDX="" FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
+        ;" . NEW STR SET STR=$GET(TEMPARR(IDX))
+        ;" . IF STR'[TMPO QUIT
+        ;" . SET STR=$$TRIM^XLFSTR($PIECE(STR,TMPO,2))
+        ;" . IF (STR="")!(+$ORDER(TEMPARR("B",STR,0))>0) DO
+        ;" . . KILL TEMPARR(IDX)  ;"only kills redundant lines beginning with 'OLD TABLE (EDIT) -->'
+        ;" . . SET CHANGED=1
+        ;" ;"Reassemble final result if changes made. 
+        ;" IF CHANGED=1 DO
+        ;" . SET TMGRESULT=""
+        ;" . SET IDX="" FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
+        ;" . . NEW STR SET STR=$GET(TEMPARR(IDX))
+        ;" . . SET TMGRESULT=TMGRESULT_STR_$CHAR(13,10)
 LBCMTDN QUIT TMGRESULT
         ;
 INLNTABL(DFN,LABEL,OUTARR,OPTION) ;"INLINE TABLE
         NEW TMGPRIORTABLE,TMGTABLEDEFS
         SET OPTION("NO HEADER LINE")=1
         SET OPTION("NO LF")=1
+        ;"IF '$D(OPTION("HTML")) 
+        SET OPTION("HTML")=0  ;"FORCE HTML TO 0, IF NOT ALREADY SET 5/31/18
         NEW TMGRESULT SET TMGRESULT=$$DOTABL^TMGPXR02(DFN,LABEL,"GETITEM^TMGTIUO8",.OUTARR,.OPTION)
         QUIT TMGRESULT
         ;
+TESTWARN(WARNTEXT,DFN)  ;"
+        NEW TMGRESULT SET TMGRESULT=0
+        IF WARNTEXT="" GOTO TWDN
+        IF (WARNTEXT="Y")!(WARNTEXT="1") DO  GOTO TWDN
+        . SET TMGRESULT=1
+        IF WARNTEXT["{CODE" DO
+        . NEW XCUTE SET XCUTE="SET TMGRESULT=$$"
+        . SET WARNTEXT=$$TRIM^XLFSTR($P(WARNTEXT,"{CODE:",2))
+        . SET XCUTE=$P(WARNTEXT,",",1)_"^"_$P(WARNTEXT,",",2)_"(DFN)"
+        . X XCUTE
+TWDN
+        QUIT TMGRESULT
+        ;"
 GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         ;"Input: DFN -- IEN in PATIENT file
         ;"       IEN -- IEN IN 22708
@@ -79,6 +95,10 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         ;"                   OUTARR(#)=<Line text>     <-- for entries that are not KEY-VALUE format
         ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE.  Format:
         ;"                   OPTION("DT")=FMDT <-- will return table AS OF specified FM date-time
+        ;"                   OPTION("HTML")=1 if text is in HTML format. 
+        ;"                   OPTION("DIRECT HTML INSERTION")=1  <-- Output should be ready to insert directly into HTML DOM
+        ;"                   OPTION("MESSAGE: MEDS COLORED")=1  <-- an OUTPUT message 
+        ;"                   OPTION("WARN")=1 (if designed to warn on blank entry)
         ;"NOTE:  TMGPRIORTABLE used in global scope.  Var may be modified,
         ;"         but no error generated if not defined before calling here.
         ;"       TMGTABLEDEFS used in global scope.  Var may be modified,
@@ -88,14 +108,21 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         ;"        Format is   'Label : Value'
         ;"NOTE: If multiple lines need to be returned, then
         ;"      lines can be separated by CR (#13)
+        ;"NOTE2: Items from this function will be HTML symbol encoded if OPTION("HTML")=1
         NEW TMGRESULT SET TMGRESULT=""
         NEW DESCR SET DESCR=""
         IF $DATA(TMGTABLEDEFS)=0 DO GETDEFS(IEN,.TMGTABLEDEFS)                 
         NEW TABLENAME SET TABLENAME=$PIECE($GET(^TMG(22708,IEN,0)),"^",1)
         NEW ZN SET ZN=$GET(^TMG(22708,IEN,1,SUBIEN,0))
         NEW DISPCODE SET DISPCODE=$GET(^TMG(22708,IEN,1,SUBIEN,6))
+        NEW WARN SET WARN=$PIECE($GET(^TMG(22708,TABLEIEN,1,SUBIEN,5)),"^",1)
+        IF $$TESTWARN(WARN,DFN)="1" SET OPTION("WARN")=1
+        ELSE  SET OPTION("WARN")=0
         NEW CODE SET CODE=$GET(^TMG(22708,IEN,1,SUBIEN,4))  ;"OPTIONAL TRIGGER HOOK
         IF CODE'="" SET OPTION("CODE")=CODE
+        ELSE  SET OPTION("CODE")=""
+        NEW HTML SET HTML=+$GET(OPTION("HTML"))
+        NEW DIRHTMLINSERT SET DIRHTMLINSERT=+$GET(OPTION("DIRECT HTML INSERTION"))
         NEW NAME SET NAME=$PIECE(ZN,"^",1)
         NEW LIMITNUM SET LIMITNUM=+$PIECE(ZN,"^",4) 
         IF LIMITNUM=0 SET LIMITNUM=3  ;"Default of 3 labs returned. 
@@ -138,25 +165,64 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","ITEM^"_DESCR,1)  ;"RECORD START TIME
         ;"//kt end debug  timer stuff ------------
         NEW VALSTR SET VALSTR=""
+        NEW TEMPOUTARR
         IF CMD="LAB" DO
-        . SET VALSTR=$$GETLABS(DFN,NAME,PARSED,SHOWNULL,LIMITNUM,.OUTARR,.OPTION) 
+        . SET VALSTR=$$GETLABS(DFN,NAME,PARSED,SHOWNULL,LIMITNUM,.TEMPOUTARR,.OPTION) 
         ELSE  IF CMD="LAB DATES" DO
-        . SET VALSTR=$$GETLABDT(DFN,NAME,PARSED,SHOWNULL,LIMITNUM,.OUTARR,.OPTION)
+        . SET VALSTR=$$GETLABDT(DFN,NAME,PARSED,SHOWNULL,LIMITNUM,.TEMPOUTARR,.OPTION)
         ELSE  IF CMD="MEDS" DO
-        . SET VALSTR=$$GETMEDS(DFN,NAME,IEN,PARSED,SHOWNULL,.TMGTABLEDEFS,.OUTARR,.OPTION)                 
+        . SET VALSTR=$$GETMEDS(DFN,NAME,IEN,PARSED,SHOWNULL,.TMGTABLEDEFS,.TEMPOUTARR,.OPTION)                 
         ELSE  IF CMD="PRIOR" DO
-        . SET VALSTR=$$GETPRIOR(DFN,NAME,IEN,TABLENAME,PARSED,SHOWNULL,.TMGPRIORTABLE,.TMGTABLEDEFS,.OUTARR,.OPTION)         
+        . SET VALSTR=$$GETPRIOR(DFN,NAME,IEN,TABLENAME,PARSED,SHOWNULL,.TMGPRIORTABLE,.TMGTABLEDEFS,.TEMPOUTARR,.OPTION)         
         ELSE  IF CMD="HIDE" GOTO GIDN  ;"Does nothing here.  Effects in {PRIOR: !MISC!}
         ELSE  IF CMD="CODE" DO
         . NEW XCODE SET XCODE="SET VALSTR=$$"_$PIECE(PARSED,"^",2)_"^"_$PIECE(PARSED,"^",3)_"("_DFN_")"
         . XECUTE XCODE
         ELSE  IF CMD="",ISAHF=1 DO
-        . SET VALSTR=$$GETITEM^TMGPXR02(DFN,IEN,SUBIEN,MAXLEN,.OUTARR,.OPTION)
+        . SET VALSTR=$$GETITEM^TMGPXR02(DFN,IEN,SUBIEN,MAXLEN,.TEMPOUTARR,.OPTION)
         ELSE  DO
         . SET VALSTR=$$BOIL^TIUSRVD(DISPTEXT)
-        . NEW I2 SET I2=+$ORDER(OUTARR("@"),-1)+1
+        . NEW I2 SET I2=+$ORDER(TEMPOUTARR("@"),-1)+1
         . SET OUTARR(I2)=VALSTR        
         SET TMGRESULT=VALSTR
+        ;"//-- Start changes 5/23/18
+        ;"Below takes care of STRING part of output
+        IF (HTML!DIRHTMLINSERT),(TMGRESULT'="") DO 
+        . NEW TEMPARR DO SPLIT2AR^TMGSTUT2(TMGRESULT,$CHAR(13),.TEMPARR)
+        . NEW IDX SET IDX=0
+        . FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
+        . . NEW LINE SET LINE=$GET(TEMPARR(IDX)) QUIT:LINE=""
+        . . SET LINE=$$SYMENC^MXMLUTL(LINE)
+        . . IF TABLENAME["MEDICATION" DO
+        . . . NEW L2 SET L2=$$CHKMED^TMGTIUOT(LINE,PTAGE,.OPTION)
+        . . . IF LINE'=L2 SET OPTION("MESSAGE: MEDS COLORED")=1
+        . . . SET LINE=L2
+        . . IF LINE[$$WARNTEXT^TMGTIUOT() DO
+        . . . NEW WARNTEXT SET WARNTEXT=$$WARNTEXT^TMGTIUOT()
+        . . . SET LINE=$P(LINE,WARNTEXT,1)_$$WRAPTEXT^TMGTIUOT(WARNTEXT,$$AUTOCOLOR^TMGTIUOT(),.OPTION)_$P(LINE,WARNTEXT,2)
+        . . SET TEMPARR(IDX)=LINE
+        . SET TMGRESULT=$$ARR2STR^TMGSTUT2(.TEMPARR,"<BR>"_$CHAR(13))
+        ;"Below takes care of ARRAY part of output
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(TEMPOUTARR(IDX)) QUIT:IDX'>0  DO
+        . NEW JDX SET JDX=$ORDER(OUTARR("@"),-1)+1
+        . NEW LINE SET LINE=$GET(TEMPOUTARR(IDX))
+        . IF (HTML!DIRHTMLINSERT) DO
+        . . SET LINE=$$SYMENC^MXMLUTL(LINE) 
+        . IF LINE[$$WARNTEXT^TMGTIUOT() DO
+        . . NEW WARNTEXT SET WARNTEXT=$$WARNTEXT^TMGTIUOT()
+        . . SET LINE=$P(LINE,WARNTEXT,1)_$$WRAPTEXT^TMGTIUOT(WARNTEXT,$$AUTOCOLOR^TMGTIUOT(),.OPTION)_$P(LINE,WARNTEXT,2)
+        . SET OUTARR(JDX)=LINE
+        NEW KEY SET KEY=""
+        FOR  SET KEY=$ORDER(TEMPOUTARR("KEY-VALUE",KEY)) QUIT:KEY=""  DO
+        . NEW ENCODEDKEY SET ENCODEDKEY=$$SYMENC^MXMLUTL(KEY)
+        . NEW VALUE SET VALUE=$GET(TEMPOUTARR("KEY-VALUE",KEY))
+        . IF (HTML!DIRHTMLINSERT) SET VALUE=$$SYMENC^MXMLUTL(VALUE) 
+        . NEW LINE SET LINE=$GET(TEMPOUTARR("KEY-VALUE",KEY,"LINE"))
+        . IF (HTML!DIRHTMLINSERT) SET LINE=$$SYMENC^MXMLUTL(LINE)
+        . SET OUTARR("KEY-VALUE",ENCODEDKEY)=VALUE
+        . SET OUTARR("KEY-VALUE",ENCODEDKEY,"LINE")=LINE
+        ;"//-- End changes 5/23/18
 GIDN    ;
         DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","ITEM^"_DESCR,0)  ;"RECORD END TIME
         QUIT TMGRESULT
@@ -440,6 +506,7 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         NEW STRVAL SET STRVAL=""
         NEW TMGRESULT SET TMGRESULT=""
         NEW ERROR SET ERROR=0
+        NEW WARN SET WARN=+$G(OPTION("WARN"))
         NEW LINKSYMBOL SET LINKSYMBOL=":"
         SET SHOWNULL=+$GET(SHOWNULL)
         NEW PRIORLABEL SET PRIORLABEL=$PIECE(PARAMS,"^",2)
@@ -491,8 +558,8 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . . MERGE OUTARR(TABLENAME,"KEYVALUE")=PRIORTABLE(TABLENAME,"KEYVALUE",PRIORFOUNDLABEL)
         . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_$CHAR(13)
         . . SET TMGRESULT=TMGRESULT_ALINE
-        . . NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1      ;"//kt 10/15
-        . . SET OUTARR(LN)=ALINE                        ;"//kt 10/15        
+        . . NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1      
+        . . SET OUTARR(LN)=ALINE                      
         . ;"Next collect remaining entries, NOT in KEY-VALUE form
         . NEW IDX SET IDX=0
         . FOR  SET IDX=$ORDER(PRIORTABLE(TABLENAME,IDX)) QUIT:+IDX'>0  DO
@@ -501,9 +568,6 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . . SET OUTARR(I2)=ALINE
         . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_$CHAR(13)
         . . SET TMGRESULT=TMGRESULT_ALINE
-        . . ;"//kt removed 8/23/17 -- d/t causes duplicate entries
-        . . ;"//kt removed 8/23/17 NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1      ;"//kt 10/15
-        . . ;"//kt removed 8/23/17  SET OUTARR(LN)=ALINE                        ;"//kt 10/15        
         ELSE  DO
         . SET PRIORLABEL=$$UP^XLFSTR(PRIORLABEL)
         . SET STRVAL=$GET(PRIORTABLE(TABLENAME,"KEY-VALUE",PRIORLABEL))
@@ -511,11 +575,13 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . ELSE  DO
         . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_$CHAR(13)
         . . IF CODE'="" DO     ;"ELH ADDED TO EXECUTE VALUE MODIFYING CODE
-        . . . NEW TMGX,TMGY
+        . . . NEW TMGX,TMGY,TMGDFN
         . . . SET TMGX=STRVAL
+        . . . SET TMGDFN=DFN
         . . . XECUTE CODE
         . . . SET TMGY=$GET(TMGY)
         . . . IF TMGY'="" SET STRVAL=TMGY
+        . . IF (WARN=1)&(STRVAL="") SET STRVAL=$$WARNTEXT^TMGTIUOT()
         . . NEW ALINE SET ALINE=NEWLABEL_" "_LINKSYMBOL_" "_STRVAL
         . . SET OUTARR("KEY-VALUE",NEWLABEL)=STRVAL        ;"//kt 10/15
         . . SET OUTARR("KEY-VALUE",NEWLABEL,"LINE")=ALINE  ;"//kt 10/15

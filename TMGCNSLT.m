@@ -31,8 +31,9 @@ HDR	; Header for consult - wedge
 	.D BLD("HDR",SUB,1,0,$G(GMRCDVL))
 	.D BLD("HDR",SUB,1,0,$G(GMRCFLN))
 	.;D BLD("HDR",SUB,0,45,$G(GMRCPEL))
-	.D BLD("HDR",SUB,1,0,$G(GMRCSN))
-	.D BLD("HDR",SUB,0,16,$$EXDT(GMRCDOB))
+	.;ELH commented 6/26/18 D BLD("HDR",SUB,1,0,$G(GMRCSN))
+	.;ELH changed to below lineD BLD("HDR",SUB,0,16,$$EXDT(GMRCDOB))
+        .D BLD("HDR",SUB,1,0,$$EXDT(GMRCDOB))
 	.;D BLD("HDR",SUB,0,45,$G(GMRCELIG))
 	.;D:$G(CVELIG)["CV" BLD("HDR",SUB,1,45,$G(CVELIG))
 	;

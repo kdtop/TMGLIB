@@ -22,6 +22,8 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17
   ;"=======================================================================
   ;"NICESPLT(S,LEN,S1,S2,S2MIN,DIVCH) -- Split string to length, at spaces
   ;"$$REPLSTR(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
+  ;"STRIPARR(REF,STR) --Strip STR from each line of @REF array
+  ;"REPLARR(REF,SRCHSTR,REPLSTR) -- Replace each instance of SRCHSTR with REPLSTR from each line of @REF array
   ;"$$MATCHXTR(STR,DIVCH,GROUP,MAP) -- Extract a string bounded by DIVCH, honoring matching encapsulators
   ;"$$LMATCH(STR,SUBSTR) -- Does left part of STR match SUBSTR?
   ;"$$RMATCH(STR,SUBSTR) -- Does right part of STR match SUBSTR? 
@@ -126,7 +128,7 @@ MAKEWS(N)  ;"MAKE WHITE SPACE
   NEW I FOR I=1:1:N SET RESULT=RESULT_" "
   QUIT RESULT
   ;
-REPLSTR(STR,MATCH,NEWVAL)  ;"REPLACE STRING
+REPLSTR(STR,MATCH,NEWVAL)  ;"REPLACE STRING 
   ;"Scope: PUBLIC FUNCTION
   ;"Purpose: to look for all instances of Match in S, and replace with NewValue
   ;"Input: STR - string to alter.  Altered if passed by reference
@@ -137,10 +139,37 @@ REPLSTR(STR,MATCH,NEWVAL)  ;"REPLACE STRING
   ;"      $$REPLSTR("ABC###DEF","###","$") --> "ABC$DEF"
   ;"Result: returns altered string (if any alterations indicated)
   ;"Output: STR is altered, if passed by reference.
-  NEW SPEC SET SPEC($GET(MATCH))=$GET(NEWVAL)
-  SET STR=$$REPLACE^XLFSTR(STR,.SPEC)
+  ;"NEW SPEC SET SPEC($GET(MATCH))=$GET(NEWVAL)
+  ;"SET STR=$$REPLACE^XLFSTR(STR,.SPEC)
+  ;"QUIT STR
+  NEW SLEN,RLEN,POS SET SLEN=$L(MATCH),RLEN=$LENGTH(NEWVAL),POS=1
+  FOR  QUIT:POS=0  DO
+  . SET POS=$F(STR,MATCH,POS) QUIT:POS=0
+  . SET STR=$EXTRACT(STR,1,POS-SLEN-1)_NEWVAL_$EXTRACT(STR,POS,$LENGTH(STR))
+  . SET POS=POS-SLEN+RLEN
   QUIT STR
   ;
+STRIPARR(REF,STR) ;"Strip STR from each line of ARR
+  ;"INPUT: REF -- PASS BY NAME.  Expected format: @REF@(#)=<line of text>
+  ;"       STR -- string to be removed from each line.
+  ;"Result: 1 if something removed, otherwise 0
+  QUIT $$REPLARR(REF,STR,"")
+  ;
+REPLARR(REF,SRCHSTR,REPLSTR) ;"REPLACE each instance of SRCHSTR with REPLSTR from each line of ARR
+  ;"INPUT: REF -- PASS BY NAME.  Expected format: @REF@(#)=<line of text>
+  ;"       STR -- string to be removed from each line.
+  ;"Result: 1 if something removed, otherwise 0
+  NEW RESULT,LINENUM SET (RESULT,LINENUM)=0  
+  FOR  SET LINENUM=$ORDER(@REF@(LINENUM)) QUIT:LINENUM'>0  DO
+  . ;"SET LINETEXT=$GET(@REF@(LINENUM)) QUIT:(LINETEXT'[SRCHSTR)
+  . ;"FOR  QUIT:(LINETEXT'[SRCHSTR)  DO
+  . ;". SET LINETEXT=$PIECE(LINETEXT,SRCHSTR,1)_REPLSTR_$PIECE(LINETEXT,SRCHSTR,2,999)
+  . ;". SET RESULT=1
+  . NEW LINETEXT SET LINETEXT=$GET(@REF@(LINENUM))
+  . NEW LT2 SET LT2=$$REPLSTR(LINETEXT,SRCHSTR,REPLSTR) QUIT:LT2=LINETEXT
+  . SET @REF@(LINENUM)=LT2,RESULT=1
+  QUIT RESULT
+  ;    
 MATCHXTR(STR,DIVCH,GROUP,MAP,RESTRICT) ;"MATCH EXTRACT
   ;"Purpose to extract a string bounded by DIVCH, honoring matching encapsulators
   ;"Note: the following markers are honored as paired encapsulators:

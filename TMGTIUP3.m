@@ -55,7 +55,7 @@ PROCESS(TMGRESULT,TMGIN,OPTION) ;
         ;
         NEW FORCE,TAGFOUND KILL TMGRESULT
         SET FORCE=+$GET(OPTION("FORCE PROCESS"),1) ;"I.e. force processing regardless of tag presence.  
-        SET TAGFOUND=$$STRIPARR^TMGMISC3($NAME(TMGIN("TEXT")),"PROCESS NOTE NOT DONE")  ;"remove process tag
+        SET TAGFOUND=$$STRIPARR^TMGSTUT3($NAME(TMGIN("TEXT")),"PROCESS NOTE NOT DONE")  ;"remove process tag
         IF (TAGFOUND=0)&(FORCE=0) DO  GOTO PRODN 
         . MERGE TMGRESULT=TMGIN("TEXT")
         SET OPTION("HTML")=$$ISHTMREF^TMGHTM1($NAME(TMGIN("TEXT")))
@@ -63,7 +63,7 @@ PROCESS(TMGRESULT,TMGIN,OPTION) ;
         ;"NOTE: Later, other tasks could also be done at this time. 
 PRODN   QUIT
         ;       
-REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES.  
+REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES.  -- DEPRECIATED
         ;"//NOTE: As of 5/20/18, this REFRSHTB() doesn't seem to be in use.  
         ;"        This code refreshes tables that have already been parsed out from HPI
         ;"        Section.  But it would be unable to parse the FINAL MEDICATIONS table, for example.
@@ -103,7 +103,8 @@ REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES.
         ;        
 FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         ;"NOTE: As of 5/20/18, only called from PROCESS^TMGTIUP3()
-        ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
+        ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.  Format:
+        ;"          TMGRESULT(#)=<line of text>
         ;"       TMGIN -- Input from client.  Format:
         ;"              TMGIN("DFN")=<DFN>  (IEN in PATIENT file)
         ;"              TMGIN("TEXT",1) = 1st line of text
@@ -112,7 +113,8 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         ;"            OPTION("HTML")=1 if text is in HTML format. 
         ;"            OPTION("ALL NOTES")=(OPTIONAL) - Use all notes (as
         ;"                               opposed to only completed notes)
-        ;"             OPTION("FORCE REFRESH TABLE",<TABLE_NAME>)=1 <-- don't allow <TABLE_NAME> to be excluded.         
+        ;"            OPTION("FORCE REFRESH TABLE",<TABLE_NAME>)=1 <-- don't allow <TABLE_NAME> to be excluded.         
+        ;"            OPTION("DIRECT HTML INSERTION")=1  <-- Output should be ready to insert directly into HTML DOM
         ;"Result: None
         SET TMGRESULT(0)="1^Success"
         NEW ATABLE,TABLES DO GETTABLS(.TABLES,.OPTION)
@@ -121,6 +123,7 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         NEW FOUNDTABLE SET FOUNDTABLE=""
         NEW OUTLNUM SET OUTLNUM=0
         NEW HTML SET HTML=+$GET(OPTION("HTML"))
+        NEW DIRHTMLINSERT SET DIRHTMLINSERT=+$GET(OPTION("DIRECT HTML INSERTION"))
         NEW TAGS
         NEW DONE SET DONE=0
         NEW INSCRIPT SET INSCRIPT=0
@@ -135,7 +138,7 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         . IF INSCRIPT DO  QUIT  ;"don't search for tables to refresh inside script javascript code
         . . SET OUTLNUM=OUTLNUM+1,TMGRESULT(OUTLNUM)=LINE
         . IF LNUM="" SET DONE=1
-        . IF FOUNDTABLE'="" DO
+        . IF FOUNDTABLE'="" DO  ;"a table start has been found 
         . . NEW TL SET TL=$SELECT(HTML:$$HTMLTRIM^TMGHTM1(LINE),1:$$TRIM^XLFSTR(LINE))
         . . NEW PARTB SET PARTB="" 
         . . NEW ENDFOUND SET ENDFOUND=0
@@ -155,7 +158,7 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         . . IF 'INLINEMODE DO
         . . . DO SPLIT2AR^TMGSTUT2(TABLESTR,$CHAR(13,10),.TEMPARR,OUTLNUM+1)
         . . . KILL TEMPARR("MAXNODE")
-        . . . IF HTML DO TXT2HTML^TMGHTM1(.TEMPARR)
+        . . . ;"IF HTML,(DIRHTMLINSERT'=1) DO TXT2HTML^TMGHTM1(.TEMPARR)
         . . . MERGE TMGRESULT=TEMPARR
         . . ELSE  DO
         . . . SET LINE=$$SYMENC^MXMLUTL(TABLESTR)_LINE
@@ -164,7 +167,7 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         . . SET FOUNDTABLE=""
         . . SET TERMINALCHARS=""
         . . SET INLINEMODE=0
-        . ELSE  DO
+        . ELSE  DO  ;"Searching for the start of a table. 
         . . SET ATABLE=""
         . . FOR  SET ATABLE=$ORDER(TABLES(ATABLE)) QUIT:(ATABLE="")!(FOUNDTABLE'="")  DO
         . . . IF LINE[ATABLE DO
@@ -298,20 +301,27 @@ GTL1    ;"Below are tables that will NOT be refreshed during PROCESS
         IF HTML DO
         . NEW TEMPARR,TEMPARR2,LBL,IDX SET IDX=0
         . SET LBL="" FOR  SET LBL=$ORDER(TABLES(LBL)) QUIT:LBL=""  SET IDX=IDX+1,TEMPARR(IDX)=LBL
-        . MERGE TEMPARR2=TEMPARR
-        . DO TXT2HTML^TMGHTM1(.TEMPARR) KILL TABLES
-        . SET IDX=0 FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX=""  DO
-        . . SET LBL=$GET(TEMPARR(IDX))
-        . . SET LBL=$EXTRACT(LBL,1,$LENGTH(LBL)-4)
-        . . SET TABLES(LBL)=$GET(TEMPARR2(IDX))
-        . . NEW LBL2 SET LBL2=$$REPLSTR^TMGSTUT3(LBL," ","&nbsp;")   ;"//kt 8/1/17 
-        . . SET TABLES(LBL2)=$GET(TEMPARR2(IDX))        ;"//kt 8/1/17
-        . . SET TABLES($$HTML2TXS^TMGHTM1($GET(TEMPARR(IDX))))=$GET(TEMPARR2(IDX))
+        . DO TXT2HTML^TMGHTM1(.TEMPARR) 
+        . SET IDX=0 FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
+        . . NEW ENCODEDLBL SET ENCODEDLBL=$GET(TEMPARR(IDX))
+        . . SET TABLES(ENCODEDLBL)=ENCODEDLBL
+        . ;"//KT 5/23/18  There was situation where LBL="[WT]", and subtracting 4 from length left "", which prevented cycling with $O and idx'=""
+        . ;" NEW TEMPARR,TEMPARR2,LBL,IDX SET IDX=0
+        . ;" SET LBL="" FOR  SET LBL=$ORDER(TABLES(LBL)) QUIT:LBL=""  SET IDX=IDX+1,TEMPARR(IDX)=LBL
+        . ;" MERGE TEMPARR2=TEMPARR
+        . ;" DO TXT2HTML^TMGHTM1(.TEMPARR) 
+        . ;" SET IDX=0 FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX=""  DO
+        . ;" . SET LBL=$GET(TEMPARR(IDX))
+        . ;" . SET LBL=$EXTRACT(LBL,1,$LENGTH(LBL)-4)  ;"//kt note 5/23/18 <--- I don't understand what this is used for
+        . ;" . SET TABLES(LBL)=$GET(TEMPARR2(IDX))
+        . ;" . NEW LBL2 SET LBL2=$$REPLSTR^TMGSTUT3(LBL," ","&nbsp;")   ;"//kt 8/1/17 
+        . ;" . SET TABLES(LBL2)=$GET(TEMPARR2(IDX))        ;"//kt 8/1/17
+        . ;" . SET TABLES($$HTML2TXS^TMGHTM1($GET(TEMPARR(IDX))))=$GET(TEMPARR2(IDX))
         ELSE  DO
         . NEW LBL SET LBL="" 
         . FOR  SET LBL=$ORDER(TABLES(LBL)) QUIT:LBL=""  SET TABLES(LBL)=LBL     
-        KILL TABLES("[FOLLOWUP&nbsp;ITEMS]")
-        KILL TABLES("[FOLLOWUP ITEMS]")
+        ;"KILL TABLES("[FOLLOWUP&nbsp;ITEMS]")
+        ;"KILL TABLES("[FOLLOWUP ITEMS]")
         QUIT
         ;
 TABLEND(LINE,PARTB) ;" HAS TABLE END  
@@ -406,10 +416,12 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . ;"At this point, DIV starts at the first character
        . NEW TEMP SET TEMP=$PIECE($PIECE(STR,"]",1),DIV,2)
        . NEW NAME SET NAME=$$REPLSTR^TMGSTUT3(TEMP,"&nbsp;"," ")
-       . IF $PIECE(NAME," ",1)="GROUP" DO  QUIT
+       . IF ($PIECE(NAME," ",1)="GROUP")&($L(NAME," ")<6) DO  QUIT
        . . SET STRA=DIV_TEMP_"]",STRA2=DIV_NAME_"]"
        . . SET IDX=IDX+1,TEXT(IDX)="[GROUP]"  ;"STRA2
        . . NEW GRPLIST SET GRPLIST=$PIECE(NAME," ",2,99)
+       . . ;"above commented to allow only one "word" as group so a missing bracket doesn't cause chaos
+       . . ;"NEW GRPLIST SET GRPLIST=$PIECE(NAME," ",2)
        . . SET TEXT(IDX,"GROUP")=GRPLIST
        . . SET GRPLIST=$$HTML2TXS^TMGHTM1(GRPLIST)
        . . FOR  QUIT:GRPLIST=""  DO
@@ -424,7 +436,9 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . . SET TEXT("GROUPX",IDX)=""
        . . SET STR=$EXTRACT(STR,$LENGTH(STRA)+1,$LENGTH(STR))
        . . SET STARTPOS=0
-       . IF $DATA(TABLES("["_$$UP^XLFSTR(NAME)_"]")) DO  QUIT
+       . IF ($PIECE(NAME," ",1)="GROUP")&($L(NAME," ")'<6) DO  QUIT
+       . . SET STR=$EXTRACT(STR,$LENGTH("GROUP ")+1,$LENGTH(STR))
+       . IF ($DATA(TABLES("["_$$UP^XLFSTR(NAME)_"]")))!($DATA(TABLES("["_NAME_"]"))) DO  QUIT
        . . SET IDX=IDX+1,TEXT(IDX)="[TABLE]"
        . . SET TEXT(IDX,"TABLE")=NAME
        . . NEW INLINE SET INLINE=$$ISINLINE^TMGTIUO6(NAME)
@@ -464,7 +478,7 @@ SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2
        NEW TEMP MERGE TEMP=TMGIN("TEXT")
        DO XTRCTREF^TMGTIUO5("TEMP","[MEDICATIONS]","BLANK_LINE",.MEDARR)       
        DO FIXABVA^TMGTIUO6(.MEDARR)
-       DO SORTARR^TMGTIUO5(.MEDARR) ;"splits to KEY-VALUE pairs etc.              
+       DO SORTMARR^TMGTIUO5(.MEDARR) ;"splits to KEY-VALUE pairs etc.              
        DO SAVETABL^TMGRX007(DFN,.MEDARR)  ;"SAVE MEDICATION TABLE.
        KILL TMGGSMEDLIST(DFN) ;"clear out any cached med table
        QUIT

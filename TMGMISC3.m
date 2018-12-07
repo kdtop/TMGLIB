@@ -15,8 +15,6 @@ TMGMISC3 ;TMG/kst/Misc utility librar ;9/6/17, 5/21/18
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"ARRDUMP(REF,TMGIDX,INDENT) -- dump out array in tree format.  
- ;"STRIPARR(REF,STR) --Strip STR from each line of ARR
- ;"REPLARR(REF,SRCHSTR,REPLSTR) -- REPLACE each instance of SRCHSTR with REPLSTR from each line of ARR
  ;
  ;"=======================================================================
  ;"Private Functions
@@ -83,22 +81,3 @@ ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
 ADDN  ;
   QUIT
   ;   
-STRIPARR(REF,STR) ;"Strip STR from each line of ARR
-  ;"INPUT: REF -- PASS BY NAME.  Expected format: @REF@(#)=<line of text>
-  ;"       STR -- string to be removed from each line.
-  ;"Result: 1 if something removed, otherwise 0
-  QUIT $$REPLARR(REF,STR,"")
-  ;
-REPLARR(REF,SRCHSTR,REPLSTR) ;"REPLACE each instance of SRCHSTR with REPLSTR from each line of ARR
-  ;"INPUT: REF -- PASS BY NAME.  Expected format: @REF@(#)=<line of text>
-  ;"       STR -- string to be removed from each line.
-  ;"Result: 1 if something removed, otherwise 0
-  NEW RESULT,LINENUM,LINETEXT SET (RESULT,LINENUM)=0  
-  FOR  SET LINENUM=$ORDER(@REF@(LINENUM)) QUIT:LINENUM'>0  DO
-  . SET LINETEXT=$GET(@REF@(LINENUM)) QUIT:(LINETEXT'[SRCHSTR)
-  . FOR  QUIT:(LINETEXT'[SRCHSTR)  DO
-  . . SET LINETEXT=$PIECE(LINETEXT,SRCHSTR,1)_REPLSTR_$PIECE(LINETEXT,SRCHSTR,2,999)
-  . . SET RESULT=1
-  . SET @REF@(LINENUM)=LINETEXT
-  QUIT RESULT
-  ;  

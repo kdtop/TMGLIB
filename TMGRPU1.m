@@ -41,6 +41,27 @@ HASCPT(DFN,CPT,SDT,EDT) ;
 HCPTDN ; 
   QUIT TMGRESULT
   ;
+HASCPT2(DFN,PARTIALCPT,SDT,EDT) ;
+  ;"Purpose: return boolean if patient has CPT that matches partial CPT during specified date range.
+  ;"Input: DFN -- patient IEN
+  ;"       CPT -- Partial CPT to match (e.g. "9921" would match "99210","99211","99213", etc...)
+  ;"       SDT -- Starting date of range, FM format, default is 0
+  ;"       EDT -- Starting date of range, FM format, default is 9999999
+  ;"Result: 1 if has cpt, 0 if not, or -1^Message if error
+  NEW TMGRESULT SET TMGRESULT=0
+  IF $L(PARTIALCPT)=5 QUIT $$HASCPT(DFN,PARTIALCPT,SDT,EDT)  ;"No match needed
+  NEW CPT SET CPT=$$SRCHSTR(PARTIALCPT)
+  FOR  SET CPT=$O(^ICPT("B",CPT)) QUIT:(CPT'[PARTIALCPT)!(CPT="")!(TMGRESULT=1)  DO
+  . SET TMGRESULT=$$HASCPT(DFN,CPT,SDT,EDT)    
+  QUIT TMGRESULT
+  ;"  
+SRCHSTR(PARTIALCPT)  ;"Return the proper search string for the CPT match
+  NEW TMGRESULT SET TMGRESULT=PARTIALCPT
+  NEW ZEROS SET ZEROS=5-$L(PARTIALCPT)    
+  NEW COUNT
+  FOR COUNT=1:1:ZEROS SET TMGRESULT=TMGRESULT_"0"
+  QUIT TMGRESULT-1
+  ;"
 CPTIEN(CPT) ;"Get CPT IEN for code, or -1 if not found
   NEW TMGRESULT SET TMGRESULT=-1
   SET CPT=$GET(CPT) IF CPT="" GOTO CIDN

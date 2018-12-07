@@ -31,6 +31,7 @@ TRIG1(IEN8925)  ;"HANDLE POST-SIGNATURE FOR TIU DOCUMENTS.
   ;"  A Fileman search for POST-SIGNATURE CODE field in file 8925.1 will show details.
   ;
   ;"Job task off for faster foreground processing.
+  SET ^TMP("TRIG1",IEN8925)=""
   JOB TRIGJOB^TMGTIUT5(+$GET(IEN8925))::10  ;"Wait for up to 10 seconds for launching background task
   ELSE  DO  ;"$TEST is set to false if JOB timesout
   . DO TRIGJOB^TMGTIUT5(+$GET(IEN8925))  ;"run in foreground task

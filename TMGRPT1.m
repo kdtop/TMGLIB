@@ -97,6 +97,7 @@ MAMMORPT
        NEW DCIEN SET DCIEN=+$ORDER(^ORD(100.01,"B","DISCONTINUED",""))
        NEW X,Y DO NOW^%DTC NEW NowDate SET NowDate=X
        ;
+       ;"GOTO UNSCH
        WRITE !
        WRITE "************************************************************",!
        WRITE "              Outstanding mammograms report",!
@@ -116,7 +117,7 @@ MAMMORPT
        . DO DD^%DT SET s=Y
        . NEW PtIEN SET PtIEN=+$PIECE(znode,"^",2)
        . IF PtIEN'=0 do
-       . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)
+       . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)_" ("_$$EXTDATE^TMGDATE($PIECE($GET(^DPT(PtIEN,0)),"^",3))_")"
        . ELSE  do
        . . SET s=s_"^"_"?? Patient Name not found.  Record # "_idx_" in file #123"
        . ;"Now scan for appt scheduled date
@@ -146,9 +147,10 @@ MAMMORPT
        . . WRITE "-----------------------------------------------------------------------------",!
        . NEW s SET s=""
        . FOR  SET s=$Order(matches(dueDate,s)) QUIT:s=""  do
-       . . WRITE "Due: ",$p(s,"^",3),?25,$p(s,"^",2),?50,"Made on visit: ",$p($p(s,"^",1),"@",1),!
+       . . WRITE "Due: ",$p(s,"^",3),?25,$p(s,"^",2),?60,"Made on visit: ",$p($p(s,"^",1),"@",1),!
        ;" 
        QUIT   ;"DON'T PRINT THE FOLLOWING FOR NOW. REMOVE QUIT LATER WHEN READY
+UNSCH
        ;"Print people who are overdue for mammograms below
        WRITE !
        WRITE "************************************************************",!
@@ -160,6 +162,7 @@ MAMMORPT
        . IF $$ACTIVEPT^TMGPXR03(DFN)'=1 QUIT
        . NEW AGE K VADM SET AGE=$$AGE^TIULO(DFN)
        . IF +AGE>75 QUIT
+       . IF +AGE<64 QUIT
        . ;"GET LAST VISIT DATE
        . NEW LASTDT,VSTIEN SET LASTDT=0,VSTIEN=0
        . FOR  SET VSTIEN=$ORDER(^TMG(22723,DFN,1,VSTIEN)) QUIT:VSTIEN'>0  DO
@@ -168,7 +171,7 @@ MAMMORPT
        . . IF LASTDT<VSTDATE SET LASTDT=VSTDATE
        . IF LASTDT=0 QUIT
        . SET Y=LASTDT X ^DD("DD") SET LASTDT=Y
-       . NEW REMRESULT SET REMRESULT=$$DOREM^TMGPXR03(DFN,224,5,3170110)
+       . NEW REMRESULT SET REMRESULT=$$DOREM^TMGPXR03(DFN,224,5,$$TODAY^TMGDATE)
        . IF REMRESULT["DUE NOW" DO
        . . IF $D(IENLIST(DFN)) DO
        . . . ;"skip  SET UNSCHEDULEARR($P($G(^DPT(DFN,0)),"^",1))="SCHEDULED AS ABOVE"
@@ -179,9 +182,9 @@ MAMMORPT
        FOR  SET NAME=$ORDER(UNSCHEDULEARR(NAME)) QUIT:NAME=""  DO
        . NEW S SET S=$GET(UNSCHEDULEARR(NAME))
        . IF S["SCHEDULED" DO
-       . . WRITE NAME,?25,S,!
+       . . WRITE NAME,?25,S,!,!,!
        . ELSE  DO
-       . . WRITE NAME,?20,"Last mammo: ",$P($P(S,"^",2),"@",1),?45,"Due: ",$P($P(S,"^",1),"@",1),?63,"Last vst: ",$P($P(S,"^",3),"@",1),!
+       . . WRITE NAME,?20,"Last mammo: ",$P($P(S,"^",2),"@",1),?45,"Due: ",$P($P(S,"^",1),"@",1),?63,"Last vst: ",$P($P(S,"^",3),"@",1),!,!,!
 MRPTDn QUIT
 
 SETCONSULTTEMP
@@ -321,6 +324,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        . . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)_"-"_PtIEN
        . . ELSE  do
        . . . SET s=s_"^"_"?? Patient Name not found.  Record # "_idx_" in file #123"
+       . . IF s["ZZ" QUIT
        . . ;"Now scan for appt scheduled date
        . . NEW idxWP SET idxWP=0
        . . NEW found SET found=0
@@ -334,8 +338,12 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        . . . . SET apptDate=$PIECE(line,"*",2)
        . . . else  do
        . . . . set apptDate=$$TRIM^XLFSTR(line)
+       . . . SET apptDate=$$UP^XLFSTR(apptDate)
+       . . . IF apptDate["DAY " DO
+       . . . . SET apptDate=$P(apptDate,"DAY ",2)
        . . . IF apptDate[" at " do
        . . . . SET apptDate=$p(apptDate," at ",1)_"@"_$p(apptDate," at ",2)
+       . . . IF $P(apptDate,"@",2)="" SET apptDate=$P(apptDate,"@",1)
        . . . SET Y=$$FMDate^TMGFMUT(apptDate)
        . . . NEW FMDate SET FMDate=Y
        . . . IF Y>0 do
@@ -439,7 +447,7 @@ DEVCNRPT  ;
        . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
        use IO
        DO CNSLTRPT
-       ;"DO ^%ZISC  ;" Close the output device
+       DO ^%ZISC  ;" Close the output device
 DCNDn  QUIT
        ;
 ASKMRRPT  ;
@@ -543,6 +551,7 @@ GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
        DO GETCSPAT^TMGPXR03(.CSPTRESULT,BDATE,EDATE)
        ;"Get patients with reminders due
        NEW REMARR
+       SET REMARR(265)="CSDB REVIEW"
        SET REMARR(232)="PAIN CONTRACT DUE"
        SET REMARR(233)="DRUG SCREEN DUE"
        SET REMARR(266)="EKG DUE"
@@ -552,6 +561,14 @@ GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
        DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,BDATE,EDATE)
        QUIT
        ;" 
+PAINICD(DFN)
+       NEW ICD10,TMGTABLEARR,TMGTABLE SET ICD10="NOT ENTERED"
+       SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(DFN),"[PAIN MANAGEMENT]",.TMGTABLEARR)
+       IF $DATA(TMGTABLEARR) DO
+       . NEW ICDDATA SET ICDDATA=$$UP^XLFSTR($GET(TMGTABLEARR("KEY-VALUE","ICD-10 Treatment")))
+       . IF ICDDATA'="" SET ICD10=ICDDATA 
+       QUIT ICD10
+       ;"
 PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        ;"Purpose: Print report for patients due for UDS and Pain Contracts
        ;"Print heading
@@ -577,23 +594,24 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        . . NEW DFN SET DFN=0
        . . FOR  SET DFN=$ORDER(CSPTRESULT(DATE,DFN)) QUIT:DFN'>0  DO
        . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . NEW ICD10 SET ICD10="ICD-10: "_$$PAINICD(DFN)
        . . . SET Y=DATE DO DD^%DT
-       . . . WRITE "  - ",NAME,?40,Y,!
+       . . . WRITE "  - ",NAME,?30,Y,?55,ICD10,!
        . WRITE !,!
        ;"
        ;"Print CSDB patient due
-       WRITE "============= PATIENTS DUE FOR CSDB REVIEW  ============",!
-       IF +$G(CSDBRESULT(0))>0 DO
-       . NEW DATE SET DATE=0
-       . FOR  SET DATE=$ORDER(DUERESULT(DATE)) QUIT:DATE'>0  DO
-       . . NEW DFN SET DFN=0
-       . . FOR  SET DFN=$ORDER(DUERESULT(DATE,DFN)) QUIT:DFN'>0  DO
-       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-       . . . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
-       . . . SET Y=DOB DO DD^%DT SET DOB=Y
-       . . . NEW APPT SET Y=DATE DO DD^%DT SET APPT=Y
-       . . . WRITE "  - ",NAME," (",DOB,")",?40,APPT,!
-       . WRITE !
+       ;"WRITE "============= PATIENTS DUE FOR CSDB REVIEW  ============",!
+       ;"IF +$G(CSDBRESULT(0))>0 DO
+       ;". NEW DATE SET DATE=0
+       ;". FOR  SET DATE=$ORDER(DUERESULT(DATE)) QUIT:DATE'>0  DO
+       ;". . NEW DFN SET DFN=0
+       ;". . FOR  SET DFN=$ORDER(DUERESULT(DATE,DFN)) QUIT:DFN'>0  DO
+       ;". . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       ;". . . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+       ;". . . SET Y=DOB DO DD^%DT SET DOB=Y
+       ;". . . NEW APPT SET Y=DATE DO DD^%DT SET APPT=Y
+       ;". . . WRITE "  - ",NAME," (",DOB,")",?40,APPT,!
+       ;". WRITE !
        ;"
        ;"Print reminders due, if found in array
        IF REMRESULT(0)=0 GOTO PRTDN
@@ -606,8 +624,10 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        . . NEW DFN SET DFN=0
        . . FOR  SET DFN=$ORDER(REMRESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
        . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+       . . . SET Y=DOB DO DD^%DT SET DOB=Y
        . . . SET Y=DATE DO DD^%DT
-       . . . WRITE "  - ",NAME,?40,Y,!
+       . . . WRITE "  - ",NAME," (",DOB,")",?40,Y,!
        . . . IF REMIEN=272 DO
        . . . . NEW SCHEDULED SET SCHEDULED=$$MAMSCHED(DFN)
        . . . . IF SCHEDULED'="" WRITE "       ["_SCHEDULED,"]",!

@@ -31,6 +31,8 @@ LCSV2ARR(FULLPATHNAME,REF,OPTION) ;"LOAD CSV FILE TO ARRAY
   ;"       REF -- PASS BY NAME -- the NAME of the array to put output into
   ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE
   ;"          OPTION("DIV")=<divider character>  <-- default is ",".  E.g. of $CHAR(9) for tab-separate-values
+  ;"          OPTION("HANDLE BREAK IN QUOTES")=1 <-- If 1, then line break in quotes is converted to '/n'
+  ;"              This was to handle situation where one or more cell contained a line break.  Entire cell is enclosed in quotes
   ;"          OPTION("PROGFN")=<code to execute for a progress function>
   ;"               Variables avail for code:
   ;"                       IDX = index of current process line
@@ -51,6 +53,25 @@ LCSV2ARR(FULLPATHNAME,REF,OPTION) ;"LOAD CSV FILE TO ARRAY
   NEW IDX SET IDX=$ORDER(TMGDATA(""))
   IF IDX="" DO  GOTO LC2ADN
   . SET TMGRESULT="-1^No data found in file: '"_FULLPATHNAME_"'"
+  IF $GET(OPTION("HANDLE BREAK IN QUOTES"))=1 DO
+  . NEW TEMP MERGE TEMP=TMGDATA KILL TMGDATA
+  . SET IDX=0
+  . NEW INQT SET INQT=0  ;"INSIDE QUOTES
+  . NEW JDX SET JDX=""
+  . FOR  SET JDX=$ORDER(TEMP(JDX)) QUIT:JDX=""  DO
+  . . NEW LINE SET LINE=$GET(TEMP(JDX))
+  . . NEW DONE SET DONE=0
+  . . FOR  DO  QUIT:DONE
+  . . . IF (LINE'["""")&(INQT=0) SET DONE=1 QUIT
+  . . . NEW QTCOUNT SET QTCOUNT=$LENGTH(LINE,"""")-1
+  . . . IF (QTCOUNT#2=0) SET DONE=1,INQT=0 QUIT
+  . . . SET INQT=1
+  . . . SET NEXTJDX=$ORDER(TEMP(JDX))
+  . . . IF NEXTJDX="" SET DONE=1 QUIT
+  . . . SET JDX=NEXTJDX
+  . . . SET LINE=LINE_"/n"_$GET(TEMP(JDX))
+  . . SET IDX=IDX+1,TMGDATA(IDX)=LINE
+  . SET IDX=$ORDER(TMGDATA(""))
   NEW MAX SET MAX=+$ORDER(TMGDATA(""),-1)
   NEW LINE SET LINE=$GET(TMGDATA(IDX))
   NEW TEMP,CT SET CT=1
@@ -91,4 +112,15 @@ TEST1() ;
   NEW TMGRESULT
   SET TMGRESULT=$$LCSV2ARR(FULLPATHNAME,"DATA")
   IF $DATA(DATA) DO ZWRITE^TMGZWR("DATA")
-  QUIT 
+  QUIT
+  ;
+TEST2() ;
+  NEW DATA
+  NEW OPTION SET OPTION("MATCH","*.csv")=""
+  NEW FULLPATHNAME SET FULLPATHNAME=$$FBROWSE^TMGIOUT2(.OPTION)
+  NEW TMGRESULT
+  NEW OPTION SET OPTION("DIV")="^"
+  SET OPTION("HANDLE BREAK IN QUOTES")=1
+  SET TMGRESULT=$$LCSV2ARR(FULLPATHNAME,"DATA",.OPTION)
+  IF $DATA(DATA) DO ZWRITE^TMGZWR("DATA")
+  QUIT   

@@ -28,6 +28,7 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;9/4/17
   ;"$$PAD2POS(POS,CH) -- return a string that can be used to pad up to POS
   ;"$$SPLITLN(STR,LINEARRAY,WIDTH,SPECIALINDENT,INDENT,DIVSTR) -- Wrap by WIDTH to array
   ;"SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX) -- Slit into array, by DIVIDER
+  ;"ARR2STR(ARR,DIVIDER)  -- COMBINE ARRAY ELEMENTS INTO LONG STRING, OPPOSITE OF SPLIT2AR  
   ;"STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE) -- Take a long string and wrap it into formal WP format
   ;"WP2STR(PARRAY,DIVCH,MAXLEN,INITLINE) -- Takes a WP field, and concatenates into one long string.
   ;"WP2ARRAY(REF,OUTREF) -- Convert a Fileman WP array into a flat ARRAY
@@ -305,6 +306,13 @@ C2AL1  ;
 C2ADN  ;
   QUIT
   ;
+ARR2STR(ARR,DIVIDER)  ;"COMBINE ARRAY ELEMENTS INTO LONG STRING, OPPOSITE OF SPLIT2AR
+  NEW RESULT SET RESULT=""
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  . SET RESULT=RESULT_$GET(ARR(IDX))_DIVIDER
+  QUIT RESULT
+  ; 
 STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE)  ;
   ;"Purpose: to take a long string and wrap it into formal WP format
   ;"Input: STR:  the long string to wrap into the WP array (but not 0 based)

@@ -17,12 +17,13 @@ TMGHTM1 ;TMG/kst-HTML utilities ;7/14/17, 10/18/17
  ;"$$ISHTML(IEN8925) -- determine IF the text held in the REPORT TEXT field is HTML markup
  ;"$$ISHTMLAR(ARRAY) -- determine IF Array text is HTML markup
  ;"$$ISHTMREF(REFARRAY,ZN) -- determine IF @REFARRAY text is HTML markup 
- ;"$$HTMSPLIT(STR,LEN) -- Split HTML string in way that doesn't break tags
+ ;"REMHTML(LINESTR)  -- REMOVE {HTML...} TAGS
  ;"HTML2TXT(ARRAY) -- convert HTML --> text formatted array
  ;"TXT2HTML(ARRAY) -- convert text --> HTML formatted array
+ ;"HTML2TXS(LINESTR) -- text a string that is HTML formatted, and strips out tags
  ;"$$STRIPTAG(HTMLSTR)  --remove all tags from an HTML string (doesn't change special chars) 
  ;"$$SIGPICT(DUZ,DATE) -- Return HTML tag pointing to signiture image, or '' if none.
- ;"HTML2TXS(LINESTR) -- text a string that is HTML formatted, and strips out tags
+ ;"$$HTMSPLIT(STR,LEN) -- Split HTML string in way that doesn't break tags
  ;"$$HTMLTRIM(STR,FLAG,CHARS) -- Trim from HTML text
  ;"STRIPSCR(IEN8925)  --Strip out any <SCRIPT> .. </SCRIPT> from documents
  ;"RMTAGS(TEXT,TAG,FOUND) --REMOVE TAGS
@@ -30,6 +31,9 @@ TMGHTM1 ;TMG/kst-HTML utilities ;7/14/17, 10/18/17
  ;"RPTAGS(TEXT,TAG,NEWTAG,FOUND)  --REPLACE TAGS
  ;"MATCHTAG(HTMLSTR,ALLOWNESTING) --ENSURE MATCHING TAGS IN HTML STRING
  ;"PARSBYTG(HTMLSTR,OUT) --PARSE HTML STRING INTO ARRAY BY TAGS
+ ;"$$SYMENC(STR) -- replace reserved xml symbols with their encoding, replacement SYMENC^MXMLUTL() 
+ ;"$$REPLACE(STR,SRCHSTR,REPLSTR) -- search and replace in line
+ ;"$$HEX(NUM) -- numeric to ascii hex.  Supports only 0-FF  
  ;"---------------------------------------------------------------------------
  ;"PRIVATE FUNCTIONS
  ;"---------------------------------------------------------------------------
@@ -142,8 +146,7 @@ HTML2TXT(ARRAY,LISUB) ;
   NEW LINE SET LINE=0
   FOR  SET LINE=$ORDER(OUTARRAY(LINE)) QUIT:(LINE="")  DO
   . NEW LINESTR SET LINESTR=$GET(OUTARRAY(LINE,0))
-  . ;"SET LINESTR=$$REPLSTR^TMGSTUT3(LINESTR,"<VEFA>","{VEFA}")
-  . SET LINESTR=$$REPLACE(LINESTR,"<VEFA>","{VEFA}")
+  . SET LINESTR=$$REPLSTR^TMGSTUT3(LINESTR,"<VEFA>","{VEFA}")
   . FOR  QUIT:(LINESTR'["<")!(LINESTR'[">")  DO  ;" aaa<bbb>ccc  or aaa>bbb<ccc
   . . NEW S1,S2,S3
   . . SET S1=$PIECE(LINESTR,"<",1)
@@ -180,23 +183,26 @@ TXT2HTML(ARRAY,ZN) ;"Convert text ARRAY --> HTML formatted array
   ;"Results: none
   ;"Convert special characters
   SET ZN=+$GET(ZN)
-  NEW SPEC
-  SET SPEC("  ")="&nbsp;&nbsp;"  ;"//6/25/17 changed from 1 space to 2 spaces
-  ;" SET SPEC(" ")="&nbsp;"      ;"//6/25/17 replaced these with call to $$SYMENC^MXMLUTL
-  ;" SET SPEC("<")="&lt;"
-  ;" SET SPEC(">")="&gt;"
-  ;" SET SPEC("&")="&amp;"
-  ;" SET SPEC("""")="&quot;"
+  NEW SPEC SET SPEC("  ")="&nbsp;&nbsp;"  
   NEW LINE SET LINE=0
   FOR  SET LINE=$ORDER(ARRAY(LINE)) QUIT:(LINE="")  DO
   . NEW LINESTR 
   . IF ZN SET LINESTR=$GET(ARRAY(LINE,0))
   . ELSE  SET LINESTR=$GET(ARRAY(LINE))
-  . SET LINESTR=$$SYMENC^MXMLUTL(LINESTR)  ;"//ADDED 6/25/17
-  . SET LINESTR=$$REPLACE^XLFSTR(LINESTR,.SPEC)_"<BR>"
+  . SET LINESTR=$$TXS2HTML(LINESTR)
   . IF ZN SET ARRAY(LINE,0)=LINESTR
   . ELSE  SET ARRAY(LINE)=LINESTR
   QUIT        
+  ;
+TXS2HTML(LINESTR) ;"Convert text STRING --> HTML formatted STRING
+  ;"Note: This is not a comprehensive conversion.  Could be improved in future
+  ;"Input: LINESTR - <text>
+  ;"Results: converted LINESTR
+  ;"Convert special characters
+  SET LINESTR=$$SYMENC(LINESTR) 
+  NEW SPEC SET SPEC("  ")="&nbsp;&nbsp;"  ;
+  SET LINESTR=$$REPLACE^XLFSTR(LINESTR,.SPEC)
+  QUIT LINESTR
   ;
 HTML2TXS(LINESTR) ;
   ;"Purpose: text a string that is HTML formatted, and strips out tags
@@ -205,13 +211,16 @@ HTML2TXS(LINESTR) ;
   ;"NOTE: This conversion causes some loss of HTML tags, so a round trip
   ;"      conversion back to HTML would fail.
   ;"Strip out all tags (except <VEFA>)
-  ;"SET LINESTR=$$REPLSTR^TMGSTUT3(LINESTR,"<VEFA>","{VEFA}")
-  SET LINESTR=$$REPLACE(LINESTR,"<VEFA>","{VEFA}")
+  SET LINESTR=$$REPLSTR^TMGSTUT3(LINESTR,"<VEFA>","{VEFA}")
   FOR  QUIT:(LINESTR'["<")!(LINESTR'[">")  DO  ;" aaa<bbb>ccc  or aaa>bbb<ccc
   . NEW S1,S2,S3
   . SET S1=$PIECE(LINESTR,"<",1)
-  . IF S1[">" DO  QUIT
-  . . SET LINESTR=$PIECE(LINESTR,">",1)_"}"_$PIECE($PIECE(LINESTR,">",2,999),"<",1)_"{"_$PIECE(LINESTR,"<",2,999)
+  . IF S1[">" DO 
+  . . SET S1=$PIECE(S1,">",1)_"}"_$PIECE(S1,">",2,999)
+  . . SET LINESTR=$P(LINESTR,">",1)_"}"_$PIECE(LINESTR,">",2,999)
+  . ;"//kt 6/12/18 . ;"PREVIOUS LINE BELOW. 
+  . ;"//kt 6/12/18 . ;"IT CHANGES THE NEXT "<" TO "{" AND BROKE THE REMAINING TAGS
+  . ;"//kt 6/12/18 . ;"SET LINESTR=$PIECE(LINESTR,">",1)_"}"_$PIECE($PIECE(LINESTR,">",2,999),"<",1)_"{"_$PIECE(LINESTR,"<",2,999)
   . SET S2=$PIECE($PIECE(LINESTR,"<",2,999),">",1)
   . SET S3=$PIECE(LINESTR,">",2,999)
   . SET LINESTR=S1_S3
@@ -239,12 +248,12 @@ STRIPTAG(HTMLSTR)  ;"remove all tags from an HTML string (doesn't change special
   . SET TMGRESULT=TMGRESULT_$GET(ARR(IDX))
   QUIT TMGRESULT
   ;  
-REPLACE(LINE,MATCHSTR,SUBSTR) ;
-  ;"Purpose: wrapper for $$REPLACE^XLFSTR for simpler use
-  ;"Result: returns NEW string
-  NEW TMGSPEC SET TMGSPEC(MATCHSTR)=SUBSTR
-  QUIT $$REPLACE^XLFSTR(LINE,.TMGSPEC)
-  ;
+ ;"REPLACE(LINE,MATCHSTR,SUBSTR) ;
+ ;"  ;"Purpose: wrapper for $$REPLACE^XLFSTR for simpler use
+ ;"  ;"Result: returns NEW string
+ ;"  NEW TMGSPEC SET TMGSPEC(MATCHSTR)=SUBSTR
+ ;"  QUIT $$REPLACE^XLFSTR(LINE,.TMGSPEC)
+ ;"  ;
 SIGPICT(DUZ,DATE) ;
   ;"Purpose: Return HTML tag pointing to signiture image, or '' IF none.
   ;"Input: DUZ -- The user for whom to get sig image
@@ -545,5 +554,29 @@ PARSBYTG(HTMLSTR,OUT)  ;"PARSE HTML STRING INTO ARRAY BY TAGS
   . SET TEMP=$EXTRACT(TEMP,$LENGTH(STRA)+1,$LENGTH(TEMP))
   . SET OUT(CT)=STRA,OUT=CT
   QUIT  
+  ;
+SYMENC(STR)	; -- replace reserved xml symbols with their encoding.
+  ;"NOTE: This is a replacement for buggy SYMENC^MXMLUTL()  //kt 5/243/18
+  ;"      See discussion here: https://groups.google.com/forum/#!topic/hardhats/s2uKhnmVPcM  
+	S STR=$$REPLSTR^TMGSTUT3(STR,"&","&amp;")
+	S STR=$$REPLSTR^TMGSTUT3(STR,"<","&lt;")
+	S STR=$$REPLSTR^TMGSTUT3(STR,">","&gt;")
+	S STR=$$REPLSTR^TMGSTUT3(STR,"'","&apos;")
+	S STR=$$REPLSTR^TMGSTUT3(STR,"""","&quot;")
+	;
+  NEW IDX SET IDX=1
+  NEW LEN SET LEN=$LENGTH(STR)
+  FOR  QUIT:IDX>LEN  DO
+	. NEW A SET A=$A($E(STR,IDX))
+  . IF A<32 DO
+  . . SET STR=$E(STR,1,IDX-1)_"%"_$$HEX(A)_$E(STR,IDX+1,$L(STR))  ;"<-- encodes control chars as %## e.g. %0A
+  . . SET LEN=$LENGTH(STR)
+  . . SET IDX=IDX+2
+  . SET IDX=IDX+1
+  QUIT STR                                     
+  ;
+HEX(NUM) ;"supports only 0-FF  //kt added
+  N D S D="0123456789ABCDEF"
+  Q $E(D,NUM\16+1)_$E(D,NUM#16+1)
   ;
 

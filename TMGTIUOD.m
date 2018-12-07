@@ -116,7 +116,7 @@ PCRDN2 ;
   QUIT TMGRESULT
   ;
 RISKTBL(TMGDFN)
-  QUIT "Statin Tx Group = "_$$RISKGRP(TMGDFN)
+  QUIT "Target statin tx group = "_$$RISKGRP(TMGDFN)
   ;"
 RISKGRP(TMGDFN,AODT,TMGTEXT)  ;
   ;"Input: TMGDFN -- patient IEN

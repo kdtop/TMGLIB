@@ -1,4 +1,4 @@
-TMGGDFN  ;TMG/kst-Get A Patient's IEN (DFN) ;01/01/04; 7/31/15; 3/1/16
+TMGGDFN  ;TMG/kst-Get A Patient's IEN (DFN) ; 3/1/16, 6/7/18
    ;;1.0;TMG-LIB;**1**;06/04/08;Build 7
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -25,6 +25,7 @@ TMGGDFN  ;TMG/kst-Get A Patient's IEN (DFN) ;01/01/04; 7/31/15; 3/1/16
  ;"$$ADDNEWPAT(ENTRY)
  ;"$$LMH2DFN(LMHMRN) -- Return DFN from Laughlin hospital MR Num
  ;"$$EXTRLKUP(ENTRY,INTENSITY) ;
+ ;"FINDPAT(TMGRESULT,SEQNUM,NAME,DOB) -- Entry point for TMG CPRS FIND PATIENT DFN
  ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -632,3 +633,13 @@ ADDNEWPAT(ENTRY)        ;
   . SET TMGRESULT="-1^"_$PIECE(R1,"^",2)
   QUIT TMGRESULT
   ;
+FINDPAT(TMGRESULT,SEQNUM,NAME,DOB) ;"Entry point for TMG CPRS FIND PATIENT DFN
+  ;"Purpose: Get patient DFN (i.e. IEN)  
+  SET TMGRESULT=0
+  NEW ENTRY
+  SET ENTRY(.01)=$G(NAME)
+  SET ENTRY(.03)=$G(DOB)
+  SET ENTRY(22701)=$G(SEQNUM)
+  SET TMGRESULT=$$LOOKUPPAT(.ENTRY)  
+  QUIT
+  ;"

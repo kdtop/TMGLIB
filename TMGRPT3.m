@@ -58,10 +58,12 @@ PTINQ(DFN)  ;"Replacement for DGINQB^ORCXPND1 patient inquiry.
   ;"Add insurances
   NEW INSIDX,INSIEN,INSCOUNT SET (INSCOUNT,INSIDX)=0
   FOR  SET INSIDX=$ORDER(^DPT(DFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
-  . SET INSIEN=$GET(^DPT(DFN,.312,INSIDX,0))
+  . SET INSIEN=$P($GET(^DPT(DFN,.312,INSIDX,0)),"^",1)
   . NEW INSNAME SET INSNAME=$PIECE($GET(^DIC(36,INSIEN,0)),"^",1)
   . SET INSCOUNT=INSCOUNT+1
-  . WRITE "<TR><TD align=right><B>INSURANCE ",INSCOUNT,"<B></TD><TD>&nbsp;&nbsp;",INSNAME,"</TD></TR>",!
+  . NEW COB SET COB=+$P($G(^DPT(DFN,.312,INSIDX,0)),"^",20)
+  . IF COB'>0 SET COB="#"
+  . WRITE "<TR><TD align=right><B>INSURANCE ",COB,"<B></TD><TD>&nbsp;&nbsp;",INSNAME,"</TD></TR>",!
   IF INSCOUNT=0 DO
   . WRITE "<TR><TD align=right><B>INSURANCE<B></TD><TD>&nbsp;&nbsp;No insurances found</TD></TR>",!
   ;"Add next appointment
@@ -213,18 +215,21 @@ APPTRECS()  ;"
   SET EDT=$$TODAY^TMGDATE+0.999999
   DO APPT4DT^TMGSMS05(SDT,EDT,.APPTARRAY,1)
   ;"
-  NEW DT,DFN,LINE SET DT=0,LINE=1
-  FOR  SET DT=$ORDER(APPTARRAY("DT",DT)) QUIT:DT'>0  DO
+  NEW DATE,DFN,LINE SET DATE=0,LINE=1
+  FOR  SET DATE=$ORDER(APPTARRAY("DT",DATE)) QUIT:DATE'>0  DO
   . SET DFN=0
-  . FOR  SET DFN=$ORDER(APPTARRAY("DT",DT,DFN)) QUIT:DFN'>0  DO
+  . FOR  SET DFN=$ORDER(APPTARRAY("DT",DATE,DFN)) QUIT:DFN'>0  DO
   . . NEW REASON,STATUS,DOB
   . . KILL LINES
   . . SET LINE=1
   . . SET STATUS=""
-  . . SET REASON=$G(APPTARRAY(DT,DFN,"REASON"))
+  . . SET REASON=$G(APPTARRAY(DATE,DFN,"REASON"))
   . . IF REASON="FU ER" SET STATUS="NEED ER RECORDS"
   . . IF REASON="FU HOSP" SET STATUS="NEED HOSPITAL RECORDS"
   . . IF REASON="NEW PAT" SET STATUS="NEED PREVIOUS PHYSICIAN RECORDS"
+  . . NEW AGE K VADM SET AGE=+$$AGE^TIULO(DFN)
+  . . IF AGE<18 DO
+  . . . IF (REASON="PHYSICAL")!(REASON="1 YR CHECK")!(REASON="SPORTS PE")!(REASON="WELL CHILD")!(REASON="WELL CPE") SET STATUS="PRINT NEW VACCINE REPORT"
   . . IF STATUS'="" DO
   . . . SET LINES(LINE)=STATUS
   . . . SET LINE=LINE+1
@@ -240,7 +245,7 @@ APPTRECS()  ;"
   . . . WRITE "                                            (From TMGRPT1.m)",!!
   . . . SET HEADER=1
   . . SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(DFN,0)),"^",3))
-  . . WRITE "[ ] ",$G(APPTARRAY(DT,DFN,"NAME")),?28,"(",DOB,")",?45,$$EXTDATE^TMGDATE(DT),!
+  . . WRITE "[ ] ",$G(APPTARRAY(DATE,DFN,"NAME")),?28,"(",DOB,")",?45,$$EXTDATE^TMGDATE(DATE),!
   . . SET LINE=0
   . . FOR  SET LINE=$ORDER(LINES(LINE)) QUIT:LINE'>0  DO
   . . . WRITE "        -> ",$G(LINES(LINE)),!
@@ -285,12 +290,14 @@ GETDUE(idx) ;"
   . . set apptDate=$$TRIM^XLFSTR(line)
   . IF apptDate[" at " do
   . . SET apptDate=$p(apptDate," at ",1)_"@"_$p(apptDate," at ",2)
+  . SET apptDate=$$UP^XLFSTR(apptDate)
+  . IF apptDate["DAY" SET apptDate=$P(apptDate,"DAY ",2)
   . SET Y=$$FMDate^TMGFMUT(apptDate)
   ;". IF Y>0 do
   ;". . DO DD^%DT  ;"standardize date
   ;". ELSE  do
   ;". . SET Y=apptDate
+  IF found=0 SET Y=9999999  ;"DATE NOT FOUND, DON'T INCLUDE
   QUIT Y
   ;"
-GET
   

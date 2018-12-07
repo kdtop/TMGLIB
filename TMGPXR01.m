@@ -150,8 +150,10 @@ PAINMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         SET DATE=0
         NEW TMGMEDLIST,TMGMEDARRAY
         NEW DBTAG SET DBTAG="*CSM-DATABASE REVIEW"
-        ;"//kt 5/7/18 DO MEDLIST^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)
-        DO MEDARR^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)  ;"//kt 5/7/18
+        DO MEDLIST^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)
+        ;"ELH use old method for now, until Medication file is properly
+        ;"loaded with dates    5/22/18
+        ;"DO MEDARR^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)  ;"//kt 5/7/18
         IF $DATA(TMGMEDARRAY) DO
         . NEW DBDATE SET DBDATE=$GET(TMGMEDARRAY("KEY-VALUE",DBTAG))
         . SET DBDATE=$$TRIM^XLFSTR(DBDATE)  ;"//KT 5/7/18
@@ -281,10 +283,13 @@ BCDN
         ;"
 A1CISDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"Purpose: To detmine if the patient is a DM range A1C
+        ;"         Returns reason why now.
         SET TEST=0
         SET DATE=0
         NEW GLUCOSEHIGH SET GLUCOSEHIGH=200
         NEW A1CHIGH SET A1CHIGH="6.4"
+        NEW DAYCOUNT SET DAYCOUNT="-720"
+        NEW TMGWHY SET TMGWHY="[WHY]"
         NEW THRESHOLD,RESULTS,TESTRESULT
         DO GETVALS^TMGLRR01(TMGDFN_"^2",97,.RESULTS)             
         DO GETVALS^TMGLRR01(TMGDFN_"^2",175,.RESULTS)
@@ -292,12 +297,15 @@ A1CISDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         FOR  SET TESTNAME=$O(RESULTS(TESTNAME)) QUIT:+TESTNAME'>0  DO
         . IF TESTNAME["GLUCOSE" SET THRESHOLD=GLUCOSEHIGH
         . IF TESTNAME["A1C" SET THRESHOLD=A1CHIGH
-        . SET DATE=0
+        . SET DATE=$$ADDDAYS^TMGDATE(DAYCOUNT)
         . FOR  SET DATE=$O(RESULTS(TESTNAME,DATE)) QUIT:DATE'>0  DO
         . . SET TESTRESULT=+$G(RESULTS(TESTNAME,DATE))
-        . . IF TESTRESULT>THRESHOLD SET TEST=1,DATE=$$TODAY^TMGDATE
+        . . IF TESTRESULT>THRESHOLD DO
+        . . . SET TEST=1,DATE=$$TODAY^TMGDATE
+        . . . SET TMGWHY=TMGWHY_" "_$P(TESTNAME,"^",2)_" on "_$$EXTDATE^TMGDATE(DATE)_" was "_TESTRESULT_"."
 A1CDN
-        QUIT
+        IF TMGWHY="[WHY]" SET TMGWHY="[WHY] THIS CAN BE IGNORED. No A1C>"_A1CHIGH_" or glucose>"_GLUCOSEHIGH_" in last 2 years."
+        QUIT TMGWHY
         ;"
 GETIUIEN(NAME) ;
        ;"Return the IEN of the given note title
@@ -535,10 +543,29 @@ EKGDONE(DFN,TEST,DATE,DATA,TEXT)  ;do not use yet
         . . . SET DATE=Y
         QUIT
         ;"
-LASTEKG(DFN)    ;"
+LASTEKG2(DFN)  ;"  USED FOR TIU TABLE
+        NEW TMGRESULT,HFARRAY SET TMGRESULT="EKG = "
+        NEW EKGDATE SET EKGDATE=$$GETHFDT^TMGPXRU1(.DFN,"TMG EKG DONE",.HFARRAY)
+        NEW COUNT SET COUNT=0
+        NEW DATE SET DATE=9999999
+        FOR  SET DATE=$ORDER(HFARRAY(DATE),-1) QUIT:(DATE="")!(COUNT>2)  DO
+        . NEW Y
+        . SET Y=$E(DATE,4,5)_"/"_$E(DATE,6,7)_"/"_($E(DATE,1,3)+1700)
+        . IF TMGRESULT="EKG = " DO
+        . . SET TMGRESULT=TMGRESULT_Y
+        . ELSE  DO
+        . . SET TMGRESULT=TMGRESULT_", "_Y
+        . SET COUNT=COUNT+1
+        IF TMGRESULT'="EKG = " SET TMGRESULT=TMGRESULT_" (HF)"
+        NEW EKGSTUDIES SET EKGSTUDIES=$$LASTEKG(DFN)
+        IF EKGSTUDIES'="" SET TMGRESULT=TMGRESULT_$P(EKGSTUDIES,"EKG:",2)_" (STUDIES TABLE)"
+        QUIT TMGRESULT
+        ;"
+LASTEKG(DFN)    ;"  USED FOR REMINDER DIALOG
         NEW TMGRESULT SET TMGRESULT=""
-        NEW TMGTABLE,TMGTABLEARR
-        SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(DFN),"[STUDIES]",.TMGTABLEARR)
+        NEW TMGTABLE,TMGTABLEARR,OPTION
+        SET OPTION("HTML")=0
+        SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(DFN),"[STUDIES]",.TMGTABLEARR,.OPTION)
         IF $DATA(TMGTABLEARR) DO
         . NEW IDX SET IDX=0
         . FOR  SET IDX=$ORDER(TMGTABLEARR(IDX)) QUIT:IDX'>0  DO
@@ -759,6 +786,20 @@ PTHSCOPD(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . . SET TEST=1
         QUIT
         ;"
+PTHASTOP(TMGDFN,TOPICNAME)  ;"DOES THIS PATIENT HAS TOPIC
+        NEW TMGRESULT SET TMGRESULT=0
+        SET TOPICNAME=$$UP^XLFSTR(TOPICNAME)
+        NEW IEN22719 SET IEN22719=0
+        FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719)) QUIT:IEN22719'>0  DO
+        . NEW TOPICTEXT SET TOPICTEXT=""
+        . FOR  SET TOPICTEXT=$ORDER(^TMG(22719,IEN22719,2,"B",TOPICTEXT)) QUIT:TOPICTEXT=""  DO
+        . . NEW UPTOPIC SET UPTOPIC=$$UP^XLFSTR(TOPICTEXT)
+        . . IF UPTOPIC[TOPICNAME DO
+        . . . ;"SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
+        . . . ;"IF TOPICDATE>DATE SET DATE=TOPICDATE
+        . . . SET TMGRESULT=1
+        QUIT TMGRESULT
+        ;"
 PTASTHMA(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient has asthma
         ;"         Will search the TMG TIU
@@ -876,6 +917,22 @@ GETHFGRP(DFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by 
         . . SET TMGRESULTARR(9999999-DATE,HFIEN)=""
         QUIT
         ;"
+MCOGRSLT(DFN)  ;"
+        NEW TMGRESULT SET TMGRESULT="Mini Cog Results = "
+        NEW RESULTS,COUNT,MAX,HFTAG
+        SET COUNT=0,MAX=3
+        SET HFTAG(2318)="ABN",HFTAG(2347)="BRD",HFTAG(2317)="N"
+        DO GETHFGRP(DFN,2348,.RESULTS)
+        NEW DATE SET DATE=9999999
+        FOR  SET DATE=$O(RESULTS(DATE),-1) QUIT:(DATE'>0)!(COUNT>MAX)  DO
+        . NEW HFIEN SET HFIEN=$O(RESULTS(DATE,0))
+        . IF COUNT=0 DO
+        . . SET TMGRESULT=TMGRESULT_$$EXTDATE^TMGDATE(DATE)_" ("_$G(HFTAG(HFIEN))_")"
+        . ELSE  DO
+        . . SET TMGRESULT=TMGRESULT_", "_$$EXTDATE^TMGDATE(DATE)_" ("_$G(HFTAG(HFIEN))_")"
+        . SET COUNT=COUNT+1
+        QUIT TMGRESULT
+        ;"
 FLUREM(DFN,TEST,DATE,DATA,TEXT) ;"Return whether flu reminder should be active
         ;"Purpose: Determine whether a flu reminder should be active
         ;"Input: See discussion above for details.
@@ -928,10 +985,77 @@ HTNMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         SET DATE=0
         NEW X DO NOW^%DTC
         NEW TMGRESULT SET TMGRESULT=$$ONHTNTX^TMGC0QT4(TMGDFN,X)
+        IF TMGRESULT=0 DO   ;"If not on meds, check topics
+        . IF ($$PTHASTOP^TMGPXR01(TMGDFN,"HTN")=1)!($$PTHASTOP^TMGPXR01(TMGDFN,"HYPERTENSION")=1) DO
+        . . SET TMGRESULT=1
         IF TMGRESULT=1 DO
         . SET TEST=1
         . SET DATE=$$TODAY^TMGDATE
         QUIT
+        ;"
+HTNCTRL(TMGDFN)  ;"Determine 
+        NEW TMGRESULT SET TMGRESULT="ERROR DETERMINING CONTROL STATUS"
+        NEW GOAL,SGOAL,DGOAL
+        NEW BP,SBP,DBP
+        ;"
+        DO HTNGOAL(TMGDFN,.GOAL)
+        SET SGOAL=+$P($P(GOAL,"/",1),"<",2)
+        SET DGOAL=+$P(GOAL,"/",2)
+        ;"        
+        NEW LASTBP SET LASTBP=$$TREND^TMGGMRV1(TMGDFN,"T","BP",1,"")
+        SET SBP=+$P(LASTBP,"/",1),DBP=+$P(LASTBP,"/",2)
+        ;"
+        NEW MSG,SMSG,DMSG SET SMSG="",DMSG=""
+        IF SBP>SGOAL SET SMSG="SYS"
+        IF DBP>DGOAL SET DMSG="DIA"
+        ;"
+        IF (SMSG="")&(DMSG="") DO
+        . SET MSG="IN GOAL"
+        ELSE  DO
+        . NEW ABOVETEXT SET ABOVETEXT=""
+        . IF SMSG'="" SET ABOVETEXT=SMSG
+        . IF DMSG'="" DO
+        . . IF SMSG="" SET ABOVETEXT=DMSG
+        . . ELSE  SET ABOVETEXT=ABOVETEXT_" AND "_DMSG
+        . SET MSG="ABOVE GOAL ("_ABOVETEXT_" PRESSURE HIGH)"
+        SET TMGRESULT="BP Control Status: "_MSG
+        QUIT TMGRESULT
+        ;"
+HTNGOAL(TMGDFN,GOAL)  ;"Determine HTN Goal based on JNC8
+        ;"  TEST IS AS FOLLOWS:
+        ;"                      PATIENT
+        ;"                         |
+        ;"            ---------------------------
+        ;"           |                           |
+        ;"      No DM or CKD                 DM or CKD
+        ;"           |                           |
+        ;"   -----------------          ------------------
+        ;"  |                 |        |                  |
+        ;" >59 yrs old     <60 yrs    DM,no CKD      CKD, DM or no
+        ;"  |                 |        |                  |
+        ;" <150/90         <140/90   <140/90           <140/90
+        ;"   
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW WHY SET WHY=""
+        NEW DM,CKD,DATE
+        DO DMMEDS(TMGDFN,.DM,.TEST)
+        DO PTHASCKD(TMGDFN,.CKD,.TEST)
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        IF (DM=1)!(CKD=1) DO
+        . IF DM=1 SET WHY=WHY_"DM"
+        . ELSE  SET WHY=WHY_"No DM"
+        . IF CKD=1 SET WHY=WHY_", CKD"
+        . ELSE  SET WHY=WHY_", No CKD"
+        . SET GOAL="<140/90"
+        ELSE  DO
+        . SET WHY=WHY_"No DM, No CKD"
+        . IF AGE<60 DO
+        . . SET GOAL="<140/90"
+        . ELSE  DO
+        . . SET GOAL="<150/90"
+        SET WHY=WHY_", Age: "_AGE
+        SET TMGRESULT="Guideline BP Goal: "_GOAL_" (JNC8) ("_WHY_")"
+        QUIT TMGRESULT
         ;"
 LIPIDMED(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient is on lipid medication
@@ -1134,6 +1258,26 @@ CKDSTAGE(TMGDFN)  ;"Used by TMG CKD STAGE tiu object
         SET TMGRESULT=TMGRESULT_"(LAST EGFR="_LASTEGFR_" ON "_$$EXTDATE^TMGDATE(LASTDATE)_")"
 CKDDN   QUIT TMGRESULT
         ;"
+PTHASCKD(TMGDFN,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Determine if patient has CKD
+        ;"Input: DFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ; FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0
+        SET DATE=0
+        NEW CKD SET CKD=$$CKDSTAGE(+$G(TMGDFN))        
+        IF CKD'["NO CKD STAGE" DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"
 PATPICS(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return when the patient's last picture was
         ;"Input: DFN -- the patient IEN
@@ -1156,21 +1300,9 @@ PATPICS(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . SET DATE=THISDATE
         QUIT
         ;"
-;"P9COHORT(TMGDFN,TEST,DATE,DATA,TEXT)  ;
-;"        ;"Purpose: Cohort logic for PHQ-9
-;"        ;"Input: DFN -- the patient IEN
-;"        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
-;"        ;"               1=true, 0=false
-;"        ;"               Also an IN PARAMETER.  Any value for COMPUTED
-;"        ;FINDING PARAMETER will be passed in here.
-;"        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
-;"        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
-;"        ;"       TEXT -- Text to be display in the Clinical Maintenance
-;"        ;"Output.  Optional.
-;"        ;"Results: none
 P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
-       ;"Purpose: Return dates of patient's last eye exam -
-       ;"         multiple computed finding
+       ;"Purpose: Return true is patient is scheduled for physical
+       ;"         or 1 yr check for date provided
        ;"Input: DFN -- the patient IEN
        ;"       NGET -- the number of findings to search for
        ;"       BDT -- the beginning date and time for the finding search
@@ -1188,13 +1320,11 @@ P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
        ;"                   computed finding.)
        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
        ;"       TEXT -- Text to be display in the Clinical Maintenance
-        SET ^TMP("EDDIE","PHQ9","BDT")=$G(BDT)
-        SET ^TMP("EDDIE","PHQ9","EDT")=$G(EDT)
         ;"SET TEST=0,DATE=0,
         SET NFOUND=0
         NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
         IF AGE<18 QUIT
-        NEW APPTSTR SET APPTSTR="PHYSICAL^1 YR CHECK"
+        NEW APPTSTR SET APPTSTR="PHYSICAL^1 YR CHECK^WELL CPE"
         NEW APPTREASON,THISDATE,APPTDATE
         ;"SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY
         SET THISDATE=$P(EDT,".",1),APPTDATE=THISDATE
@@ -1229,5 +1359,32 @@ P9RESOLV(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Results: none
         SET TEST=0,DATE=0
         ;"HERE WE MAY WANT TO TEST FOR MENTAL HEALTH SCREENING NOTE TITLE
+        QUIT
+        ;"
+MCRESOLV(TMGDFN,TEST,DATE,DATA,TEXT)  ;
+        ;"Purpose: Resolution logic for mini cog reminder
+        ;"Input: DFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0,DATE=0
+        ;"HERE WE MAY WANT TO TEST FOR MEMORY SCREENING NOTE TITLE
+        QUIT
+        ;"
+NEGHPV(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
+        ;"PURPOSE: WILL BE TRUE IF THE PATIENT'S LAST HPV AND PAP 
+        ;"         ARE NEGATIVE. DATE WILL BE THE OLDER OF THE 2
+        SET TEST=0,DATE=0
+        DO GETVALS^TMGLRR01(TMGDFN_"^2",5182,.RESULTS)   ;Pap test thin prep
+        DO GETVALS^TMGLRR01(TMGDFN_"^2",5070,.RESULTS)   ;
+        NEW LABNAME SET LABNAME=""
+        FOR  SET LABNAME=$O(RESULTS(LABNAME)) QUIT:LABNAME=""  DO
+        
         QUIT
         ;"

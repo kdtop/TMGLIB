@@ -76,6 +76,7 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         SET GICODE=$GET(GICODE,"GETITEM")
         SET LABEL=$GET(LABEL,"<UNKNOWN>")
         NEW HEADERLN SET HEADERLN=$GET(OPTION("NO HEADER LINE"))'=1
+        NEW HTML SET HTML=+$GET(OPTION("HTML"))
         NEW ADDLF SET ADDLF=$GET(OPTION("NO LF"))'=1
         IF LABEL["[" SET LABEL=$PIECE(LABEL,"[",2),LABEL=$PIECE(LABEL,"]",1)
         NEW TABLEIEN SET TABLEIEN=$ORDER(^TMG(22708,"B",LABEL,0))
@@ -91,7 +92,9 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         NEW LN SET LN=+$ORDER(OUTARR("@"),-1)+1
         SET OUTARR(LN)=AHEADER
         SET RESULT=AHEADER
-        IF ADDLF SET RESULT=RESULT_$CHAR(13)_$CHAR(10)
+        IF ADDLF DO
+        . IF HTML SET RESULT=RESULT_"<BR>"
+        . SET RESULT=RESULT_$CHAR(13)_$CHAR(10)
         NEW MAXLEN SET MAXLEN=+$PIECE($GET(^TMG(22708,TABLEIEN,0)),"^",4)
         IF MAXLEN'>0 SET MAXLEN=9999
         NEW ORDER,IDX SET IDX=0
@@ -109,21 +112,32 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         . IF $$DISABLED(TABLEIEN,SUBIEN) QUIT
         . SET IDX=IDX+1,ORDER(IDX)=SUBIEN
         ;"Now get text for each line, in sequence specified by order array
+        NEW KILLARR DO LOADKILL^TMGTIUO6(.KILLARR,LABEL)  ;"Get list of items to REMOVE from table. 
         SET IDX=0 FOR  SET IDX=$ORDER(ORDER(IDX)) QUIT:IDX=""  DO
         . NEW SUBIEN SET SUBIEN=ORDER(IDX)
         . NEW TEMP,STR SET TEMP="S STR=$$"_GICODE_"(DFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR,.OPTION)"
+        . ;"NOTE: It is very complicated to figure out exactly when and where to ensure that 
+        . ;"      items destined to be show in an HTML page are properly encoded.
+        . ;"      So I am going to arbitrarily draw the line here.  
+        . ;"      IF HTML=1, then everything that comes back from XECUTE should ALREADY be 
+        . ;"      HTML symbol encoded, AND have a trailing <BR>
+        . ;"      This will likely break other things.  But at this point, I have a broken system,
+        . ;"      and am doing this to get it back going again.
         . XECUTE TEMP  ;"E.g. $$GETITEM(DFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR)
         . FOR  QUIT:(STR="")  DO
         . . SET LINEDATA=$PIECE(STR,$CHAR(13),1)
         . . SET STR=$PIECE(STR,$CHAR(13),2,999)
-        . . SET LINEDATA=$$TRIM^XLFSTR(LINEDATA)
-        . . IF LINEDATA'="" DO
-        . . . IF LABEL["MEDICATION" SET LINEDATA=$$CHKMED^TMGTIUOT(LINEDATA,AGE)
-        . . . IF +$G(OPTION("NO HEADER LINE"))=1 DO
-        . . . . SET RESULT=RESULT_" "_LINEDATA
-        . . . ELSE  DO
-        . . . . SET RESULT=RESULT_SPACES_LINEDATA
-        . . . IF ADDLF SET RESULT=RESULT_$CHAR(13)_$CHAR(10)
+        . . SET LINEDATA=$$TRIM^XLFSTR(LINEDATA) QUIT:LINEDATA=""
+        . . ;"IF LABEL["MEDICATION" SET LINEDATA=$$CHKMED^TMGTIUOT(LINEDATA,AGE,.OPTION)
+        . . IF +$G(OPTION("NO HEADER LINE"))=1 DO
+        . . . SET RESULT=RESULT_" "
+        . . ELSE  DO
+        . . . SET RESULT=RESULT_SPACES
+        . . ;"IF HTML SET LINEDATA=$$TXS2HTML^TMGHTM1(LINEDATA)_"<BR>"
+        . . ;"If the line item is set to be removed, don't add  8/7/18  ELH
+        . . IF $DATA(KILLARR),$$TOKILL^TMGTIUO6(LINEDATA,LABEL,.KILLARR)=1 QUIT  
+        . . SET RESULT=RESULT_LINEDATA        
+        . . IF ADDLF SET RESULT=RESULT_$CHAR(13)_$CHAR(10)
         NEW TERMINALSTR SET TERMINALSTR=$PIECE($GET(^TMG(22708,TABLEIEN,4)),"^",1)
         SET RESULT=RESULT_TERMINALSTR
         QUIT RESULT

@@ -41,8 +41,6 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"$$LinuxStr^TMGSTUTL(S) ;"Convert string to a valid linux filename
  ;"StrToWP^TMGSTUTL(s,pArray,width,DivCh,InitLine)  ;"wrap long string into a WP array
  ;"$$WPToStr^TMGSTUTL(pArray,DivCh,MaxLen,InitLine)
- ;"WP2ARRAY(REF,ARRAY) -- convert a Fileman WP array into a flat ARRAY
- ;"ARRAY2WP(ARRAY,REF) -- convert ARRAY to a Fileman WP array
  ;"Comp2Strs(s1,s2) -- compare two strings and assign an arbritrary score to their similarity
  ;"$$PosNum(s,[Num],LeadingSpace) -- return position of a number in a string
  ;"IsNumeric(s) -- deterimine if word s is a numeric
@@ -650,14 +648,6 @@ StrToWP(s,pArray,width,DivCh,InitLine)
         ;
 WPToStr(pArray,DivCh,MaxLen,InitLine)
         QUIT $$WP2STR^TMGSTUT2(.pArray,.DivCh,.MaxLen,.InitLine)
-        ;
-WP2ARRAY(REF,OUTREF) ;
-        DO WP2ARRAY^TMGSTUT2(.REF,.OUTREF) ;
-        QUIT
-        ;
-ARRAY2WP(REFARRAY,REF) ;
-        DO ARRAY2WP^TMGSTUT2(.REFARRAY,.REF)
-        QUIT
         ;
 Comp2Strs(s1,s2)
         ;"Purpose: To compare two strings and assign an arbritrary score to their similarity

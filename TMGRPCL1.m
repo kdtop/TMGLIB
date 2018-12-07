@@ -25,6 +25,96 @@ TMGRPCL1 ;TMG/kst/Lab RPC Call Routines ; 3/21/15
  ;
  ;"=======================================================================
  ;
+TEST ;
+  NEW DIR,DIC,X,Y,DFN,SDT,EDT,ARR
+  SET DIC=2,DIC(0)="MAEQ"
+  DO ^DIC WRITE !
+  IF Y'>0 QUIT
+  SET DFN=+Y
+  SET DIR(0)="D"
+  SET DIR("A")="Enter starting date"
+  DO ^DIR IF Y'>0 QUIT
+  SET SDT=+Y
+  SET DIR("A")="Enter ending date"
+  DO ^DIR WRITE !
+  IF Y'>0 QUIT
+  SET EDT=+Y\1+0.999999
+  DO GETLABS(.ARR,DFN,SDT,EDT)
+  IF $DATA(ARR) ZWR ARR
+  ELSE  WRITE !,"None found.",!
+  QUIT
+  ;   
+GETLDATS(OUT,DFN) ;"
+  ;"Purpose: Get an array of all dates a patient has lab results for
+  ;"OUT(IDX)=DATE 
+  NEW LABS,LDATE,CURDATE,IDX
+  SET LDATE=0,CURDATE=9999999,IDX=0
+  DO GETLABS^TMGLRR02(.LABS,.DFN,.SDT,.EDT,.OPTION)
+  FOR  SET CURDATE=$O(LABS("DT",CURDATE),-1) QUIT:CURDATE'>0  DO
+  . NEW THISDATE SET THISDATE=$P(CURDATE,".",1)
+  . IF THISDATE=CURDATE QUIT
+  . SET CURDATE=THISDATE
+  . SET OUT(IDX)=$$EXTDATE^TMGDATE(CURDATE)  
+  . SET IDX=IDX+1
+  QUIT
+  ;"
+FRMTDTS(INPUT,OUTPUT)
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$O(INPUT(IDX)) QUIT:IDX'>0  DO
+  . SET OUTPUT($$INTDATE^TMGDATE($G(INPUT(IDX))))=""
+  QUIT
+  ;"
+GETREPRT(OUT,DFN,ARRAY) ;"
+  ;"Purpose: take an array of dates (ARRAY) and format the data in HTML for
+  ;"         printing or viewing
+  NEW RESULTS,LABS
+  NEW DATEARR
+  DO FRMTDTS(.ARRAY,.DATEARR)
+  DO GETLABS^TMGLRR02(.LABS,.DFN,.SDT,.EDT,.OPTION)
+  NEW IDX SET IDX=2
+  
+  SET OUT(0)="<!DOCTYPE html>"
+  SET OUT(1)="<html><head><title>Page Title</title></head><body>"
+  ;"SET OUT(2)="<table BORDER=1>"
+  NEW DT SET DT=0
+  NEW STR
+  FOR  SET DT=$ORDER(LABS("DT",DT)) QUIT:(DT="")  DO
+  . NEW DAY SET DAY=$P(DT,".",1)
+  . IF '$D(DATEARR(DAY)) QUIT
+  . SET OUT(IDX)="<TABLE BORDER=1 WIDTH=""600"">",IDX=IDX+1
+  . SET OUT(IDX)="<CAPTION>"_$$EXTDATE^TMGDATE(DT)_"</CAPTION>",IDX=IDX+1
+  . SET OUT(IDX)=$$HEADER(),IDX=IDX+1
+  . NEW NODE SET NODE=""
+  . FOR  SET NODE=$ORDER(LABS("DT",DT,NODE)) QUIT:(NODE="")  DO
+  . . IF +NODE=NODE DO
+  . . . ;"SET STR="LAB^"_DT_"^"_NODE_"^"_$GET(LABS("DT",DT,NODE))
+  . . . NEW ROWHEAD 
+  . . . IF $P($GET(LABS("DT",DT,NODE)),"^",4)'="" DO
+  . . . . SET ROWHEAD="<TR bgcolor=""#FF0000"">"
+  . . . ELSE  DO
+  . . . . SET ROWHEAD="<TR>"
+  . . . SET STR=ROWHEAD_"<TD>"_$$U2CELL($GET(LABS("DT",DT,NODE)))_"</TD></TR>"
+  . . . SET OUT(IDX)=STR,IDX=IDX+1
+  . . ELSE  IF NODE="COMMENT" DO
+  . . . ;"NEW JDX SET JDX=0
+  . . . ;"FOR  SET JDX=$ORDER(LABS("DT",DT,"COMMENT",JDX)) QUIT:+JDX'>0  DO
+  . . . ;". SET STR="LAB^"_DT_"^COMMENT^"_JDX_"^"_$GET(LABS("DT",DT,"COMMENT",JDX))
+  . . . ;". SET OUT(IDX)=STR,IDX=IDX+1     
+  ;"SET OUT(3)=$G(ARRAY(1))
+  . SET OUT(IDX)="</td></tr></table>",IDX=IDX+1
+  SET OUT(IDX)="</body></html>" 
+  QUIT
+  ;"
+HEADER()
+  QUIT "<TH width=""50%"">LAB NAME</TH><TH width=""10%"">RESULT</TH><TH width=""10%"">UNITS</TH><TH width=""10%"">FLAG</TH><TH width=""10%"">REF LOW</TH><TH width=""10%"">REF HIGH</TH>"
+  ;"
+U2CELL(LINE) ;"CONVERT STRING WITH CAROT TO HTML TABLE CELL
+  NEW DONE SET DONE=0
+  FOR  QUIT:DONE=1  DO
+  . IF LINE'["^" SET DONE=1 QUIT
+  . SET LINE=$P(LINE,"^",1)_"</TD><TD>"_$P(LINE,"^",2,999)
+  QUIT LINE
+  ;"
 GETLABS(OUT,DFN,SDT,EDT,NCM,NTNX,NTFX,NNMX,NDT,NPNL) ;
   ;"Purpose: return formatted array containing patient's labs for specified date range. 
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:

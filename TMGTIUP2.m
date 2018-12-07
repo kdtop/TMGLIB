@@ -91,10 +91,12 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
         . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
         DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
-        DO SCRBESCR(.PROCESSEDARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
+        DO SCRUBESCRIBE(.PROCESSEDARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
         NEW TEMP SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION)  ;"Parse note array into formatted array
         IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
-        SET OPTION("BULLETS")=(+$GET(DUZ)'=83)  ;"<--- Eddie, please convert to use parameter.
+        ;" SET OPTION("BULLETS")=(+$GET(DUZ)'=83)  ;"<--- Eddie, please convert to use parameter.
+        ;"Once below is tested, above line can be removed
+        SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
         ;"------ Remove below later... 5/20/18
         ;"NEW ZZTMG SET ZZTMG=(+$GET(DUZ)=168)
         ;"SET ZZTMG=1  ;<--- REMOVE TO PUT DR DEE BACK TO PRIOR METHOD.  
@@ -122,6 +124,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         ;"             ITEMARRAY("TEXT",3,1)=part 1, e.g. text, e.g. [GROUP A&B]
         ;"                ITEMARRAY("TEXT",3,1)="[GROUP]"
         ;"                ITEMARRAY("TEXT",3,1,"GROUP")="A&B"
+        ;"                ITEMARRAY("TEXT",3,1,"GROUP","LIST","A&B")=""
         ;"             ITEMARRAY("TEXT",3,2)=part 2, e.g. name of inline table
         ;"                ITEMARRAY("TEXT",3,2)="[TABLE]"  <-- signal this part is a table. 
         ;"                ITEMARRAY("TEXT",3,2,"TABLE")=WT   <-- WT is name of table
@@ -139,6 +142,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         NEW TMGRESULT SET TMGRESULT="1^OK"
         ;        
         DO GTGRPORD(.TIUARRAY,.OPTION) ;"GET GROUP ORDER.  May set OPTION("GROUP-ORDER")  ;"//kt 5/1/18
+        IF $G(OPTION("GROUP-ORDER"))="" DO GTOLDORD(.TIUARRAY,.OPTION)
         ;
         ;"NOTE: I encountered situation where there were so many <FONT ..> tags, that
         ;"      the DOM processor (below) was blowing the stack. 
@@ -192,6 +196,8 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         DO RMTAGS^TMGHTM1(.TMGHPI,"--&nbsp;[FOLLOWUP&nbsp;ITEMS]&nbsp;---------")
         DO RMTAGS^TMGHTM1(.TMGHPI,"-- [FOLLOWUP ITEMS] ---------")
         DO RPTAGS^TMGHTM1(.TMGHPI,"<LI>  <P>","<LI> ")
+        DO RPTAGS^TMGHTM1(.TMGHPI,"[group ","[GROUP ")  ;"force group tags to be ucase 11/13/18
+        DO RPTAGS^TMGHTM1(.TMGHPI,"[Group ","[GROUP ")
         DO RMTAGS^TMGHTM1(.TMGHPI,"<I>")   ;"//kt should have been already removed via DOM processing
         DO RMTAGS^TMGHTM1(.TMGHPI,"<EM>")  ;"//kt should have been already removed via DOM processing
         DO RMTAGS^TMGHTM1(.TMGHPI,"</I>")  ;"//kt should have been already removed via DOM processing
@@ -204,7 +210,8 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         ;"          found rather than to give weight to ordered list items
         NEW DELIMITER SET DELIMITER=$$NEXTCH^TMGSTUT3(TMGHPI,0,"<LI>","*")
         ;"If the delimiter is *, then we will replace any <LI>'s to *
-        IF DELIMITER="*" SET TMGHPI=$$REPLACE^TMGHTM1(TMGHPI,"<LI>","*")
+        ;"IF DELIMITER="*" SET TMGHPI=$$REPLACE^TMGHTM1(TMGHPI,"<LI>","*")
+        IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<LI>","*")
         SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)                            
         NEW PREVFOUND SET PREVFOUND=0
         SET OPTION("GROUPING")=0
@@ -216,7 +223,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         . IF TITLE["ALLERGIES" QUIT
         . SET SECTION=$$TRIM^XLFSTR(SECTION)
         . DO RMTAGS^TMGHTM1(.SECTION,"</LI>")
-        . IF (SECTION="")!(SECTION="<P>")!(SECTION="<BR>")!(SECTION="<BR><BR>")!(SECTION="<BR></P>") DO
+        . IF ($$TRIMSECT(SECTION)="")!(SECTION="<P>")!(SECTION="<BR>")!(SECTION="<BR><BR>")!(SECTION="<BR></P>")!(SECTION="<U></U>:")!(SECTION=":") DO
         . . ;Skip section
         . ELSE  DO        
         . . SET SECTION=$$HTMLTRIM^TMGHTM1(SECTION,"LR")
@@ -230,6 +237,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         . . . NEW GRP SET GRP=""
         . . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
         . . . . SET ITEMARRAY("GROUP",GRP,IDX)=""
+        . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
         . . SET IDX=IDX+1
         . . IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
         . . IF $$UP^XLFSTR(SECTION)["[GROUP" SET OPTION("GROUPING")=1
@@ -239,6 +247,15 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         . SET IDX=IDX+1
 PRSDN   QUIT TMGRESULT
         ;
+TRIMSECT(SECTION) ;"This removes tags and trims to determine if section is
+                  ;"actually empty
+        NEW TRIMMED SET TRIMMED=SECTION
+        DO RMTAGS^TMGHTM1(.TRIMMED,"</B>") 
+        DO RMTAGS^TMGHTM1(.TRIMMED,"<B>")
+        DO RMTAGS^TMGHTM1(.TRIMMED,"<BR>")
+        SET TRIMMED=$$TRIM^XLFSTR(TRIMMED)
+        QUIT TRIMMED
+        ;"
 GTGRPORD(TIUARRAY,OPTION) ;"Get follow-up grouping order.  E.g. Follow up in 3 months for group C problems --> isolate "C"
         ;"Input: TIUARRAY -- PASS BY REFERENCE.  FORMAT:
         ;"          TIUARRAY(#)=<note text>  <-- array holds ENTIRE typical TMG note
@@ -262,6 +279,24 @@ GTGRPORD(TIUARRAY,OPTION) ;"Get follow-up grouping order.  E.g. Follow up in 3 m
         IF GROUPORDER'="" SET OPTION("GROUP-ORDER")=GROUPORDER
         QUIT
         ;
+GTOLDORD(TEXTARR,OPTION)  ;"TRY TO FIND OLDER FOLLOWUP GROUPING ORDER IF FIRST
+        ;"ATTEMPT FAILED
+        NEW IDX SET IDX=0
+        NEW GROUP SET GROUP=""
+        NEW DONE SET DONE=0
+        NEW INSIDE SET INSIDE=0
+        FOR  SET IDX=$O(TEXTARR(IDX)) QUIT:(IDX'>0)!(DONE=1)  DO
+        . NEW TEXT SET TEXT=$$UP^XLFSTR($G(TEXTARR(IDX)))
+        . IF INSIDE=1 DO
+        . . IF (TEXT["GROUP")&(TEXT["PROBLEM") DO
+        . . . SET GROUP=$$TRIM^XLFSTR($P($P(TEXT,"GROUP",2),"PROBLEM",1))
+        . . . IF GROUP'="" SET DONE=1
+        . IF TEXT["FOLLOW-UP INFORMATION FROM PRIOR NOTE" DO
+        . . SET INSIDE=1
+        . IF TEXT["CHIEF COMPLAINT" SET DONE=1
+        IF GROUP'="" SET OPTION("GROUP-ORDER")=GROUP
+        QUIT
+        ;"
   ;"Remove later  5/21/18      
   ;"COMPHPI0(ITEMARRAY,OPTION,OUT)  ;"EDDIE'S WORKING COMPILER OF HPI
   ;"        ;"Purpose: Reassemble ordered list, removing undesired sections
@@ -312,9 +347,10 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         ;"Input: ITEMARRAY -- PASS BY REFERENCE.  Format:
         ;"            ITEMARRAY(Ref#)=<Full section text>
         ;"            ITEMARRAY("TITLE",Ref#)=<SECTION TITLE>
-        ;"            ITEMARRAY("TEXT",Ref#)=Text of section without title.  
-        ;"            ITEMARRAY("TEXT",Ref#,...)=Text of section without title. 
+        ;"            ITEMARRAY("TEXT"... See PARSEARR() for format! 
         ;"            ITEMARRAY("GROUP",<GRP>,Ref#)=""  -- an index of items by group
+        ;"              e.g. ITEMARRAY("GROUP","C",Ref#)=""  -- an index of items by group
+        ;"            ITEMARRAY("GROUP",<GRP>,"COUNT")=number of items in group
         ;"       OPTION -PASS BY REFERENCE.  FORMAT:
         ;"          OPTION("AUTOGROUPING") = 
         ;"          OPTION("NUMOFGROUPS") =
@@ -324,6 +360,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         ;"                                or "A,B,C" This will output group A, then B, then C, and then non-grouped
         ;"                                or "C,B,A" This will output group C, then B, then A, and then non-grouped
         ;"                                or "C" This will output group C, then remaing groups in alphabetical order.                  
+        ;"                                or "" (or undefined), order should be as in prior note                  
         ;"       OUT -- PASS BY REFERENCE.  OPTIONAL.  Will get back formatted array with structured HPI.
         ;"           OUT(#)=<TEXT>
         ;"           OUT=<LINE COUNT>
@@ -336,13 +373,39 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         NEW GROUPORDER SET GROUPORDER=$GET(OPTION("GROUP-ORDER"))
         NEW TMGHPI SET TMGHPI=""
         IF GROUPING=1 SET AUTOGROUPING=0  ;"IF ALREADY GROUPING, DON'T ATTEMPT TO AUTOGROUP
-        ;
         NEW IDX,SECTIONCT SET SECTIONCT=0,IDX=0
         FOR  SET IDX=$ORDER(ITEMARRAY(IDX)) QUIT:IDX'>0  SET SECTIONCT=SECTIONCT+1
+        IF AUTOGROUPING>0 DO
+        . DO AUTOGRP(.ITEMARRAY,NUMOFGROUPS,SECTIONCT)
+        . SET GROUPING=1
+        IF DUZ=168 DO
+        . IF GROUPORDER'="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("Items arranged in Following Order:"_GROUPORDER_"<BR>","#e0ac11")
+        . IF GROUPING=1 DO
+        . . NEW UNGROUPED
+        . . SET UNGROUPED=$$GETNOGRP(.ITEMARRAY)
+        . . NEW GRPSTR,GRPNAME
+        . . SET GRPSTR="",GRPNAME=""
+        . . NEW GRPCOUNT,TOTALITEMS,AVERAGE
+        . . SET GRPCOUNT=0,TOTALITEMS=0
+        . . FOR  SET GRPNAME=$O(ITEMARRAY("GROUP",GRPNAME)) QUIT:GRPNAME=""  DO
+        . . . IF GRPSTR'="" DO 
+        . . . . SET GRPSTR=GRPSTR_", "
+        . . . SET GRPCOUNT=GRPCOUNT+1
+        . . . NEW THISCOUNT SET THISCOUNT=+$G(ITEMARRAY("GROUP",GRPNAME,"COUNT"))
+        . . . SET GRPSTR=GRPSTR_GRPNAME_"="_THISCOUNT
+        . . . SET TOTALITEMS=TOTALITEMS+THISCOUNT
+        . . SET TOTALITEMS=TOTALITEMS+UNGROUPED
+        . . IF (TOTALITEMS'>0)!(GRPCOUNT'>0) DO
+        . . . SET AVERAGE="ERROR CALCULATING"
+        . . ELSE  DO
+        . . . SET AVERAGE=(TOTALITEMS/GRPCOUNT)\1
+        . . IF UNGROUPED>0 SET GRPSTR=GRPSTR_", Ungrouped="_UNGROUPED_" (At top of note)"
+        . . SET GRPSTR="Grouping count: "_GRPSTR_" Avg per group: "_AVERAGE_"<BR>"
+        . . SET TMGHPI=TMGHPI_$$WRAPTEXT^TMGTIUOT(GRPSTR,"#e0ac11")        
+        ;"        
         NEW WARNING SET WARNING=(SECTIONCT>10)&'GROUPING      
         NEW DELIM DO SUDELIM(.DELIM) 
         ;
-        NEW TMGHPI SET TMGHPI=""
         IF (WARNING=1)&(GROUPING=0)&(+$GET(DUZ)'=83) DO
         . SET TMGHPI=TMGHPI_$$ADDSTR($$GRPNGSTR(SECTIONCT),.OUT)  
         IF BULLETS SET TMGHPI=TMGHPI_$$ADDSTR("<UL>",.OUT)  ;"//add to TMGHPI string and OUT array        
@@ -353,7 +416,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . NEW IDX SET IDX=$GET(SEQARR(CT))   
         . NEW TITLE SET TITLE=$GET(ITEMARRAY("TEXT",IDX))
         . NEW LINE SET LINE=DELIM(BULLETS,"START")_$$FORMATTL(TITLE)  ;"FORMAT TITLE
-        . IF AUTOGROUPING>0 SET LINE=LINE_$$GROUP(IDX,SECTIONCT,NUMOFGROUPS)_" "
+        . ;"IF AUTOGROUPING>0 SET LINE=LINE_$$GROUP(IDX,SECTIONCT,NUMOFGROUPS)_" "
         . NEW TEXTARR MERGE TEXTARR=ITEMARRAY("TEXT",IDX) 
         . NEW LASTSECT SET LASTSECT=""
         . NEW PART SET PART=0
@@ -378,13 +441,48 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         IF BULLETS SET TMGHPI=TMGHPI_$$ADDSTR("</UL>",.OUT)
         QUIT TMGHPI
         ;
+GETNOGRP(ITEMARRAY)  ;"FIND WHICH SECTIONS DON'T HAVE GROUPS
+        NEW TEST SET TEST=0
+        IF TEST=1 MERGE ^TMG("ITEMARRAY")=ITEMARRAY
+        ELSE  MERGE ITEMARRAY=^TMG("ITEMARRAY")
+        NEW RESULT SET RESULT=0
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$O(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
+        . IF '$D(ITEMARRAY("TEXT",IDX,"GROUPX")) SET RESULT=RESULT+1
+        QUIT RESULT
+        ;"
+AUTOGRP(ITEMARR,NUMOFGRPS,SECTIONCOUNT)  ;"AUTO GROUP TOPICS
+        NEW CT SET CT=0
+        NEW DELIM DO SUDELIM(.DELIM)
+        FOR  SET CT=$ORDER(ITEMARR(CT)) QUIT:CT'>0  DO
+        . NEW IDX SET IDX=CT  ;"$GET(ITEMARR(CT))
+        . NEW TITLE SET TITLE=$GET(ITEMARR("TEXT",IDX))
+        . NEW LINE SET LINE=DELIM(BULLETS,"START")_$$FORMATTL(TITLE) ;"FORMAT TITLE
+        . NEW GROUPLINE SET GROUPLINE=$$GROUP(IDX,SECTIONCOUNT,NUMOFGRPS)
+        . NEW GRP SET GRP=$P($P(GROUPLINE,"GROUP ",2),"]",1)
+        . SET LINE=LINE_GROUPLINE_" "
+        . ;"SET ITEMARR("TEXT",IDX,1)=GROUPLINE_$G(LINE,TITLE,2)
+        . NEW TEMPIDX SET TEMPIDX=$ORDER(ITEMARR("TEXT",IDX,""))-0.5
+        . SET ITEMARR("TEXT",IDX,TEMPIDX)="[GROUP]"
+        . SET ITEMARR("TEXT",IDX,TEMPIDX,"GROUP")=GRP
+        . SET ITEMARR("TEXT",IDX,TEMPIDX,"GROUP","LIST",GRP)=""
+        . SET ITEMARR("GROUP",GRP,IDX)=""
+        . SET ITEMARR("GROUP",GRP,"COUNT")=+$G(ITEMARR("GROUP",GRP,"COUNT"))+1  
+        . SET ITEMARR("TEXT",IDX,"GROUPX")=GRP
+        QUIT
+        ;"
 GETSEQAR(SEQARR,ITEMARRAY,GRPORDER)  ;"Get process sequencing order.
         ;"Output is SEQARR.  Format (SEQARR(#)=IDX order.  IDX is used as  ITEMARRAY("TITLE",IDX)
         NEW IDX
         SET GRPORDER=$$TRIM^XLFSTR($GET(GRPORDER))
+        ;"eddie adding 10/23/18
+        NEW BREAKLINE SET BREAKLINE=-1
+        IF GRPORDER="" SET GRPORDER=$$GETFIRST(.ITEMARRAY)
+        ELSE  DO ADDBREAK(.ITEMARRAY,.BREAKLINE)
         IF GRPORDER'="" DO
         . ;"Create a sequence array based on requested grouping order
-        . NEW USEDIDXARR,USEDGRPARR,GRP,LASTGRP,CT SET CT=0
+        . NEW USEDIDXARR,USEDGRPARR,GRP,LASTGRP,CT 
+        . SET CT=5  ;"WE WILL LEAVE 1-4 FOR UNGROUPED, counting in tenths 10/11/18
         . NEW GROUP
         . FOR PN=1:1:$LENGTH(GRPORDER,",") DO  ;"NOTE: GRPORDER may not mention all available group names
         . . SET GROUP=$$TRIM^XLFSTR($PIECE(GRPORDER,",",PN))
@@ -392,6 +490,8 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER)  ;"Get process sequencing order.
         . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR)  
         . ;"Now that . . we have requested groups, continue with other groups, starting after last used group
         . ;"E.g. if we had groups A,B,C,D in note, and requested group of B, then get next C, then D
+        . IF BREAKLINE>-1 DO
+        . . SET CT=CT+1,SEQARR(CT)=BREAKLINE,USEDIDXARR(BREAKLINE)=1
         . SET GROUP=LASTGRP
         . FOR  SET GROUP=$ORDER(ITEMARRAY("GROUP",GROUP)) QUIT:GROUP=""  DO
         . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR)  
@@ -401,9 +501,10 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER)  ;"Get process sequencing order.
         . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR)  
         . ;"Lastly, go through every item, which might include items NOT in ANY group, and add them
         . SET IDX=0
+        . SET CT=1
         . FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
         . . IF $GET(USEDIDXARR(IDX))>0 QUIT  ;"already used 
-        . . SET CT=CT+1,SEQARR(CT)=IDX        
+        . . SET CT=CT+.1,SEQARR(CT)=IDX        
         ELSE  DO
         . ;"Create a sequence array based on order of appearance in prior note. 
         . NEW CT SET CT=0
@@ -412,6 +513,22 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER)  ;"Get process sequencing order.
         . . SET CT=CT+1,SEQARR(CT)=IDX
         QUIT
         ;
+GETFIRST(ITEMARRAY)  ;"This function is used when no group is listed in the
+                     ;"order
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$O(ITEMARRAY(IDX)) QUIT:(IDX'>0)!(TMGRESULT'="")  DO
+        . NEW GROUP SET GROUP=$G(ITEMARRAY("TEXT",IDX,1,"GROUP"))
+        . IF (GROUP'="")&($L(GROUP)=1) SET TMGRESULT=GROUP
+        QUIT TMGRESULT
+        ;"
+ADDBREAK(ITEMARRAY,BREAKLINE)  ;"ADD A BREAK SECTION
+        SET BREAKLINE=999
+        SET BREAKLINE=$O(ITEMARRAY(BREAKLINE),-1)+1
+        SET ITEMARRAY(BREAKLINE)=$$NOTADDRE^TMGTIUOT
+        SET ITEMARRAY("TEXT",BREAKLINE)=$$NOTADDRE^TMGTIUOT
+        QUIT
+        ;"
 GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR)  ;
         SET GROUP=$GET(GROUP)
         IF $DATA(USEDGRPARR(GROUP)) QUIT
@@ -481,11 +598,42 @@ FORMATTL(TITLE)  ;"FORMAT TITLE
         ;
 FORMATTX(TEXT) ;"FORMAT BODY TEXT OF ONE SECION
         NEW TMGRESULT 
+        IF TEXT="" QUIT TEXT
+        SET TEXT=$$REMOLDDT(.TEXT)
         SET TMGRESULT="<I>"_TEXT_"</I>"_"... "
         IF DUZ'=83 SET TMGRESULT=TMGRESULT_$$TODAY^TMGDATE(1,1)_": "
         ;"SET TMGRESULT=$$ITALICS(TEXT)    ;"This will remove the italics and add one single
         QUIT TMGRESULT
         ;
+REMOLDDT(TEXT)  ;"REMOVE THE OLD DATES
+        SET TEXT=$G(TEXT)
+        NEW NEWTEXT
+        SET NEWTEXT=$$TRIM^XLFSTR(TEXT)
+        NEW LASTPIECE SET LASTPIECE=$$NUMPIECE(NEWTEXT," ")
+        ;"
+        NEW DONE
+        SET DONE=0
+        FOR  QUIT:DONE=1  DO
+        . NEW STR SET STR=$P(NEWTEXT," ",LASTPIECE)
+        . ;"
+        . IF STR="..." SET LASTPIECE=LASTPIECE-1 QUIT
+        . NEW ISDATE SET ISDATE=0
+        . IF STR[":" DO
+        . . SET STR=$P(STR,":",1),STR=$$INTDATE^TMGDATE(STR)
+        . . IF STR'="-1" SET ISDATE=1
+        . ;"
+        . IF ISDATE SET LASTPIECE=LASTPIECE-1 QUIT
+        . SET DONE=1
+        SET NEWTEXT=$PIECE(NEWTEXT," ",1,LASTPIECE)              
+        QUIT NEWTEXT
+        ;"
+NUMPIECE(STRING,DELIM)
+        NEW COUNT,DONE,CHAR,CHARNUM
+        SET (CHARNUM,DONE)=0,COUNT=1
+        FOR CHARNUM=1:1:$L(STRING)  DO
+        . IF $E(STRING,CHARNUM)=DELIM SET COUNT=COUNT+1
+        QUIT COUNT
+        ;"
 PRCSSTXT(TEXTARR,TABLES)  ;"Process, parse, clean text for one section for unmatching tags etc.
         ;"//As of 5/20/18, only called from SPLITTL^TMGTIUIP2() 
         ;"INPUT: TEXTARR -- PASS BY REFERENCE.  AN OUT PARAMETER.  FORMAT:
@@ -726,9 +874,9 @@ SCRNCLAS(DOCID,ERR) ;
        . . DO setAttribute^%zewdDOM("class",CLASS2,OID)
        QUIT
        ;
-SCRBESCR(ARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
+SCRUBESCRIBE(ARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
        ;"INPUT: ARR.  Expected format: ARR(#)=<line of text>
-       IF $$REPLARR^TMGMISC3("ARR","{E-Scribe}","[E-Scribe]") ;"ignore results
-       IF $$REPLARR^TMGMISC3("ARR","{/E-Scribe}","[/E-Scribe]") ;"ignore results
+       IF $$REPLARR^TMGSTUT3("ARR","{E-Scribe}","[E-Scribe]") ;"ignore results
+       IF $$REPLARR^TMGSTUT3("ARR","{/E-Scribe}","[/E-Scribe]") ;"ignore results
        QUIT
        ;

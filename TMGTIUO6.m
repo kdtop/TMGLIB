@@ -177,7 +177,7 @@ FIXABVW(ARR)  ;"Fix abreviations of medications in a word array
     . . NEW PREFIX SET PREFIX=$$TRIM^XLFSTR($EXTRACT(WORD,1,L-2))
     . . IF PREFIX="" SET ARR(IDX)="mg"
     . . ELSE  SET ARR(IDX)=PREFIX_" mg"
-    . IF UWORD="DAILY" SET ARR(IDX)="QDAY"
+    . ;"//kt 6/15/18IF UWORD="DAILY" SET ARR(IDX)="QDAY"
     QUIT
     ;"
     ;"//Delete later if no problems.  Removed 5/8/18
@@ -269,6 +269,36 @@ GT1 NEW RESULT SET RESULT=""
 GT1DONE ;
     QUIT RESULT
     ;
+LOADKILL(KILLARRAY,LABEL)  ;"
+    ;"Purpose: This routine will find all labels in the "LINE ITEMS TO REMOVE" field number 11
+    ;"Input: KILLARRAY("LINE TO REMOVE")=""  (Return array)
+    ;"       IEN - IEN of the table
+    NEW IDX SET IDX=0
+    IF LABEL["[" SET LABEL=$PIECE(LABEL,"[",2),LABEL=$PIECE(LABEL,"]",1)
+    NEW IEN SET IEN=+$ORDER(^TMG(22708,"B",LABEL,0))
+    FOR  SET IDX=$ORDER(^TMG(22708,IEN,2,IDX)) QUIT:IDX'>0  DO
+    . NEW KILLNAME SET KILLNAME=$$UP^XLFSTR($G(^TMG(22708,IEN,2,IDX,0)))
+    . SET KILLARRAY(KILLNAME)=""
+    QUIT
+    ;"
+TOKILL(LINE,LABEL,KILLARRAY)  ;
+    ;"Purpose: take the current line and determine if the line title is one
+    ;"         that should be killed
+    ;"Input: LINE - Line to check
+    ;"       LABEL - LABEL of current table
+    ;"       KILLARR -- OPTIONAL.  Used with repeat calls to spead execution
+    ;"Result: 0 to not kill, 1 to kill
+    NEW TMGRESULT SET TMGRESULT=0
+    NEW HEADER SET HEADER=""
+    FOR  SET HEADER=$ORDER(KILLARRAY(HEADER)) QUIT:HEADER=""  DO
+    . NEW LINEHEADER 
+    . IF LINE["=" SET LINEHEADER=$P(LINE,"=",1)
+    . ELSE  IF LINE[":" SET LINEHEADER=$P(LINE,":",1)
+    . ELSE  SET LINEHEADER=""
+    . SET LINEHEADER=$$UP^XLFSTR($$TRIM^XLFSTR(LINEHEADER))
+    . IF LINEHEADER=HEADER SET TMGRESULT=1
+    QUIT TMGRESULT
+    ;"
 GETTABLX(DFN,LABEL,ARRAY,OPTION) ;
     ;"Purpose: A call point for TIU objects, to return a table comprised from prior notes.
     ;"Input: DFN- the patient IEN
@@ -278,7 +308,10 @@ GETTABLX(DFN,LABEL,ARRAY,OPTION) ;
     ;"              OPTION("DT")=FMDT <-- if present, then table is to be returns AS OF given date
     ;"       OPTION("ALL NOTES")=0 or 1  <- Use all notes (as
     ;"                               opposed to only completed notes)
+    ;"            OPTION("DIRECT HTML INSERTION")=1  <-- Output should be ready to insert directly into HTML DOM
+    ;"                    Note: so far, only implemented with LABCMTBL
     ;"Note: If table label matches a Reminder Dialog type table, then handling shunted elsewhere.
+    ;"NOTE: This uses globally scoped variable (optional) TMGCPRSHTMLMODE
     ;"Result: outputs string of result, with CRLF's as needed for multiple lines
     NEW TMGTABLDEBUG SET TMGTABLDEBUG=0
     IF TMGTABLDEBUG DO
@@ -292,6 +325,7 @@ GETTABLX(DFN,LABEL,ARRAY,OPTION) ;
     . SET ^TMG("TMP","RPC","GETTABLX","DFN")=DFN
     . MERGE ^TMG("TMP","RPC","GETTABLX","OPTION")=OPTION
     NEW RESULT SET RESULT=""
+    IF '$DATA(OPTION("HTML")) SET OPTION("HTML")=$GET(TMGCPRSHTMLMODE,1) ;"<-- This will be set by a RPC called from CPRS during mode setting.      
     NEW IRDLG SET IRDLG=$$ISREMDLG(LABEL) 
     IF IRDLG SET RESULT=$$RMDGTABL^TMGPXR02(DFN,LABEL,,.ARRAY,.OPTION) GOTO GTXDONE
     NEW ILCMT SET ILCMT=$$ISLABCMT(LABEL)

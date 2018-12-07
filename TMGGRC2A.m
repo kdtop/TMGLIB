@@ -96,7 +96,8 @@ ADDSECT(LABEL,MODULES,ROOT,GENDER)	       ;
 GETLCOLOR()	
 	             ;"Return line color
 	             NEW TMGRESULT SET TMGRESULT="red"  ;"Default line color
-	             NEW COLOR SET COLOR=$PIECE($GET(^TMG(22700001,1,2)),"^",1)
+	             ;"NEW COLOR SET COLOR=$PIECE($GET(^TMG(22700001,1,2)),"^",1)
+                     NEW COLOR SET COLOR=$PIECE($GET(^TMG(22738,1,2)),"^",1)
 	             IF COLOR'="" SET TMGRESULT=COLOR
 	             QUIT TMGRESULT
 	             ;
@@ -111,7 +112,8 @@ GETCOLOR(GENDER)
 	             ELSE  DO
 	             . SET PIECE=2
 	             . SET TMGRESULT="#87CEEB"  ;"Default blue
-	             SET COLOR=$PIECE($GET(^TMG(22700001,1,2)),"^",PIECE)
+	             ;"SET COLOR=$PIECE($GET(^TMG(22700001,1,2)),"^",PIECE)
+                     SET COLOR=$PIECE($GET(^TMG(22738,1,2)),"^",PIECE)
 	             IF COLOR'="" SET TMGRESULT=COLOR
 GCDN	         QUIT TMGRESULT
 	             ;
