@@ -62,6 +62,7 @@ LISTALL(TMGOUT,FROM,DIR)        ;" Return a bolus of lab names.  (RPC CALL)
         . NEW IEN SET IEN=0
         . FOR  SET IEN=$ORDER(IDXARR(ENTRY,IEN)) QUIT:(IEN'>0)!(IDX>CNT)  DO
         . . NEW NAMEANDSTORE SET NAMEANDSTORE=$GET(IDXARR(ENTRY,IEN))  ;"this is 2 pieces
+        . . IF $O(^LAB(60,IEN,2,0))>1 SET $P(NAMEANDSTORE,"^",2)=""
         . . SET IDX=IDX+1,TMGOUT(IDX)=IEN_"^"_ENTRY_"^"_NAMEANDSTORE
         QUIT
         ; 

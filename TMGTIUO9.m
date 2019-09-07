@@ -71,19 +71,22 @@ TEST2 ;
   IF +Y>0 WRITE $$GETAPPTS(+Y)
   QUIT
   ;
-GETAPPTS(TMGDFN,ASOFDT) ;"Return information about upcoming appts.
+GETAPPTS(TMGDFN,ASOFDT,SUPPRESS) ;"Return information about upcoming appts.
   ;"ENTRY POINT for TIU TEXT OBJECT
   ;"NOTE: This only pulls from custom file TMG SCHEDULE, not the standard
   ;"      VistA schedule file(s)
   ;"Input: TMGDFN -- the patient to pull
   ;"       ASOFDT -- OPTIONAL.  If null, then NOW is used.  This is the date
   ;"               to get upcoming appts relative to.
+  ;"       SUPPRESS -- OPTIONAL. If set to 1, blank is returned instead of
+  ;"               None found...
   ;"Result: returns a string with appt info.
   SET TMGDFN=+$GET(TMGDFN)
   NEW TMGRESULT SET TMGRESULT=""
   NEW CRLF SET CRLF=$CHAR(32,10)
   NEW INDENT SET INDENT=" "
   SET ASOFDT=+$GET(ASOFDT)
+  SET SUPPRESS=+$GET(SUPPRESS)
   IF ASOFDT'>0 DO
   . SET ASOFDT=$$NOW^XLFDT
   . NEW X1,X2
@@ -107,7 +110,9 @@ GETAPPTS(TMGDFN,ASOFDT) ;"Return information about upcoming appts.
   . NEW COMMENT SET COMMENT=$PIECE(STR,"^",6) SET:COMMENT'="" COMMENT="'"_COMMENT_"' "
   . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_CRLF
   . SET TMGRESULT=TMGRESULT_INDENT_EDATE_MIN_REASON_PROV_COMMENT
+  IF (TMGRESULT="")&(SUPPRESS=1) QUIT TMGRESULT  ;"6/18/19
   IF TMGRESULT="" SET TMGRESULT=INDENT_"(None found)"
   SET TMGRESULT="Upcoming appointment info:"_CRLF_TMGRESULT
   QUIT TMGRESULT
   ;
+  

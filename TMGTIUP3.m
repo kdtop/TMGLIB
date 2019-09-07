@@ -180,7 +180,9 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         . . . . . SET TERMCHARS=$PIECE($GET(^TMG(22708,IEN,4)),"^",1)
         . . . . . SET INPARTA=$PIECE(LINE,ATABLE,1)
         . . . . . IF LINE[TERMCHARS DO
-        . . . . . . SET INPARTB=$PIECE(LINE,TERMCHARS,2)
+        . . . . . . ;" Old method, didn't account for 2 possible inline tables in one line -> SET INPARTB=$PIECE(LINE,TERMCHARS,2)
+        . . . . . . SET INPARTB=$E(LINE,$L(INPARTA),$L(LINE)) ;"GET REST OF LINE HERE 
+        . . . . . . SET INPARTB=$PIECE(INPARTB,TERMCHARS,2,999)
         . . . . . . NEW TABLESTR SET TABLESTR=$$GETTABLX^TMGTIUO6(TMGDFN,ATABLE)
         . . . . . . SET TABLESTR=$$SYMENC^MXMLUTL(TABLESTR) 
         . . . . . . SET LINE=INPARTA_TABLESTR_INPARTB 
@@ -303,8 +305,13 @@ GTL1    ;"Below are tables that will NOT be refreshed during PROCESS
         . SET LBL="" FOR  SET LBL=$ORDER(TABLES(LBL)) QUIT:LBL=""  SET IDX=IDX+1,TEMPARR(IDX)=LBL
         . DO TXT2HTML^TMGHTM1(.TEMPARR) 
         . SET IDX=0 FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX'>0  DO
-        . . NEW ENCODEDLBL SET ENCODEDLBL=$GET(TEMPARR(IDX))
-        . . SET TABLES(ENCODEDLBL)=ENCODEDLBL
+        . . ;"NEW ENCODEDLBL SET ENCODEDLBL=$GET(TEMPARR(IDX))
+        . . ;"SET TABLES(ENCODEDLBL)=ENCODEDLBL
+        . . ;"original lines above. the array wasn't being encoded with HTML
+        . . NEW LABEL SET LABEL=$G(TEMPARR(IDX))
+        . . NEW ENCODEDLBL SET ENCODEDLBL=$$REPLSTR^TMGSTUT3(LABEL," ","&nbsp;")
+        . . SET TABLES(ENCODEDLBL)=LABEL
+        . . SET TABLES(LABEL)=LABEL
         . ;"//KT 5/23/18  There was situation where LBL="[WT]", and subtracting 4 from length left "", which prevented cycling with $O and idx'=""
         . ;" NEW TEMPARR,TEMPARR2,LBL,IDX SET IDX=0
         . ;" SET LBL="" FOR  SET LBL=$ORDER(TABLES(LBL)) QUIT:LBL=""  SET IDX=IDX+1,TEMPARR(IDX)=LBL

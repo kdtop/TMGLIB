@@ -1,4 +1,4 @@
-TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ;3/7/18, 5/22/18
+TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ;3/7/18, 5/22/18, 4/26/19
               ;;1.0;TMG-LIB;**1**;7/21/13
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS UTILITY
@@ -93,8 +93,15 @@ LOADHL7(FNAME,ARRAY,MSH) ;"LOAD FILE INTO ARRAY
         ;"       MSH   -- PASS BY REFERENCE, AN OUT PARAMETER.  Filled with MSH segment
         ;"Result: 1 if OK, or -1^Error Message
         NEW TMGRESULT,OPTION
-        SET OPTION("LINE-TERM")=$CHAR(13)  ;"NOTE: HL7 messages have just #13 as line terminator.    
+        SET OPTION("LINE-TERM")=$CHAR(13)  ;"NOTE: HL7 messages have just #13 as line terminator. 
+        SET OPTION("OVERFLOW")=1 ;"Overflow portion is concat'd to the orig line (making length>255)
         SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)
+        IF $$LISTCT^TMGMISC2("ARRAY")=1 DO
+        . SET LINE=$GET(ARRAY(1)) QUIT:(LINE="")!($EXTRACT(LINE,1,3)'="MSH")
+        . NEW DIVCH SET DIVCH=$EXTRACT(LINE,4)
+        . IF LINE'["PID"_DIVCH QUIT
+        . KILL OPTION("LINE-TERM")  ;"NOTE: Try again without special line divider    
+        . SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)
         NEW LINENUM SET LINENUM=$ORDER(ARRAY(0))
         SET MSH=$GET(ARRAY(LINENUM)) 
         NEW BOM SET BOM=$CHAR(239)_$CHAR(187)_$CHAR(191)
@@ -130,7 +137,11 @@ MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 
         NEW TMGRESULT SET TMGRESULT=0
         SET MSH=$GET(MSH) IF MSH="" DO  GOTO M7MADN 
         . SET TMGRESULT="-1^A valid MSH segment not presented to MKHLMARR^TMGHL73"
-        NEW INFO SET TMGRESULT=$$MSH2IENA(MSH,.INFO) ;"MSH HEADER TO IEN INFO ARRAY
+        NEW INFO SET TMGRESULT=$$MSH2IENA(.MSH,.INFO) ;"MSH HEADER TO IEN INFO ARRAY.  May modify MSH
+        NEW IDX SET IDX=$ORDER(MSGARRAY(""))
+        NEW LINE1 SET LINE1=$GET(MSGARRAY(IDX))
+        IF $EXTRACT(LINE1,1,3)="MSH",LINE1'=MSH DO
+        . SET MSGARRAY(IDX)=MSH
         IF TMGRESULT'>0 GOTO M7MADN
         NEW NOW SET NOW=$$FMTE^XLFDT($$NOW^XLFDT,"5")
         NEW MSGID SET MSGID=$TRANSLATE($H,",","")
@@ -198,24 +209,48 @@ MKHLMAR2(MSGARRAY,IEN772,IEN773)  ;"Take input message array, and create a NEW H
         NEW ARR MERGE ARR=MSGARRAY KILL ARR(IDX)
         SET TMGRESULT=$$MKHLMARR(.ARR,MSH,.IEN772,.IEN773)  ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 1 each in 772, 773)
         QUIT TMGRESULT
-        ;        
+        ;   
+XFRMFACILITY(FACILITY) ;"
+        ;"Purpose: transform sending facility before any processing is done.
+        ;"NOTE: With Epic, I have started getting messages from hospital all through
+        ;"     the network.  I think all messages will use same code names etc,
+        ;"     so I will map them all to a generic hospital name.
+        ;"Input: FACILITY -- an IN AND OUT PARAMETER
+        ;"RESULT: 1 if modified, 0 if no change.  
+        NEW RESULT SET RESULT=0
+        IF (FACILITY="GCHW")!(FACILITY="BRMC")!(FACILITY="BHMA") DO
+        . SET FACILITY="BALLADNETWORK"
+        . SET RESULT=1
+        QUIT RESULT
+        ;
 MSH2IENA(MSH,INFO) ;"MSH HEADER TO IEN INFO ARRAY
         ;"Input: MSH -- string containing the MSH segment
         ;"       INFO -- PASS BY REFERENCE.  AN OUT PARAMETER.  
         ;"Output: INFO filled.  Format:
+        ;"           INFO("IEN62.4")=IEN62D4
+        ;"           INFO("IEN62.4","NAME")=name
+        ;"           INFO("IEN68.2")=IEN68D2
+        ;"           INFO("IEN68.2","NAME")=name
         ;"           INFO("IEN771")=IEN IN 771 (HL7 APPLICATION PARAMETER). e.g. 186
         ;"           INFO("IEN771","NAME")=Name.  e.g. 'LA7V HOST LMH'
         ;"           INFO("IEN771.2")=IEN IN 771.2 (HL7 MESSAGE TYPE)  e.g. 3
         ;"           INFO("IEN771.2","NAME")=Name.  e.g. 'ORU'
+        ;"           INFO("IEN771.5")=+Y
+        ;"           INFO("IEN771.5","NAME")=name        
         ;"           INFO("IEN779.001")=IEN IN 779.001 (HL7 EVENT TYPE CODE.  e.g. 46
         ;"           INFO("IEN779.001","NAME")=Name.  e.g. 'R01'
         ;"           INFO("IEN101")=IEN101 (PROTOCOL) file  e.g. 4269
         ;"           INFO("IEN101","NAME")=Name.  e.g. 'LA7V Receive Results from LMH'
+        ;"           INFO("PREFIX")=PREFIX
+        ;"           INFO("IEN22720")=IEN22720
+        ;"           INFO("IEN22720","NAME")=name
         ;"Result: 1^OK, or -1^Error Message
         ;
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW TMGU DO SUTMGU^TMGHL7X2(.TMGU,$EXTRACT(MSH,4),$EXTRACT(MSH,5,8))
         NEW FACILITY SET FACILITY=$PIECE(MSH,TMGU(1),4)
+        IF $$XFRMFACILITY(.FACILITY) DO
+        . SET $PIECE(MSH,TMGU(1),4)=FACILITY
         NEW X,Y,DIC,D SET DIC=771,DIC(0)="",D="TMGFACILITY",X=FACILITY  ;"Setup search on just custom XRef TMGFACILITY in file 771
         DO IX^DIC KILL D 
         IF +Y'>0 DO  GOTO MH2ADN
@@ -261,6 +296,7 @@ MSH2IENA(MSH,INFO) ;"MSH HEADER TO IEN INFO ARRAY
         SET INFO("IEN101","NAME")=$PIECE($GET(^ORD(101,IEN101,0)),"^",1)
         ;
         NEW IEN62D4 SET IEN62D4=$ORDER(^LAB(62.4,"ATMGPROTOCOL",IEN101,0))
+        IF IEN62D4'>0 SET IEN62D4=$ORDER(^LAB(62.4,"ATMGPROTOCOL2",IEN101,0))
         IF IEN62D4'>0 DO  GOTO MH2ADN
         . SET TMGRESULT="-1^Can't find an AUTO INSTRUMENT (file #62.4) record with a "
         . SET TMGRESULT=TMGRESULT_"field TMG LINKED PROTOCOL (#22702) matching IEN '"_IEN101_"' in cross reference ATMGPROTOCOL."
@@ -371,16 +407,30 @@ SAVEMSG(TMGTESTMSG) ;
         ;"Purpose: To save currently loaded HL7 Message to a HFS file
         NEW FPATH,FNAME
         IF $$GETFNAME^TMGIOUTL("Please Select Filename for Write HL7 Message","/tmp/","","/",.FPATH,.FNAME)="" QUIT
-        MERGE ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG")=TMGTESTMSG
-        WRITE "File WRITE "
-        IF $$GTF^%ZISH($NAME(^TMG("TMP","TMGHL71",$J,"TMGTESTMSG",1)),5,FPATH,FNAME)=1 DO
-        . WRITE "succeeded.",!
-        ELSE  DO
-        . WRITE "failed.",!
+        NEW TMGRESULT SET TMGRESULT=$$SAVEMSGACTUAL(FPATH,FNAME,.TMGTESTMSG)
+        WRITE "File WRITE ",$SELECT(TMGRESULT=1:"succeeded",1:"FAILED"),"."
+        ;"KILL ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG") 
+        ;"MERGE ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG")=TMGTESTMSG
+        ;"WRITE "File WRITE "
+        ;"IF $$GTF^%ZISH($NAME(^TMG("TMP","TMGHL71",$J,"TMGTESTMSG",1)),5,FPATH,FNAME)=1 DO
+        ;". WRITE "succeeded.",!
+        ;"ELSE  DO
+        ;". WRITE "failed.",!
         DO PRESS2GO^TMGUSRI2
-SMGDN        KILL ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG")
+SMGDN   ;"KILL ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG")
         QUIT
-        ;        
+        ;   
+SAVEMSGACTUAL(FPATH,FNAME,MSG) ;
+        KILL ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG") 
+        MERGE ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG")=MSG
+        NEW TMGRESULT
+        IF $$GTF^%ZISH($NAME(^TMG("TMP","TMGHL71",$J,"TMGTESTMSG",1)),5,FPATH,FNAME)=1 DO
+        . SET TMGRESULT=1
+        ELSE  DO
+        . SET TMGRESULT="-1^HFS write failed"
+        KILL ^TMG("TMP","TMGHL71",$J,"TMGTESTMSG")
+        QUIT TMGRESULT
+        ;
 SAVMSGFM(TMGTESTMSG,IEN772,IEN773) ;"Save Currently loaded HL7 message to files 772/773
         ;"Purpose: Save currently loaded HL7 Message to a Fileman HL7 MESSAGE ... file
         ;"TO-DO MOVE TO TMGHL7US

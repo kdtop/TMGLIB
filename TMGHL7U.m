@@ -83,13 +83,14 @@ SU2     KILL TMGENV
         NEW SEGNAME SET SEGNAME=$EXTRACT(SEG,1,3)
         IF SEGNAME'="MSH" SET TMGRESULT="-1^'MSH' not found on first line.  Got: '"_SEG_"'"
         IF TMGRESULT<0 GOTO SUEDN
-        NEW FS SET FS=$EXTRACT(SEG,4)
-        NEW ECH SET ECH=$PIECE(SEG,FS,2)
+        NEW MSH SET MSH=SEG
+        NEW FS SET FS=$EXTRACT(MSH,4)
+        NEW ECH SET ECH=$PIECE(MSH,FS,2)
         NEW TMGU DO SUTMGU^TMGHL7X2(.TMGU,FS,ECH) MERGE TMGENV("TMGU")=TMGU
         ;
-        SET HL7INST=$PIECE($PIECE(SEG,FS,4),TMGU(2),1)
-        SET HL7APP=$PIECE($PIECE(SEG,FS,3),TMGU(2),1)
-SU3     SET IEN22720=$$GETCFG^TMGHL70(HL7INST,HL7APP)
+        ;"SET HL7INST=$PIECE($PIECE(MSH,FS,4),TMGU(2),1)
+        ;"SET HL7APP=$PIECE($PIECE(MSH,FS,3),TMGU(2),1)
+SU3     SET IEN22720=$$GETCFG2^TMGHL70(MSH,.TMGU,.HL7INST,.HL7APP)
         IF +IEN22720<0 SET TMGRESULT=IEN22720 GOTO SUEDN
         IF IEN22720>0 DO  
         . SET IEN62D4=$PIECE($GET(^TMG(22720,IEN22720,0)),"^",3)
@@ -149,6 +150,11 @@ SU8     SET TMGENV("PREFIX")=TMGLABPREFIX
         SET TMGENV("IEN PROFILE IN 68.2")=1        
         SET TMGENV("IEN 22720")=IEN22720
         SET TMGENV("INST")=TMGINST
+        NEW N100 SET N100=^TMG(22720,IEN22720,100)
+        NEW FILER SET FILER=$PIECE(N100,"^",1,2) 
+        NEW ALERT SET ALERT=$PIECE(N100,"^",3,4) 
+        SET TMGENV("FILER CODE")=FILER
+        SET TMGENV("ALERT CODE")=ALERT
 SUEDN   QUIT TMGRESULT
         ; 
 SETENV()  ;
@@ -156,7 +162,8 @@ SETENV()  ;
         ;"      transformation and then VistA processing.
         ;"Input: uses HLMTIEN, HLMTIENS in global scope.  
         ;"Output: Sets variables with global scope:
-        ;"        MSGSTORE, TMGHL7MSG, IEN22720, TMGU
+        ;"        MSGSTORE,  <--- removing 4/26/19 
+        ;"        TMGHL7MSG, IEN22720, TMGU, 
         ;"Temp backup of original message.
         ;"Results: 1 if OK, or -1^Message
         ;
@@ -175,8 +182,8 @@ SETENV()  ;
         . . ZSHOW "V":VTABLE
         . . MERGE ^TMG("TMP","TMGHL71",$J,"VARS")=VTABLE("V")
         ;
-        MERGE MSGSTORE("MSH")=^HLMA(HLMTIENS,"MSH")
-        MERGE MSGSTORE("IN")=^HL(772,HLMTIEN,"IN")
+        ;"//kt 4/26/19  MERGE MSGSTORE("MSH")=^HLMA(HLMTIENS,"MSH")
+        ;"//kt 4/26/19  MERGE MSGSTORE("IN")=^HL(772,HLMTIEN,"IN")
         ;
         SET IEN772=+$GET(HLMTIEN) IF IEN772'>0 DO  GOTO SEDN
         . SET TMGRESULT="-1^IEN in file 772 not provided to HL7XFRM^TMGHL72"
@@ -211,7 +218,8 @@ SETFMENV()  ;"SETUP FILE MESSAGE TYPE MESSAGES ENVIRONMENT.
         ;"Purpose: setup of environment for processing PATHGROUP txt files.
         ;"Input: Uses HLMTIEN,HLMTIENS in global scope. 
         ;"Output: Sets variables with global scope:
-        ;"        MSGSTORE, TMGHL7MSG, IEN22720, TMGU, IEN62D4, IEN772, IEN773
+        ;"        MSGSTORE,  <--- removing 4/26/19 
+        ;"        TMGHL7MSG, IEN22720, TMGU, IEN62D4, IEN772, IEN773
         ;"Results: 1 if OK, or -1^Message
         ;
         ;"NOTE: SETUPENV^TMGHL7U setups up environment for editing mapping etc.
@@ -219,9 +227,8 @@ SETFMENV()  ;"SETUP FILE MESSAGE TYPE MESSAGES ENVIRONMENT.
         ;"      --Consider merging these two
         ;
         NEW TMGRESULT SET TMGRESULT=1
-        ;
-        MERGE MSGSTORE("MSH")=^HLMA(HLMTIENS,"MSH")
-        MERGE MSGSTORE("IN")=^HL(772,HLMTIEN,"IN")
+        ;"//kt 4/26/19  MERGE MSGSTORE("MSH")=^HLMA(HLMTIENS,"MSH")
+        ;"//kt 4/26/19  MERGE MSGSTORE("IN")=^HL(772,HLMTIEN,"IN")
         NEW FS,ECH
         SET (FS,HLREC("FS"))="|"
         SET (ECH,HLREC("ECH"))="^~\&"   ;"ENCODING CHARACTERS

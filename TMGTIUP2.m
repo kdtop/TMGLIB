@@ -31,6 +31,9 @@ TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18
  ;"GETLETTER(GRPNUMBER)  
  ;"FIXHTML(DOMNAME,ERR)  --A callback function for fixing HTML 
  ;"DELNODES(SRCH,DOCID,ERR)  
+ ;"ALLGRPS(TMGHPI,DELIMITER)  --Return a list of all groups for a provided HPI
+ ;"TOPICFORALL(.TOPIC4ALL)  --Set the array for all topics that should be included with all groups
+
  ;"
  ;"=======================================================================
  ;"Dependancies :  
@@ -88,6 +91,7 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         NEW TIUARRAY,PROCESSEDARR,IDX SET IDX=0
         NEW DFN SET DFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
         SET TIUARRAY("DFN")=DFN
+        SET ITEMARRAY("DFN")=DFN  ;"5/30/19
         FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
         . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
         DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
@@ -165,6 +169,8 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         . SET OPTION("NUMOFGROUPS")=+$P($P(TMGHPI,"[GROUP AUTO ",2),"]",1)
         . IF OPTION("NUMOFGROUPS")>0 SET OPTION("AUTOGROUPING")=1
         ;
+        IF TMGHPI["GROUP OFF" SET OPTION("GROUP OFF")=1  ;"ADDED 7/25/19
+        ELSE  SET OPTION("GROUP OFF")=0   
         ;"EXTRACT JUST HPI PART
         ;"== SET UP MARKERS FOR BEGINNING AND ENDING OF DESIRED HPI SECTION =======
         NEW STARTARR,ENDARR
@@ -214,9 +220,19 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<LI>","*")
         SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)                            
         NEW PREVFOUND SET PREVFOUND=0
+        NEW CONTRAFOUND SET CONTRAFOUND=0
         SET OPTION("GROUPING")=0
+        ;"
+        ;"ALLGRPS is an array containing all the groups listed in the HPI,
+        ;"ALLGRPSTR is the comma delimited list
+        NEW ALLGRPS,ALLGRPSTR SET ALLGRPSTR=$$ALLGRPS(TMGHPI,DELIMITER,.ALLGRPS)
+        ;"NEW GROUPARR
+        ;"TOPIC4ALL is an array of all titles
+        NEW TOPIC4ALL DO TOPICFORALL(.TOPIC4ALL)
+        ;"
         FOR  QUIT:TMGHPI=""  DO  
         . NEW SECTION SET SECTION=$P(TMGHPI,DELIMITER,1)
+        . ;"HERE I NEED TO GET TITLE AND CHECK TO SEE IF GROUP NEEDS TO BE REPLACED WITH ALL GROUPSTR
         . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES) ;"return title of section  
         . IF TMGHPI[DELIMITER SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)
         . ELSE  SET TMGHPI=""
@@ -232,21 +248,67 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         . . SET ITEMARRAY(IDX)=SECTION
         . . MERGE ITEMARRAY("TEXT",IDX)=TEXTARR 
         . . SET ITEMARRAY("TEXT",IDX)=TITLE
-        . . NEW JDX SET JDX=0
-        . . FOR  SET JDX=$ORDER(TEXTARR(JDX)) QUIT:JDX'>0  DO
+        . . ;"This if is added to test for a Title that is to be included in
+        . . ;"all groups. The else below it was the previous code
+        . . IF $D(TOPIC4ALL($$UP^XLFSTR(TITLE))) DO  ;"IF INCLUDED IN ALL GROUPS 
         . . . NEW GRP SET GRP=""
-        . . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
+        . . . FOR  SET GRP=$ORDER(ALLGRPS(GRP)) QUIT:GRP=""  DO
         . . . . SET ITEMARRAY("GROUP",GRP,IDX)=""
         . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
+        . . . SET ITEMARRAY("TEXT",IDX,1,"GROUP")=ALLGRPSTR
+        . . . MERGE ITEMARRAY("TEXT",IDX,1,"GROUP","LIST")=ALLGRPS
+        . . ELSE  DO                                ;"IF TREATED AS SET
+        . . . NEW JDX SET JDX=0
+        . . . FOR  SET JDX=$ORDER(TEXTARR(JDX)) QUIT:JDX'>0  DO
+        . . . . NEW GRP SET GRP=""
+        . . . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
+        . . . . . SET ITEMARRAY("GROUP",GRP,IDX)=""
+        . . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
         . . SET IDX=IDX+1
-        . . IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
+        . . ;"IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
+        . . ;"JUST CHECK TITLE INSTEAD OF ENTIRE SECTION 4/8/19
+        . . IF $$UP^XLFSTR(TITLE)["PREVENT" SET PREVFOUND=1
+        . . IF $$UP^XLFSTR(TITLE)["CONTRACEPTION" SET CONTRAFOUND=1
         . . IF $$UP^XLFSTR(SECTION)["[GROUP" SET OPTION("GROUPING")=1
         . . IF $$UP^XLFSTR(SECTION)["(GROUP" SET OPTION("GROUPING")=1
         IF PREVFOUND=0 DO  ;"if prevention section not found, add blank one
         . SET ITEMARRAY(IDX)="<U>Prevention</U>: (data needed)"
+        . SET ITEMARRAY("TEXT",IDX)="Prevention"
+        . SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
         . SET IDX=IDX+1
+        IF CONTRAFOUND=0 DO
+        . NEW DFN SET DFN=+$G(ITEMARRAY("DFN"))
+        . NEW AGE K VADM SET AGE=+$$AGE^TIULO(DFN)
+        . NEW GENDER SET GENDER=$P($G(^DPT(DFN,0)),"^",2)
+        . IF (GENDER="F")&(AGE>14)&(AGE<56) DO  ;"if contraception section not found for females between 15-55
+        . . SET ITEMARRAY(IDX)="<U>Contraception</U>: (data needed)"
+        . . SET ITEMARRAY("TEXT",IDX)="Contraception"
+        . . SET ITEMARRAY("TEXT",IDX,1)="(data needed)"
+        . . SET IDX=IDX+1
 PRSDN   QUIT TMGRESULT
         ;
+ALLGRPS(TMGHPI,DELIMITER,GROUPARR)  ;"Return a list of all groups for a provided HPI
+        NEW SECTION,TABLES
+        FOR  QUIT:TMGHPI=""  DO
+        . NEW SECTION SET SECTION=$P(TMGHPI,DELIMITER,1)
+        . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES) ;"return title of section
+        . IF TMGHPI[DELIMITER SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)
+        . ELSE  SET TMGHPI=""
+        . NEW I SET I=$O(TEXTARR("GROUPX",0))
+        . NEW GROUP SET GROUP=""
+        . FOR  SET GROUP=$O(TEXTARR(I,"GROUP","LIST",GROUP)) QUIT:GROUP=""  DO        
+        . . SET GROUPARR(GROUP)=""
+        NEW GROUPSTR SET GROUPSTR="",GROUP=""
+        FOR  SET GROUP=$O(GROUPARR(GROUP)) QUIT:GROUP=""  DO
+        . IF GROUPSTR'="" SET GROUPSTR=GROUPSTR_","
+        . SET GROUPSTR=GROUPSTR_GROUP        
+        QUIT GROUPSTR
+        ;"
+TOPICFORALL(TOPIC4ALL)  ;"Set the array for all topics that should be included with all groups
+        SET TOPIC4ALL("SOCIAL")=""
+        SET TOPIC4ALL("PREVENTION")=""
+        QUIT
+        ;"
 TRIMSECT(SECTION) ;"This removes tags and trims to determine if section is
                   ;"actually empty
         NEW TRIMMED SET TRIMMED=SECTION
@@ -371,6 +433,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         NEW BULLETS SET BULLETS=$GET(OPTION("BULLETS"))
         NEW ADDBR SET ADDBR=+$GET(OPTION("TRAILING <BR>"))
         NEW GROUPORDER SET GROUPORDER=$GET(OPTION("GROUP-ORDER"))
+        NEW GROUPOFF SET GROUPOFF=+$G(OPTION("GROUP OFF"))
         NEW TMGHPI SET TMGHPI=""
         IF GROUPING=1 SET AUTOGROUPING=0  ;"IF ALREADY GROUPING, DON'T ATTEMPT TO AUTOGROUP
         NEW IDX,SECTIONCT SET SECTIONCT=0,IDX=0
@@ -423,7 +486,8 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . FOR  SET PART=$ORDER(TEXTARR(PART)) QUIT:PART'>0  DO
         . . NEW STR SET STR=$GET(TEXTARR(PART)) QUIT:STR=""
         . . IF STR="[GROUP]" DO  QUIT
-        . . . SET LINE=LINE_"[GROUP "_$GET(TEXTARR(PART,"GROUP"))_"] "
+        . . . ;"7/25/19 ADDED GROUPOFF TO SUPPRESS FORWARDING OF GROUPS
+        . . . IF GROUPOFF=0 SET LINE=LINE_"[GROUP "_$GET(TEXTARR(PART,"GROUP"))_"] "
         . . . SET LASTSECT="GROUP"
         . . ELSE  IF STR="[TABLE]" DO  QUIT
         . . . NEW INLINE SET INLINE=+$GET(TEXTARR(PART,"INLINE"))
@@ -625,6 +689,13 @@ REMOLDDT(TEXT)  ;"REMOVE THE OLD DATES
         . IF ISDATE SET LASTPIECE=LASTPIECE-1 QUIT
         . SET DONE=1
         SET NEWTEXT=$PIECE(NEWTEXT," ",1,LASTPIECE)              
+        ;" Remove ending periods
+        NEW LASTCHAR SET DONE=0
+        FOR  QUIT:DONE=1  DO
+        . SET LASTCHAR=$E(NEWTEXT,$L(NEWTEXT),$L(NEWTEXT))
+        . IF LASTCHAR="." DO
+        . . SET NEWTEXT=$E(NEWTEXT,0,$L(NEWTEXT)-1)
+        . ELSE  SET DONE=1
         QUIT NEWTEXT
         ;"
 NUMPIECE(STRING,DELIM)

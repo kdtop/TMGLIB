@@ -136,6 +136,9 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         . . ;"IF HTML SET LINEDATA=$$TXS2HTML^TMGHTM1(LINEDATA)_"<BR>"
         . . ;"If the line item is set to be removed, don't add  8/7/18  ELH
         . . IF $DATA(KILLARR),$$TOKILL^TMGTIUO6(LINEDATA,LABEL,.KILLARR)=1 QUIT  
+        . . IF (LINEDATA["00/")&(LINEDATA'["<-") SET LINEDATA=$$REPLSTR^TMGSTUT3(LINEDATA,"00/","")  ;"remove empty months or days. 4/2/19
+        . . ;"   5/28/19 added and above because we only want this for dates and not for data values
+        . . IF LINEDATA["{E-Scribe}" QUIT    ;"don't include in tables 4/2/19
         . . SET RESULT=RESULT_LINEDATA        
         . . IF ADDLF SET RESULT=RESULT_$CHAR(13)_$CHAR(10)
         NEW TERMINALSTR SET TERMINALSTR=$PIECE($GET(^TMG(22708,TABLEIEN,4)),"^",1)

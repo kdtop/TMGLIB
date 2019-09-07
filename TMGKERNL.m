@@ -29,6 +29,7 @@ TMGKERNL ;TMG/kst/OS Specific functions ;8/30/17, 3/8/18
  ;"$$LINUXCMD(CMD,OUT)  -- execute command on linux system, and return output
  ;"$$ISFILE(FPNAME)  ;-- FileExists() type file.  See also $$FILEXIST^TMGIOUTL(FilePathName)
  ;"$$ISDIR^TMGKERNL(Path) 
+ ;"$$DIR2(PATH,OUT,OPTION) --Expanded directory lising, with parsing to array etc.  
  ;"$$ENSURDIR(DIR) -- ensure directory path exists  
  ;"$$EnsureDir(Dir) -- ensure directory path exists
  ;"$$MOVE^TMGKERNL(Source,Dest)
@@ -266,6 +267,90 @@ ISDIR(Path,NodeDiv)  ;
   NEW x READ x
   CLOSE p USE $P
   QUIT (x="directory")
+  ;
+DIR2(PATH,OUT,OPTION) ;"Expanded directory
+  ;"INPUT: PATH -- HFS path to get directory from 
+  ;"       OUT -- pass by reference, an OUT parameter.  See format below. 
+  ;"       OPTION -  OPTIONAL
+  ;"         OPTION("R") -- RECURSIVE (include sub-folders)
+  ;"         OPTION("INCLUDE")= FNAME^PATH^FILE_TYPE^PERMISSIONS^HARD_LINKS^OWNER^GROUP^SIZE^FMDT
+  ;"                          Each piece is a flag with values as follows:
+  ;"                             0  (0b00) : don't include  (note: this will be ignored for FNAME piece)
+  ;"                             1  (0b01) : include value in main array
+  ;"                             2  (0b10) : include value in array index 
+  ;"                             3  (0b11) : include value in both places 
+  ;"                             e.g. 1^2^0^0^0^1^0^0^0  <-- E.g. return fNAME, path (also indexed) and OWNER
+  ;"                          DEFAULT IS ALL 0's (except FNAME piece default is 1, 0 not allowed)
+  ;"OUTPUT:  OUT:
+  ;"Result: "1^OK" or "-1^Error Message"
+  NEW CMD SET CMD="ls "_PATH_" -Al"
+  NEW RESULT SET RESULT="1^OK"
+  NEW TMP SET RESULT=$$LINUXCMD(CMD,.TMP)
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(TMP(IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=$GET(TMP(IDX)) QUIT:LINE=""
+  . IF $PIECE(LINE," ",1)="total" QUIT
+  . IF $GET(OPTION("R")),$EXTRACT(LINE,1)="d" DO
+  . . NEW TMP,TMPOPTION SET TMPOPTION("INCLUDE")="1"
+  . . DO PARSE1DIRLN(LINE,PATH,.TMP,.TMPOPTION)
+  . . NEW SUBPATH SET SUBPATH=$GET(TMP(1,"FNAME")) QUIT:SUBPATH=""
+  . . SET SUBPATH=PATH_"/"_SUBPATH
+  . . ;"WRITE SUBPATH,!
+  . . KILL TMP IF $$DIR2(SUBPATH,.TMP,.OPTION)
+  . . MERGE OUT=TMP
+  . DO PARSE1DIRLN(LINE,PATH,.OUT,.OPTION)
+  QUIT RESULT
+  ;
+PARSE1DIRLN(LINE,PATH,OUT,OPTION)  ;"private function for DIR2 above  
+  ;"INPUT: LINE -- 1 line from a linux directory listing, from 'ls <path> -Al'
+  ;"       OUT -- AN OUT PARAMETER.
+  ;"       OPTION("INCLUDE")= FNAME^PATH^FILE_TYPE^PERMISSIONS^HARD_LINKS^OWNER^GROUP^SIZE^FMDT
+  ;"                          Each piece is a flag with values as follows:
+  ;"                             0  (0b00) : don't include  (note: this will be ignored for FNAME piece)
+  ;"                             1  (0b01) : include value in main array
+  ;"                             2  (0b10) : include value in array index 
+  ;"                             3  (0b11) : include value in both places 
+  ;"                             e.g. 1^2^0^0^0^1^0^0^0  <-- E.g. return fNAME, path (also indexed) and OWNER
+  ;"                          DEFAULT IS ALL 0's (except FNAME piece default is 1, 0 not allowed)
+  NEW SPLITOPTION SET SPLITOPTION("TRIM DIV")=1
+  NEW TMP,IDX,JDX SET IDX=$GET(OUT("MAX"))+1 SET OUT("MAX")=IDX
+  FOR JDX=1:1:8 DO
+  . NEW PARTB DO CLEAVSTR^TMGSTUT2(.LINE," ",.PARTB,,.SPLITOPTION)
+  . SET TMP(JDX)=LINE,LINE=PARTB
+  SET FNAME=LINE  ;"this residual should be the filename, and it may contain spaces.  
+  SET FNAME=$PIECE(FNAME," -> ",1)  ;"drop off arrow to actual file name if soft link.  
+  ;
+  NEW LABELS SET LABELS="FNAME^PATH^FILE_TYPE^PERMISSIONS^HARD_LINKS^OWNER^GROUP^SIZE^FMDT"
+  NEW INCLUDE SET INCLUDE=$GET(OPTION("INCLUDE"))
+  FOR JDX=1:1:9 SET INCLUDE(JDX)=$PIECE(INCLUDE,"^",JDX),LABELS(JDX)=$PIECE(LABELS,"^",JDX)
+  IF INCLUDE(1)'>1 SET INCLUDE(1)=1
+  ;  
+  NEW DATA
+  SET DATA(1)=FNAME
+  SET DATA(2)=PATH
+  SET DATA(3)=$EXTRACT($GET(TMP(1)),1)    ;"TYPE
+  SET DATA(4)=$EXTRACT($GET(TMP(1)),2,10) ;"PERMISSIONS
+  SET DATA(5)=$GET(TMP(2))                ;"HARDLINKS
+  SET DATA(6)=$GET(TMP(3))                ;"OWNER
+  SET DATA(7)=$GET(TMP(4))                ;"GROUP
+  SET DATA(8)=$GET(TMP(5))                ;"SIZE
+  DO
+  . NEW MONTH     SET MONTH=$GET(TMP(6))  
+  . NEW DAY       SET DAY=$GET(TMP(7))
+  . NEW TIME      SET TIME=""
+  . NEW YR        SET YR=$GET(TMP(8))
+  . IF YR[":"     SET TIME=YR,YR=1700+$EXTRACT($$NOW^XLFDT,1,3)
+  . NEW DTSTR SET DTSTR=MONTH_" "_DAY_" "_YR
+  . IF TIME'="" SET DTSTR=DTSTR_" @"_TIME
+  . NEW FMDT SET FMDT=$$EXT2FMDT^TMGDATE(DTSTR)
+  . SET DATA(9)=FMDT
+  ;
+  FOR JDX=1:1:9 DO
+  . NEW MAIN SET MAIN=INCLUDE(JDX)#2
+  . NEW INDEX SET INDEX=(INCLUDE(JDX)/2)\1#2
+  . IF MAIN SET OUT(IDX,LABELS(JDX))=DATA(JDX)
+  . IF INDEX SET OUT(LABELS(JDX),DATA(JDX),IDX)=""
+  QUIT
   ;
 ENSURDIR(DIR) ;
   QUIT $$EnsureDir(.DIR)

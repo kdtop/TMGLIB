@@ -83,7 +83,6 @@ RLOOP ;
   ;"WRITE "  $l(TMGZB)=",$l(TMGZB)," TMGZB=" f i=1:1:$l(TMGZB) w $ASCII($E(TMGZB,IDX)),","
   IF TERMINATORS["e" USE $I:NOESCAPE
   XECUTE ^%ZOSF("EON")
-  ;"//kt begin mod 8/30/17 ---------------------------
   ;"w "[",TEMP,"]"  ;"debugging...
   IF (TEMP=13) DO                        ;"RETURN KEY
   . IF (TERMINATORS["r") SET DONE=1
@@ -100,6 +99,10 @@ RLOOP ;
   . . SET RESULT=$EXTRACT(RESULT,1,$LENGTH(RESULT)-1)
   . . WRITE $CHAR(8)," ",$CHAR(8)
   . SET TEMP=-1
+  ELSE  IF TEMP<32,(TEMP'=27) DO   ;"//kt 8/27/19
+  . SET RESULT=$GET(^XUTL("XGKB",TEMP))
+  . SET DONE=1
+  . ;"WRITE !,!,"DEBUG: TEMP=",TEMP," RESULT=",RESULT,!
   ;"NOTE: The DELETE key generates an escape sequence
   ELSE  IF (TEMP=27)&(TERMINATORS["e") DO
   . SET ESCKEY=$GET(^XUTL("XGKB",TMGZB))
@@ -112,33 +115,6 @@ RLOOP ;
   . WRITE $CHAR(TEMP)
   . IF NUM="" QUIT   
   . IF $LENGTH(RESULT)'<+NUM SET DONE=1
-  ;"//kt end mod 8/30/17 ----------------------------      
-  ;"//kt original --> IF (TEMP=13)&(TERMINATORS["r") DO
-  ;"//kt original --> . SET DONE=1
-  ;"//kt original --> ELSE  IF (TEMP=9)&(TERMINATORS["t") DO
-  ;"//kt original --> . SET DONE=1
-  ;"//kt original --> ELSE  IF (TEMP=32)&(TERMINATORS["s") DO
-  ;"//kt original --> . SET DONE=1
-  ;"//kt original --> ELSE  IF (TEMP=27)&(TERMINATORS["e") DO
-  ;"//kt original --> . SET ESCKEY=$GET(^XUTL("XGKB",TMGZB))
-  ;"//kt original --> . IF ESCKEY="" DO
-  ;"//kt original --> . . DO FXESCTBL
-  ;"//kt original --> . . SET ESCKEY=$GET(^XUTL("XGKB",TMGZB))
-  ;"//kt original --> . SET DONE=1
-  ;"//kt original --> ELSE  IF (TEMP=127)&(NUM=1) DO  ;"//kt moved this block above block just below 8/30/17
-  ;"//kt original --> . SET DONE=1
-  ;"//kt original --> . SET ESCKEY="BACKSPC"
-  ;"//kt original --> ELSE  IF (TEMP=127)&(TERMINATORS["b") DO
-  ;"//kt original --> . SET DONE=1
-  ;"//kt original --> ELSE  IF (TEMP'=-1) DO
-  ;"//kt original --> . IF TEMP=127 DO  QUIT
-  ;"//kt original --> . . IF RESULT="" QUIT
-  ;"//kt original --> . . SET RESULT=$EXTRACT(RESULT,1,$LENGTH(RESULT)-1)
-  ;"//kt original --> . . WRITE $CHAR(8)," ",$CHAR(8)
-  ;"//kt original --> . SET RESULT=RESULT_$CHAR(TEMP)
-  ;"//kt original --> . WRITE $CHAR(TEMP)
-  ;"//kt original --> . IF NUM="" QUIT
-  ;"//kt original --> . IF $LENGTH(RESULT)'<+NUM SET DONE=1
   IF 'DONE GOTO RLOOP
   QUIT RESULT
   ;

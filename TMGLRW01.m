@@ -165,13 +165,15 @@ GETINFO(TMGHL7MSG,MSGINFO)  ;"PARSE HEADER INFO INTO USABLE ARRAY
         . . SET MSGINFO("DOB")=$E(DOB,5,6)_"-"_$E(DOB,7,8)_"-"_$E(DOB,3,4)  
         . . SET MSGINFO("SEX")=$GET(TMGHL7MSG(IDX,8))
         . . SET MSGINFO("SSNUM")=$TRANSLATE($GET(TMGHL7MSG(IDX,19)),"-","")
-        . . SET MSGINFO("DFN")=$$GETDFN^TMGGDFN(.MSGINFO,0)
-        . . IF $PIECE(MSGINFO("DFN"),"^",1)<1 DO  QUIT
+        . . IF $LENGTH(MSGINFO("SSNUM"))<9 SET MSGINFO("SSNUM")="" ;"//kt added 4/19/19 because GCHE passed "41" as a SSN 
+        . . SET MSGINFO("DFN")=+$$GETDFN^TMGGDFN(.MSGINFO,0)  ;"//kt added "+" on 4/9/19
+        . . ;"IF $PIECE(MSGINFO("DFN"),"^",1)<1 DO  QUIT
+        . . IF $PIECE(MSGINFO("DFN"),"^",1)'>0 DO  QUIT
         . . . SET TMGRESULT="-1^Patient not found in system: "_MSGINFO("NAME")_" ("_MSGINFO("DOB")_"). Lookup routine says: "
         . . . SET TMGRESULT=TMGRESULT_$PIECE(MSGINFO("DFN"),"^",2)  
         . IF SEGMENT="PV1" DO   ;"Process provider information
         . . IF $DATA(MSGINFO("PROV IEN")) QUIT
-        . . SET MSGINFO("NPI")=$GET(TMGHL7MSG(IDX,8,1))
+        . . SET MSGINFO("NPI")=+$GET(TMGHL7MSG(IDX,8,1))
         . . SET MSGINFO("PROV IEN")=$ORDER(^VA(200,"ANPI",MSGINFO("NPI"),0))
         . . ;"//kt 12/13/17 IF MSGINFO("PROV IEN")'>0 SET TMGRESULT="-1^PROVIDER NPI '"_MSGINFO("NPI")_"' NOT FOUND"
         . . ;"NOTE: Even if can't find via NPI, may be able to get PROV IEN from ORC segment, or else will default to 168 later.
@@ -181,7 +183,7 @@ GETINFO(TMGHL7MSG,MSGINFO)  ;"PARSE HEADER INFO INTO USABLE ARRAY
         . . SET MSGINFO("ORDER UID")=$GET(TMGHL7MSG(IDX,3))
         . . IF (+$GET(MSGINFO("PROV IEN"))'>0),$GET(TMGHL7MSG(IDX,12,13))="TMGDUZ" DO
         . . . SET MSGINFO("PROV IEN")=+$GET(TMGHL7MSG(IDX,12,1))
-        NEW TMGDFN SET TMGDFN=$GET(MSGINFO("DFN"))
+        NEW TMGDFN SET TMGDFN=+$GET(MSGINFO("DFN"))
         NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(TMGDFN,"LR")),"^",1)
         SET MSGINFO("LRDFN")=LRDFN
 GINFDN  QUIT TMGRESULT

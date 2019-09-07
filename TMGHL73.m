@@ -1,4 +1,4 @@
-TMGHL73 ;TMG/kst-HL7 transformation engine processing ;2/18/14, 6,14,17
+TMGHL73 ;TMG/kst-HL7 transformation engine processing ;2/18/14, 6,14,17, 4/11/19
               ;;1.0;TMG-LIB;**1**;06/23/13
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
@@ -12,18 +12,19 @@ TMGHL73 ;TMG/kst-HL7 transformation engine processing ;2/18/14, 6,14,17
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
  ;"NOTE: this is code for working with labs from **[Pathgroup lab]**
- ;"      FYI -- Laughlin LAB code is in TMGHL74
+ ;"      FYI -- Pathgroup code is in TMGHL73
+ ;"             Laughlin code is in TMGHL74
  ;"             Laughlin RADIOLOGY is in TMGHL74R
- ;"               common code is in TMGHL72
+ ;"             Quest code is in TMGHL75
+ ;"             common code is in TMGHL72
+ ;"             GCHE LAB code is TMGHL76
+ ;"             GCHE RADIOLOGY code is TMGHL76R
  ;"=======================================================================
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"TEST  -- Pick file and manually send through filing process.   
  ;"BATCH -- Launch processing through all files in folder for PathGroup lab
- ;"HL7FIN(FNAME)  -- File input HL7 message files from PATHGROUP into POC lab filer
- ;"HL7IN -- Entry point, that could be  called from LA7V Process Results from PathGroup.
- ;"HL7MSGIN(TMGMSG) -- Entry point to process message, stored in TMGMSG
  ;"
  ;"=======================================================================
  ;" API - Private Functions

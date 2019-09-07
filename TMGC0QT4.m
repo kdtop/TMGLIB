@@ -25,11 +25,13 @@ TMGC0QT4 ;TMG/kst/TMG Clinical tests for patient;1/12/17
   ;
   ;"=======================================================================
   ;
-ONHTNTX(DFN,DT) ;"Is patient on HTN treatment as of DT (if DT supplied)?
+ONHTNTX(DFN,DT,OUT) ;"Is patient on HTN treatment as of DT (if DT supplied)?
   ;"INPUT: DFN -- Patient IEN
   ;"       DT -- OPTIONAL.  If desire to test AS OF a given FMDT, then pass in.
+  ;"       OUT -- Array containing the particular medications that are in
+  ;"              the HTN table.
   ;"Result: 1 if on HTN treatment, or 0 if not.
-  NEW TMGRESULT,OUT SET TMGRESULT=$$TABHASRX(DFN,"HYPERTENSION",.OUT,DT)
+  NEW TMGRESULT SET TMGRESULT=$$TABHASRX(DFN,"HYPERTENSION",.OUT,DT)
   QUIT (TMGRESULT=1)  
   ;
 ONLIPDTX(DFN,DT) ;"Is patient on LIPID treatment as of DT (if DT supplied)?
@@ -68,6 +70,10 @@ THRXDN ;
   DO TIMEPFIL^TMGMISC2("GETITEM^TMGTIUO8","TABHASRX^TMGC0QT4",0)  ;"RECORD END TIME  
   QUIT TMGRESULT
   ;
+ONCSDBRX(DFN,DT,OUT) ;"Is patient on a medication that should trigger CSDB check?
+  NEW TMGRESULT SET TMGRESULT=$$TABHASRX(DFN,"CSDB MEDICATIONS",.OUT,DT)
+  QUIT (TMGRESULT=1)
+  ;"
 TOBACCO(DFN,DT)  ;"Is patient a tobacco user, as of DT, using health factors
   ;"NOTE: This will be different from TOBACCO^TMGC0QT2, which uses SOCIAL table
   ;"INPUT: DFN -- Patient IEN

@@ -1,4 +1,4 @@
-TMGHL7E2 ;TMG/kst-HL7 Processing Error/Alert handling; 11/18/16
+TMGHL76E ;TMG/kst-HL7 Processing Error/Alert handling; 11/18/16
               ;;1.0;TMG-LIB;**1**; 11/18/16
   ;
   ;"TMG HL7 Error/Alert handling for lab messages
@@ -56,7 +56,7 @@ SETALERT(ERRTEXT,AMSG) ;
   ;"MAKE AN ALERT WITH ERROR MESSAGE.
   NEW XQA,XQAARCH,XQADATA,XQAFLG,XQAGUID,XQAID,XQAOPT,XQAROU,XQASUPV,XQASURO,XQATEXT
   ;"SET XQA("LA7V IPL")=""
-  SET XQA(168)=""   ;"//to Kevin Toppenberg
+  SET XQA(150)=""   ;"//to Eddie Hagood
   SET XQADATA=$J_"^"_NOWH_"^"_HLMTIEN_"^"_HLMTIENS
   SET XQAID="TMG-HL7"
   SET XQAROU="HNDLERR^TMGHL7E2"

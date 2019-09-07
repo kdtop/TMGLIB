@@ -1,8 +1,39 @@
 TMGDATE   ;TMG/ELH-DATE FUNCTIONS ; 8/26/17
          ;;1.0;TMG-LIB;**1,17**;8/26/17
       ;  
-EXTDATE(FMDATE)  ;"RETURN EXTERNAL DATE FOR PROVIDED FMDATE
-      NEW Y SET Y=+$GET(FMDATE) DO DD^%DT
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;"Copyright (c) 5/23/2019  Kevin S. Toppenberg MD
+ ;"
+ ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+ ;" to license terms outlined in separate file TMGLICNS.m, which should 
+ ;" always be distributed with this file.
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;
+ ;"TMG DATE UTILITIES
+ ;"=======================================================================
+ ;" API -- Public Functions.
+ ;"=======================================================================
+ ;"EXTDATE(FMDATE,FORMAT)  ;"RETURN EXTERNAL DATE FOR PROVIDED FMDATE
+ ;"INTDATE(EXTDATE) ;"RETURN FILEMAN DATE OR -1 IF INVALID FORMAT
+ ;"ADDDAYS(DAYS)  ;"ADD OR SUBTRACT DAYS FROM TODAY
+ ;"NOW() ;"RETURNS THE TIME RIGHT NOW
+ ;"TODAY(EXTERNAL,FORMAT)  ;"RETURNS TODAY'S DATE
+ ;"MNTHNAME(FMDATE)  ;"RETURNS DEC. 2017
+ ;"FIRSTYR()  ;"FIRST DAY OF THE YEAR
+ ;"DAYSDIFF(DATE1,DATE2)  ;"RETURNS THE DIFFERENCE BETWEEN 2 DTS IN DAYS
+ ;"TIMEDIFF(DATE1,DATE2)  ;"RETURNS THE DIFFERENCE BETWEEN 2 DTS IN MINUTES
+ ;"FMTDATE(DATESTR,EXTERNAL)  ;"
+ ;"EXT2FMDT(EDATE)  ;"CONVERT EXTERNAL FORMAT DATE INTO A FILEMAN DT NUMBER
+ ;"=======================================================================
+ ;"=======================================================================
+ ;   
+EXTDATE(FMDATE,FORMAT)  ;"RETURN EXTERNAL DATE FOR PROVIDED FMDATE
+      SET FORMAT=+$G(FORMAT)
+      NEW Y
+      IF FORMAT=1 DO
+      . SET Y=$$FMTE^XLFDT(FMDATE,"2D")
+      ELSE  DO
+      . SET Y=+$GET(FMDATE) DO DD^%DT
       QUIT Y
       ;"
 INTDATE(EXTDATE) ;"RETURN FILEMAN DATE OR -1 IF INVALID FORMAT
@@ -118,4 +149,11 @@ FMTDATE(DATESTR,EXTERNAL)  ;"
       IF +$G(EXTERNAL)=1 DO
       . SET TMGRESULT=$$INTDATE(TMGRESULT)
       QUIT TMGRESULT
+      ;"
+EXT2FMDT(EDATE)  ;"CONVERT EXTERNAL FORM DATE INTO A FILEMAN DT NUMBER
+      ;"INPUT -- EDATE.  A human-readable date, e.g. '5/23/19' or 'Feb 24 2019' or 'Feb 24 2019 @12:00'
+      NEW X,Y,%DT SET %DT="T"
+      SET X=EDATE
+      DO ^%DT
+      QUIT Y
       ;"

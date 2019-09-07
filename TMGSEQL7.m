@@ -310,9 +310,11 @@ MARKOLD(DT,ERR) ;
   . . . NEW TMGFDA SET TMGFDA(22723.01,SUBIEN_","_ADFN_",",.07)="O"
   . . . NEW TMGMSG DO FILE^DIE("","TMGFDA","TMGMSG")
   . . . IF $DATA(TMGMSG("DIERR")) DO
-  . . . . NEW ERRSTR SET ERRSTR=$GET(@ERR@("ERR",TMGDFN,SUBIEN))
+  . . . . ;"1/24/19. below generated error because TMGDFN is not defined.
+  . . . . ;"Added quotes around it because intention was not clear
+  . . . . NEW ERRSTR SET ERRSTR=$GET(@ERR@("ERR","TMGDFN",SUBIEN))
   . . . . IF ERRSTR'="" SET ERRSTR=ERRSTER_" // "
-  . . . . SET @ERR@(TMGDFN,SUBIEN)=ERRSTR_$$GETERRST^TMGDEBU2(.TMGMSG)
+  . . . . SET @ERR@("TMGDFN",SUBIEN)=ERRSTR_$$GETERRST^TMGDEBU2(.TMGMSG)
   QUIT
   ;
 DOCANCEL(OLD,ERR) ;"Set status of obsolete records to CANCELLED

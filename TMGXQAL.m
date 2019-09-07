@@ -45,6 +45,47 @@ USIGNALT
     . . ;"WRITE $PIECE($GET(^DPT(PATIENT,0)),"^",1)," needs an ADD'L SIGNER alert",!
     QUIT
     ;"
+CNSLTALT
+    ;"Purpose: Ensure all unsigned orders have proper alerts for authors
+    ;"        *This should be ran as a nightly task
+    NEW UNRLSDARR
+    ;"Get unreleased orders
+    DO ORDERS(.UNRLSDARR)
+    NEW ORDIEN SET ORDIEN=0
+    FOR  SET ORDIEN=$O(UNRLSDARR(ORDIEN)) QUIT:ORDIEN'>0  DO
+    . NEW PROV SET PROV=+$G(UNRLSDARR(ORDIEN))
+    . IF PROV'>0 QUIT
+    . IF $$ORALTEXS(PROV,ORDIEN)=1 QUIT
+    . WRITE "NEED ALERT FOR ",$P($G(^VA(200,PROV,0)),"^",1)," FOR ALERT ",ORDIEN,!
+    . WRITE $G(^OR(100,ORDIEN,0)),!
+    . ;"QUIT
+    . NEW XQADATA,XQAID,XQAROU,XQA,XQAMSG,RESULT,XQADFN
+    . SET XQA(PROV)=""
+    . NEW DFN SET DFN=$P($P($G(^OR(100,ORDIEN,0)),"^",2),";",1)
+    . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+    . NEW DATE SET DATE=$P($G(^OR(100,ORDIEN,0)),"^",7)
+    . SET XQAMSG=NAME_" (X1234): Order requires electronic signature"
+    . SET XQADATA=ORDIEN_"@"
+    . SET XQAID="OR,"_DFN_",12;"_PROV_";"_DATE
+    . SET XQADFN=DFN
+    . SET XQAROU="ESORD^ORB3FUP1"
+    . SET RESULT=$$SETUP1^XQALERT
+    QUIT
+    ;"
+ORDERS(RETARRAY)  
+    NEW IDX SET IDX=300000
+    NEW UNSIGNED SET UNSIGNED=11
+    FOR  SET IDX=$O(^OR(100,IDX)) QUIT:IDX'>0  DO
+    . NEW X0,X3,X8
+    . SET X0=$G(^OR(100,IDX,0)),X3=$G(^OR(100,IDX,3)),X8=$G(^OR(100,IDX,8,1,0))
+    . NEW STATUS,PROVIDER
+    . SET STATUS=$P(X3,"^",3)
+    . IF STATUS=UNSIGNED DO
+    . . SET PROVIDER=+$P(X8,"^",5)
+    . . IF PROVIDER'>0 SET PROVIDER=+$P(X8,"^",3)
+    . . SET RETARRAY(IDX)=PROVIDER
+    QUIT
+    ;"
 ALTEXIST(DUZ,TIUIEN)  ;"
     ;"Purpose: to determine if the user has an alert for the note
     ;"Result: 1 if alert exists, 0 if alert needs to be created
@@ -53,6 +94,16 @@ ALTEXIST(DUZ,TIUIEN)  ;"
     FOR  SET ALERTDT=$ORDER(^XTV(8992,DUZ,"XQA",ALERTDT)) QUIT:ALERTDT'>0  DO
     . NEW THISTIU SET THISTIU=+$PIECE($GET(^XTV(8992,DUZ,"XQA",ALERTDT,1)),"^",1)   
     . IF THISTIU=TIUIEN SET TMGRESULT=1
+    QUIT TMGRESULT
+    ;"
+ORALTEXS(DUZ,ORDIEN)  ;" DOES THE ORDER ALERT EXIST?
+    ;"Purpose: to determine if the user has an alert for the note
+    ;"Result: 1 if alert exists, 0 if alert needs to be created
+    NEW TMGRESULT SET TMGRESULT=0
+    NEW ALERTDT SET ALERTDT=0
+    FOR  SET ALERTDT=$ORDER(^XTV(8992,DUZ,"XQA",ALERTDT)) QUIT:ALERTDT'>0  DO
+    . NEW THISORDER SET THISORDER=+$PIECE($GET(^XTV(8992,DUZ,"XQA",ALERTDT,1)),"@",1)
+    . IF THISORDER=ORDIEN SET TMGRESULT=1
     QUIT TMGRESULT
     ;"
 PRINTRPT

@@ -1,4 +1,4 @@
-TMGHL74 ;TMG/kst-HL7 transformation engine processing ;8/14/15, 6/14/17
+TMGHL74 ;TMG/kst-HL7 transformation engine processing ;8/14/15, 6/14/17, 4/11/19
               ;;1.0;TMG-LIB;**1**;09/20/13
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
@@ -13,8 +13,12 @@ TMGHL74 ;TMG/kst-HL7 transformation engine processing ;8/14/15, 6/14/17
  ;
  ;"NOTE: this is code for working with labs from **[Laughlin lab]**
  ;"      FYI -- Pathgroup code is in TMGHL73
+ ;"             Laughlin code is in TMGHL74
  ;"             Laughlin RADIOLOGY is in TMGHL74R
+ ;"             Quest code is in TMGHL75
  ;"             common code is in TMGHL72
+ ;"             GCHE LAB code is TMGHL76
+ ;"             GCHE RADIOLOGY code is TMGHL76R
  ;"=======================================================================
  ;"=======================================================================
  ;" API -- Public Functions.
@@ -82,7 +86,8 @@ MSH3    ;"Purpose: Process MSH segment, FLD 4 (Sending Application)
         QUIT
         ;
 MSH4  ;"Purpose: Process MSH segment, FLD 4 (Sending Facility)
-        SET TMGVALUE="LAUGHLIN MEM HOSPITAL"
+        ;"SET TMGVALUE="LAUGHLIN MEM HOSPITAL"
+        SET TMGVALUE="GREENEVILLE COMMUNITY HOSP E"
         DO XMSH4^TMGHL72
         QUIT
         ;

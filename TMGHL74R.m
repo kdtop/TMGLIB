@@ -52,7 +52,8 @@ TMGHL74R ;TMG/kst-HL7 transformation engine processing ;11/14/16
  ;"=======================================================================
  ;
 TEST    ;"Pick file and manually send through filing process.
-        DO TEST^TMGHL74
+        NEW OPTION SET OPTION("NO MOVE")=1
+        DO TEST^TMGHL71("/mnt/WinServer/LaughlinHL7",.OPTION)
         QUIT
         ;
 BATCH   ;"NOTE: Laughlin radiology reports will be dumped in with 
@@ -77,7 +78,8 @@ MSG2    ;"Purpose: Process entire message after processing segments
         QUIT
         ;
 MSH4  ;"Purpose: Process MSH segment, FLD 4 (Sending Facility)
-        SET TMGVALUE="LAUGHLIN MEM HOSPITAL"
+        ;"SET TMGVALUE="LAUGHLIN MEM HOSPITAL"
+        SET TMGVALUE="GREENEVILLE COMMUNITY HOSP E"
         DO XMSH4^TMGHL72
         QUIT
         ;
@@ -195,8 +197,8 @@ OBX5    ;"Purpose: To transform the OBX segment, field 5 -- Observation value
         SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"OBX")=TMGSEGN
         QUIT
         ;
-PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), ACH (additional clinical history) sections
-        ;"Note: for now, ACH will not be split out.
+PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additional clinical history) sections
+        ;"Note: for now, HX will not be split out.
         NEW SECTION SET SECTION="RPT"
         NEW OUTIDX SET OUTIDX=1
         NEW IDX SET IDX=0
@@ -362,8 +364,9 @@ FILERAD(TMGENV,TMGHL7MSG)  ;
         ;"Here I will file the radiology report.  
         ;"Use code in TMGRAU01 for filing...
         NEW DATA
-        SET DATA("DIV")="LAUGHLIN"   ;"HARD CODED because this entire file is just for Laughlin Rad interface
-        SET DATA("LOC")="LAUGHLIN"
+        ;"SET DATA("DIV")="LAUGHLIN"   ;"HARD CODED because this entire file is just for Laughlin Rad interface
+        SET DATA("DIV")=$GET(TMGENV("INST"),"GREENEVILLE COMMUNITY HOSP E")           
+        SET DATA("LOC")="LAUGHLIN"  ;"HARD CODED because this entire file is just for Laughlin Rad interface
         NEW TMGRESULT SET TMGRESULT="1^OK"
         ;"Cycle through all studies found in report
         NEW EXAMIDX SET EXAMIDX=0
@@ -388,7 +391,7 @@ FILERAD(TMGENV,TMGHL7MSG)  ;
         . NEW PROV SET PROV=+$GET(TMGHL7MSG("RAD STUDY",EXAMIDX,"PROV"))  ;" IEN^LNAME,FNAME
         . SET DATA(EXAMIDX,"PROV")=PROV        
         . MERGE DATA(EXAMIDX,"RPT")=TMGHL7MSG("RAD STUDY",EXAMIDX,"RPT")   
-        . MERGE DATA(EXAMIDX,"ACH")=TMGHL7MSG("RAD STUDY",EXAMIDX,"ACH")   
+        . MERGE DATA(EXAMIDX,"HX")=TMGHL7MSG("RAD STUDY",EXAMIDX,"HX")   
         . MERGE DATA(EXAMIDX,"IMP")=TMGHL7MSG("RAD STUDY",EXAMIDX,"IMP")
         . SET DATA(EXAMIDX,"STATUS")="2^COMPLETE"  ;"I don't think they send incomplete rad reports.   
         NEW DFN SET DFN=+$GET(TMGHL7MSG("RAD STUDY","DFN"))

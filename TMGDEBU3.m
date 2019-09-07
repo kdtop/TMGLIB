@@ -56,7 +56,7 @@ ASKDUMPF(FILENUM)  ;"RECORD DUMPER FOR FILE
         SET FILENUM=X IF FILENUM'>0 GOTO ADFDN
         NEW IENS SET IENS=$$ASKIENS^TMGDBAP3(FILENUM)
 ADFDN   QUIT
-
+        ;
 ASKDUMP(FILE,IENS,OPTION) ;"A record dumper -- An alternative to Fileman Inquire
         ;"Input: FILE -- OPTIONAL.  File name or number.
         ;"       IENS: OPTIONAL.  Allows for supplying a partial IENS supplying a

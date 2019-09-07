@@ -132,7 +132,7 @@ FORMATVT(OUTS,STR,LABEL,CURDT,NOTEDT,FORCESHOW,PTAGE,EXCLUDEARR) ;"Format Vitals
   ;"         EXCLUDEARR -- [optional].  PASS BY REFERENCE.  If a particular
   ;"              vital is too old for inclusion, then this is array is filled
   ;"                e.g. EXCLUDEARR("T")=1
-  ;"Results: none (changes are passed back in RESULT)
+  ;"Results: non (changes are passed back in RESULT)
   SET OUTS=$GET(OUTS)
   NEW RESULT SET RESULT=""
   SET PTAGE=+$GET(PTAGE,99)
@@ -621,7 +621,32 @@ FUITEMS(DFN)  ;"Return the followup table if data is contained
   IF TEMP="" SET X=TEMP
   IF TEMP'="" SET TEMP="<FONT style=""BACKGROUND-COLOR:#ff0000"">}"_TEMP_"{HTML:</FONT>}"
   QUIT X
-  ;"                                 
+  ;"                             
+FUITEMS2(TMGRESULT,DFN)  ;"Return the followup table if data is contained, for RPC: TMG GET FOLLOWUP ITEMS
+  NEW FUITEMS SET FUITEMS=$$GETTABLX^TMGTIUO6(+$G(DFN),"[FOLLOWUP ITEMS]")
+  SET TMGRESULT=""
+  NEW IDX SET IDX=0
+  FOR IDX=0:1:6  DO
+  . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_","
+  . NEW ITEM SET ITEM=$P(FUITEMS,$C(13,10),1)
+  . IF ITEM="" SET ITEM=FUITEMS
+  . SET FUITEMS=$P(FUITEMS,$C(13,10),2,999)
+  . SET ITEM=$$TRIM^XLFSTR(ITEM)
+  . SET ITEM=$TR(ITEM,",",".")
+  . SET TMGRESULT=TMGRESULT_ITEM
+  ;FOR  QUIT:FUITEMS'[$C(13,10)  DO
+  ;. SET TMGRESULT(IDX)=$P(FUITEMS,$C(13,10),1)
+  ;. SET TMGRESULT(IDX)=$$TRIM^XLFSTR($G(TMGRESULT(IDX)))
+  ;. SET TMGRESULT(IDX)=$TR($G(TMGRESULT(IDX)),",",".")
+  ;. SET IDX=IDX+1
+  ;. SET FUITEMS=$P(FUITEMS,$C(13,10),2,999)
+  ;IF FUITEMS'="" DO
+  ;. SET TMGRESULT(IDX)=FUITEMS
+  ;. SET TMGRESULT(IDX)=$$TRIM^XLFSTR($G(TMGRESULT(IDX)))
+  ;. SET TMGRESULT(IDX)=$TR($G(TMGRESULT(IDX)),",",".")
+  ;IF TMGRESULT="" SET TMGRESULT(0)="NO FOLLOW UP ITEMS FOUND"
+  QUIT
+  ;"    
 XTRAFORM(TMGRESULT,DFN)  ;"
   ;"Purpose: This function will take the DFN and return an array
   ;"         of all documents that the user should have printed for
@@ -697,6 +722,7 @@ GETSTATS(STATUS,TMGRESULT) ;"
   . IF THISSTATUS=STATUS DO
   . . NEW AUTHOR SET AUTHOR=+$PIECE($GET(^TIU(8925,NOTEIEN,12)),"^",2)
   . . NEW PATIENT SET PATIENT=+$PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",2)
+  . . IF AUTHOR'>0 QUIT
   . . SET TMGRESULT(NOTEIEN,PATIENT,AUTHOR)=""
   QUIT
   ;"

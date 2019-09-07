@@ -23,6 +23,18 @@ GETPTBP(TMGDFN)  ;"Return patient's blood pressure readings
  NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","BP",4," <- ")
  QUIT TMGRESULT
  ;"
+GETPULSE(TMGDFN)  ;"Return patient's pulse readings
+ ;"Purpose: Return patient's pulse readings as a TIU Object
+ ;"
+ NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","P",4," <- ")
+ QUIT TMGRESULT
+ ;"
+GETPOX(TMGDFN)  ;"Return patient's pulse oxymetry
+ ;"Purpose: Return patient's POx readings as a TIU Object
+ ;"
+ NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","PO2",4," <- ")
+ QUIT TMGRESULT
+ ;"
 GETPTWT(TMGDFN,TIU)  ;"Return patient's wt trend
  ;"Purpose: Return patient's weight trend as a TIU Object
  ;"
@@ -81,3 +93,24 @@ IMGNOTES(TMGRESULT,BDATE,EDATE)   ;
  . . . SET TMGRESULT(IDX)=NAME_"^"_DATE_"^"_DATA_"^"_IEN
  . . . SET IDX=IDX+1 
  QUIT
+ ;"
+LASTSEEN(TMGRESULT,DFN,DUZ)  ;"
+ ;"Return the date last seen by the provider sent
+ SET TMGRESULT="Not seen yet"
+ NEW DATE SET DATE=9999999
+ NEW FOUND SET FOUND=0
+ FOR  SET DATE=$O(^TIU(8925,"ZTMGPTDT",DFN,DATE),-1)  QUIT:(DATE'>0)!(FOUND=1)  DO
+ . NEW IEN SET IEN=0
+ . FOR  SET IEN=$O(^TIU(8925,"ZTMGPTDT",DFN,DATE,IEN)) QUIT:IEN'>0  DO
+ . . NEW NOTETYPE SET NOTETYPE=$P($G(^TIU(8925,IEN,0)),"^",1)
+ . . NEW AUTHOR SET AUTHOR=$P($G(^TIU(8925,IEN,12)),"^",2)
+ . . IF AUTHOR'=DUZ QUIT
+ . . NEW HILIGHT SET HILIGHT=$P($G(^TIU(8925.1,NOTETYPE,"TMGH")),"^",1)
+ . . IF HILIGHT'="Y" QUIT
+ . . SET FOUND=1
+ . . SET TMGRESULT=$$EXTDATE^TMGDATE($P(DATE,".",1),1)
+ QUIT
+ ;"
+
+ QUIT 
+ ;"

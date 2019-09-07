@@ -48,6 +48,9 @@ TMGHL7X2 ;TMG/kst-HL7 transformation engine processing ;10/21/15
  ;
 PARSEMSG(IEN22720,IEN772,IEN773,TMGHL7MSG,TMGU) ;
         ;"Purpose: to take pointers to files 772,773, and create an array with parsed elements
+        ;"       NOTE: I think that this is just supposed to be separating the parts
+        ;"             from HL7 format into a tree structure.  It is not supposed
+        ;"             to transform (fix) the various message elements. 
         ;"Input: IEN22720 -- IEN in TMG HL7 MESSAGE TRANSFORM SETTINGS file
         ;"       IEN772 -- IEN in HL7 MESSAGE TEXT file
         ;"       IEN773 -- IEN in HL7 MESSAGE ADMINISTRATION file. 
@@ -125,6 +128,9 @@ PARSMSG2(TMGENV,TMGTESTMSG,TMGHL7MSG,TMGU) ;
         ;"Purpose: To parse HL7 Message into a usable array.
         ;"         ALSO -- this launches an interactive process to fix problems, if found. 
         ;"Note: uses globally-scoped vars" TMGLABPREFIX, IEN68D2, IEN62D4
+        ;"NOTE: I think that this function does more than just separating the parts
+        ;"             from HL7 format into a tree structure.  The DOMORE()
+        ;"             function does mapping of tests names to VistA tests 
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
         ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
@@ -164,25 +170,6 @@ PARSMSG2(TMGENV,TMGTESTMSG,TMGHL7MSG,TMGU) ;
         NEW TMGRESULT SET TMGRESULT=$$PRSEARRY^TMGHL7X2(,.TMGTESTMSG,.TMGHL7MSG)
         IF +TMGRESULT<0 GOTO PH7DN
         SET TMGRESULT=$$DOMORE(.TMGENV,.TMGHL7MSG)
-        ;"NEW ORDERARR
-        ;"NEW TMGI SET TMGI=0
-        ;"FOR  SET TMGI=$ORDER(TMGHL7MSG(TMGI)) QUIT:(+TMGI'>0)!(+TMGRESULT<0)  DO
-        ;". NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(TMGI,"SEG"))
-        ;". IF SEGTYPE="OBR" DO
-        ;". . KILL ORDERARR
-        ;". . NEW ORDERTEST SET ORDERTEST=$GET(TMGHL7MSG(TMGI,4)) QUIT:ORDERTEST=""
-        ;". . NEW TEMPARR 
-        ;". . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,ORDERTEST,"O",.TEMPARR)
-        ;". . MERGE TMGHL7MSG(TMGI,"ORDER")=TEMPARR
-        ;". . MERGE TMGHL7MSG("ORDER",TMGI)=TEMPARR
-        ;". . MERGE ORDERARR=TEMPARR("ORDER")
-        ;". . IF TMGRESULT<0 SET TMGHL7MSG(TMGI,"ORDER","ERR")=$PIECE(TMGRESULT,"^",2,99)
-        ;". IF SEGTYPE="OBX" DO
-        ;". . NEW TEMPARR
-        ;". . NEW TSTRESULT SET TSTRESULT=$GET(TMGHL7MSG(TMGI,3)) QUIT:TSTRESULT=""
-        ;". . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TSTRESULT,"R",.TEMPARR)
-        ;". . MERGE TMGHL7MSG(TMGI,"RESULT")=TEMPARR
-        ;". . MERGE TMGHL7MSG("RESULT",TMGI)=TEMPARR
 PH7DN   QUIT TMGRESULT
         ;
 DOMORE(TMGENV,TMGHL7MSG) ;"DO MORE PROCESSING ON TMGHL7MSG   //kt split function from about 8/12/15
@@ -198,7 +185,7 @@ DOMORE(TMGENV,TMGHL7MSG) ;"DO MORE PROCESSING ON TMGHL7MSG   //kt split function
         ;"if Laughlin Radiology, then skip this part.
         NEW APP SET APP=$GET(TMGHL7MSG(1,3))
         NEW SNDR SET SNDR=$GET(TMGHL7MSG(1,4))
-        IF (APP="RM")&((SNDR="LMH")!(SNDR["LAUGHLIN")) GOTO DMDN  
+        IF (APP="RM")&((SNDR="LMH")!(SNDR["LAUGHLIN")!(SNDR["GCHE")) GOTO DMDN  
         NEW TMGI SET TMGI=0
         FOR  SET TMGI=$ORDER(TMGHL7MSG(TMGI)) QUIT:(+TMGI'>0)!(+TMGRESULT<0)  DO
         . NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(TMGI,"SEG"))
@@ -213,8 +200,8 @@ DOMORE(TMGENV,TMGHL7MSG) ;"DO MORE PROCESSING ON TMGHL7MSG   //kt split function
         . . IF TMGRESULT<0 SET TMGHL7MSG(TMGI,"ORDER","ERR")=$PIECE(TMGRESULT,"^",2,99)
         . IF SEGTYPE="OBX" DO
         . . NEW TEMPARR
-        . . NEW TSTRESULT SET TSTRESULT=$GET(TMGHL7MSG(TMGI,3)) QUIT:TSTRESULT=""
-        . . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TSTRESULT,"R",.TEMPARR)
+        . . NEW TEST SET TEST=$GET(TMGHL7MSG(TMGI,3)) QUIT:TEST=""
+        . . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TEST,"R",.TEMPARR)
         . . MERGE TMGHL7MSG(TMGI,"RESULT")=TEMPARR
         . . MERGE TMGHL7MSG("RESULT",TMGI)=TEMPARR
 DMDN    QUIT TMGRESULT

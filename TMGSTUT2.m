@@ -1,4 +1,4 @@
-TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;9/4/17
+TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -106,7 +106,7 @@ CAP1STAL(SENTENCE,DIVCHS)  ;"Capitalize only first letter of word, for each word
   . SET TEMPS=$EXTRACT(TEMPS,$LENGTH(AWORD)+1,$LENGTH(TEMPS))        
   QUIT RESULT
   ;        
-CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS) ;
+CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   ;"Purpse: To take a string, delineated by 'TMGDIV'
   ;"        and to split it into two parts: TMGTEXT and TMGPARTB
   ;"         e.g. TMGTEXT="Hello\nThere"
@@ -116,6 +116,8 @@ CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS) ;
   ;"        TMGDIV - the delineating string
   ;"        TMGPARTB - the string to get second part **SHOULD BE PASSED BY REFERENCE.
   ;"        NCS - OPTIONAL. NCS='NotCaseSensitive'.  If 1 then TMGDIV split is not case sensitive
+  ;"        OPTION -- OPTIONAL.  
+  ;"              OPTION("TRIM DIV") = 1 will cause further leading 'whitespace' divs to be trimmed from partB
   ;"Output: TMGTEXT and TMGPARTB will be changed
   ;"        Function will result in: TMGTEXT="Hello", TMGPARTB="There"
   ;"Result: none
@@ -138,6 +140,9 @@ CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS) ;
   . . SET TMGPARTB=$EXTRACT(TMGSAVE,LEN+$LENGTH(TMGDIV)+1,$LENGTH(TMGSAVE))
   . ELSE  DO
   . . SET TMGTEXT=TMGPARTA
+  IF $GET(OPTION("TRIM DIV"))=1 DO
+  . NEW DIVL SET DIVL=$LENGTH(TMGDIV)
+  . FOR  QUIT:$EXTRACT(TMGPARTB,1,DIVL)'=TMGDIV  SET TMGPARTB=$EXTRACT(TMGPARTB,DIVL+1,$LENGTH(TMGPARTB))
 CSDONE  ;
   QUIT
   ;
@@ -262,7 +267,7 @@ SPLITLN(STR,LINEARRAY,WIDTH,SPECIALINDENT,INDENT,DIVSTR)  ;"SPLIT LINE
 SPDONE  ;
   QUIT RESULT
   ;
-SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX)  ;"CleaveToArray
+SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX,OPTION)  ;"CleaveToArray
   ;"Purpose: To take a string, delineated by 'divider' and
   ;"        to split it up into all its parts, putting each part
   ;"        into an array.  e.g.:
@@ -276,6 +281,8 @@ SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX)  ;"CleaveToArray
   ;"         DIVIDER - the delineating string
   ;"         ARRAY - The array to receive output **SHOULD BE PASSED BY REFERENCE.
   ;"         INITINDEX - OPTIONAL -- The index of the array to start with, I.e. 0 or 1. Default=1
+  ;"         OPTION - OPTIONAL
+  ;"              OPTION("TRIM DIV") = 1 will cause repeat dividers to be ignored like whitespace.  E.g. "cat cow    duck" gives only 3 entries.  
   ;"Output: ARRAY is changed, as outlined above
   ;"Result: none
   ;"Notes:  Note -- TEXT is NOT changed (unless passed by reference, in
@@ -293,7 +300,7 @@ C2AL1  ;
   IF '(TEXT[DIVIDER) DO  GOTO C2ADN
   . SET ARRAY(COUNT)=TEXT ;"put it all into line.
   . SET ARRAY(CMAXNODE)=COUNT
-  DO CLEAVSTR(.TEXT,DIVIDER,.PARTB)
+  DO CLEAVSTR(.TEXT,DIVIDER,.PARTB,,.OPTION)
   SET ARRAY(COUNT)=TEXT
   SET ARRAY(CMAXNODE)=COUNT
   SET COUNT=COUNT+1

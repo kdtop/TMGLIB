@@ -1,4 +1,4 @@
-TMGRAU01 ;TMG/kst/Radiology report utilities; 11/1/16
+TMGRAU01 ;TMG/kst/Radiology report utilities; 11/1/16, 4/25/19
          ;;1.0;TMG-LIB;**1**;11/1/16
  ;
  ;"TMG RADIOLOGY REPORT FILING UTILITIES. 
@@ -14,7 +14,17 @@ TMGRAU01 ;TMG/kst/Radiology report utilities; 11/1/16
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;
+ ;"REGEXAM(DFN,DATA)  -Register exam in RAD/NUC MED PATIENT file, #70, REGISTERED EXAMS subfile
+ ;"ENSRADFN(DFN) --Ensure patient registered in RAD/NUC MED PATIENT file, #70
+ ;"STOREXAM(DATA) --Store exam report in file RAD/NUC MED REPORTS file, #74
+ ;"GETPROC(CPT) --RETURN IEN IN 71 CORRESPONDING TO CPT
+ ;"SNDALRTS(DATA) --Send one or more alerts, base on DATA array
+ ;"SENDALRT(RADFN,IDT,IEN70D03) --Fire off OE/RR notifications, version 3.0+
+ ;"SNDALRT2(RADFN,IDT,IEN70D03,RECIPS,OPTION)  ;
+ ;"RPCALERT(OUT,RECIP,DFN,IDT,CASENUM,LEVEL,ADDEND)  -entry point for RPC: TMG CPRS IMAGING ALERT
+ ;"GETRADFN(DFN)  
+ ;"ASKDELRAD 
+ ;"DELRAD(IENS)  
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
@@ -155,7 +165,7 @@ STOREXAM(DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
   ;"          DATA(#,"DT REPORTED")=Date reported, put into field #8
   ;"          DATA(#,"RPT",##)=<LINES OF REPORT TEXT>  
   ;"          DATA(#,"IMP",##)=<LINES OF IMPRESSION TEXT>  
-  ;"          DATA(#,"ACH",##)=<LINES OF ADDITIONAL CLINICAL HISTORY TEXT>  
+  ;"          DATA(#,"HX",##)=<LINES OF ADDITIONAL CLINICAL HISTORY TEXT>  
   ;"          DATA(#,"IEN70.03")=IEN of registered exam in 70.03. 
   ;"          DATA(#,"STATUS")="2^COMPLETE" or other allowed status, see file #72
   ;"Result: 1 if OK, or -1^Message(s) if problem. 
@@ -194,7 +204,7 @@ STOREXAM(DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
   . . SET IEN74=+$GET(TMGIEN(1)) IF IEN74'>0 DO  QUIT
   . . . SET DATA(IDX,"ERR")="Unable to get sub-IEN in file 70.03 in STOREEXAM^TMGRAU01"
   . . . SET DATA("ERR",IDX)=1
-  . NEW PART FOR PART="RPT^200","IMP^300","ACH^400" DO  QUIT:$DATA(DATA(IDX,"ERR"))
+  . NEW PART FOR PART="RPT^200","IMP^300","HX^400" DO  QUIT:$DATA(DATA(IDX,"ERR"))
   . . ;"200=REPORT TEXT,  300=IMPRESSION TEXT, 400=ADDITIONAL CLINICAL HISTORY
   . . NEW NODE,FLD,TMGMSG SET NODE=$PIECE(PART,"^",1),FLD=$PIECE(PART,"^",2)
   . . IF $DATA(DATA(IDX,NODE))=0 QUIT
@@ -357,25 +367,36 @@ GETRADFN(DFN)  ;"
   ;"//e.g. 36378 --> RADFN = 36378
   NEW TMGRESULT SET TMGRESULT=+$ORDER(^RADPT("B",+$GET(DFN),0))
   QUIT TMGRESULT
-  
- ;"-- Below depreciated.  Killing the input transform causes weird Fileman crash because Y is not defined... 
- ;"KILLDD3 ;" Remove input transform on field #3 in 70.03
- ;"  NEW XFRM SET XFRM=$PIECE($GET(^DD(70.03,3,0)),"^",5,999)
- ;"  IF XFRM=$$NEWDD3() QUIT
- ;"  SET ^DD(70.03,3,0,"TMGDDSAV")=XFRM
- ;"  SET $PIECE(^DD(70.03,3,0),"^",5,999)=$$NEWDD3()
- ;"  QUIT
- ;"  ;
- ;"NEWDD3() ;
- ;"  QUIT "S Y=X Q"
- ;"  ;
- ;"RESTRDD3 ;" Restore input transform on field #3 in 70.03, as saved by KILLDD3
- ;"  NEW XFRM SET XFRM=$GET(^DD(70.03,3,0,"TMGDDSAV"))
- ;"  IF (XFRM="")!(XFRM=$$NEWDD3()) QUIT  
- ;"  SET $PIECE(^DD(70.03,3,0),"^",5,999)=XFRM
- ;"  KILL ^DD(70.03,3,0,"TMGDDSAV")
- ;"  QUIT
- ;"  ;
+  ;
+ASKDELRAD ;
+  NEW IENS SET IENS=$$ASKIENS^TMGDBAP3(70.03)
+  IF IENS'>0 QUIT
+  NEW TMGRESULT SET TMGRESULT=$$DELRAD(IENS)
+  QUIT
+  ;
+DELRAD(IENS)  ;"Delete a radiology study.  
+  ;"PURPOSE: Remove from REGISTERED EXAMS in file 70, and also remove linked report file 74
+  ;"Input: IENS -- an IENS for 70.03 (inside, 70.02, inside 70)
+  ;"Result: 1^OK, or -1^error message
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  NEW IEN,IDX FOR IDX=1:1 QUIT:IDX>$LENGTH(IENS,",")  SET IEN(IDX)=$PIECE(IENS,",",IDX)
+  IF $GET(IEN(3))'>0 DO  GOTO DLRDDN
+  . SET TMGRESULT="-1^Invalid IENS. Got ["_IENS_"]"
+  ;"step 1.  Get value from field 17 in 70.03.  This is a pointer to file 74
+  NEW IEN74 SET IEN74=$$GET1^DIQ(70.03,IENS,17,"I")
+  IF IEN74'>0 DO  GOTO DLRDDN
+  . SET TMGRESULT="-1^Unable to get linked report in file 74.  Aborting."
+  ;"Step 2.  Kill the sub-sub-record in 70.03, leaving rest of file alone.
+  NEW DIK SET DIK=$$OREF^DILF($NAME(^RADPT(IEN(3),"DT",IEN(2),"P")))
+  NEW DA SET DA=IEN(1),DA(1)=IEN(2),DA(2)=IEN(3)
+  DO ^DIK  ;"kill sub-sub-record in 70.03
+  ;"step 3.  Delete record in 74
+  KILL DA SET DIK="^RARPT(",DA=IEN74
+  DO ^DIK  ;"kill the record in 74
+DLRDDN ;  
+  QUIT TMGRESULT
+  ;  
+ ;"===================================================================================================== 
 TEST  ;
   ;"CREATE A TEST ARRAY TO TRY FILING OF REPORTS
   NEW DATA
@@ -399,8 +420,8 @@ TEST  ;
   SET DATA(1,"RPT",6)=" Consider repeat study in 12 minutes "
   SET DATA(1,"IMP",1)="--patient is alive."  
   SET DATA(1,"IMP",2)="--patient has a heart"  
-  SET DATA(1,"ACH",1)="Patient is very sick"  
-  SET DATA(1,"ACH",2)="Recent back pain."  
+  SET DATA(1,"HX",1)="Patient is very sick"  
+  SET DATA(1,"HX",2)="Recent back pain."  
   SET DATA(1,"STATUS")="2^COMPLETE"  
   NEW DFN SET DFN=75282  ;"zztest,strange
   NEW TMGRESULT SET TMGRESULT=$$REGEXAM(DFN,.DATA)
@@ -461,3 +482,22 @@ TEST3  ;"TEST SENDING ALERT FOR A GIVEN STUDY
   DO SENDALRT(RADFN,RADTI,RACNI)
   QUIT
   ;
+ ;"-- Below depreciated.  Killing the input transform causes weird Fileman crash because Y is not defined... 
+ ;"KILLDD3 ;" Remove input transform on field #3 in 70.03
+ ;"  NEW XFRM SET XFRM=$PIECE($GET(^DD(70.03,3,0)),"^",5,999)
+ ;"  IF XFRM=$$NEWDD3() QUIT
+ ;"  SET ^DD(70.03,3,0,"TMGDDSAV")=XFRM
+ ;"  SET $PIECE(^DD(70.03,3,0),"^",5,999)=$$NEWDD3()
+ ;"  QUIT
+ ;"  ;
+ ;"NEWDD3() ;
+ ;"  QUIT "S Y=X Q"
+ ;"  ;
+ ;"RESTRDD3 ;" Restore input transform on field #3 in 70.03, as saved by KILLDD3
+ ;"  NEW XFRM SET XFRM=$GET(^DD(70.03,3,0,"TMGDDSAV"))
+ ;"  IF (XFRM="")!(XFRM=$$NEWDD3()) QUIT  
+ ;"  SET $PIECE(^DD(70.03,3,0),"^",5,999)=XFRM
+ ;"  KILL ^DD(70.03,3,0,"TMGDDSAV")
+ ;"  QUIT
+ ;"  ;
+  

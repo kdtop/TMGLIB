@@ -1,56 +1,60 @@
-TMGHL75  ;TMG/kst-HL7 transformation engine processing ;10/21/15, 2/17/16, 6/14/17
+TMGHL75  ;TMG/kst-HL7 transformation engine processing ;6/14/17, 4/11/19
         ;;1.0;TMG-LIB;**1**;10/25/15;Build 61
-  ;
-  ;"TMG HL7 TRANSFORMATION FUNCTIONS
-  ;
-  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
-  ;"Copyright (c) 10/25/2015  Kevin S. Toppenberg MD
-  ;"
-  ;"This file is part of the TMG LIBRARY, and may only be used in accordence
-  ;" to license terms outlined in separate file TMGLICNS.m, which should 
-  ;" always be distributed with this file.
-  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
-  ;
-  ;"NOTE: this is code for working with labs from **[QUEST DIAGNOSTICS]**
-  ;"      FYI -- Pathgroup code is in TMGHL73
-  ;"             Laughlin  code is in TMGHL74
-  ;"             Quest     code is in TMGHL75
-  ;"=======================================================================
-  ;"=======================================================================
-  ;" API -- Public Functions.
-  ;"=======================================================================
-  ;"TEST  -- Pick file and manually send through filing process.   
-  ;"BATCH -- Launch processing through all files in folder for laughlin lab
-  ;"
-  ;"=======================================================================
-  ;" API - Private Functions
-  ;"=======================================================================
-  ;"XMSG    -- Process entire message before processing segments
-  ;"XMSH15  -- Process MSH segment, FLD 15
-  ;"XMSH16  -- Process MSH segment, FLD 16
-  ;"PID     -- transform the PID segment, esp SSN
-  ;"XORC1   -- Process empty ORC message, field 1
-  ;"XORC12  -- Process empty ORC message, field 12
-  ;"XORC13  -- Process empty ORC message, field 13
-  ;"OBR     -- setup for OBR fields.
-  ;"OBR4    -- To transform the OBR segment, field 4
-  ;"OBR15   -- Transform Secimen source
-  ;"OBR16   -- Transform Ordering provider.
-  ;"OBX3    -- transform the OBX segment, field 3 -- Observation Identifier
-  ;"OBX5    -- transform the OBX segment, field 5 -- Observation value
-  ;"OBX15   -- transform the OBX segment, field 15 ---- Producer's ID
-  ;"OBX16   -- transform the OBX segment, field 16 ---- Responsibile Observer
-  ;"OBX18   -- transform the OBX segment, field 18 ---- Equipment Identifier (EI)
-  ;"NTE3    -- transform the NTE segment, field 3
-  ;"XFTEST(FLDVAL,TMGU) -- convert test code into value acceptable to VistA
-  ;"SUORL   -- Setup TMGINFO("ORL"), TMGINFO("LOC"), TMGINFO("INSTNAME")
-  ;" 
-  ;"=======================================================================
-  ;"Dependancies
-  ;"=======================================================================
-  ;"TMGSTUTL, all the HL*, LA* code that the HL processing path normally calls.
-  ;"=======================================================================
-  ;
+ ;
+ ;"TMG HL7 TRANSFORMATION FUNCTIONS
+ ;
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;"Copyright (c) 10/25/2015  Kevin S. Toppenberg MD
+ ;"
+ ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+ ;" to license terms outlined in separate file TMGLICNS.m, which should 
+ ;" always be distributed with this file.
+ ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+ ;
+ ;"NOTE: this is code for working with labs from **[QUEST DIAGNOSTICS]**
+ ;"      FYI -- Pathgroup code is in TMGHL73
+ ;"             Laughlin code is in TMGHL74
+ ;"             Laughlin RADIOLOGY is in TMGHL74R
+ ;"             Quest code is in TMGHL75
+ ;"             common code is in TMGHL72
+ ;"             GCHE LAB code is TMGHL76
+ ;"             GCHE RADIOLOGY code is TMGHL76R
+ ;"=======================================================================
+ ;"=======================================================================
+ ;" API -- Public Functions.
+ ;"=======================================================================
+ ;"TEST  -- Pick file and manually send through filing process.   
+ ;"BATCH -- Launch processing through all files in folder for laughlin lab
+ ;"
+ ;"=======================================================================
+ ;" API - Private Functions
+ ;"=======================================================================
+ ;"XMSG    -- Process entire message before processing segments
+ ;"XMSH15  -- Process MSH segment, FLD 15
+ ;"XMSH16  -- Process MSH segment, FLD 16
+ ;"PID     -- transform the PID segment, esp SSN
+ ;"XORC1   -- Process empty ORC message, field 1
+ ;"XORC12  -- Process empty ORC message, field 12
+ ;"XORC13  -- Process empty ORC message, field 13
+ ;"OBR     -- setup for OBR fields.
+ ;"OBR4    -- To transform the OBR segment, field 4
+ ;"OBR15   -- Transform Secimen source
+ ;"OBR16   -- Transform Ordering provider.
+ ;"OBX3    -- transform the OBX segment, field 3 -- Observation Identifier
+ ;"OBX5    -- transform the OBX segment, field 5 -- Observation value
+ ;"OBX15   -- transform the OBX segment, field 15 ---- Producer's ID
+ ;"OBX16   -- transform the OBX segment, field 16 ---- Responsibile Observer
+ ;"OBX18   -- transform the OBX segment, field 18 ---- Equipment Identifier (EI)
+ ;"NTE3    -- transform the NTE segment, field 3
+ ;"XFTEST(FLDVAL,TMGU) -- convert test code into value acceptable to VistA
+ ;"SUORL   -- Setup TMGINFO("ORL"), TMGINFO("LOC"), TMGINFO("INSTNAME")
+ ;" 
+ ;"=======================================================================
+ ;"Dependancies
+ ;"=======================================================================
+ ;"TMGSTUTL, all the HL*, LA* code that the HL processing path normally calls.
+ ;"=======================================================================
+ ;
 TEST   ;"Pick file and manually send through filing process.
   DO TEST^TMGHL71("/mnt/WinServer/")
   QUIT

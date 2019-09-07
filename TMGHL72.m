@@ -1,4 +1,4 @@
-TMGHL72 ;TMG/kst-HL7 transformation engine processing ;5/9/17, 4/1/18
+TMGHL72 ;TMG/kst-HL7 transformation engine processing ;5/9/17, 4/1/18, 4/11/19
               ;;1.0;TMG-LIB;**1**;03/26/11
  ;
  ;"TMG HL7 TRANSFORMATION CALL-BACK FUNCTIONS
@@ -13,8 +13,12 @@ TMGHL72 ;TMG/kst-HL7 transformation engine processing ;5/9/17, 4/1/18
  ;
  ;"NOTE: This is common code, usable by multiple labs. 
  ;"      FYI -- Pathgroup code is in TMGHL73
+ ;"             Laughlin code is in TMGHL74
  ;"             Laughlin RADIOLOGY is in TMGHL74R
- ;"             Laughlin LAB code is in TMGHL74
+ ;"             Quest code is in TMGHL75
+ ;"             common code is in TMGHL72
+ ;"             GCHE LAB code is TMGHL76
+ ;"             GCHE RADIOLOGY code is TMGHL76R
  ;
  ;"=======================================================================
  ;"=======================================================================
@@ -94,6 +98,9 @@ XMSG    ;"Purpose: Process entire message before processing segments
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, HLREC
         NEW X,Y
         IF $GET(IEN62D4)>0 GOTO XMSGB
+        SET IEN62D4=$GET(TMGENV("IEN 62.4"))  ;"cleaned up in XMSG2
+        IF $GET(IEN62D4)>0 GOTO XMSGB
+        ;"------- old code ----------------------
         SET DIC=62.4,DIC(0)="M"
         SET X=$GET(HLREC("SAN"))
         IF X="" DO
@@ -105,6 +112,7 @@ XMSG    ;"Purpose: Process entire message before processing segments
         . SET TMGXERR="In XMSG.TMGHL72: Unable to find AUTO INSTRUMENT (62.4) record matching sending application name '"_X_"'"
         IF $DATA(IEN62D4) NEW IEN62D4
         SET IEN62D4=+Y  ;"cleaned up in XMSG2
+        ;"---------------------------------------
 XMSGB   IF $DATA(TMGU)=0 DO  GOTO XMDN
         . SET TMGXERR="In XMSG.TMGHL72: Array with divisor chars (TMGU) not SET up."
         ;
@@ -165,6 +173,9 @@ XMSH16  ;"Purpose: Process MSH segment, FLD 16
         ;
 PID     ;"Purpose: To transform the PID segment, esp SSN
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE
+        ;"       Also uses TMGHNDLERR:
+        ;"        TMGHNDLERR("DFN")=DFN
+        ;"        TMGHNDLERR("SSN")=SSN
         ;"Will try to put DFN into PID-4 ("alternate PID") field
         NEW SOURCE SET SOURCE=$PIECE(TMGVALUE,TMGU(1),19)
         NEW NAME SET NAME=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",5)
@@ -175,7 +186,14 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         NEW DFN SET DFN=-1
         ;"IF SOURCE="" DO  GOTO PIDDN
         ;". SET TMGXERR="In PID.TMGHL72: No SSN provided in field 19 of 'PID' segment in HL7 message"
-        IF SOURCE'="" DO  
+        IF $GET(TMGHNDLERR("DFN"))>0 DO
+        . SET DFN=TMGHNDLERR("DFN")
+        . IF $GET(TMGHNDLERR("SSN"))>0 DO        
+        . . SET $PIECE(TMGVALUE,TMGU(1),19)=TMGHNDLERR("SSN")
+        . . SET $PIECE(SOURCE,TMGU(2),4)=170
+        . . SET $PIECE(SOURCE,TMGU(2),5)="SS"
+        . . SET $PIECE(TMGVALUE,TMGU(1),3)=TMGHNDLERR("SSN")  ;"put SSN in as patient identifier.
+        IF (DFN=-1),SOURCE'="" DO  
         . SET SOURCE=$TRANSLATE(SOURCE,"-","")
         . IF SOURCE="999999999" SET SOURCE=""
         . SET $PIECE(TMGVALUE,TMGU(1),19)=SOURCE
@@ -184,7 +202,7 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         . SET $PIECE(SOURCE,TMGU(2),4)=170
         . SET $PIECE(SOURCE,TMGU(2),5)="SS"
         . SET $PIECE(TMGVALUE,TMGU(1),3)=SOURCE  ;"put SSN in as patient identifier.
-        IF DFN=-1 DO
+        IF +$GET(DFN)'>0 DO
         . NEW INFO SET INFO=""
         . NEW NAME SET NAME=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",5)
         . NEW LNAME SET LNAME=$PIECE(NAME,TMGU(2),1)        
@@ -193,11 +211,19 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         . NEW HL7DOB SET HL7DOB=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",7)
         . NEW FMDT SET FMDT=$$HL72FMDT^TMGHL7U3(HL7DOB)
         . NEW SEX SET SEX=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",8)
-        . SET INFO("SSNUM")=SOURCE
+        . ;"SET INFO("SSNUM")=SOURCE
         . SET INFO("NAME")=NAME
         . SET INFO("DOB")=FMDT
         . SET INFO("SEX")=SEX
-        . SET DFN=$$GETDFN^TMGGDFN(.INFO,0)        
+        . SET DFN=$$GETDFN^TMGGDFN(.INFO,0)     
+        . IF DFN>0,(SOURCE'>0) DO   
+        . . SET $PIECE(TMGVALUE,TMGU(1),19)=$P($G(^DPT(DFN,0)),"^",9)
+        . . SET $PIECE(SOURCE,TMGU(2),4)=170
+        . . SET $PIECE(SOURCE,TMGU(2),5)="SS"
+        . . SET $PIECE(TMGVALUE,TMGU(1),3)=$P($G(^DPT(DFN,0)),"^",9)  ;"put SSN in as patient identifier.
+        . ELSE  IF DFN'>0 DO  ;"//kt 5/2/19, 5/15/19
+        . . NEW STR SET STR=NAME_" ("_$TRANSLATE($$FMTE^XLFDT(FMDT,"2DZ"),"/","-")_")"
+        . . SET TMGXERR="Patient not found in system: "_STR
         SET $PIECE(TMGVALUE,TMGU(1),4)=DFN
         ;"The following IF block, autoregistered the patient somehow and DFN logic was incorrect. Created duplicate patients.
         ;"IF (DFN'>0),(SOURCE?9N) DO  ;"If patient doesn't have SSN, then store now.
@@ -369,7 +395,7 @@ NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
         . IF DA(1)'>0 QUIT
         . SET DA=+$ORDER(^LR(DA(2),"CH",DA(1),1,0))
         . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",$ECODE,! SET $ETRAP="""",$ECODE="""""
-        . XECUTE TMGCODE		 
+        . XECUTE TMGCODE
         IF $DATA(X) GOTO NTE3DN
         SET TMGXERR="Comment line fails input transform: ["_TMGVALUE_"]"
         SET TMGRESULT="-1^"_TMGXERR
@@ -465,11 +491,11 @@ VALIDVAL(TMGENV,TMGWKLD,TMGVALUE,MAP) ;"
         ;"Also TMGXERR is SET IF error.
         NEW HLP SET HLP=""
         NEW TMGRESULT SET TMGRESULT=1
-        SET TMGVALUE=$GET(TMGVALUE)
-        IF TMGVALUE="" GOTO VVDN
         SET TMGWKLD=$GET(TMGWKLD)
         IF TMGWKLD="" DO  GOTO VVDN
         . SET TMGRESULT="-1^WKLD code not provided to VALIDVAL.TMGHL72"
+        SET TMGVALUE=$GET(TMGVALUE)
+        IF TMGVALUE="",TMGWKLD'="??NLT" GOTO VVDN
         IF $DATA(MAP)=0 SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TMGWKLD,"R",.MAP)
         IF TMGRESULT'>0 GOTO VVDN
         NEW IEN64 SET IEN64=+$GET(MAP("IEN64"))

@@ -164,7 +164,7 @@ WTTREND(DFN,TIU) ;
 WTTRDONE QUIT RESULT
   ;
   ;
-WTDELTA(DFN,TIU,NONULL) ;
+WTDELTA(DFN,TIU,NONULL,HTMLWRAP) ;
   ;"Purpose: return text showing patient's change in weight.
   ;"Input: DFN=the Patient's IEN in file #2
   ;"       TIU=PASS BY REFERENCE.  Should be an Array of TIU note info
@@ -172,7 +172,8 @@ WTDELTA(DFN,TIU,NONULL) ;
   ;"       NONULL -- optional.  Default=1.  If 0, no "?" returned
   ;"Results: Returns string describing change in weight.
   ;
-  NEW RESULT SET RESULT="Weight "
+  NEW RESULT SET RESULT="Wt "  ;"elh shortened  7/2/19
+  SET HTMLWRAP=+$G(HTMLWRAP)
   NEW DELTA
   NEW DATE SET DATE=$GET(TIU("EDT"))  ;"Episode date
   IF DATE="" SET DATE=$$NOW^XLFDT   ;IF NO ENCOUNTER, USE NOW 5/30/13
@@ -190,13 +191,17 @@ WTDELTA(DFN,TIU,NONULL) ;
   IF NTLAST=0 SET RESULT="" GOTO WTDDONE
   SET DELTA=LAST-NTLAST
   IF DELTA>0 SET RESULT=RESULT_"up "_DELTA_" lbs. "
-  ELSE  IF DELTA<0 SET RESULT=RESULT_"down "_-DELTA_" lbs. "
+  ELSE  IF DELTA<0 DO
+  . IF (DELTA<-5)&(HTMLWRAP=1) DO  ;"elh added check here 7/2/19
+  . . SET RESULT=RESULT_"down +++#ffff99---"_-DELTA_"@@@"_" lbs."
+  . ELSE  DO
+  . . SET RESULT=RESULT_"down "_-DELTA_" lbs. "
   ELSE  DO
   . IF LAST=0 SET RESULT=RESULT_"change: ?" QUIT
   . SET RESULT=RESULT_"unchanged. "
   ;
   IF (LAST>0)&(NTLAST>0) DO
-  . SET RESULT=RESULT_"("_LAST_" <== "_NTLAST_" prior wt)"
+  . SET RESULT=RESULT_"("_LAST_" <== "_NTLAST_" prior)"  ;"was "prior wt"
   ;
 WTDDONE QUIT RESULT
   ;

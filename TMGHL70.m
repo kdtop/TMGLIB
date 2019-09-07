@@ -202,6 +202,18 @@ TESTPARS(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) ;
         IF $DATA(TMGTESTMSG)>0 DO
         . SET TMGENV("INDENTN")=INDENTN
         . SET TMGRESULT=$$PARSMSG2^TMGHL7X2(.TMGENV,.TMGTESTMSG,.TMGHL7MSG)
+        . ;"---------------------------------------------------
+        . ;"//kt added below 4/9/19 because a test was failing during full parse, but succeeding here and thus couldn't fix.              
+        . IF TMGRESULT<0 QUIT
+        . SET TMGHL7MSG("STAGE")="PRE"
+        . SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
+        . IF TMGRESULT<0 QUIT
+        . SET TMGRESULT=$$DOMORE^TMGHL7X2(.TMGENV,.TMGHL7MSG)
+        . IF TMGRESULT<0 QUIT
+        . SET TMGHL7MSG("STAGE")="FINAL"
+        . SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
+        . SET TMGHL7MSG("STAGE")=""
+        . ;"---------------------------------------------------
         ELSE  DO
         . SET TMGRESULT="-1^No message provided to parse, in TESTPARS.TMGHL70"
         WRITE !,INDENTSTR        
@@ -423,7 +435,7 @@ GETIDFRM(TESTMSG,TMGU) ;"GET TEST ID FROM TEST HL7 MESSAGE
         SET TMGRESULT=TMGUSERINPUT
         QUIT TMGRESULT
         ;
-GETCFG(HL7INST,HL7APP) ;
+GETCFG(HL7INST,HL7APP) ;"DEPRECIATED
         ;"Purpose: To get TMGH HL7 MESSAGE TRANSFORM SETTINGS 
         ;"Input: HL7INST -- Institution, as found in HL7 message, piece #4.
         ;"       HL7APP -- Sending applications, as found in HL7 message, piece #3.
@@ -440,3 +452,32 @@ GETCFG(HL7INST,HL7APP) ;
         . SET IEN22720="-1^Can't find entry in 22720 matching SENDING FACILITY=["_HL7INST_"], SENDING APPLICATION=["_HL7APP_"]"         
         QUIT IEN22720
         ;
+GETCFG2(MSH,TMGU,HL7INST,HL7APP) ;
+        ;"Purpose: To get TMGH HL7 MESSAGE TRANSFORM SETTINGS 
+        ;"Input: MSH -- the MSH segment of the HL7 message
+        ;"       TMGU -- the array with delimeters
+        ;"       HL7INST -- an OUT PARAMETER
+        ;"       HL7APP -- an OUT PARAMETER.  
+        ;"Result: IEN in 22720 or -1^message if not found or problem.
+        
+        SET HL7INST=$PIECE($PIECE(MSH,TMGU(1),4),TMGU(2),1)
+        SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1)
+        NEW MSGTYPE SET MSGTYPE=$PIECE($PIECE(MSH,TMGU(1),9),TMGU(2),1)
+        NEW IEN22720 SET IEN22720=0
+        SET HL7INST=$GET(HL7INST,"?")
+        SET HL7APP=$GET(HL7APP)
+        NEW FOUND SET FOUND=0
+        FOR  QUIT:FOUND  SET IEN22720=+$ORDER(^TMG(22720,"D",HL7INST,IEN22720)) QUIT:(+IEN22720'>0)!FOUND  DO
+        . IF HL7APP="" SET FOUND=1 QUIT  ;"If not APP specified, then use first found. 
+        . NEW SUBIEN SET SUBIEN=0
+        . NEW SKIP SET SKIP=1
+        . FOR  SET SUBIEN=$ORDER(^TMG(22720,IEN22720,23,SUBIEN)) QUIT:SUBIEN'>0  DO
+        . .  ;"TO DO, EXAMINE RECORD TO SEE IF MATCHES MESSAGE TYPE.  
+        . . IF $P($G(^TMG(22720,IEN22720,23,SUBIEN,0)),"^",1)=MSGTYPE SET SKIP=0
+        . IF SKIP=1 QUIT
+        . IF $DATA(^TMG(22720,"EAPP",HL7APP,IEN22720))>0 SET FOUND=1 QUIT
+        IF FOUND'>0 SET IEN22720=0
+        IF IEN22720'>0 DO
+        . SET IEN22720="-1^Can't find entry in 22720 matching SENDING FACILITY=["_HL7INST_"], SENDING APPLICATION=["_HL7APP_"]"         
+        QUIT IEN22720
+        ;        

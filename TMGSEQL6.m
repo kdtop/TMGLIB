@@ -187,7 +187,11 @@ F1B ;" Check for existing subrecord for date
   . NEW COMMENT SET COMMENT=$GET(REC("COMMENT"))
   . IF COMMENT'="" SET TMGFDA(22723.01,IENS,.06)=COMMENT
   . SET TMGFDA(22723.01,IENS,.07)="A"  ;"ACTIVE status
-  . NEW TMGFDA SET TMGFDA(22723.01,IENS,.07)="O"
+  . ;"Removed following line because it was NEWING the TMGFDA
+  . ;"  and if the appt had been moved to same date/time
+  . ;"  but with a different provider, it wasn't being changed
+  . ;"  ELH    3/1/19
+  . ;"NEW TMGFDA SET TMGFDA(22723.01,IENS,.07)="O"
   . NEW TMGMSG DO FILE^DIE("","TMGFDA","TMGMSG")
   . IF $DATA(TMGMSG("DIERR")) DO
   . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)

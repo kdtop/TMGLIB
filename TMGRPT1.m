@@ -90,7 +90,10 @@ MAMMORPT
        ;"Results: None, but report created.
        NEW MammoIEN SET MammoIEN=+$ORDER(^GMR(123.5,"B","MAMMOGRAM",""))
        IF MammoIEN'>0 DO  GOTO MRPTDn
+       NEW BoneDesIEN SET BoneDesIEN=+$ORDER(^GMR(123.5,"B","BONE DENSITY",""))
+       IF BoneDesIEN'>0 DO  GOTO MRPTDn       
        . WRITE "Can't locate record for MAMMOGRAM report.  Aborting.",!
+       NEW CONSARR SET CONSARR(MammoIEN)="",CONSARR(BoneDesIEN)=""
        NEW ComplIEN SET ComplIEN=+$ORDER(^ORD(100.01,"B","COMPLETE",""))
        IF ComplIEN'>0 DO  GOTO MRPTDn
        . WRITE "Can't find record for COMPLETE status.  Aborting.",!
@@ -100,54 +103,60 @@ MAMMORPT
        ;"GOTO UNSCH
        WRITE !
        WRITE "************************************************************",!
-       WRITE "              Outstanding mammograms report",!
+       WRITE "          Outstanding mammograms/bone density report",!
        WRITE "                     " SET Y=X DO DD^%DT WRITE Y,!
        WRITE "          Please deliver this report to the nurse",!
        WRITE "************************************************************",!
        WRITE "                                            (From TMGRPT1.m)",!!
        NEW idx SET idx=""
        NEW matches,IENLIST
-       FOR  SET idx=+$ORDER(^GMR(123,"C",MammoIEN,idx)) QUIT:(idx'>0)  do
-       . NEW s
-       . NEW znode SET znode=$GET(^GMR(123,idx,0))
-       . NEW status SET status=$PIECE(znode,"^",12)
-       . IF status=ComplIEN QUIT
-       . IF status=DCIEN QUIT
-       . NEW Y SET Y=$PIECE(znode,"^",7)  ;"date of request
-       . DO DD^%DT SET s=Y
-       . NEW PtIEN SET PtIEN=+$PIECE(znode,"^",2)
-       . IF PtIEN'=0 do
-       . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)_" ("_$$EXTDATE^TMGDATE($PIECE($GET(^DPT(PtIEN,0)),"^",3))_")"
-       . ELSE  do
-       . . SET s=s_"^"_"?? Patient Name not found.  Record # "_idx_" in file #123"
-       . ;"Now scan for appt scheduled date
-       . NEW idxWP SET idxWP=0
-       . NEW found SET found=0
-       . FOR  SET idxWP=+$ORDER(^GMR(123,idx,20,idxWP)) QUIT:(idxWP'>0)!found  do
-       . . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
-       . . IF line'["Scheduled Appointment:" QUIT
-       . . SET found=1
-       . . NEW apptDate SET apptDate=$PIECE(line,"Scheduled Appointment:",2)
-       . . SET Y=$$FMDate^TMGFMUT(apptDate)
-       . . NEW FMDate SET FMDate=Y
-       . . IF Y>0 do
-       . . . DO DD^%DT  ;"standardize date
+       NEW CONSIEN SET CONSIEN=0
+       FOR  SET CONSIEN=$O(CONSARR(CONSIEN)) QUIT:CONSIEN'>0  DO
+       . FOR  SET idx=+$ORDER(^GMR(123,"C",CONSIEN,idx)) QUIT:(idx'>0)  do
+       . . NEW s
+       . . NEW znode SET znode=$GET(^GMR(123,idx,0))
+       . . NEW status SET status=$PIECE(znode,"^",12)
+       . . IF status=ComplIEN QUIT
+       . . IF status=DCIEN QUIT
+       . . NEW Y SET Y=$PIECE(znode,"^",7)  ;"date of request
+       . . DO DD^%DT SET s=Y
+       . . NEW PtIEN SET PtIEN=+$PIECE(znode,"^",2)
+       . . IF PtIEN'=0 do
+       . . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)_" ("_$$EXTDATE^TMGDATE($PIECE($GET(^DPT(PtIEN,0)),"^",3))_")"
        . . ELSE  do
-       . . . SET Y=apptDate
-       . . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
-       . . SET s=s_"^"_Y
-       . . SET matches(FMDate,s)=""
-       . . SET IENLIST(PtIEN)=""
+       . . . SET s=s_"^"_"?? Patient Name not found.  Record # "_idx_" in file #123"
+       . . ;"Now scan for appt scheduled date
+       . . NEW idxWP SET idxWP=0
+       . . NEW found SET found=0
+       . . FOR  SET idxWP=+$ORDER(^GMR(123,idx,20,idxWP)) QUIT:(idxWP'>0)!found  do
+       . . . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
+       . . . IF line'["Scheduled Appointment:" QUIT
+       . . . SET found=1
+       . . . NEW apptDate SET apptDate=$PIECE(line,"Scheduled Appointment:",2)
+       . . . SET Y=$$FMDate^TMGFMUT(apptDate)
+       . . . NEW FMDate SET FMDate=Y
+       . . . IF Y>0 do
+       . . . . DO DD^%DT  ;"standardize date
+       . . . ELSE  do
+       . . . . SET Y=apptDate
+       . . . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
+       . . . SET s=s_"^"_Y
+       . . . SET matches(CONSIEN,FMDate,s)=""
+       . . . SET IENLIST(PtIEN)=""
        ;
        NEW future SET future=0
        NEW dueDate SET dueDate=""
-       FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
-       . IF (dueDate>NowDate)&(future=0) do
-       . . SET future=1
-       . . WRITE "-----------------------------------------------------------------------------",!
-       . NEW s SET s=""
-       . FOR  SET s=$Order(matches(dueDate,s)) QUIT:s=""  do
-       . . WRITE "Due: ",$p(s,"^",3),?25,$p(s,"^",2),?60,"Made on visit: ",$p($p(s,"^",1),"@",1),!
+       SET CONSIEN=0
+       FOR  SET CONSIEN=$O(CONSARR(CONSIEN)) QUIT:CONSIEN'>0  DO
+       . WRITE "==============> ",$P($G(^GMR(123.5,CONSIEN,0)),"^",1)," <==============",!
+       . FOR  SET dueDate=$ORDER(matches(CONSIEN,dueDate),1) QUIT:(dueDate="")  do
+       . . IF (dueDate>NowDate)&(future=0) do
+       . . . SET future=1
+       . . . WRITE "-----------------------------------------------------------------------------",!
+       . . NEW s SET s=""
+       . . FOR  SET s=$Order(matches(CONSIEN,dueDate,s)) QUIT:s=""  do
+       . . . WRITE "Due: ",$p(s,"^",3),?25,$p(s,"^",2),?60,"Made on visit: ",$p($p(s,"^",1),"@",1),!
+       . WRITE !
        ;" 
        QUIT   ;"DON'T PRINT THE FOLLOWING FOR NOW. REMOVE QUIT LATER WHEN READY
 UNSCH
@@ -272,6 +281,19 @@ NEWCOUMA ;
        . . WRITE NAME,"(",DFN,")",!
        . . WRITE "            Was Due On ",$$EXTDATE^TMGDATE(DATE),!
        . . WRITE "     ------------- ",!
+       NEW DFN SET DFN=0
+       FOR  SET DFN=$O(^ORAM(103,DFN)) QUIT:DFN'>0  DO
+       . NEW LASTDATE 
+       . SET LASTDATE=$O(^ORAM(103,DFN,3,"B",9999999),-1)
+       . NEW DAYSDIFF SET DAYSDIFF=$$DAYSDIFF^TMGDATE($$TODAY^TMGDATE,LASTDATE)
+       . IF DAYSDIFF>44 DO
+       . . IF $$ACTIVEPT^TMGPXR03(DFN)'=1 QUIT
+       . . IF $$UP^XLFSTR($P($G(^ORAM(103,DFN,0)),"^",7))="COMPLETED" QUIT
+       . . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+       . . IF NAME["ZZ" QUIT
+       . . WRITE NAME,"(",DFN,")",!
+       . . WRITE "            Was Last Done On ",$$EXTDATE^TMGDATE(LASTDATE),"(",DAYSDIFF," ago)",!
+       . . WRITE "     ------------- ",!
        QUIT
        ;"
 CNSLTRPT(RECORDS,MAKENOTES) ;
@@ -281,6 +303,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        SET MAKENOTES=+$GET(MAKENOTES)
        SET RECORDS=$GET(RECORDS)
        NEW MammoIEN SET MammoIEN=+$ORDER(^GMR(123.5,"B","MAMMOGRAM",""))
+       NEW BoneDensIEN SET BoneDensIEN=+$ORDER(^GMR(123.5,"B","BONE DENSITY",""))
        IF MammoIEN'>0 DO  GOTO CNSTDn
        . WRITE "Can't locate record for MAMMOGRAM report.  Aborting.",!
        NEW ComplIEN SET ComplIEN=+$ORDER(^ORD(100.01,"B","COMPLETE",""))
@@ -309,6 +332,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        NEW ORDERTYPE
        FOR  SET IEN=+$ORDER(^GMR(123,"C",IEN)) QUIT:(IEN'>0)  DO
        . IF IEN=MammoIEN QUIT
+       . IF IEN=BoneDensIEN QUIT
        . SET ORDERTYPE=$PIECE($GET(^GMR(123.5,IEN,0)),"^",1)
        . FOR  SET idx=+$ORDER(^GMR(123,"C",IEN,idx)) QUIT:(idx'>0)  do
        . . NEW s
@@ -329,7 +353,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        . . NEW idxWP SET idxWP=0
        . . NEW found SET found=0
        . . FOR  SET idxWP=+$ORDER(^GMR(123,idx,20,idxWP)) QUIT:(idxWP'>0)!found  do
-       . . . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
+      . . . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
        . . . IF line'["An appointment has been scheduled" QUIT
        . . . SET found=1
        . . . SET line=$GET(^GMR(123,idx,20,idxWP+1,0))
@@ -367,8 +391,8 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        SET X1=X,X2=6
        DO C^%DTC
        SET endDate=X+.999999
-       ;"SET NowDate=3170926
-       ;"SET endDate=3171003
+       ;"SET NowDate=3181231
+       ;"SET endDate=3190107
        FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
        . IF (RECORDS>0)&(dueDate>endDate) QUIT
        . IF (dueDate>NowDate)&(future=0) do
@@ -527,6 +551,7 @@ PRTPAINR  ;"
        NEW NEXTDATE SET NEXTDATE=$$TODAY^TMGDATE
        IF NEXTDATE'>0 GOTO PPDN
        SET BDATE=NEXTDATE,EDATE=NEXTDATE
+       ;"SET BDATE=3190326,EDATE=3190330
        DO GETPRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE)
        NEW DUEARRAY
        DO GETDBDUE(.DUERESULT,BDATE)

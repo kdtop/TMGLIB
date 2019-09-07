@@ -27,7 +27,13 @@ ENV     ;Establish Routine Environment
 
         QUIT
 
-
+TESTDIC
+        NEW X,Y,DIC,ANSWER
+        SET DIC=2,DIC(0)="MAEQ"
+        D ^DIC
+        WRITE !,Y
+        ;"IF +Y>0 DO
+        QUIT
 KILLTSK(ZTSK)
         ;"W !
         ;"S XUTMT(0)="AL"

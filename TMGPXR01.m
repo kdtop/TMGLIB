@@ -148,6 +148,17 @@ PAINMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Results: none
         SET TEST=0
         SET DATE=0
+        SET WHY=""
+        NEW TMGRESULT,MEDARR SET TMGRESULT=$$ONCSDBRX^TMGC0QT4(TMGDFN,$$TODAY^TMGDATE,.MEDARR)
+        IF $D(MEDARR) DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE       
+        . SET WHY="REMINDER DUE BECAUSE PATIENT IS ON: "_$C(13,10)
+        . NEW MEDNAME SET MEDNAME="" 
+        . FOR  SET MEDNAME=$ORDER(MEDARR(MEDNAME)) QUIT:MEDNAME=""  DO
+        . . SET WHY=WHY_MEDNAME_$C(13,10)
+        QUIT WHY
+        ;"Old method below, in case we need to revert  3/26/19
         NEW TMGMEDLIST,TMGMEDARRAY
         NEW DBTAG SET DBTAG="*CSM-DATABASE REVIEW"
         DO MEDLIST^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)
@@ -574,7 +585,7 @@ LASTEKG(DFN)    ;"  USED FOR REMINDER DIALOG
         . . . SET TMGRESULT=LINE
         QUIT TMGRESULT
         ;"
-UDSTABLE(DFN)  ;"
+UDSTABLE(DFN,OUTARRAY)  ;"
         ;"Purpose: this function will be called from the UDS item in the Pain Table
         ;"         and return the last 3 entries
         NEW TMGRESULT,HFARRAY SET TMGRESULT="UDS: "
@@ -681,7 +692,8 @@ APNEAPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
         ;"       TEXT -- Text to be display in the Clinical Maintenance
         ;"Output.  Optional.
-        ;"Results: none
+        ;"Results: WHY
+        NEW WHY SET WHY=""
         SET TEST=0,DATE=0
         NEW IEN22719 SET IEN22719=0
         FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719)) QUIT:IEN22719'>0  DO
@@ -692,7 +704,8 @@ APNEAPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . . NEW TOPICDATE SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
         . . . IF TOPICDATE>DATE SET DATE=TOPICDATE
         . . . SET TEST=1
-CPAPDN  QUIT
+        . . . SET WHY="[WHY] PATIENT HAS SLEEP APNEA TOPIC"
+CPAPDN  QUIT WHY
         ;"
 PULSEOX(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient is on oxygen
@@ -733,9 +746,10 @@ PTHASDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"       DATE -- AN OUT PARAMETER.  Date of finding.
         ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
         ;"       TEXT -- Text to be display in the Clinical Maintenance
-        ;"Output.  Optional.
+        ;"Output.  WHY
         ;"Results: none
         SET TEST=0,DATE=0
+        NEW WHY SET WHY="[WHY] Unknown reason. No note topics found."
         NEW IEN22719 SET IEN22719=0
         FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719)) QUIT:IEN22719'>0  DO
         . NEW TOPICTEXT SET TOPICTEXT=""
@@ -748,6 +762,7 @@ PTHASDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . . NEW TOPICDATE SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
         . . . IF TOPICDATE>DATE SET DATE=TOPICDATE
         . . . SET TEST=1
+        . . . SET WHY=$C(13,10)_"[WHY] Topic "_UPTOPIC_" was used last on "_$$EXTDATE^TMGDATE(DATE)
         ;"See if "Not Diabetic" health factor exists for patient with a
         ;"    later date than the last topic
         NEW HFIEN SET HFIEN=+$ORDER(^AUTTHF("B","TMG PATIENT NOT DIABETIC",0))
@@ -759,7 +774,8 @@ PTHASDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . IF HFDATE>DATE DO
         . . . SET TEST=0
         . . . SET DATE=0
-        QUIT
+        . . . SET WHY="[WHY] This reminder was turned off by health factor"
+        QUIT WHY
         ;"
 PTHSCOPD(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient has COPD
@@ -980,18 +996,27 @@ HTNMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
         ;"       TEXT -- Text to be display in the Clinical Maintenance
         ;"Output.  Optional.
-        ;"Results: none
+        ;"Results: WHY - returns why HTNMEDS is true 
         SET TEST=0
         SET DATE=0
+        NEW WHY SET WHY="Patient is NOT on HTN meds and does NOT have a HTN topic"
         NEW X DO NOW^%DTC
-        NEW TMGRESULT SET TMGRESULT=$$ONHTNTX^TMGC0QT4(TMGDFN,X)
+        NEW TMGRESULT,MEDARR SET TMGRESULT=$$ONHTNTX^TMGC0QT4(TMGDFN,X,.MEDARR)
+        NEW MED SET MED=""
+        IF $D(MEDARR) DO
+        . SET WHY=""
+        . FOR  SET MED=$O(MEDARR(MED)) QUIT:MED=""  DO
+        . . IF WHY'="" SET WHY=WHY_", "
+        . . SET WHY=WHY_MED_$C(13,10)
+        . SET WHY="PATIENT IS ON THESE HTN MEDS: "_WHY
         IF TMGRESULT=0 DO   ;"If not on meds, check topics
         . IF ($$PTHASTOP^TMGPXR01(TMGDFN,"HTN")=1)!($$PTHASTOP^TMGPXR01(TMGDFN,"HYPERTENSION")=1) DO
         . . SET TMGRESULT=1
+        . . SET WHY="PATIENT DOESN'T SEEM TO HAVE HTN MEDS, BUT DOES HAVE A HYPERTENSION TOPIC FOUND"
         IF TMGRESULT=1 DO
         . SET TEST=1
         . SET DATE=$$TODAY^TMGDATE
-        QUIT
+        QUIT WHY
         ;"
 HTNCTRL(TMGDFN)  ;"Determine 
         NEW TMGRESULT SET TMGRESULT="ERROR DETERMINING CONTROL STATUS"
@@ -1020,6 +1045,20 @@ HTNCTRL(TMGDFN)  ;"Determine
         . SET MSG="ABOVE GOAL ("_ABOVETEXT_" PRESSURE HIGH)"
         SET TMGRESULT="BP Control Status: "_MSG
         QUIT TMGRESULT
+        ;"
+LASTBPHI(TMGDFN,TEST,DATE,DATA,TEXT) ;
+        ;"Determine if the last BP was high (Over 150 sys or 90 dia) and
+        ;"they do NOT have a HTN topic
+        NEW WHY SET WHY="[WHY] "
+        SET TEST=0,DATE=0
+        IF ($$PTHASTOP(TMGDFN,"HYPERTENSION")=1)!($$PTHASTOP(TMGDFN,"HTN")=1) QUIT WHY
+        NEW SBP,DBP
+        NEW LASTBP SET LASTBP=$$TREND^TMGGMRV1(TMGDFN,"T","BP",1,"")
+        SET SBP=+$P(LASTBP,"/",1),DBP=+$P(LASTBP,"/",2)
+        IF (SBP>149)!(DBP>89) DO
+        . SET TEST=1,DATE=$$TODAY^TMGDATE
+        . SET WHY="[WHY] BP is "_LASTBP_" above threshold (150/90)"
+        QUIT WHY
         ;"
 HTNGOAL(TMGDFN,GOAL)  ;"Determine HTN Goal based on JNC8
         ;"  TEST IS AS FOLLOWS:
@@ -1258,6 +1297,41 @@ CKDSTAGE(TMGDFN)  ;"Used by TMG CKD STAGE tiu object
         SET TMGRESULT=TMGRESULT_"(LAST EGFR="_LASTEGFR_" ON "_$$EXTDATE^TMGDATE(LASTDATE)_")"
 CKDDN   QUIT TMGRESULT
         ;"
+CKDTOPIC(TMGDFN,TEST,DATE,DATA,TEXT)  ;"Determines if patient has CKD topic
+        SET TEST=0,DATE=0
+        IF ($$PTHASTOP(TMGDFN,"CKD")=1)!($$PTHASTOP(TMGDFN,"CHRONIC KIDNEY DISEASE")=1) DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"
+LUPUS(TMGDFN)  ;"RETURN IF PATIENT IS AT RISK OF LUPIS BASED ON MEDS
+       ;"As of right now, there is only one med to check for. If more are
+       ;"    added then this will have to be rewritten.
+       NEW TMGRESULT SET TMGRESULT=""
+       NEW TMGMEDLIST,TMGMEDARRAY
+       DO MEDLIST^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)  
+       IF $DATA(TMGMEDARRAY) DO
+       . NEW IDX SET IDX=0
+       . FOR  SET IDX=$ORDER(TMGMEDARRAY(IDX)) QUIT:IDX'>0  DO
+       . . IF ($$UP^XLFSTR($GET(TMGMEDARRAY(IDX)))["HYDRALAZINE") DO
+       . . . SET TMGRESULT="Risk of drug induced lupus: hydralazine"
+       QUIT TMGRESULT
+       ;"      
+PTCKD2(TMGDFN,TEST,DATE,DATA,TEXT)  ;" Determines the patient's CKD
+        ;"  stage. If over 2, it is set as true and populates the WHY.
+        ;"  I'm not sure where the below function is being used but I don't
+        ;"  want to repurpose, just in case
+        NEW WHY
+        SET TEST=0,DATE=0,WHY=""
+        NEW CKDSTAGE,CKDNUM,CKDLINE SET CKDLINE=$$CKDSTAGE(TMGDFN)
+        SET CKDSTAGE=$P(CKDLINE," = ",2)
+        SET CKDNUM=+$G(CKDSTAGE)
+        IF (CKDNUM>3)!(CKDSTAGE["3b") DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        . SET WHY=CKDLINE        
+        QUIT WHY
+        ;"
 PTHASCKD(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient has CKD
         ;"Input: DFN -- the patient IEN
@@ -1278,6 +1352,7 @@ PTHASCKD(TMGDFN,TEST,DATE,DATA,TEXT) ;
         . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
+
 PATPICS(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return when the patient's last picture was
         ;"Input: DFN -- the patient IEN
@@ -1301,25 +1376,25 @@ PATPICS(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         QUIT
         ;"
 P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
-       ;"Purpose: Return true is patient is scheduled for physical
-       ;"         or 1 yr check for date provided
-       ;"Input: DFN -- the patient IEN
-       ;"       NGET -- the number of findings to search for
-       ;"       BDT -- the beginning date and time for the finding search
-       ;"       EDT -- the ending date and time for the finding search
-       ;"       NFOUND -- the number of findings found in the date range
-       ;"                 Should NEVER be larger than NGET,
-       ;"                 and SET to 0 IF no true findings are found.
-       ;"       TEST(n) -- AN OUT PARAMETER.  The logical value of the test:
-       ;"                1=true, 0=false
-       ;"               Also an IN PARAMETER.  Any value for COMPUTED
-       ;"                FINDING PARAMETER will be passed in here.
-       ;"       DATE(n) -- AN OUT PARAMETER.  Date of finding.
-       ;"            (NOTE: There is no need to SET the unsubscripted
-       ;"                   values of TEST and DATE in a multi-occurrence
-       ;"                   computed finding.)
-       ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
-       ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Purpose: Return true is patient is scheduled for physical
+        ;"         or 1 yr check for date provided
+        ;"Input: DFN -- the patient IEN
+        ;"       NGET -- the number of findings to search for
+        ;"       BDT -- the beginning date and time for the finding search
+        ;"       EDT -- the ending date and time for the finding search
+        ;"       NFOUND -- the number of findings found in the date range
+        ;"                 Should NEVER be larger than NGET,
+        ;"                 and SET to 0 IF no true findings are found.
+        ;"       TEST(n) -- AN OUT PARAMETER.  The logical value of the test:
+        ;"                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;"                FINDING PARAMETER will be passed in here.
+        ;"       DATE(n) -- AN OUT PARAMETER.  Date of finding.
+        ;"            (NOTE: There is no need to SET the unsubscripted
+        ;"                   values of TEST and DATE in a multi-occurrence
+        ;"                   computed finding.)
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
         ;"SET TEST=0,DATE=0,
         SET NFOUND=0
         NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
@@ -1388,3 +1463,134 @@ NEGHPV(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
         
         QUIT
         ;"
+MRFNDN(DFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
+        ;"This returns name^date
+        NEW DATE SET DATE=0
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW HFNAME SET HFNAME=""
+        FOR  SET HFNAME=$O(HFARRAY(HFNAME)) QUIT:HFNAME=""  DO
+        . NEW HFIEN SET HFIEN=$G(HFARRAY(HFNAME))
+        . NEW TEMPDATE SET TEMPDATE=$$MRDFN^TMGPXR03(DFN,HFIEN)
+        . IF TEMPDATE>DATE DO
+        . . SET TMGRESULT=HFNAME
+        . . SET DATE=TEMPDATE
+        IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_"^"_DATE
+        QUIT TMGRESULT
+        ;"
+GETEGDFU(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"This computed finding will determine if the patient should be in
+        ;"the cohort by 
+        ;" 1) Has an EGD been done prior
+        ;" 2) Is there a FU factor (that isn't "No Followup")
+        ;" 3) Is there a frequency for the reminder
+        ;" 4) Is the date of the FU Factor AFTER the last EGD
+        ;" If all of these are True, then the patient will be in the 
+        ;"    cohort and the HFs in the Utility will determine the 
+        ;"    reminder frequency
+        SET TEST=0,DATE=0  ;"Default to false
+        NEW MRD SET MRD=$$MRDFN^TMGPXR03(TMGDFN,2378)
+        IF MRD=0 QUIT  ;"If not previously done, don't include
+        ;"
+        NEW FACTORS DO LOADHFAR^TMGPXR03("TMG FU EGD",.FACTORS)
+        NEW NAME,HFDATE SET NAME=$$MRFNDN(TMGDFN,.FACTORS) ;"Name of most recent finding.
+        SET HFDATE=$P(NAME,"^",2),NAME=$P(NAME,"^",1)
+        IF NAME="" QUIT  ;"If no FU factor, don't include
+        IF NAME["NO FOLLOWUP" QUIT  ;"If last one is No FU, don't include
+        IF MRD>HFDATE QUIT  ;"If done AFTER the last FU HF, don't include
+        ;"        
+        NEW YR,MO,DAY DO INTRVLST^TMGPXRF1(NAME,4,.YR,.MO,.DAY) ;"FU interval from str
+        NEW FREQ SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
+        NEW DUETF SET DUETF=0
+        IF FREQ["Y" DO
+        . SET DUETF=+$G(FREQ)*365
+        ELSE  IF FREQ["M" DO
+        . SET DUETF=+$G(FREQ)*30
+        IF DUETF=0 QUIT  ;"If no due time frame, don't include
+        ;"     
+        NEW DUEDATE,X,X1,X2
+        SET X1=MRD,X2=+$GET(DUETF)
+        DO C^%DTC
+        SET DUEDATE=X
+        IF DUEDATE>0 DO  ;"If 
+        . SET TEST=1
+        . SET DATE=MRD
+        QUIT
+        ;"
+GETCTFU(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"This computed finding will determine if the patient should be in
+        ;"the cohort by
+        ;" 1) Has a CT been done prior
+        ;" 2) Is there a FU factor (that isn't "No Followup")
+        ;" 3) Is there a frequency for the reminder
+        ;" 4) Is the date of the FU Factor AFTER the last CT
+        ;" If all of these are True, then the patient will be in the
+        ;"    cohort and the HFs in the Utility will determine the
+        ;"    reminder frequency
+        SET TEST=0,DATE=0  ;"Default to false
+        NEW MRD SET MRD=$$MRDFN^TMGPXR03(TMGDFN,2383)
+        IF MRD=0 QUIT  ;"If not previously done, don't include
+        ;"
+        NEW FACTORS DO LOADHFAR^TMGPXR03("TMG FU CT",.FACTORS)
+        NEW NAME,HFDATE SET NAME=$$MRFNDN(TMGDFN,.FACTORS) ;"Name of most recent finding.
+        SET HFDATE=$P(NAME,"^",2),NAME=$P(NAME,"^",1)
+        IF NAME="" QUIT  ;"If no FU factor, don't include
+        IF NAME["NO FOLLOWUP" QUIT  ;"If last one is No FU, don't include
+        IF MRD>HFDATE QUIT  ;"If done AFTER the last FU HF, don't include
+        ;"
+        NEW YR,MO,DAY DO INTRVLST^TMGPXRF1(NAME,4,.YR,.MO,.DAY) ;"FU interval from str
+        NEW FREQ SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
+        NEW DUETF SET DUETF=0
+        IF FREQ["Y" DO
+        . SET DUETF=+$G(FREQ)*365
+        ELSE  IF FREQ["M" DO
+        . SET DUETF=+$G(FREQ)*30
+        IF DUETF=0 QUIT  ;"If no due time frame, don't include
+        ;"
+        NEW DUEDATE,X,X1,X2
+        SET X1=MRD,X2=+$GET(DUETF)
+        DO C^%DTC
+        SET DUEDATE=X
+        IF DUEDATE>0 DO  ;"If
+        . SET TEST=1
+        . SET DATE=MRD
+        QUIT
+
+        ;"
+LSTPSAHI(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"This computed finding will return true if the patient's
+        ;"last PSA was high
+     ;"GET LAST PSA RESULT
+        NEW RESULTS,LABDATE,LASTDATE,DATEARR,LASTPSA,LABNAME
+        SET (TEST,DATE)=0
+        NEW WHY
+        SET WHY="NO PSA FOUND IN VISTA"
+        SET LABNAME=0
+        DO GETVALS^TMGLRR01(TMGDFN_"^2",5117,.RESULTS)  ;"PSA
+        SET LABNAME=$O(RESULTS(LABNAME))       
+        SET LASTDATE=$O(RESULTS(LABNAME,9999999),-1)
+        IF LASTDATE'>0 GOTO LPSADN  ;"NOT FOUND
+        SET LASTPSA=+$G(RESULTS(LABNAME,LASTDATE))
+        ;"WRITE "LAST PSA WAS ",LASTPSA," ON ",LASTDATE,!
+     ;"DETERMINE DOB AT TIME OF TEST
+        NEW DOB,THATAGE,DAYSDIFF
+        SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3)
+        SET DAYSDIFF=$$DAYSDIFF^TMGDATE(DOB,LASTDATE)
+        SET THATAGE=DAYSDIFF/365
+        SET THATAGE=THATAGE\1
+        ;"WRITE "DOB ",DOB," DAYS DIFF: ",DAYSDIFF," THAT AGE ",THATAGE,!        
+     ;"TEST THRESHOLD FOR RESULT
+        NEW THRESHOLD SET THRESHOLD=0
+        IF THATAGE<50 SET THRESHOLD=1.5
+        ELSE  IF THATAGE<60 SET THRESHOLD=2.5
+        ELSE  IF THATAGE<70 SET THRESHOLD=4.5
+        ELSE  SET THRESHOLD=7.5
+        ;"WRITE "THRESHOLD: ",THRESHOLD,!
+        IF LASTPSA>THRESHOLD DO
+        . SET TEST=1
+        . SET DATE=LASTDATE
+        . SET WHY="Last PSA was done on "_$P($$EXTDATE^TMGDATE(LASTDATE),"@",1)_" with an ABNORMAL value of "_LASTPSA_". His age at the time was "_THATAGE_". It is considered HIGH if above "_THRESHOLD_" for his age group."
+        ELSE  DO
+        . SET WHY="Last PSA value of "_LASTPSA_" on "_$P($$EXTDATE^TMGDATE(LASTDATE),"@",1)_" is NORMAL because it is below "_THRESHOLD_" for his age group."
+LPSADN
+        ;"WRITE "TEST: ",TEST," DATE: ",DATE,!
+       QUIT WHY

@@ -33,7 +33,7 @@ TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15
  ;"                TIUL01 XLFDT TIULO XLFSTR
  ;"=======================================================================
  ;
-ONEVITAL(DFN,TIU,TYPE)    ;
+ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
         ;"Purpose: From GETVITALS, except only returns a single vital specified by TYPE
         ;"Input: DFN -- the patient's unique ID (record#)
         ;"       TIU -- this is an array created by TIU system that
@@ -60,8 +60,12 @@ ONEVITAL(DFN,TIU,TYPE)    ;
         ;"              "POX" -- Return POx% values
         ;"              "ALL" - (Default value) Return all values
         ;"              or Combination, e.g. "WT,HT,HC"
+        ;"      HTMLWRAP -- (Optional) 1 if abnormal values are to be
+        ;"                  wrapped in HTML colors
         ;"Results: String with value units and percentile (if available) and date IF not current date
         ;"Output: returns RESULT
+        SET HTMLWRAP=+$G(HTMLWRAP)
+        ;"SET HTMLWRAP=1    ;"TURN OFF FOR NOW
         NEW DEBUG SET DEBUG=0
         IF DEBUG=1 DO
         . MERGE TIU=^TMG("TMP","RPC","VITALS^TMGTIUOJ","TIU")
@@ -96,15 +100,27 @@ ONEVITAL(DFN,TIU,TYPE)    ;
         ;
         ;"note: Maybe I will later change the calls below to use GETVITLS^TMGGMRV1
         IF (TYPE["TEMP")!(TYPE="ALL") DO
-        . DO ADDVITAL^TMGTIUO3(.RESULT,$$TEMP^TIULO(DFN),"T",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
+        . NEW TEMP SET TEMP=$$TEMP^TIULO(DFN)
+        . IF HTMLWRAP=1 DO
+        . . SET TEMP=$$WRPVITAL(TEMP,"T",PTAGE)
+        . DO ADDVITAL^TMGTIUO3(.RESULT,TEMP,"T",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["BP")!(TYPE="ALL") DO
-        . DO ADDVITAL^TMGTIUO3(.RESULT,$$BP^TIULO(DFN),"BP",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
+        . NEW BP SET BP=$$BP^TIULO(DFN)
+        . IF HTMLWRAP=1 DO
+        . . SET BP=$$WRPVITAL(BP,"BP",PTAGE)
+        . DO ADDVITAL^TMGTIUO3(.RESULT,BP,"BP",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["RESP")!(TYPE="ALL") DO
         . DO ADDVITAL^TMGTIUO3(.RESULT,$$RESP^TIULO(DFN),"R",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["Pulse")!(TYPE="ALL") DO
-        . DO ADDVITAL^TMGTIUO3(.RESULT,$$PULSE^TIULO(DFN),"P",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
+        . NEW PULSE SET PULSE=$$PULSE^TIULO(DFN)
+        . IF HTMLWRAP=1 DO
+        . . SET PULSE=$$WRPVITAL(PULSE,"Pulse",PTAGE)
+        . DO ADDVITAL^TMGTIUO3(.RESULT,PULSE,"P",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["POX")!(TYPE="ALL") DO
-        . DO ADDVITAL^TMGTIUO3(.RESULT,$$DOVITALS^TIULO(DFN,"PO2"),"POx",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
+        . NEW POX SET POX=$$DOVITALS^TIULO(DFN,"PO2")
+        . IF HTMLWRAP=1 DO
+        . . SET POX=$$WRPVITAL(POX,"POX",PTAGE)
+        . DO ADDVITAL^TMGTIUO3(.RESULT,POX,"POx",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["WT")!(TYPE="ALL") DO
         . DO ADDVITAL^TMGTIUO3(.RESULT,WT,"Wt",.CURDT,.NOTEDT,1,PTAGE,.OLDEXCLD)
         . IF (PTAGE<18)&($GET(OLDEXCLD("Wt"))=0) DO ADDPCTLE^TMGTIUO3(.RESULT,"Wt",WT,PTAGE,GENDER)
@@ -121,12 +137,14 @@ ONEVITAL(DFN,TIU,TYPE)    ;
         . IF ($GET(OLDEXCLD("Ht"))=1)!($GET(OLDEXCLD("Wt"))=1) QUIT
         . NEW BMISTR,BMI,IDEALWTS
         . SET BMISTR=$$BMI^TMGTIUO4(PTAGE,HT,WT,.BMI,.IDEALWTS) QUIT:BMI=0  ;"Sets BMISTR and BMI
+        . IF HTMLWRAP=1 DO
+        . . SET BMISTR=$$WRPVITAL(BMISTR,"BMI",PTAGE)
         . DO ADDVITAL^TMGTIUO3(.RESULT,BMISTR,"BMI",.CURDT,.NOTEDT,1,PTAGE,.OLDEXCLD)
         . IF PTAGE<18 DO ADDPCTLE^TMGTIUO3(.RESULT,"BMI",BMI,PTAGE,GENDER)
         . IF (PTAGE>17)&((TYPE="ALL")!(TYPE["CMT")) SET RESULT=RESULT_$$BMICOMNT^TMGTIUO4(BMI,PTAGE,IDEALWTS) ;"BMI COMMENT
         IF (TYPE["WT")!(TYPE="ALL") DO  ;"Wt done in two parts
         . IF $GET(OLDEXCLD("Wt"))=1 QUIT
-        . NEW WTDELTA SET WTDELTA=$$WTDELTA^TMGTIUO4(DFN,.TIU,0)
+        . NEW WTDELTA SET WTDELTA=$$WTDELTA^TMGTIUO4(DFN,.TIU,0,HTMLWRAP)
         . IF WTDELTA="" QUIT
         . SET RESULT=RESULT_"; "_WTDELTA
         ;
@@ -135,13 +153,55 @@ ONEVITAL(DFN,TIU,TYPE)    ;
         ELSE  DO
         . NEW OUTARRAY,I
         . NEW R2 SET R2=""
-        . IF $$SPLITLN^TMGSTUT2(RESULT,.OUTARRAY,60,0,10,";")
+        . IF $$SPLITLN^TMGSTUT2(RESULT,.OUTARRAY,80,0,10,";")  ;"width changed from 60 to 80  8/5/19
         . SET I=0 FOR  SET I=$ORDER(OUTARRAY(I)) QUIT:(+I'>0)  DO
         . . IF R2'="" SET R2=R2_";"_$CHAR(13,10)
-        . . SET R2=R2_OUTARRAY(I)
+        . . SET R2=R2_$$REPLWRAP(OUTARRAY(I))
         . SET RESULT=$$TRIM^XLFSTR(R2,"l")
+        
+        ;""<B><FONT style=""BACKGROUND-COLOR:"_COLOR_""">"_$P(TMGRESULT," ",1)_"</B></FONT> "_$P(TMGRESULT," ",2,9999)
         QUIT RESULT
         ;
+REPLWRAP(LINE)
+        SET LINE=$$REPLSTR^TMGSTUT3(LINE,"+++","<B><FONT style=""BACKGROUND-COLOR:")
+        SET LINE=$$REPLSTR^TMGSTUT3(LINE,"---",""">")
+        SET LINE=$$REPLSTR^TMGSTUT3(LINE,"@@@","</B></FONT>")
+        QUIT LINE 
+        ;"
+YELLOW()  ;"HTML COLOR
+        QUIT "#ffff99"
+        ;"
+RED()     ;"HTML COLOR
+        QUIT "#ff4d4d"
+        ;"
+WRPVITAL(VALUE,VITAL,PTAGE)  ;"This function will take a vital and wrap in color if abnormal
+        NEW TMGRESULT SET TMGRESULT=VALUE
+        NEW COLOR SET COLOR=""
+        NEW VALUE1 SET VALUE1=$P(VALUE," ",1)
+        IF VITAL="T" DO
+        . IF VALUE1>100 SET COLOR=$$YELLOW()
+        . IF VALUE1>100.4 SET COLOR=$$RED()
+        ELSE  IF VITAL="BP" DO
+        . NEW BPGOAL SET BPGOAL=$SELECT(PTAGE<60:"140/90",1:"150/90")
+        . NEW SYSGOAL SET SYSGOAL=$PIECE(BPGOAL,"/",1)
+        . NEW DIASGOAL SET DIASGOAL=$PIECE(BPGOAL,"/",2)
+        . NEW SYS,DIA SET SYS=$P(VALUE1,"/",1),DIA=$P(VALUE1,"/",2)
+        . IF (SYS>SYSGOAL)!(SYS<100)!(DIA>DIASGOAL)!(DIA<60) SET COLOR=$$YELLOW()
+        . IF (SYS>(SYSGOAL+20))!(DIA>(DIASGOAL+20)) SET COLOR=$$RED()
+        ELSE  IF VITAL="Pulse" DO
+        . NEW PULSE SET PULSE=+$P(VALUE," ",1)
+        . IF (VALUE1>100)!(VALUE1<60) SET COLOR=$$YELLOW()
+        . IF (VALUE1>120)!(VALUE1<50) SET COLOR=$$RED()
+        ELSE  IF VITAL="POX" DO
+        . IF VALUE1<90 SET COLOR=$$RED()
+        ELSE  IF VITAL="BMI" DO
+        . IF VALUE1<18.5 SET COLOR=$$YELLOW()
+        IF COLOR'="" DO
+        . ;"NEW RESULT SET RESULT="<B><FONT style=""BACKGROUND-COLOR:"_COLOR_""">"_$P(TMGRESULT," ",1)_"</B></FONT> "_$P(TMGRESULT," ",2,9999)
+        . NEW RESULT SET RESULT="+++"_COLOR_"---"_$P(TMGRESULT," ",1)_"@@@ "_$P(TMGRESULT," ",2,9999)
+        . SET TMGRESULT=RESULT
+        QUIT TMGRESULT
+        ;"
 GETLMAMO(DFN) ;"Return date of last mammogram
         NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","Mammogram")
         IF TMGRESULT="" SET TMGRESULT="NONE REPORTED" GOTO GMAMDN
@@ -361,6 +421,7 @@ ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were g
         . . . SET TMGRESULT=HFNAME_" "_LATEST_" "_COMMENT_" [HF]"
         . . ELSE  DO
         . . . SET TMGRESULT=TMGRESULT_$C(13,10)_HFNAME_" "_LATEST_" "_COMMENT_" [HF]"
+        IF TMGRESULT="" SET TMGRESULT="ADV DIR, PAPERS GIVEN: NO HF FOUND."
         QUIT TMGRESULT
         ;"
 GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture

@@ -508,7 +508,7 @@ GETCSPAT(TMGRESULT,BEGDT,ENDDT)  ;"
         NEW ARRAY,COUNT
         SET BEGDT=$GET(BEGDT),ENDDT=+$GET(ENDDT)
         IF ENDDT'>0 SET ENDDT=BEGDT
-        DO GETSCHED(.ARRAY,BEGDT,ENDDT)
+        DO GETSCHED(.ARRAY,BEGDT,ENDDT,"AO")
         NEW DFN,RESULT
         SET DFN=0
         FOR  SET DFN=$O(ARRAY(DFN)) QUIT:DFN'>0  DO
@@ -569,6 +569,7 @@ GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES,EXCLUDE)  ;"
         . FOR  SET DFN=$ORDER(^TMG(22723,"DT",DTIDX,DFN)) QUIT:DFN'>0  DO
         . . NEW IDX SET IDX=$ORDER(^TMG(22723,"DT",DTIDX,DFN,0))
         . . NEW STATUS SET STATUS=$GET(^TMG(22723,"DT",DTIDX,DFN,IDX))
+        . . ;"NEW TIMEIN SET TIMEIN=+$P($GET(^TMG(22723,DFN,1,IDX,0)),"^",8)
         . . IF STATUSES[STATUS DO
         . . . IF EXCLUDE=1 DO
         . . . . NEW REASON SET REASON=$P($GET(^TMG(22723,DFN,1,IDX,0)),"^",4)
@@ -636,5 +637,92 @@ ALLREMS(TMGRESULT,REMARR,ACTIVE)  ;"
         SET TMGRESULT(0)=COUNT
         QUIT
         ;"
+GTLABSOR(TMGRESULT,TMGDFN)  ;"
+        ;"Purpose: This will be called from the RPC TMG GET ORDERED LABS
+        ;"         It will return a string of "^" delimited lab tests to be 
+        ;"         autochecked when the lab order dialog is opened.
+        SET TMGRESULT="" 
+        ;"Format of HFLIST is: HFLIST(IEN of HF)=Item text to check in Lab Order 
+        ;"NEW HFLIST
+        ;"SET HFLIST(2374)="HgbA1c"
+        ;"
+        NEW HFIEN SET HFIEN=0
+        ;"FOR  SET HFIEN=$O(HFLIST(HFIEN)) QUIT:HFIEN'>0  DO
+        FOR  SET HFIEN=$O(^TMG(22740,"B",HFIEN)) QUIT:HFIEN'>0  DO
+        . NEW DATE SET DATE=0
+        . NEW FOUND SET FOUND=0
+        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE)) QUIT:(DATE'>0)!(FOUND=1)  DO
+        . . NEW THISDATE SET THISDATE=9999999-DATE
+        . . IF THISDATE=$$TODAY^TMGDATE DO
+        . . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_"^"
+        . . . ;"SET TMGRESULT=TMGRESULT_$G(HFLIST(HFIEN))
+        . . . NEW IEN SET IEN=$O(^TMG(22740,"B",HFIEN,0))
+        . . . NEW ZN SET ZN=$G(^TMG(22740,IEN,0))
+        . . . SET TMGRESULT=TMGRESULT_$P(ZN,"^",2)_":"_$P(ZN,"^",3)
+        . . . SET FOUND=1
+        IF TMGRESULT="" SET TMGRESULT="NONE"
+        QUIT
+        ;"
+COLODUE(TMGDFN,TEST,DATE,DATA,TEXT)  ;"IS COLONOSCOPY DUE FOR PATIENT
+        SET TEST=1,DATE=$$TODAY^TMGDATE() ;"TURN ON BY DEFAULT
+        NEW MRD SET MRD=$$MRDFN(TMGDFN,745)
+        IF MRD=0 QUIT  ;"leaves frequency at baseline
+        NEW FACTORS DO LOADHFAR("TMG COLONOSCOPY FU",.FACTORS)
+        NEW NAME SET NAME=$$MRFNDN(TMGDFN,.FACTORS) ;"Name of most recent finding.
+        IF NAME="" SET NAME="TMG COLONOSCOPY FU 10 YR"
+        NEW YR,MO,DAY DO INTRVLST^TMGPXRF1(NAME,4,.YR,.MO,.DAY) ;"FU interval from string
+        NEW FREQ SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
+        NEW DUETF SET DUETF=0
+        IF FREQ["Y" DO
+        . SET DUETF=+$G(FREQ)*365
+        ELSE  IF FREQ["M" DO
+        . SET DUETF=+$G(FREQ)*30
+        IF DUETF=0 QUIT
+        NEW DUEDATE,X,X1,X2
+        SET X1=MRD,X2=+$GET(DUETF)
+        DO C^%DTC
+        SET DUEDATE=X
+        IF $$TODAY^TMGDATE<DUEDATE DO
+        . SET TEST=0
+        . SET DATE=0
+       	QUIT
+        ;"this method won't work because you can't run a reminder inside
+        ;"   another reminder
+        ;"NEW REMIEN,RESULT
+        ;"SET REMIEN=218
+        ;"SET RESULT=$$DOREM(TMGDFN,REMIEN,5,$$TODAY^TMGDATE)              
+        ;"IF RESULT["DUE" DO
+        ;". SET TEST=1
+        ;". SET DATE=$$TODAY^TMGDATE
+        ;"QUIT
+        ;"
+MRDFN(DFN,HFIEN)  ;"Return most recent date of given health factor
+        NEW TMGDATE SET TMGDATE=0
+        SET TMGDATE=$ORDER(^AUPNVHF("AA",DFN,HFIEN,TMGDATE))
+        IF TMGDATE>0 SET TMGDATE=9999999-TMGDATE
+        QUIT TMGDATE
 
-      
+        ;"
+LOADHFAR(PREFIX,ARR) ;
+        ;"Purpose: Load array with up all health factors that start
+        NEW PRE2 SET PRE2=$EXTRACT(PREFIX,1,$LENGTH(PREFIX)-1)
+        SET PRE2=PRE2_$CHAR($ASCII($EXTRACT(PREFIX,$LENGTH(PREFIX)))-1)
+        NEW NAME SET NAME=PRE2
+        NEW DONE SET DONE=0
+        FOR  SET NAME=$ORDER(^AUTTHF("B",NAME)) QUIT:(DONE=1)!(NAME="")  DO
+        . IF $EXTRACT(NAME,1,$LENGTH(PREFIX))'=PREFIX SET DONE=1 QUIT
+        . NEW IDX SET IDX=0 FOR  SET IDX=$ORDER(^AUTTHF("B",NAME,IDX)) Q:IDX'>0  DO
+        . . NEW STR SET STR=$PIECE($GET(^AUTTHF(IDX,0)),"^",1) QUIT:STR=""
+        . . SET ARR(STR)=IDX
+        QUIT
+MRFNDN(DFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
+        NEW DATE SET DATE=0
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW HFNAME SET HFNAME=""
+        FOR  SET HFNAME=$O(HFARRAY(HFNAME)) QUIT:HFNAME=""  DO
+        . NEW HFIEN SET HFIEN=$G(HFARRAY(HFNAME))
+        . NEW TEMPDATE SET TEMPDATE=$$MRDFN(DFN,HFIEN)
+        . IF TEMPDATE>DATE DO
+        . . SET TMGRESULT=HFNAME
+        . . SET DATE=TEMPDATE
+        QUIT TMGRESULT
