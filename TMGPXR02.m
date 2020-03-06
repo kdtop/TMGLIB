@@ -136,7 +136,7 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         . . ;"IF HTML SET LINEDATA=$$TXS2HTML^TMGHTM1(LINEDATA)_"<BR>"
         . . ;"If the line item is set to be removed, don't add  8/7/18  ELH
         . . IF $DATA(KILLARR),$$TOKILL^TMGTIUO6(LINEDATA,LABEL,.KILLARR)=1 QUIT  
-        . . IF (LINEDATA["00/")&(LINEDATA'["<-") SET LINEDATA=$$REPLSTR^TMGSTUT3(LINEDATA,"00/","")  ;"remove empty months or days. 4/2/19
+        . . IF (LINEDATA["00/")&(LINEDATA'["<-")&(LINEDATA'["&lt;-") SET LINEDATA=$$REPLSTR^TMGSTUT3(LINEDATA,"00/","")  ;"remove empty months or days. 4/2/19
         . . ;"   5/28/19 added and above because we only want this for dates and not for data values
         . . IF LINEDATA["{E-Scribe}" QUIT    ;"don't include in tables 4/2/19
         . . SET RESULT=RESULT_LINEDATA        
@@ -227,10 +227,22 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         . SET VALSTR=VALSTR_DATESTR
         . NEW COMMENT SET COMMENT=$PIECE($GET(NETARRAY(IDT)),"^",2)
         . IF COMMENT'="" SET VALSTR=VALSTR_" """_COMMENT_""""
-        . IF $DATA(FOLLOWUPARRAY(TRIDT)) DO
-        . . NEW FU SET FU=$PIECE($GET(FOLLOWUPARRAY(TRIDT)),"^",2)
+        . ;"
+        . ;"The following is test code for the followup date. The need for
+        . ;"   this is sometimes the FU HF is put in after the colonoscopy
+        . ;"   and not on the same date. This code will add the FU if the HF
+        . ;"   has a later date than the colonoscopy itself. Original code is below that
+        . NEW FUDATE SET FUDATE=$O(FOLLOWUPARRAY(TRIDT+1),-1)
+        . IF FUDATE>0 DO
+        . . NEW FU SET FU=$PIECE($GET(FOLLOWUPARRAY(FUDATE)),"^",2)
         . . IF FU="" QUIT
         . . SET VALSTR=VALSTR_" "_FU
+        . ;"ORIGINAL CODE BELOW
+        . ;"IF $DATA(FOLLOWUPARRAY(TRIDT)) DO
+        . ;". NEW FU SET FU=$PIECE($GET(FOLLOWUPARRAY(TRIDT)),"^",2)
+        . ;". IF FU="" QUIT
+        . ;". SET VALSTR=VALSTR_" "_FU
+        . ;"
         . IF $LENGTH(VALSTR)>MAXLEN DO
         . . SET LIMITNUM=0
         . . SET VALSTR=$EXTRACT(VALSTR,1,MAXLEN-3)_"..."

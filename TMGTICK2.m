@@ -75,6 +75,10 @@ GETMSG(DocIEN,WPArray)
         NEW found,line SET (found,line)=0
         FOR  SET line=$ORDER(^TIU(8925,DocIEN,"TEXT",line)) QUIT:(+line'>0)!found  do
         . SET found=($GET(^TIU(8925,DocIEN,"TEXT",line,0))["[TICKLER MESSGE]")
+        . IF (found=0)&($GET(^TIU(8925,DocIEN,"TEXT",line,0))["[TICKLER") DO
+        . . ;"if TICKLER tag is broken between 2 lines   1/14/20
+        . . SET found=1
+        . . SET line=line+1
         . IF found do
         . . NEW done SET done=0
         . . NEW lineText SET lineText=""

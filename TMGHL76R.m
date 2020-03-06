@@ -70,6 +70,17 @@ BATCH   ;"NOTE: Laughlin radiology reports will be dumped in with
         ;"      in file #22720 that, in turn, calls the functions in this file.  
         QUIT
         ;
+ISLMHRAD(TMGHL7MSG) ;"Test if message is LMH/GCHE rad HL7 message.
+        ;"Input: TMGHL7MSG -- PASS BY REFERENCE.  
+        ;"Result: 1 if is rad HL7, 0 otherwise
+        ;"note: this is called by DOMORE^TMGHL7X2
+        NEW APP SET APP=$GET(TMGHL7MSG(1,3))
+        NEW SNDR SET SNDR=$GET(TMGHL7MSG(1,4))
+        NEW TMGRESULT SET TMGRESULT=0
+        IF (APP="RM")&((SNDR="LMH")!(SNDR["LAUGHLIN")!(SNDR["GCHE")) DO
+        . SET TMGRESULT=1
+        QUIT TMGRESULT
+        ;"
         ;"===============================================================
         ;"|  Below are the call-back functions to handle transformation |
         ;"|  hooks, called by the XFMSG^TMGHL7X engine                  |

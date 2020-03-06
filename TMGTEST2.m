@@ -952,7 +952,17 @@ FileSearch ;
         . . set ARRAY("C",p3)=""
         ; DO ZWRITE^TMGZWR("ARRAY")
         QUIT
-        
+TESTREAD
+        DO OPEN^%ZISH("FILE","/tmp","IncomingFaxLog","R")
+        IF POP QUIT
+        USE IO
+        NEW I,LINE,FILEARRAY
+        F I=1:1:10000 Q:$$STATUS^%ZISH  DO
+        . READ LINE
+        . SET FILEARRAY(I)=LINE
+        DO CLOSE^%ZISH("FILE")
+        ZWR FILEARRAY
+        QUIT
   
   
 

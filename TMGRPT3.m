@@ -322,3 +322,83 @@ HL7(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)  ;"
   ;SET ROOT(3)="2^Admission"
   QUIT
   ;"
+LABPULL  ;"
+  ;"Get schedule for today and print all entries who have had lab results
+  NEW RPTDATE SET RPTDATE=$$TODAY^TMGDATE
+  ;"NEW RPTDATE SET RPTDATE=3191224
+  NEW WHEAD SET WHEAD=0
+  NEW DT SET DT=RPTDATE
+  FOR  SET DT=$O(^TMG(22723,"DT",DT)) QUIT:(DT="")!(DT'[RPTDATE)  DO
+  . NEW DFN SET DFN=0
+  . FOR  SET DFN=$O(^TMG(22723,"DT",DT,DFN)) QUIT:DFN'>0  DO
+  . . NEW IEN SET IEN=+$O(^TMG(22723,"DT",DT,DFN,0))
+  . . NEW ZN SET ZN=$G(^TMG(22723,DFN,1,IEN,0))
+  . . NEW STATUS SET STATUS=$P(ZN,"^",7)
+  . . ;"WRITE ZN,!
+  . . IF STATUS="C" QUIT
+  . . NEW REASON SET REASON=$P(ZN,"^",4)
+  . . IF REASON="PROTIME" QUIT
+  . . NEW LABDATES DO GETLABDT(DFN,.LABDATES)
+  . . IF '$D(LABDATES) QUIT
+  . . IF WHEAD=0 DO
+  . . . DO HEADING(RPTDATE)
+  . . . SET WHEAD=1
+  . . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+  . . NEW TIME SET TIME=$P(DT,".",2)
+  . . NEW HOUR,MINS
+  . . SET HOUR=$E(TIME,1,2),MINS=$E(TIME,3,4)
+  . . IF $L(HOUR)=1 SET HOUR=HOUR_"0"
+  . . IF $L(MINS)=0 SET MINS="00"
+  . . IF $L(MINS)=1 SET MINS=MINS_"0"
+  . . SET TIME=HOUR_":"_MINS
+  . . WRITE NAME_" has appt at "_TIME_". Lab dates:",!
+  . . NEW FMDATE SET FMDATE=0
+  . . FOR  SET FMDATE=$O(LABDATES(FMDATE)) QUIT:FMDATE'>0  DO
+  . . . WRITE "  [ ] ",$$EXTDATE^TMGDATE(FMDATE),!
+  . . WRITE !
+  QUIT
+  ;"
+HEADING(RPTDATE)  ;"
+  WRITE "====================================================================================",!
+  WRITE "======= LAB RESULT PULL REPORT FOR ",$$EXTDATE^TMGDATE(RPTDATE,1),!
+  WRITE "=======",!
+  WRITE "======= Instructions: For each patient, check to see if the results",!
+  WRITE "=======               are in the patient's chart. ",!
+  WRITE "=======",!
+  WRITE "=======               If they are not try and find them at nurse's station or in",!
+  WRITE "=======               the office. ",!
+  WRITE "=======",!
+  WRITE "=======               If they are found and have been signed by the physician",!
+  WRITE "=======               file them in the chart as normal",!
+  WRITE "=======                  ",!
+  WRITE "=======               If they are not signed off on, place in the",!
+  WRITE "=======               chart, sideways and sticking out. ",!
+  WRITE "=======",!
+  WRITE "=======               If they cannot be located, give missing to office manager.",!
+  WRITE "=======                                                (report in TMGRPT3)",!
+  WRITE "===================================================================================",!,!,!
+  QUIT
+  ;"
+GETLABDT(DFN,RESULTARR)
+  NEW LRDFN SET LRDFN=+$P($G(^DPT(DFN,"LR")),"^",1)
+  IF LRDFN'>0 GOTO GLDDN
+  NEW RTODAY SET RTODAY=$$LABDTNOW()
+  NEW CUTOFFDT SET CUTOFFDT=$$LCUTDT(30)
+  NEW THISDATE SET THISDATE=CUTOFFDT
+  FOR  SET THISDATE=$O(^LR(LRDFN,"CH",THISDATE),-1) QUIT:(THISDATE="")  DO
+  . NEW DAY SET DAY=$P(THISDATE,".",1)
+  . IF DAY'>0 QUIT
+  . SET RESULTARR($$LDTTOFM(DAY))=""
+GLDDN
+  QUIT
+  ;"
+LABDTNOW()
+  QUIT 9999999-$$TODAY^TMGDATE
+  ;"
+LCUTDT(NUMDAYS)
+  NEW DATE SET DATE=$$ADDDAYS^TMGDATE(-NUMDAYS) 
+  QUIT 9999999-DATE 
+  ;"
+LDTTOFM(LDATE)
+  QUIT 9999999-LDATE 
+  ;"

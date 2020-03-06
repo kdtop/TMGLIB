@@ -74,7 +74,7 @@ LASTTIU(DFN,SRCHTEXT)  ;
         . NEW TEXT SET TEXT=""
         . FOR  SET IDX=$ORDER(^TIU(8925,TIUIEN,"TEXT",IDX)) QUIT:IDX'>0  DO
         . . SET TEXT=TEXT_$GET(^TIU(8925,TIUIEN,"TEXT",IDX,0))
-        . IF TEXT'["HISTORY OF PRESENT ILLNESS (HPI):" QUIT
+        . IF TEXT'["HISTORY OF PRESENT ILLNESS (HPI)" QUIT   ;"elh  removed the ":" from the search
         . SET TIULASTOV=TIUIEN
         QUIT TIULASTOV
         ;              

@@ -250,6 +250,12 @@ GCOLDN
         . SET TMGRESULT=TMGRESULT_$C(13,10)_"F/U HF DATA: "_NAME_" (Relative to most recent colonoscopy)"
         ;"Get FOBT dates
         DO GETOCCLT(.TMGRESULT,DFN)        
+        DO FOBTNOTE(.TMGRESULT,DFN)
+        ;"If over 75, include message
+        NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(DFN,"")  ;"
+        IF PTAGE>75 DO
+        . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)
+        . SET TMGRESULT=TMGRESULT_"** NOTE: THIS PATIENT IS OVER 75. CONSIDER DISCONTINUING. .**"
         QUIT TMGRESULT
         ;
 GETOCCLT(TMGRESULT,DFN) ;"Return dates of last iFOBTs and FOBT
@@ -265,6 +271,41 @@ GETOCCLT(TMGRESULT,DFN) ;"Return dates of last iFOBTs and FOBT
         SET RESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
         SET RESULT=$GET(RESULTARR("KEY-VALUE","IFOBT"))   ;"_" [T]"
         IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"iFOBT= "_RESULT_" [T]"
+        QUIT
+        ;"
+FOBTNOTE(TMGRESULT,DFN)  ;"Return a note if FOBT was done this year w/ result
+        NEW THISRESULT SET THISRESULT=""
+        NEW HFARRAY,HFIEN SET HFIEN=0
+        SET HFARRAY(784)="iFOBT was Negative on:"
+        SET HFARRAY(787)="iFOBT was POSITIVE on:"
+        SET HFARRAY(783)="FOBT was Negative on:"
+        SET HFARRAY(786)="FOBT was POSITIVE on:"
+        NEW CUTOFFDT SET CUTOFFDT=$$FIRSTYR^TMGDATE
+        FOR  SET HFIEN=$O(HFARRAY(HFIEN)) QUIT:HFIEN'>0  DO        
+        . NEW DATE SET DATE=9999999
+        . NEW DONE SET DONE=0
+        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",DFN,HFIEN,DATE),-1) QUIT:(DATE'>0)!(DONE=1)  DO        
+        . . NEW FMDATE SET FMDATE=9999999-DATE
+        . . IF FMDATE<CUTOFFDT DO  QUIT
+        . . . SET DONE=1
+        . . IF THISRESULT'="" SET THISRESULT=THISRESULT_","
+        . . SET THISRESULT=THISRESULT_$G(HFARRAY(HFIEN))_$$EXTDATE^TMGDATE(FMDATE,1)_" [HF]"
+        ;"
+        NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
+        IF LRDFN'>0 QUIT TMGRESULT
+        SET LABNUM=69489
+        NEW DATEIDX SET DATEIDX=0
+        FOR  SET DATEIDX=$ORDER(^LR(LRDFN,"CH",DATEIDX)) QUIT:(DATEIDX'>0)  DO
+        . IF '$DATA(^LR(LRDFN,"CH",DATEIDX,LABNUM)) QUIT
+        . NEW TEMPDATE SET TEMPDATE=9999999-DATEIDX
+        . IF TEMPDATE<CUTOFFDT QUIT
+        . NEW TEMP
+        . DO LABTOARR(.TEMP,LRDFN,DATEIDX)
+        . IF $D(TEMP(LABNUM)) DO
+        . . IF THISRESULT'="" SET THISRESULT=THISRESULT_","
+        . . SET THISRESULT=THISRESULT_"iFOBT was "_$G(TEMP(LABNUM))_" on "_$G(TEMP(0))_" [LAB]"
+        ;"
+        IF THISRESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"****NOTE: "_THISRESULT       
         QUIT
         ;"
 GETLADIR(DFN) ;"Return date of last advance directives        

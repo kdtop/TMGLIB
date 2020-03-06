@@ -107,10 +107,10 @@ ORALTEXS(DUZ,ORDIEN)  ;" DOES THE ORDER ALERT EXIST?
     QUIT TMGRESULT
     ;"
 PRINTRPT
-ALERTRPT  ;"This is a report to display all alerts that are over 2 weeks
+ALERTRPT  ;"This is a report to display all alerts that are over 5 days
           ;"old
     NEW DFN SET DFN=0
-    NEW DAYS SET DAYS="-14"
+    NEW DAYS SET DAYS="-5"
     NEW CUTOFFDATE SET CUTOFFDATE=$$ADDDAYS^TMGDATE(DAYS)
     NEW RETARRAY
     FOR  SET DFN=$O(^XTV(8992,DFN)) QUIT:DFN'>0  DO
@@ -123,7 +123,7 @@ ALERTRPT  ;"This is a report to display all alerts that are over 2 weeks
     IF '$D(RETARRAY) GOTO ARDN
     WRITE !
     WRITE "************************************************************",!
-    WRITE "              ALL USER ALERTS OLDER THAN ",DAYS," OLD",!
+    WRITE "              ALL USER ALERTS OLDER THAN ",DAYS," DAYS OLD",!
     WRITE "                      Printed: ",$$TODAY^TMGDATE(1),!
     WRITE "           Please deliver this report to the OFFICE MANAGER",!
     WRITE "************************************************************",!

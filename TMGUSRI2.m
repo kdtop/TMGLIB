@@ -1,4 +1,4 @@
-TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;10/14/15, 5/6/18
+TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;5/6/18, 12/2/2019
          ;;1.0;TMG-LIB;**1,17**;07/17/12
   ;
   ;"TMG USER INTERFACE API FUNCTIONS
@@ -22,6 +22,7 @@ TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;10/14/15, 5/6/18
   ;"PRESS2GO -- Provide a 'press key to continue' action
   ;"KEYPRESD(WANTCH,WAITTIME)  -- Check for a keypress
   ;"USRABORT(ABORTLABEL) -- Checks IF user pressed ESC key.  If so, verify
+  ;"YNA(INIT) -- YNA = YES/NO/ALWAYS  ... similar to YN^DICN
   ;"PROGBAR(VALUE,LABEL,MIN,MAX,WIDTH,STARTTIME)  -- Animate a progress bar
   ;"MENU(OPTIONS,DEFCHOICE,USERRAW) -- provide a simple menuing system
   ;"FINDMTCH(INPUT,OPTIONS)  ;Search OPTIONS for matching input
@@ -268,6 +269,46 @@ USRABORT(ABORTLABEL)  ;
    . SET RESULT=(%=1)
    QUIT RESULT
    ;
+YNA(INIT) ;" YNA = YES/NO/ALWAYS
+  ;"Purpose: Similar to YN^DICN, this will ask for Yes No, but also allow for
+  ;"         user to specify to for ALWAYS (as long as globally scoped var exists)
+  ;"        This will achieved by allowed replies of: Y, YES, Y!, YES!, N, NO, N!, No!, ?, ^
+  ;"        Input is not case sensitive. 
+  ;"Input: INIT.  OPTIONAL.  If 0, default to NO, if 1, default to YES, if null, then no default
+  ;"Results: format: ResultValue^AlwaysValue.
+  ;"              ResultValue: 1=YES, 0 = NO, -1 = abort
+  ;"              AlwaysValue: 1 = always, 0 or null = not always
+  ;"NOTE: This will access globally scoped variable TMGYNAUSRI2(<stack call label>)
+  NEW STACK ZSHOW "S":STACK
+  NEW CALLLABEL SET CALLLABEL=$GET(STACK("S",1)) IF CALLLABEL="" SET CALLLABEL="DEFAULT"
+  SET TMGYNAUSRI2(CALLLABEL)=$GET(TMGYNAUSRI2(CALLLABEL))
+  IF TMGYNAUSRI2(CALLLABEL)'="" SET TMGRESULT=TMGYNAUSRI2(CALLLABEL) GOTO YNADN
+  NEW TEMP,INITDISP,ALWAYS
+  SET INIT=$GET(INIT)
+  SET INITDISP=$SELECT(INIT=1:"YES",INIT=0:"NO",1:"")
+  NEW TMGRESULT SET TMGRESULT=""
+YNAL1  ;  
+  IF INITDISP'="" WRITE " ",INITDISP,"// "
+  WRITE "? " READ TEMP:DTIME SET TEMP=$$UP^XLFSTR(TEMP)
+  IF TEMP="" SET TEMP=INITDISP IF TEMP="" SET TEMP="^"
+  SET ALWAYS=(TEMP["!") IF ALWAYS SET TEMP=$TRANSLATE(TEMP,"!","")
+  IF TEMP="YES" SET TEMP="Y"
+  IF TEMP="NO" SET TEMP="N"
+  IF ("YN?^"'[TEMP)!($LENGTH(TEMP)>1) DO  GOTO YNAL1
+  . WRITE !,"    Answer with 'Yes' or 'No' or '?' or '^'",!,!
+  IF TEMP["?" DO  GOTO YNAL1
+  . WRITE !,"    Acceptable inputs:",!
+  . WRITE "       'Y', 'YES', 'Yes', 'yes',",!
+  . WRITE "       'N', 'NO', No', 'no',",!
+  . WRITE "       '^' (for abort)'",!  
+  . WRITE "       Include '!' to always answer this question the same",!
+  . WRITE "         e.g. 'Y!', or 'NO!'",!,!
+  WRITE " (",$SELECT(TEMP="Y":"Yes",TEMP="N":"No",TEMP="^":"Abort",1:"??"),$SELECT(ALWAYS:" always",1:""),")"
+  SET TMGRESULT=$SELECT(TEMP="Y":1,TEMP="N":0,1:-1)
+  IF ALWAYS SET TMGRESULT=TMGRESULT_"^1",TMGYNAUSRI2(CALLLABEL)=TMGRESULT
+YNADN
+  QUIT TMGRESULT
+  ;
 PROGBAR(VALUE,LABEL,MIN,MAX,WIDTH,STARTTIME)  ;"ProgressBar
    ;"Purpose: to draw a progress bar on a line of the screen
    ;"Input:   VALUE -- the current value to graph out

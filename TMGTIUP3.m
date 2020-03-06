@@ -407,6 +407,7 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        NEW STR SET STR=TEXT
        FOR  QUIT:STR=""  DO
        . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(STR,STARTPOS,"-- [","--&nbsp;[","[","{E-Scribe}")
+       . ;"FUTURE EDDIE - HERE IS WHERE YOU NEED TO LOOK FOR THE MISCOUNT WHEN [] ARE USED. LOVE PRESENT EDDIE
        . IF DIV="" DO  QUIT
        . . SET IDX=IDX+1,TEXT(IDX)=$$REPLSTR^TMGSTUT3(STR,"&nbsp;"," ")
        . . SET STR="",STARTPOS=0 
@@ -468,7 +469,22 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . . . SET TEXT(IDX,"TEXT")=STRA
        . . SET STARTPOS=0
        . DO
-       . . SET STARTPOS=$LENGTH("["_TEMP_"]")+1
+       . . ;"Notes: we have run into an issue where bracketed portions of
+       . . ;"       the HPI, which are not tables... are causing missing
+       . . ;"       data. For example, "Patient's foot [right] is swollen"
+       . . ;"       will results is duplicated text and then corrupt any other tables in this
+       . . ;"       section. The following is an attempt to ignore this text
+       . . ;"       and pass it back out.  3/3/20
+       . . ;" I don't believe the ELSE is needed, but I want to test this
+       . . ;"     for several days in action to ensure it isn't
+       . . IF (DIV="[")&('$DATA(TABLES("["_NAME_"]"))) DO
+       . . . NEW TEMPPOS SET TEMPPOS=$LENGTH("["_TEMP_"]")+1
+       . . . NEW TEMPSTR
+       . . . SET TEMPSTR=$E(STR,0,TEMPPOS),STR=$E(STR,TEMPPOS,$L(STR))
+       . . . SET TEXT(IDX)=$G(TEXT(IDX))_TEMPSTR
+       . . . SET STARTPOS=0
+       . . ELSE  DO
+       . . . SET STARTPOS=$LENGTH("["_TEMP_"]")+1
        QUIT
        ;
 SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2 

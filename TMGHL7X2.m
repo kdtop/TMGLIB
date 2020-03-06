@@ -181,11 +181,12 @@ DOMORE(TMGENV,TMGHL7MSG) ;"DO MORE PROCESSING ON TMGHL7MSG   //kt split function
         ;"       TMGHL7MSG --PASS BY REFERENCE.  AN IN / OUT PARAMETER.
         ;"Result: 1 if OK, -1^Error Message IF error.
         NEW ORDERARR
-        NEW TMGRESULT SET TMGRESULT=1
-        ;"if Laughlin Radiology, then skip this part.
-        NEW APP SET APP=$GET(TMGHL7MSG(1,3))
-        NEW SNDR SET SNDR=$GET(TMGHL7MSG(1,4))
-        IF (APP="RM")&((SNDR="LMH")!(SNDR["LAUGHLIN")!(SNDR["GCHE")) GOTO DMDN  
+        NEW TMGRESULT SET TMGRESULT=1        
+        IF $$ISLMHRAD^TMGHL76R(.TMGHL7MSG) GOTO DMDN  ;"if Laughlin Radiology, then skip this part.
+        ;"//kt del later --> NEW APP SET APP=$GET(TMGHL7MSG(1,3))
+        ;"//kt del later --> NEW SNDR SET SNDR=$GET(TMGHL7MSG(1,4))
+        ;"//kt del later --> IF (APP="RM")&((SNDR="LMH")!(SNDR["LAUGHLIN")!(SNDR["GCHE")) GOTO DMDN
+        IF $$ISADT^TMGHL76A(.TMGHL7MSG) GOTO DMDN ;"If ADT message, skip this part.  
         NEW TMGI SET TMGI=0
         FOR  SET TMGI=$ORDER(TMGHL7MSG(TMGI)) QUIT:(+TMGI'>0)!(+TMGRESULT<0)  DO
         . NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(TMGI,"SEG"))

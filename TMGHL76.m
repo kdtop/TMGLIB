@@ -171,7 +171,8 @@ OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifi
         . . . SET TMGVALUE="TMG-CUST-TIBC^GCHE-CUST-TIBC"
         . IF TMGVALUE="",TMGOBXCOUNT=1,$GET(TMGLASTOBR4)'="" DO  ;"//real life example: given OBR for CRP, and then isolated OBX with just result for CRP, no name of test
         . . SET TMGVALUE=TMGLASTOBR4
-        . IF TMGVALUE="" QUIT
+        . ;"IF TMGVALUE="" QUIT
+        . IF TMGVALUE="" SET TMGVALUE="TMG-UNNAMED^GCHE-UNNAMED"
         . NEW TEMPARR,TEST SET TEST=TMGVALUE
         . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TEST,"R",.TEMPARR)
         . MERGE TMGHL7MSG(TMGSEGN,"RESULT")=TEMPARR

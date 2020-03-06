@@ -108,6 +108,17 @@ LASTNOTE(DFN,LIST,STARTMARKERS,OPTION) ;"GET LAST NOTE POINTED TO IN 22729
   . SET TABLENAME=STARTMARKERS
   SET TABLEIEN=+$ORDER(^TMG(22708,"B",TABLENAME,0))
   IF TABLEIEN'>0 GOTO LNDN
+  ;"
+  ;"We are suffering from missing items in the followup table
+  ;"I have yet to recreate the issue, so as a stop gap measure
+  ;"if the table is the fu table (#31) I am going to set the Option
+  ;"to check all notes as this function bubbles back up.
+  ;"This will supercede the  entry in 22729, for that table only
+  ;"until I figure what is happening
+  ;"     ELH    12/19/19
+  ;"
+  IF TABLEIEN=31 SET OPTION("ALL NOTES")=1  
+  ;"
   ;"Find if table is referenced in 22729
   NEW IDX SET IDX=+$ORDER(^TMG(22729,"C",DFN,TABLEIEN,0))
   IF IDX'>0 GOTO LNDN

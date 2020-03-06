@@ -1,4 +1,4 @@
-TMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19
+TMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19, 2/27/20
               ;;1.0;TMG-LIB;**1**;11/14/16
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
@@ -11,9 +11,7 @@ TMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
- ;"NOTE: this is code for working with ADT messages from **[GCHE]**
- ;"NOTE: GCHE is Greeneville Community Hospital EAST (formally 'Laughlin')
- ;"      I am making a separate XForm file because new GCHE Epic system will likely be different. 
+ ;"NOTE: this is code for working with ADT messages from BALLAD
  ;"      FYI -- Pathgroup code is in TMGHL73
  ;"             Laughlin code is in TMGHL74
  ;"             Laughlin RADIOLOGY is in TMGHL74R
@@ -67,9 +65,18 @@ TEST    ;"Pick file and manually send through filing process.
 BATCH   ;"NOTE: Laughlin radiology reports will be dumped in with 
         ;"      lab reports, so I will NOT call this BATCH label separately.
         ;"      Instead, Taskman will call BATCH^TMGHL74, and then the XFORM 
-        ;"      process will recognize the LAB application, and load the record 
+        ;"      process will recognize the ADT application, and load the record 
         ;"      in file #22720 that, in turn, calls the functions in this file.  
+        ;"NEW OPTION SET OPTION("NO ALERT")=1
+        DO HLDIRIN^TMGHL71("/mnt/WinServer/BalladADTHL7",1000,10)
         QUIT
+        ;
+ISADT(TMGHL7MSG)  ;"Test if message is an HL7 ADT message
+        ;"Input: TMGHL7MSG -- PASS BY REFERENCE.  
+        ;"Result: 1 if is ADT HL7, 0 otherwise
+        ;"note: this is called by DOMORE^TMGHL7X2
+        NEW TMGRESULT SET TMGRESULT=($GET(TMGHL7MSG(1,9,1))="ADT")
+        QUIT TMGRESULT
         ;
         ;"===============================================================
         ;"|  Below are the call-back functions to handle transformation |
@@ -77,7 +84,6 @@ BATCH   ;"NOTE: Laughlin radiology reports will be dumped in with
         ;"===============================================================
         ;
 MSG     ;"Purpose: Process entire message before processing segments
-        DO FIXRPT(.TMGHL7MSG,.TMGU) 
         DO XMSG^TMGHL72 
         KILL TMGLASTOBR4,TMGLASTOBX3,TMGOBXCOUNT
         QUIT
@@ -85,10 +91,10 @@ MSG     ;"Purpose: Process entire message before processing segments
 MSG2    ;"Purpose: Process entire message after processing segments
         DO XMSG2^TMGHL72 
         KILL TMGEXAMIDX
+        KILL TMGADTTYPES
         QUIT
         ;
 MSH4  ;"Purpose: Process MSH segment, FLD 4 (Sending Facility)
-        ;"SET TMGVALUE="LAUGHLIN MEM HOSPITAL"
         SET TMGVALUE="GREENEVILLE COMMUNITY HOSP E"
         DO XMSH4^TMGHL72
         QUIT
@@ -107,13 +113,6 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         SET TMGHL7MSG("RAD STUDY","DFN")=DFN
         QUIT
         ;
-PV18    ;"Purpose: Process entire PV18 segment
-        ;"NOTE: Pathgroup doesn't send order information in OBR16, so will use
-        ;"      information from here to fix that.
-        ;"In Pathrgoup messages, PV1 comes before any OBR segments.
-        DO PV18^TMGHL74
-        QUIT
-        ;
 ORC1   ;"Purpose: Process empty ORC message, field 1
         DO XORC1^TMGHL72
         QUIT
@@ -128,185 +127,207 @@ ORC13  ;"Purpose: Process empty ORC message, field 13
         SET $PIECE(TMGVALUE,"^",2)="69" 
         QUIT
         ;     
-NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
-        DO NTE3^TMGHL72                         
-        QUIT
-        ;
-SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
-        DO SUPROV^TMGHL72                
-        QUIT   
-        ;
-SUORL   ;"Purpose: Setup TMGINFO("ORL") and TMGINFO("LOC") and TMGINFO("INSTNAME")
-        DO SUORL^TMGHL72
-        QUIT
-        ;
-PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additional clinical history) sections
-        NEW SECTION SET SECTION="RPT"
-        NEW OUTIDX SET OUTIDX=1
-        NEW IDX SET IDX=0
-        FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:+IDX'>0  DO
-        . NEW S SET S=$GET(ARR(IDX))
-        . NEW UP SET UP=$$TRIM^XLFSTR($$UP^XLFSTR(S))
-        . NEW PARTB SET PARTB=""
-        . NEW DIV SET DIV=""
-        . IF UP="HISTORY"           SET SECTION="HX",S="HISTORY:"
-        . ELSE  IF UP["HISTORY:"    SET SECTION="HX"
-        . ELSE  IF UP="FINDINGS"    SET SECTION="RPT",S="FINDINGS:"
-        . ELSE  IF UP["TECHNIQUE:"  SET SECTION="RPT"        
-        . ELSE  IF UP["CLINICAL INFORMATION:" SET SECTION="HX"        
-        . ELSE  IF UP["COMPARISON:" SET SECTION="RPT"                
-        . ELSE  IF UP["FINDINGS:"   SET SECTION="RPT"
-        . ELSE  IF UP["CONCLUSION:" SET SECTION="IMP",DIV="CONCLUSION:"
-        . ELSE  IF UP["IMPRESSION:" SET SECTION="IMP",DIV="IMPRESSION:"
-        . ELSE  IF UP["INTERPRETATION SUMMARY" SET SECTION="IMP",DIV="INTERPRETATION SUMMARY"
-        . ELSE  IF S["ASSESSMENT:"  SET SECTION="IMP",DIV="ASSESSMENT:"
-        . ;"ELSE  IF S["IMPRESSION"   SET SECTION="IMP",DIV="IMPRESSION"   
-        . IF DIV'="" DO
-        . . DO CLEAVSTR^TMGSTUT2(.S,DIV,.PARTB,1)
-        . . IF S'="" SET OUT(SECTION,OUTIDX)=S
-        . . SET S=PARTB,OUTIDX=1
-        . IF S["Signer Name:" DO
-        . . SET OUT(SECTION,OUTIDX)="",OUTIDX=OUTIDX+1        
-        . . SET OUT(SECTION,OUTIDX)="-------------------",OUTIDX=OUTIDX+1        
-        . IF OUTIDX=1,S="" QUIT
-        . SET OUT(SECTION,OUTIDX)=S,OUTIDX=OUTIDX+1        
-        QUIT
-        ;        
-FIXRPT(TMGHL7MSG,TMGU) ;"
-        ;"Purpose: to covert form of EPIC radiology report messages into that previously
-        ;"         handled for Laughlin radiology
-        NEW ARRAY,ARRI SET ARRI=0
-        NEW OBRFOUND,OBXROUND,DONE SET (OBRFOUND,OBXFOUND,DONE)=0
-        NEW STATUS SET STATUS=""
-        NEW NTEINSERTNUM SET NTEINSERTNUM=0
-        NEW SEGNUM SET SEGNUM=0
-        FOR  SET SEGNUM=$ORDER(TMGHL7MSG(SEGNUM)) QUIT:SEGNUM'>0  DO
-        . NEW SEGNAME SET SEGNAME=$GET(TMGHL7MSG(SEGNUM,"SEG"))
-        . IF (OBRFOUND=0) DO  QUIT
-        . . IF SEGNAME="OBR" DO
-        . . . SET OBRFOUND=1 QUIT
-        . IF OBRFOUND,SEGNAME="OBX" DO
-        . . SET OBXFOUND=1
-        . . NEW TEST SET TEST=$GET(TMGHL7MSG(SEGNUM,3))        
-        . . ;"ELH ADDED &ADT FOR ADDENDUMS  7/25/19
-        . . IF (TEST'="&ADT")&(TEST'="&GDT")&(TEST'="&IMP") SET DONE=1 QUIT
-        . . IF STATUS="" SET STATUS=$GET(TMGHL7MSG(SEGNUM,11))
-        . . IF NTEINSERTNUM=0 SET NTEINSERTNUM=SEGNUM
-        . . NEW LINE SET LINE=$GET(TMGHL7MSG(SEGNUM,5))
-        . . SET ARRI=ARRI+1,ARRAY(ARRI)=LINE
-        . . KILL TMGHL7MSG(SEGNUM)
-        . . KILL TMGHL7MSG("RESULT",SEGNUM)
-        . . KILL TMGHL7MSG("B","OBX",SEGNUM)
-        . . IF $GET(TMGHL7MSG("PO",SEGNUM))=SEGNUM KILL TMGHL7MSG("PO",SEGNUM)
-        . ELSE  IF OBRFOUND,OBXFOUND SET DONE=1
-        . IF OBRFOUND,OBXFOUND,DONE DO
-        . . DO PUSHARRAY(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM)
-        . . SET TMGHL7MSG("PO",NTEINSERTNUM)=NTEINSERTNUM
-        . . SET (OBRFOUND,OBXFOUND,DONE)=0
-        . . SET STATUS=""
-        . . SET ARRI=0 KILL ARRAY
-        IF $DATA(ARRAY) DO PUSHARRAY(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM)
-        QUIT
-        ;
-PUSHARRAY(TMGHL7MSG,TMGU,ARRAY,SEGNUM) ;" <-- this differs from PUSHARRAY^TMGHL74R
-        NEW DIV1 SET DIV1=$GET(TMGU(1),"~")
-        NEW DIV3 SET DIV3=$GET(TMGU(3),"~")
-        NEW STR SET STR=""
-        NEW ARRI SET ARRI=0
-        FOR  SET ARRI=$ORDER(ARRAY(ARRI)) QUIT:ARRI'>0  DO
-        . IF STR'="" SET STR=STR_DIV3
-        . SET STR=STR_$GET(ARRAY(ARRI))
-        NEW SEG SET SEG="OBX"_DIV1_DIV1_DIV1_"R^REPORT^L"_DIV1_DIV1_STR
-        SET $PIECE(SEG,DIV1,11+1)=STATUS SET STATUS=""
-        SET TMGHL7MSG(NTEINSERTNUM)=SEG
-        SET (OBRFOUND,OBXFOUND,DONE)=0
-        NEW LASTPOIDX SET LASTPOIDX=$ORDER(TMGHL7MSG("PO",""),-1) ;" <-- this differs from PUSHARRAY^TMGHL74R
-        SET TMGHL7MSG("PO",LASTPOIDX+1)=NTEINSERTNUM  ;" <-- this differs from PUSHARRAY^TMGHL74R
-        KILL ARRAY
-        DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU)
-        QUIT
-        ;
-FILEADT(TMGENV,TMGHL7MSG)  ;
+FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         ;"Input: TMGENV -- PASS BY REFERENCE
         ;"       TMGHL7MSG -- PASS BY REFERENCE
         ;"Results: 1 if OK, or -1^Message if error
-        ;"Here I will file the ADT report.  
-        ;"Use code in TMGRAU01 for filing...
-        ;"ZWR TMGENV
-        ;"W "******************************",!
-        ;"ZWR TMGHL7MSG
-
-        NEW ADTEVENT,TMGDUZ,MESSAGE,TMGRESULT,ADTDATE,ADTEDATEPCPDUZ
-  GOTO FADN
-        SET ADTEVENT=$G(TMGHL7MSG(2,1))
-        SET ADTDATE=$$HL72FMDT^TMGHL7U3($G(TMGHL7MSG(2,2)))
+        NEW MESSAGE,ADTEDATE,PCPDUZ,NOTETITLE
+        NEW TMGRESULT SET TMGRESULT="1^SUCCESS"
+        IF $DATA(TMGADTTYPES)=0 DO LOADTYPS(.TMGADTTYPES) ;"//NOTE: TMGADTTYPES is killed is MSG2^TMGHL76A
+        NEW ADTEVENT SET ADTEVENT=$G(TMGHL7MSG(2,1))
+        NEW ADTEVENTNAME 
+        SET ADTEVENTNAME=$G(TMGADTTYPES(ADTEVENT))
+        NEW ADTDATE SET ADTDATE=$$HL72FMDT^TMGHL7U3($G(TMGHL7MSG(2,2)))
         SET ADTEDATE=$$EXTDATE^TMGDATE(ADTDATE)
         NEW DFN SET DFN=$G(TMGHL7MSG(3,4))
-        DO GETPROV^TMGPROV1(.PCPDUZ,DFN,0)
-        IF ADTEVENT="" DO  ;"ALERT EDDIE AS AN ERROR HAS OCCURRED
-        . SET TMGDUZ=150
-        . SET MESSAGE="ERROR: ADTEVENT COULD NOT BE FOUND IN MESSAGE "
-        ELSE  IF ADTEVENT="A01" DO  ;"ADMISSION
-        . IF PCPDUZ'>0 DO
-        . . SET TMGDUZ=150
-        . . SET MESSAGE="ERROR: PCP COULD NOT BE DETERMINED FOR "_$P($G(^DPT(DFN,0)),"^",1)
-        . ELSE  DO
-        . . SET TMGDUZ=PCPDUZ
-        . . SET MESSAGE=" ADMITTED "
-        ELSE  IF ADTEVENT="A03" DO  ;"DISCHARGE
-        . SET TMGDUZ=150
-        . SET MESSAGE=" DISCHARGED "
-        IF TMGDUZ'>0 GOTO FADTDN
-        IF MESSAGE'["ERROR" SET MESSAGE=$P($G(^DPT(DFN,0)),"^",1)_" WAS "_MESSAGE_" ON "_ADTEDATE
-FADN
-        NEW DFN SET DFN=74592
-        SET TMGDUZ=150
-        SET MESSAGE="PATIENT WAS ADMITTED"
-        ;"SET XQADATA="OR,"_DFN_",22701;150;3190901.190738"
-        NEW XQA,XQAARCH,XQADATA,XQAFLG,XQAGUID,XQAID,XQAMSG,XQAOPT,XQAROU,XQASUPV,XQASURO,XQATEXT,XQALERR
-        SET XQADATA="OR,"_DFN_",22701;150;3190901.190738"
-        SET XQA(TMGDUZ)="" 
-        SET XQAMSG=MESSAGE
-        DO SETUP1^XQALERT
-    
-
-        ;"DO INFRMALT^TMGXQAL(.RESULT,TMGDUZ,MESSAGE)        
-        ;"NEW RECIPS SET RECIPS(TMGDUZ)=""
-        ;"DO SNDALRT2(DFN,ADTDATE,RECIPS)
-               
-FADTDN
-        QUIT 1  ;"DO FILING HERE FOR NOW... $$FILEADT^TMGHL76F(.TMGENV,.TMGHL7MSG) 
+        NEW NOTETEXT,NOTETITLE,AUTHORNAME
+        DO GETPROV^TMGPROV1(.PCPDUZ,DFN,DUZ)
+        IF PCPDUZ'>0 DO  GOTO FADTDN
+        . SET TMGRESULT="-1^PCP COULD NOT BE DETERMINED FOR "_$P($G(^DPT(DFN,0)),"^",1)_"  FROM HL7 ADT MESSAGE"
+        NEW EDDIEMSG SET EDDIEMSG=""
+        NEW ALRTDUZ SET ALRTDUZ=150  ;"//hard coded to Eddie Hagood user
+        NEW PATNAME SET PATNAME=$P($G(^DPT(DFN,0)),"^",1)
+        NEW PV1IDX SET PV1IDX=+$ORDER(TMGHL7MSG("B","PV1",0))
+        NEW FACILITYLOC SET FACILITYLOC=$GET(TMGHL7MSG(1,4,1),"<not found>")
+        NEW DATARR
         ;
-SNDALRT2(RADFN,IDT,RECIPS)  ;
-  ;" Input: RADFN:    Patient DFN (IEN IN RAD/NUC MED PATIENT)
-  ;"        IDT:      Exam timestamp (inverse)  (IEN IN REGISTERED EXAMS
-  ;70.02)
-  ;"        IEN70D03: Exam IEN70.03 (EXMINATION SUBFILE)
-  ;"        RECIPS:   PASS BY REFERENCE.  List of recipients of alert. 
-  ;Format:
-  ;"              RECIPS(IEN200)=""
-  ;"        OPTION:   OPTIONAL.  PASS BY REFERENCE.  FORMAT:
-  ;"            OPTION("LEVEL") = 1 (DEFAULT) --> NON-CRITICAL
-  ;"                            = 2 --> Abnormal, needs attention
-  ;"            OPTION("ADDENDUM") = 0 (DEFAULT) --> not addended
-  ;"                               = 1 --> addended.
-  SET TMGRESULT="1^OK"
-  SET RECIPS(150)=""
-  SET IDT="3190101.1111"
-  ;"NEW ZN SET ZN=$GET(^RADPT(RADFN,"DT",IDT,"P",IEN70D03,0))
-  ;"NEW RARPT SET RARPT=+$PIECE(ZN,"^",17)  ;"This is an IEN74 <-- REQUIRED in  OE3^RAUTL00
-  ;"IF RARPT'>0 DO  GOTO SA2DN
-  ;". SET TMGRESULT="-1^No linked report in field #17 of file 70.03. 
-  ;"IENS="_IEN70D03_","_IDT_","_RADFN_","
-  NEW RA751,RAIENS,RAMSG,RANOTE,RAOIFN,RAREQPHY,X1
-  SET X1="" ;"=$SELECT($DATA(^RAMIS(71,+$PIECE(X,"^",2),0)):$PIECE(^(0),"^"),1:"")
-  SET RA751=""  ;"$GET(^RAO(75.1,+$PIECE(X,"^",11),0))
-  SET RAIENS=IDT_"~" ;"_IEN70D03
-  SET RANOTE="22701^HL7 MESSAGE:  "_$EXTRACT(X1,1,25)
-  SET RAMSG=$PIECE($GET(RANOTE),"^",2)
-  SET RAOIFN="" ;"$PIECE(RA751,"^",7)
-  MERGE RAREQPHY=RECIPS
-  DO EN^ORB3(+$GET(RANOTE),RADFN,RAOIFN,.RAREQPHY,RAMSG,RAIENS)
-SA2DN ;
-  QUIT TMGRESULT
-  ;"
+        NEW LOC SET LOC=$GET(TMGHL7MSG(+PV1IDX,2))
+        IF "INPATIENT^OBSERVATION^EMERGENCY"'[LOC GOTO FADTDN   ;"//kt <--- is this too strict?
+        ;"
+        IF ADTEVENT="A01" DO  ;"ADMISSION
+        . IF LOC="EMERGENCY" DO
+        . . SET VISITTYPE="EMERGENCY DEPARTMENT"
+        . . SET NOTETITLE="HOSPITAL EMERGENCY ROOM (HL7)"
+        . . SET EDDIEMSG=PATNAME_" ENTERED THE ER ON "_ADTEDATE
+        . ELSE  DO
+        . . SET VISITTYPE="INPATIENT"
+        . . SET NOTETITLE="HOSPITAL ADMISSION (HL7)"
+        . . SET EDDIEMSG=PATNAME_" WAS ADMITTED ON "_ADTEDATE
+        ;
+        IF ADTEVENT="A03" DO  ;"DISCHARGE
+        . IF LOC="EMERGENCY" DO
+        . . SET VISITTYPE="EMERGENCY DEPARTMENT"
+        . . SET NOTETITLE="HOSPITAL EMERGENCY ROOM (HL7)"
+        . . SET EDDIEMSG=PATNAME_" WAS D/C'd FROM THE ER ON "_ADTEDATE
+        . ELSE  DO
+        . . SET VISITTYPE="INPATIENT"
+        . . SET NOTETITLE="HOSPITAL DISCHARGE (HL7)"
+        . . SET EDDIEMSG=PATNAME_" WAS DISCHARGED ON "_ADTEDATE
+        ;		
+        NEW IDX SET IDX=1;
+        SET ARR(IDX)="PATIENT NAME^"_PATNAME       SET IDX=IDX+1
+        SET ARR(IDX)="FACILITY^"_FACILITYLOC       SET IDX=IDX+1
+        SET ARR(IDX)="DATE^"_ADTEDATE              SET IDX=IDX+1
+        SET ARR(IDX)="VISIT TYPE^"_VISITTYPE       SET IDX=IDX+1
+        SET ARR(IDX)="EVENT TYPE^"_ADTEVENTNAME    SET IDX=IDX+1
+        ;
+        NEW DLGIDX SET DLGIDX=0
+        FOR  SET DLGIDX=$ORDER(TMGHL7MSG("B","DG1",DLGIDX)) QUIT:DLGIDX'>0  DO  
+        . SET ARR(IDX)="VISIT DIAGNOSIS^"_$$DLGINFO(.TMGHL7MSG,DLGIDX),IDX=IDX+1
+        ;
+        IF EDDIEMSG'="" DO INFRMALT^TMGXQAL(.ALERTRESULT,ALRTDUZ,EDDIEMSG)
+        IF PCPDUZ>0,$DATA(VISITTYPE) DO
+        . SET TMGRESULT=$$MAKENOTE(DFN,PCPDUZ,ADTDATE,NOTETITLE,.ARR)               
+FADTDN  ;
+        QUIT TMGRESULT   
+        ;
+MAKENOTE(DFN,TMGDUZ,DOS,NOTETITLE,ARR)
+        NEW TIUIEN,NOTETEXT,TMGRESULT
+        SET TMGRESULT="1^SUCCESS"
+        NEW REFNOTETEXT SET REFNOTETEXT=$NAME(NOTETEXT("TEXT"))
+        NEW ALLERGIES SET ALLERGIES=$$DETALRGY2^TMGTIUO3(DFN)
+        NEW USERNAME SET USERNAME=$PIECE($GET(^VA(200,TMGDUZ,0)),"^",1)
+        DO BLANKTIU^TMGRPC1(.TIUIEN,DFN,USERNAME,6,DOS,NOTETITLE)
+        IF TIUIEN<1 DO  GOTO MKNDN
+        . SET TMGRESULT="-1^Unable to create TIU note.  Msg:"_$P(TIUIEN,"^",2)
+        ;
+        ;" --- COMPOSE THE NOTE ---
+        NEW IDX SET IDX=1
+        SET NOTETEXT("TEXT",IDX,0)="<!DOCTYPE HTML PUBLIC ""-//WC3//DTD HTML 3.2//EN"">  <HTML><BODY>",IDX=IDX+1    ;"HTML HEADER
+        SET NOTETEXT("TEXT",IDX,0)=ALLERGIES_"<P>",IDX=IDX+1
+        DO ARR2TABL(.ARR,REFNOTETEXT,.IDX)  ;"Add table with ADT information.  
+        SET NOTETEXT("TEXT",IDX,0)="<P><P>Office staff has been notified to get records for this encounter.<P>",IDX=IDX+1
+        DO HL72PRE(.TMGHL7MSG,REFNOTETEXT,.IDX) ;"Show raw HL7 data in <PRE> block. 
+        SET NOTETEXT("TEXT",IDX,0)="</BODY></HTML>"
+        SET NOTETEXT("HDR")="1^1"
+        ;
+        NEW RESULT DO SETTEXT^TMGTIUS1(.RESULT,TIUIEN,.NOTETEXT,0)
+        DO SEND^TIUALRT(TIUIEN)
+MKNDN   ;
+        QUIT TMGRESULT
+        ;"
+DLGINFO(TMGHL7MSG,DLGIDX)  ;"Get diagnosis info
+        ;"Result: string describing diagnosis. 
+        NEW CODE SET CODE=$GET(TMGHL7MSG(DLGIDX,3,1))
+        NEW NARRATIVE SET NARRATIVE=$GET(TMGHL7MSG(DLGIDX,4))
+        NEW RESULT SET RESULT=CODE
+        IF RESULT'="" SET RESULT=RESULT_": "
+        SET RESULT=RESULT_NARRATIVE
+        QUIT RESULT
+        ;
+ARR2TABL(ARR,REFHTML,JDX,STYLE) ;"Convert array to HTML table. 
+        ;"Input: ARR -- PASS BY REFERENCE.  Expected format: ARR(INDEX#)=<text for column1>^<text for column2>
+        ;"       REFHTML -- AN OUT PARAMETER.  PASS BY NAME.  Output format:  
+        ;"              @REFHTML@(1,0)=<HTML TEXT LINE 1>
+        ;"              @REFHTML@(2,0)=<HTML TEXT LINE 2> ... etc.
+        ;"       JDX -- PASS BY REFERENCE.  Index output text array
+        ;"       STYLE -- OPTIONAL.  Default is "BORDER=1"  This is added to <TABLE> tag for formatting.  
+        ;"Result: none
+        SET STYLE=$GET(STYLE,"BORDER=1")
+        NEW IDX SET IDX=""
+        SET @REFHTML@(JDX,0)="<TABLE "_STYLE_">",JDX=JDX+1
+        FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+        . NEW LINE SET LINE=$GET(ARR(IDX)) QUIT:LINE=""
+        . NEW COL1 SET COL1=$PIECE(LINE,"^",1)
+        . NEW COL2 SET COL2=$PIECE(LINE,"^",2,99)
+        . SET @REFHTML@(JDX,0)="<TR><TD>"_COL1_"</TD><TD>"_COL2_"</TD></TR>",JDX=JDX+1
+        SET @REFHTML@(JDX,0)="</TABLE>",JDX=JDX+1
+        QUIT
+        ;
+HL72PRE(ARR,REFHTML,JDX,STYLE) ;"Convert array to PRE block. 
+        ;"Input: ARR -- PASS BY REFERENCE.  Expected format: ARR(INDEX#)=<text for column1>^<text for column2>
+        ;"       REFHTML -- AN OUT PARAMETER.  PASS BY NAME.  Output format:  
+        ;"              @REFHTML@(1,0)=<HTML TEXT LINE 1>
+        ;"              @REFHTML@(2,0)=<HTML TEXT LINE 2> ... etc.
+        ;"       JDX -- PASS BY REFERENCE.  Index output text array
+        ;"       STYLE -- OPTIONAL.  Default is style as below...  
+        ;"Result: none
+        SET STYLE=$GET(STYLE,"""BORDER-TOP: gray 1px solid;BORDER-BOTTOM: gray 1px solid;BORDER-RIGHT: gray 1px solid;BORDER-LEFT: gray 1px solid;"" width=""200%""")
+        NEW IDX SET IDX=""
+        SET @REFHTML@(JDX,0)="<P><P>========RAW HL7 DATA BELOW========<P>",JDX=JDX+1
+        SET @REFHTML@(JDX,0)="<PRE "_STYLE_">",JDX=JDX+1        
+        FOR  SET IDX=$O(TMGHL7MSG(IDX)) QUIT:+IDX'>0  DO
+        . NEW LINE SET LINE=$GET(TMGHL7MSG(IDX)) QUIT:LINE=""
+        . SET @REFHTML@(JDX,0)=LINE,JDX=JDX+1        
+        SET @REFHTML@(JDX,0)="</PRE>",JDX=JDX+1
+        QUIT
+        ;
+SETALERT(ERRTEXT,AMSG) ;
+        ;"do nothing for now
+        QUIT
+        ;"        
+LOADTYPS(ARR) ;" Load names of ADT event names into ARR
+TYPES   ;"//----- ADT TYPES ----      
+        ;;"A01^Admit/visit notification
+        ;;"A02^Transfer a patient
+        ;;"A03^Discharge/end visit
+        ;;"A04^Register a patient
+        ;;"A05^Pre-admit a patient
+        ;;"A06^Change an outpatient to an inpatient
+        ;;"A07^Change an inpatient to an outpatient
+        ;;"A08^Update patient information
+        ;;"A09^Patient departing - tracking
+        ;;"A10^Patient arriving - tracking
+        ;;"A11^Cancel admit/visit notification
+        ;;"A12^Cancel transfer
+        ;;"A13^Cancel discharge/end visit
+        ;;"A14^Pending admit
+        ;;"A15^Pending transfer
+        ;;"A16^Pending discharge
+        ;;"A17^Swap patients
+        ;;"A18^Merge patient information
+        ;;"A19^QRY/ADR - Patient query
+        ;;"A20^Bed status update
+        ;;"A21^Patient goes on a “leave of absence”
+        ;;"A22^Patient returns from a “leave of absence”
+        ;;"A23^Delete a patient record
+        ;;"A24^Link patient information
+        ;;"A25^Cancel pending discharge
+        ;;"A26^Cancel pending transfer
+        ;;"A27^Cancel pending admit
+        ;;"A28^Add person information
+        ;;"A29^Delete person information
+        ;;"A30^Merge person information
+        ;;"A31^Update person information
+        ;;"A32^Cancel patient arriving - tracking
+        ;;"A33^Cancel patient departing - tracking
+        ;;"A34^Merge patient information - patient I
+        ;;"A35^Merge patient information - account only
+        ;;"A36^Merge patient information - patient ID and account number
+        ;;"A37^Unlink patient information
+        ;;"A38^Cancel pre-admit
+        ;;"A39^Merge person - patient ID                      
+        ;;"A40^Merge patient - patient identifier list
+        ;;"A41^Merge account - patient account num
+        ;;"A42^Merge visit - visit number
+        ;;"A43^Move patient information - patient identifier list
+        ;;"A44^Move account information - patient account number
+        ;;"A45^Move visit information - visit number
+        ;;"A46^Change patient ID
+        ;;"A47^Change patient identifier list
+        ;;"A48^Change alternate patient ID
+        ;;"A49^Change patient account number
+        ;;"A50^Change visit number
+        ;;"A51^Change alternate visit ID
+        ;;"^
+        NEW IDX SET IDX=0
+        FOR  DO  QUIT:(IDX'>0)
+        . SET IDX=IDX+1 
+        . NEW LINE SET LINE=$$TRIM^XLFSTR($TEXT(TYPES+IDX^TMGHL76A))
+        . SET LINE=$EXTRACT(LINE,4,$LENGTH(LINE))
+        . NEW CODE SET CODE=$PIECE(LINE,"^",1)
+        . NEW NAME SET NAME=$PIECE(LINE,"^",2)
+        . IF CODE="" SET IDX=-1 QUIT
+        . SET ARR(CODE)=NAME
+        QUIT        
+        ;

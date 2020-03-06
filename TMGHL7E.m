@@ -133,7 +133,7 @@ HNDLERR2 ;
         . NEW PTINFO SET PTINFO=$$GETPTINO2(.TMGHL7MSG) 
         . SET TMGERROR=TMGERROR_": "_PTINFO
         . SET PTNOTFOUND=1
-        IF PTNOTFOUND,$$IGNORPT(TMGERROR) DO CLEANUP2(TMGJOBN,TMGTIME) GOTO HE2DN
+        IF PTNOTFOUND,$$IGNORPT(TMGERROR) DO CLEANUP2(TMGJOBN,TMGTIME,1) GOTO HE2DN
         IF (IEN772=0)&(IEN773=0) NEW SKIP SET SKIP=1 DO  GOTO:SKIP=1 HE2DN
         . WRITE "Insufficient information available to handle this alert.",!
         . IF TMGERROR'="" WRITE "Message was: "_TMGERROR,!
@@ -148,6 +148,8 @@ HNDLERR2 ;
         . DO PRESS2GO^TMGUSRI2
         SET TMGENV("INTERACTIVE MODE")=1
         IF TMGERROR="" SET TMGUSERINPUT="TryAgain" GOTO M3
+        ;"11/15/19, added below to catch the 
+        IF (TMGERROR["The value")&(TMGERROR["for field PATIENT in") SET TMGUSERINPUT="TryAgain" GOTO M3
         ;
 M2      KILL TMGUSERINPUT,TMGMNU,TMPERR
         KILL TMGMNUI SET TMGMNUI=0
@@ -200,7 +202,7 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         IF TMGUSERINPUT="IgnorePt" DO  GOTO M2:(TEMPRESULT'=1),HE2DN
         . SET TEMPRESULT=$$ADDIGNOR(.TMGENV,TMGERROR,INDENTN+2)
         . IF TEMPRESULT'=1 QUIT
-        . DO CLEANUP2(TMGJOBN,TMGTIME)
+        . DO CLEANUP2(TMGJOBN,TMGTIME,1)
         ;"IF TMGUSERINPUT="XForm" DO HXFMSUT2(.TMGENV,.TMGTESTMSG,INDENTN) GOTO M2   
         ;
         IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
@@ -212,7 +214,12 @@ HE2DN   WRITE "Quitting.  Goodbye",!
         KILL TMGCLEANED
         QUIT
         ;
-CLEANUP2(TMGJOBN,TMGTIME)  ;
+CLEANUP2(TMGJOBN,TMGTIME,FORCE)  ;
+        ;"11/15/19 ADDED FORCE
+        SET FORCE=+$G(FORCE)
+        IF FORCE=1 DO  QUIT
+        . KILL ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME)
+        . SET TMGCLEANED=1
         IF $GET(TMGCLEANED)=1 QUIT
         NEW % SET %=1
         WRITE "Clear stored memory relating to this alert (can't be undone)"
@@ -324,7 +331,8 @@ TRYAGAN2(TMGMSG,DEBUG) ;
         ;"Result: 1 if OK, or -1^Abort IF aborted. 
         NEW TMGRESULT SET TMGRESULT=1
         NEW % SET %=1
-        WRITE "Send HL7 message through POC filer again" DO YN^DICN WRITE !
+        ;"12/2/19  WRITE "Send HL7 message through POC filer again" DO YN^DICN WRITE !
+        WRITE "Send HL7 message through POC filer again" SET %=+$$YNA^TMGUSRI2(%) WRITE !
         IF %'=1 DO  GOTO DBDN2  ;"DEBG2DN
         . SET TMGRESULT="-1^HL7 Message Filing Aborted"        
         ;"NEW CODE SET CODE="SET TMGRESULT=$$HL7MSGIN^TMGHL71(.TMGMSG,1)"
@@ -342,8 +350,18 @@ DEBG2DN IF TMGRESULT<0 DO
         . WRITE !,ERR,!
         . IF $$PTNOTFOUND(ERR) DO  QUIT:IGNORE
         . . SET ERR=$PIECE(ERR,".",1)
-        . . IF $$IGNORPT(ERR)=0 QUIT 
-        . . DO CLEANUP2(TMGJOBN,TMGTIME) 
+        . . ;"new code here 11/15/19
+        . . NEW NOIGNORE SET NOIGNORE=0
+        . . IF $$IGNORPT(ERR)=0 DO  QUIT:NOIGNORE
+        . . . SET %=1 WRITE "Would you like to ignore this patient" DO YN^DICN WRITE !
+        . . . IF %=1 DO
+        . . . . DO ADDIGNOR(.TMGMSG,.ERR,0)
+        . . . . SET TMGRESULT=1  ;"12/1/19 This needs to be tested.
+        . . . ELSE  DO
+        . . . . SET NOIGNORE=1
+        . . ;"original code below  11/15/19
+        . . ;"IF $$IGNORPT(ERR)=0 QUIT 
+        . . DO CLEANUP2(TMGJOBN,TMGTIME,1) 
         . . SET IGNORE=1
         . SET %=2 WRITE "Create a NEW alert for this NEW error" DO YN^DICN WRITE !
         . IF %'=1 QUIT
@@ -451,7 +469,43 @@ AGN2    NEW %DT,X,Y
         WRITE "Patient to be ignored until ",$$FMTE^XLFDT(Y),!
         SET TMGRESULT=1  ;"//SUCCESS
 AGNDN   QUIT TMGRESULT        
-
+        ;"
+IGNORRPC(TMGRESULT,TMGDFN)  ;"RPC to add patient to ignore list for 90 days
+        SET TMGRESULT="1^SUCCESS"
+        NEW FIRST SET FIRST=1
+        NEW PATSTR SET PATSTR=$P($G(^DPT(TMGDFN,0)),"^",1)  ;"NAME
+        NEW DOB,DOBSTR SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3)  ;"DOB
+        NEW YEAR SET YEAR=$E(DOB,1,3)+1800
+        SET DOBSTR=$E(DOB,4,5)_"-"_$E(DOB,6,7)_"-"_$E(YEAR,3,4)
+        SET PATSTR=PATSTR_" ("_DOBSTR_")"
+        WRITE PATSTR
+        NEW TMGFDA,TMGIEN,TMGMSG
+        SET TMGIEN=+$ORDER(^TMG(22717.5,"B",PATSTR,""))
+        IF TMGIEN>0 DO  GOTO AGN3
+        . SET FIRST=0
+        . ;"NEW IGNDT SET IGNDT=$PIECE($GET(^TMG(22717.5,TMGIEN,0)),"^",2)
+        SET TMGFDA(22717.5,"+1,",.01)=PATSTR
+        DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+        IF $DATA(TMGMSG("DIERROR")) DO  GOTO IGRPCDN
+        . SET TMGRESULT="-1^Error: "_$$GETERRST^TMGDEBU2(.TMGMSG)
+        SET TMGIEN=+$GET(TMGIEN(1))
+        IF TMGIEN'>0 DO  GOTO IGRPCDN
+        . SET TMGRESULT="-1^Error: Unable to determine IEN of newly added records in 22717.5"
+AGN3    NEW %DT,X,Y
+        SET X="T+90"
+        DO ^%DT
+        KILL TMGFDA
+        SET TMGFDA(22717.5,TMGIEN_",",.02)=Y
+        DO FILE^DIE("","TMGFDA","TMGMSG")
+        IF $DATA(TMGMSG("DIERROR")) DO  GOTO IGRPCDN
+        . SET TMGRESULT="-1^Error: "_$$GETERRST^TMGDEBU2(.TMGMSG)
+        IF FIRST=1 DO
+        . SET TMGRESULT="1^PATIENT WILL BE IGNORED UNTIL "_$$FMTE^XLFDT(Y)
+        ELSE  DO
+        . SET TMGRESULT="1^PATIENT WAS PREVIOUSLY IGNORED. IGNORE SET TO "_$$FMTE^XLFDT(Y)
+IGRPCDN
+        QUIT
+        ;"
   ;"---------------------------------------------------------------------
   ;"---------------------------------------------------------------------
   ;        

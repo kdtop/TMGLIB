@@ -388,7 +388,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        DO C^%DTC
        IF RECORDS>0 SET dueDate=X
        ELSE  SET dueDate=""
-       SET X1=X,X2=6
+       SET X1=X,X2=7
        DO C^%DTC
        SET endDate=X+.999999
        ;"SET NowDate=3181231
@@ -551,7 +551,7 @@ PRTPAINR  ;"
        NEW NEXTDATE SET NEXTDATE=$$TODAY^TMGDATE
        IF NEXTDATE'>0 GOTO PPDN
        SET BDATE=NEXTDATE,EDATE=NEXTDATE
-       ;"SET BDATE=3190326,EDATE=3190330
+       ;"SET BDATE=3200331,EDATE=3200331
        DO GETPRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE)
        NEW DUEARRAY
        DO GETDBDUE(.DUERESULT,BDATE)
@@ -675,6 +675,18 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?30,"had a TSH of ",TESTRESULT," on ",$P(Y,"@",1),!
+       WRITE !,!
+       ;"
+       ;"Check for allergy lists that haven't been accessed
+       WRITE "========= PATIENTS WITH UNACCESSED ALLERGY LISTS==============",!
+       SET DFN=0
+       FOR  SET DFN=$ORDER(PTARRAY(DFN)) QUIT:DFN'>0  DO
+       . NEW ALLERGIES SET ALLERGIES=$$ALLERGY^TMGTIUO3(DFN)
+       . IF (ALLERGIES["NEEDS ALLERGY ASSESSMENT")!(ALLERGIES="") DO
+       . . NEW NAME,DOB,Y SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+       . . SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . SET Y=DOB DO DD^%DT SET DOB=Y
+       . . WRITE "  - ",NAME," (",DOB,")",!
 PRTDN  QUIT
        ;
 PREVNAR ;

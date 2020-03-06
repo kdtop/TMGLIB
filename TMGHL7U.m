@@ -503,40 +503,44 @@ LMAPAPI2(TMGENV,NLT,OUT) ;"GATHER NATIONAL LABORATORY TEST (NLT) MAPPING.
         NEW IEN62D4 SET IEN62D4=TMGENV("IEN 62.4")
         KILL OUT
         SET NLT=$GET(NLT)
-        IF NLT="" DO  GOTO VMA2DN
+        ;"//kt note 10/20/19.  I had situation were input was "84295.000^NA^99VA64", so changing to work with only p1
+        ;"     However, this means that this code will no longer alter input NLT variable.  I see that this was
+        ;"     being called with NLT by reference, so I don't know if this will break anything or not.   
+        NEW NLTP1 SET NLTP1=$PIECE(NLT,"^",1)
+        IF NLTP1="" DO  GOTO VMA2DN
         . SET TMGRESULT="-1^NLT code not provided."
         NEW COUNT SET COUNT=0,COUNT(1)=""
         NEW IEN64 SET IEN64=0
-        FOR  SET IEN64=$ORDER(^LAM("C",NLT_" ",IEN64)) QUIT:(+IEN64'>0)  DO
+        FOR  SET IEN64=$ORDER(^LAM("C",NLTP1_" ",IEN64)) QUIT:(+IEN64'>0)  DO
         . NEW NAME SET NAME=$PIECE($GET(^LAM(IEN64,0)),"^",1)
-        . SET OUT(NLT,"IEN64")=IEN64_"^"_NLT_"^"_NAME
+        . SET OUT(NLTP1,"IEN64")=IEN64_"^"_NLTP1_"^"_NAME
         . SET COUNT=COUNT+1
         . SET COUNT(1)=COUNT(1)_"`"_IEN64_";"
         IF COUNT=0 DO  GOTO VMA2DN
-        . SET TMGRESULT="-1^"_NLT_" not found in file 64 (WKLD CODE)" 
+        . SET TMGRESULT="-1^"_NLTP1_" not found in file 64 (WKLD CODE)" 
         IF COUNT>1 DO  GOTO VMA2DN
-        . SET TMGRESULT="-1^"_NLT_" linked to more than one entry in 64 (WKLD CODE): "_COUNT(1)
+        . SET TMGRESULT="-1^"_NLTP1_" linked to more than one entry in 64 (WKLD CODE): "_COUNT(1)
         KILL COUNT SET COUNT=0,COUNT(1)=""
         NEW IEN62D41 SET IEN62D41=0
-        FOR  SET IEN62D41=$ORDER(^LAB(62.4,IEN62D4,3,"AC",NLT,IEN62D41)) QUIT:(+IEN62D41'>0)  DO
+        FOR  SET IEN62D41=$ORDER(^LAB(62.4,IEN62D4,3,"AC",NLTP1,IEN62D41)) QUIT:(+IEN62D41'>0)  DO
         . NEW IENS SET IENS=IEN62D41_","_IEN62D4_","
         . SET COUNT=COUNT+1
         . SET COUNT(1)=COUNT(1)_"`"_IENS_";"
         . NEW TESTNAME SET TESTNAME=$$GET1^DIQ(62.41,IENS,.01)
-        . SET OUT(NLT,"AUTO INSTRUMENT TEST")=IENS_"^"_TESTNAME
+        . SET OUT(NLTP1,"AUTO INSTRUMENT TEST")=IENS_"^"_TESTNAME
         . NEW STORAGE SET STORAGE=$$GET1^DIQ(62.41,IENS,11)
-        . SET OUT(NLT,"IEN 60")=$$GET1^DIQ(62.41,IENS,.01,"I")
+        . SET OUT(NLTP1,"IEN 60")=$$GET1^DIQ(62.41,IENS,.01,"I")
         . IF $EXTRACT(STORAGE,1,3)="TV(" DO
         . . NEW FIELD SET FIELD=+$PIECE(STORAGE,"TV(",2)
         . . NEW ZN SET ZN=$GET(^DD(63.04,FIELD,0))
         . . NEW NAME SET NAME=$PIECE(ZN,"^",1)
-        . . SET OUT(NLT,"STORAGE")=STORAGE_"^"_FIELD_"^"_NAME
+        . . SET OUT(NLTP1,"STORAGE")=STORAGE_"^"_FIELD_"^"_NAME
         . ELSE  DO
-        . . SET OUT(NLT,"STORAGE")=STORAGE
+        . . SET OUT(NLTP1,"STORAGE")=STORAGE
         IF COUNT=0 DO  GOTO VMA2DN
-        . SET TMGRESULT="-1^"_NLT_" NOT found in AUTO INSTRUMENT file (#62.4)" 
+        . SET TMGRESULT="-1^"_NLTP1_" NOT found in AUTO INSTRUMENT file (#62.4)" 
         IF COUNT>1 DO  GOTO VMA2DN
-        . SET TMGRESULT="-1^"_NLT_" linked to more than one entry in AUTO INSTRUMENT file (#62.4): "_COUNT(1)
+        . SET TMGRESULT="-1^"_NLTP1_" linked to more than one entry in AUTO INSTRUMENT file (#62.4): "_COUNT(1)
 VMA2DN  QUIT TMGRESULT
         ;
 LMAPAPI3(TMGENV,NLT,OUT) ;"GATHER NATIONAL LABORATORY TEST (NLT) MAPPING.  "//NOT USED??
@@ -825,6 +829,9 @@ CMPLTORD(ORDERNUM,TMGHL7MSG) ;"
        ;"Result: "1^SUCCESS" or "-1^Error Message"
        NEW SSN,DFN
        NEW TMGRESULT SET TMGRESULT="1^SUCCESS"       
+       ;"2/27/20. TEST THE NOTE AND IF STANDING ORDER DON'T COMPLETE
+       NEW STANDING SET STANDING=$$STANDING(ORDERNUM)
+       IF STANDING=1 GOTO CODN
        NEW COMPLETEIEN SET COMPLETEIEN=+$ORDER(^ORD(100.01,"B","COMPLETE",0))
        IF COMPLETEIEN'>0 DO  GOTO CODN
        . SET TMGRESULT="-1^COULD NOT LOCATE COMPLETE STATUS IN FILE 100.01"
@@ -844,3 +851,13 @@ CHNGE  SET $PIECE(^OR(100,ORDERNUM,3),"^",3)=COMPLETEIEN
        . SET TMGRESULT="-1^STATUS NOT SAVED FOR UNKNOWN REASON."
 CODN   QUIT TMGRESULT
        ;"    
+STANDING(ORDERNUM)  ;"CHECK TO SEE IF ORDER IS STANDING
+       NEW TMGRESULT SET TMGRESULT=0
+       NEW ORDERTEXT,IDX
+       SET IDX=0,ORDERTEXT=""
+       FOR  SET IDX=$O(^OR(100,ORDERNUM,8,1,.1,IDX)) QUIT:IDX'>0  DO
+       . SET ORDERTEXT=ORDERTEXT_$G(^OR(100,ORDERNUM,8,1,.1,IDX,0))
+       IF ORDERTEXT["STANDING ORDER" SET TMGRESULT=1
+       QUIT TMGRESULT
+       ;"
+       

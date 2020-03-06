@@ -218,8 +218,21 @@ XFRMFACILITY(FACILITY) ;"
         ;"Input: FACILITY -- an IN AND OUT PARAMETER
         ;"RESULT: 1 if modified, 0 if no change.  
         NEW RESULT SET RESULT=0
-        IF (FACILITY="GCHW")!(FACILITY="BRMC")!(FACILITY="BHMA") DO
+        IF (FACILITY="GCHW")!(FACILITY="BRMC")!(FACILITY="BHMA")!(FACILITY="HVMC")!(FACILITY="WCS")!(FACILITY="WMA") DO
         . SET FACILITY="BALLADNETWORK"
+        . SET RESULT=1
+        QUIT RESULT
+        ;
+XFRMEVENT(EVENT) ;"
+        ;"Purpose: transform sending event before any processing is done.
+        ;"NOTE: With ADT messages, we only have A01-A15 defined. Anything
+        ;"      greater will be transformed to A15
+        ;"Input: EVENT -- an IN AND OUT PARAMETER
+        ;"RESULT: 1 if modified, 0 if no change.  
+        NEW RESULT SET RESULT=0
+        NEW TEMPEVENT SET TEMPEVENT=+$P(EVENT,"A",2)
+        IF (TEMPEVENT>15) DO
+        . SET EVENT="A15"
         . SET RESULT=1
         QUIT RESULT
         ;
@@ -269,6 +282,9 @@ MSH2IENA(MSH,INFO) ;"MSH HEADER TO IEN INFO ARRAY
         NEW IEN771D2 SET IEN771D2=+Y
         ;                
         NEW EVNTMTYPE SET EVNTMTYPE=$PIECE(MSGTYPE,TMGU(2),2)
+        IF $$XFRMEVENT(.EVNTMTYPE) DO
+        . ;"Commented below so the Event in the HL7 msg will reflect the proper event, but EVNTMTYPE will pass the validation
+        . ;"SET $PIECE(MSGTYPE,TMGU(2),2)=EVNTMTYPE
         SET DIC=779.001,DIC(0)="M",X=EVNTMTYPE DO ^DIC
         IF +Y'>0 DO  GOTO MH2ADN
         . SET TMGRESULT="-1^Unable to find unique match for HL7 TRANSACTION EVENT TYPE '"_EVNTMTYPE_"' file 779.001"

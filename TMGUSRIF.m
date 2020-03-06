@@ -304,7 +304,7 @@ USRIN ;
   . . SET INFO("ALLOW CHANGE")=1
   . . SET NEEDREFRESH=1
   . . NEW JDX FOR JDX=1:1:+$PIECE(INPUT,"^",2) DO
-  . . . NEW LSTLEN SET LSTLEN=+$ORDER(TMPLSARRAY("@@@@@@@@"),-1) ;"//8/26/19 prevent going below end of list. 
+  . . . NEW LSTLEN SET LSTLEN=+$ORDER(@TMGPSCRLARR@("@@@@@@@@"),-1) ;"//8/26/19 prevent going below end of list.    
   . . . IF HIGHLINE>=LSTLEN QUIT                          ;"//8/26/19 
   . . . IF HIGHLINE<(TOPLINE+DISPHT-2) DO
   . . . . DO PREPINFO(.INFO,TMGPSCRLARR,"NEXT LINE",HIGHLINE-1)  ;"//kt 4/24/19 
