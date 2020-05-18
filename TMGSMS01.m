@@ -213,20 +213,40 @@ GETMSG(DFN,PROVIEN,TMGDT,REASON,DAYLEAD) ;"Create out-going message.
   ;"NEW MSG SET MSG="|FNAME| has an appt with |PROVNAME| on |DATE|, for |REASON|. "
   NEW MSG SET MSG=""
   IF REASON="PROTIME" DO
-  . SET MSG="|FNAME| has an appt with nurse for Rx check on |DATE|."
+  . SET MSG=$$GTMSGTXT("NURSE","|FNAME| has an appt with nurse for Rx check on |DATE|.")
+  ELSE  IF REASON["TH-" DO
+  . SET MSG=$$GTMSGTXT("TELEMEDICINE","|FNAME| has a telemedicine appointment on |DATE|. We will contact you when it is time to login.")
+  . ;"SET MSG=MSG_" The virtual waiting room is at https://doxy.me/familyphysiciansofgreeneville"
+  ELSE  IF REASON["TELEPHONE" DO
+  . SET MSG=$$GTMSGTXT("TELEPHONE","|FNAME| has a telephone appointment on |DATE|. We will contact you when we are ready to begin your visit.")
   ELSE  DO
-  . SET MSG="|FNAME| has an appt with |PROVNAME| on |DATE|. "
+  . SET MSG=$$GTMSGTXT("APPOINTMENT","|FNAME| has an appt with |PROVNAME| on |DATE|.")
   . IF (DAYLEAD>1) DO 
-  . . SET MSG=MSG_" Reply ""OK"" to confirm. Please don't forget to get labs drawn, if ordered for this appt. "
+  . . SET MSG=MSG_" "_$$GTMSGTXT("CONFIRM","Reply ""OK"" to confirm. Please don't forget to get labs drawn, if ordered for this appt.")
   . ELSE  IF (TMGDT[".0815") DO
-  . . SET MSG=MSG_" Please bring ALL your medications with you. "
+  . . SET MSG=MSG_" "_$$GTMSGTXT("MEDS","Please bring ALL your medications with you.")
   . ELSE  DO
-  . . SET MSG=MSG_" Please arrive 10 minutes prior to your appointment to complete paperwork. Please bring ALL your medications with you. "
-  SET MSG=MSG_"QUESTIONS? Call Family Physicians of Greeneville (423-787-7000)."
+  . . SET MSG=MSG_" "_$$GTMSGTXT("ARRIVE_EARLY","Please arrive 10 minutes prior to your appointment to complete paperwork. Please bring ALL your medications with you.")
+  SET MSG=MSG_" "_$$GTMSGTXT("QUESTIONS","QUESTIONS? Call Family Physicians of Greeneville (423-787-7000).")
   SET RESULT=$$SUBSTX(MSG,.ARR)
 GMDN  
   QUIT RESULT
    ;
+GTMSGTXT(NAME,DEFAULT) 
+  ;"CHECK FILE 22743 TO GET THE TEXT OF THE MESSAGE  
+  ;"THE DEFAULT IS IN PLACE TO CATCH A TIME WHEN THE NEW METHOD FAILS
+  ;"IF THAT OCCURS AN ALERT WILL BE SENT TO EDDIE. 
+  NEW TEXT,IEN
+  SET TEXT=""
+  SET IEN=+$O(^TMG(22743,"B",NAME,0))  
+  IF IEN'>0 DO
+  . SET TEXT=DEFAULT
+  . NEW ALERTRESULT
+  . DO INFRMALT^TMGXQAL(.ALERTRESULT,150,"GTMSGTXT^TMGSMS01 COULD NOT FIND "_NAME)
+  ELSE  DO
+  . SET TEXT=$G(^TMG(22743,IEN,1))
+  QUIT TEXT
+  ;"
 GETDTSTR(TMGDT) ;"Get friendly date string
   NEW RESULT SET RESULT=$$DOW^XLFDT(TMGDT)_", "_$$FMTE^XLFDT(TMGDT,"1P")
   NEW DELTA SET DELTA=$$FMDIFF^XLFDT(TMGDT,$$NOW^XLFDT)
@@ -396,6 +416,7 @@ SUDNFSMS(DFN,PHONE,ARR,STOREOUT) ;"SET UP A TEST MESSAGE
   SET PHONE=+$GET(PHONE)
   NEW MSG SET MSG="Test message from Family Physicians of Greeneville."
   SET MSG=MSG_" Please arrive 10 minutes prior to your appointment to complete paperwork. Please bring ALL your medications with you. "
+  SET MSG=MSG_" "_$$GTMSGTXT("QUESTIONS","QUESTIONS? Call Family Physicians of Greeneville (423-787-7000).")
   ;"SET MSG=MSG_" Questions?  Call (423) "
   NEW RESULT SET RESULT=$$SUHEADER(.ARR)
   IF +RESULT'>0 GOTO SUTSMDN  ;"SUHEADER makes it's own alert
@@ -492,3 +513,95 @@ GETFSTAT() ;"Process FINAL status report. <--- SUITABLE ENTRY POINT FOR TASKMAN
   DO GETFSTAT^TMGSMS04()
   QUIT
   ;  
+ ;"
+ ;"===========================================================================================
+ ;"The procedures below are single use only. Kept here to repurpose in the
+ ;"future if need be but can be deleted before pushing up to github
+ ;" 
+SENDWEBSITEMSG
+  NEW MESSAGE 
+  SET MESSAGE="Please visit the Family Physicians website for updated Coronavirus information at www.familyphysiciansofgreeneville.com/covid-19"
+  DO ONEMSG(MESSAGE)
+  QUIT
+  ;"
+SENDTELEMEDMSG
+  NEW MESSAGE
+  SET MESSAGE="Family Physicians of Greeneville is currently seeing all patients via Telemedicine or telephone visits. Call 423-787-7000 or visit https://www.familyphysiciansofgreeneville.com/telemedicine for more details."
+  DO ONEMSG(MESSAGE)
+  QUIT
+  ;"
+SENDWAITINGROOM
+  NEW MESSAGE SET MESSAGE="ATTENTION: Due to the COVID-19 emergency, Dr. Toppenberg's office will remain open but the waiting room will be closed."
+  SET MESSAGE=MESSAGE_" When you arrive in the parking lot,"
+  SET MESSAGE=MESSAGE_" please call 423-787-7000 for further instructions. Appointments for bloodwork are available, if desired."
+  NEW ARR,STORE
+  NEW RESULT SET RESULT=$$SUHEADER^TMGSMS01(.ARR)
+  ;"SCHEDULE, very ugly function for now. revise this later
+  NEW PATLIST
+  NEW DATELIST,DATE,TEMPPATLIST,EXLIST
+  SET DATELIST(3200324)="",DATELIST(3200326)="",DATELIST(3200327)="",DATELIST(3200330)="" 
+  SET DATE=0
+  FOR  SET DATE=$O(DATELIST(DATE)) QUIT:DATE'>0  DO
+  . DO GETDTPTL(.TEMPPATLIST,DATE,"A",.EXLIST) ;
+  . MERGE PATLIST=TEMPPATLIST
+  ;"GET ACTIVE PHONE NUMBERS FOR THOSE PATIENTS
+  NEW PHONELIST,DFN,ERRARRAY,COUNT
+  SET DFN=0
+  FOR  SET DFN=$O(PATLIST(DFN)) QUIT:DFN'>0  DO
+  . DO GETPHONS(DFN,.PHONELIST,.ERRARRAY) ;"
+  ;"CYCLE THROUGH THE NUMBERS AND BUILD THE SEND ARRAY
+  SET DFN=0,COUNT=0
+  FOR  SET DFN=$O(PHONELIST(DFN)) QUIT:DFN'>0  DO
+  . NEW PHONENUM SET PHONENUM=0
+  . FOR  SET PHONENUM=$O(PHONELIST(DFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
+  . . DO ADDLINE^TMGSMS01(.ARR,"csv:"_PHONENUM_"|"_MESSAGE)
+  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14235258434|"_MESSAGE)
+  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14233295443|"_MESSAGE)
+  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14233295446|"_MESSAGE)
+  ZWR ARR
+  ;"WRITE "NOT SENDING AT THIS TIME",!
+  DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
+  QUIT
+  ;"
+SENDTELM(NUMBER)
+  ;"This function sends the virtual waiting room link to 
+  NEW MESSAGE
+  SET MESSAGE="The virtual waiting room is at https://doxy.me/familyphysiciansofgreeneville"
+  NEW ARR,STORE
+  NEW RESULT SET RESULT=$$SUHEADER^TMGSMS01(.ARR)
+  ;"GET ACTIVE PT LIST
+  NEW PHONELIST,DFN,ERRARRAY,COUNT
+  DO ADDLINE^TMGSMS01(.ARR,"csv:"_NUMBER_"|"_MESSAGE)
+  ZWR ARR
+  ;"WRITE "NOT SENDING AT THIS TIME",!
+  DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
+  QUIT
+  ;"
+ONEMSG(MESSAGE)  ;"
+  ;"This takes a message and texts it to all patients seen in the last 12
+  ;"      months who are active
+  NEW ARR,STORE
+  NEW RESULT SET RESULT=$$SUHEADER^TMGSMS01(.ARR)
+  ;"GET ACTIVE PT LIST  
+  NEW PATLIST 
+  DO GETACTPTS^TMGPXR03(.PATLIST,1)
+  ;"GET ACTIVE PHONE NUMBERS FOR THOSE PATIENTS
+  NEW PHONELIST,DFN,ERRARRAY,COUNT
+  SET DFN=0
+  FOR  SET DFN=$O(PATLIST(DFN)) QUIT:DFN'>0  DO
+  . DO GETPHONS(DFN,.PHONELIST,.ERRARRAY) ;"
+  ;"CYCLE THROUGH THE NUMBERS AND BUILD THE SEND ARRAY
+  SET DFN=0,COUNT=0
+  FOR  SET DFN=$O(PHONELIST(DFN)) QUIT:DFN'>0  DO
+  . NEW PHONENUM SET PHONENUM=0
+  . FOR  SET PHONENUM=$O(PHONELIST(DFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
+  . . DO ADDLINE^TMGSMS01(.ARR,"csv:"_PHONENUM_"|"_MESSAGE)
+  . . SET COUNT=COUNT+1
+  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14235258434|"_MESSAGE)
+  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14233295446|"_MESSAGE)
+  ZWR ARR
+  WRITE COUNT," TOTAL MESSAGES",!
+  ;"WRITE "NOT SENDING AT THIS TIME",!
+  DO SMSSEND^TMGKERN5(.ARR,.STORE,1) 
+  QUIT
+  ;"

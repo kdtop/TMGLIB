@@ -841,5 +841,21 @@ STRIP2(STR) ;
  . S STR=$E(STR,1,I-1)_$E(STR,I+1,$L(STR))
  Q STR                                     
  ;
- 
+
+SHRDTESTPTS
+ NEW PATNAME
+ SET PATNAME="ZZ"
+ FOR  SET PATNAME=$O(^DPT("B",PATNAME)) QUIT:PATNAME=""  DO
+ . NEW DFN SET DFN=0
+ . FOR  SET DFN=$O(^DPT("B",PATNAME,DFN)) QUIT:DFN'>0  DO
+ . . WRITE "SHREDDING ",PATNAME,!
+ . . NEW DOB,SSN
+ . . SET DOB=$P($G(^DPT(DFN,0)),"^",3) W "->",DOB
+ . . SET $P(^DPT(DFN,0),"^",3)=DOB+10000 W "-",$P($G(^DPT(DFN,0)),"^",3),!
+ . . SET SSN=$P($G(^DPT(DFN,0)),"^",9) W "->",SSN
+ . . IF $$UP^XLFSTR(SSN)'["P" DO
+ . . . SET $P(^DPT(DFN,0),"^",9)=SSN+132097 
+ . . W "-",$P($G(^DPT(DFN,0)),"^",9),!
+ QUIT
+ ;" 
  

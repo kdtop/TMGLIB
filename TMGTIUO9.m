@@ -99,6 +99,7 @@ GET1FUDT(TMGRESULT,TMGDFN)  ;"Return info about followup
   . ;"SET TMGRESULT=TMGRESULT_"  Note on "_SVISITDT_" --> f/u due approx.: "_SFUDT_" or after. --  """_TEXT_""""
   . SET TMGRESULT="Note on "_SVISITDT_" - "_TEXT
 G1FDDN ;
+  SET TMGRESULT="Prior F/U Data: "_TMGRESULT
   QUIT
   ;"
 TEST2 ;

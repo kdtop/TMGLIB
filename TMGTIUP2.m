@@ -96,7 +96,8 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
         DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
         DO SCRUBESCRIBE(.PROCESSEDARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
-        NEW TEMP SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION)  ;"Parse note array into formatted array
+        NEW RTNNOTE
+        NEW TEMP SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION,.RTNNOTE)  ;"Parse note array into formatted array
         IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
         ;" SET OPTION("BULLETS")=(+$GET(DUZ)'=83)  ;"<--- Eddie, please convert to use parameter.
         ;"Once below is tested, above line can be removed
@@ -114,7 +115,7 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
 LHDN    QUIT TMGHPI
         ;
-PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array 
+PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted array 
         ;"NOTE: See also TRIGGER1^TMGC0Q04 -> SUMNOTE^TMGTIUP1 --> PARSESCT^TMGTIUP1 for summarizing notes
         ;"//As of 5/20/18, only called from GETHPI^TMGTIUP2()               
         ;"Input: TIUARRAY -- PASS BY REFERENCE.  FORMAT:
@@ -141,9 +142,11 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         ;"       OPTION -PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
         ;"          OPTION("AUTOGROUPING") = 0 OR 1
         ;"          OPTION("NUMOFGROUPS") =
-        ;"          OPTION("GROUP-ORDER") = "C"  <---- if directions found in note.  
+        ;"          OPTION("GROUP-ORDER") = "C"  <---- if directions found in note.
+        ;"          OPTION("RETURN-REST") = 0 OR1 , IF 1 RETURN NOTE WITHOUT HPI IN RTNNOTE
         ;"Result: 1^OK, or -1^Error message
         NEW TMGRESULT SET TMGRESULT="1^OK"
+        NEW DORTNNOTE SET DORTNNOTE=+$G(OPTION("RETURN-REST"))
         ;        
         DO GTGRPORD(.TIUARRAY,.OPTION) ;"GET GROUP ORDER.  May set OPTION("GROUP-ORDER")  ;"//kt 5/1/18
         IF $G(OPTION("GROUP-ORDER"))="" DO GTOLDORD(.TIUARRAY,.OPTION)
@@ -174,6 +177,8 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         ;"EXTRACT JUST HPI PART
         ;"== SET UP MARKERS FOR BEGINNING AND ENDING OF DESIRED HPI SECTION =======
         NEW STARTARR,ENDARR
+        SET STARTARR("<b>HISTORY OF PRESENT ILLNESS (HPI):</b>")=""
+        SET STARTARR("<B>HISTORY OF PRESENT ILLNESS (HPI):</B>")=""
         SET STARTARR("<b>HISTORY OF PRESENT ILLNESS (HPI)</b>")=""
         SET STARTARR("<B>HISTORY OF PRESENT ILLNESS (HPI)</B>")=""
         SET STARTARR("HISTORY OF PRESENT ILLNESS (HPI)")=""
@@ -189,6 +194,11 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION)  ;"Parse note array into formatted array
         IF STARTDIV="" SET TMGRESULT="-1^Unable to find 'HISTORY OF PRESENT ILLNESS (HPI)' to start getting HPI" GOTO PRSDN
         FOR  SET ENDDIV=$ORDER(ENDARR(ENDDIV))  QUIT:TMGHPI[ENDDIV  ;"when ENDDIV="", <text>["" is always TRUE
         IF ENDDIV="" SET TMGRESULT="-1^Unable to find 'PAST MEDICAL HISTORY (PMH)' as end of HPI section" GOTO PRSDN
+        ;"ELH ADDED TO RETURN REST OF NOTE
+        IF DORTNNOTE=1 DO
+        . SET RTNNOTE=$PIECE(TMGHPI,STARTDIV,1)_STARTDIV_"<BR>"_"@@TMGHPI@@"
+        . SET RTNNOTE=RTNNOTE_ENDDIV_$PIECE(TMGHPI,ENDDIV,2)
+        ;"
         SET TMGHPI=$PIECE(TMGHPI,STARTDIV,2)
         SET TMGHPI=$PIECE(TMGHPI,ENDDIV,1)
         ;"
@@ -442,7 +452,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . DO AUTOGRP(.ITEMARRAY,NUMOFGROUPS,SECTIONCT)
         . SET GROUPING=1
         IF DUZ=168 DO
-        . IF GROUPORDER'="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("Items arranged in Following Order:"_GROUPORDER_"<BR>","#e0ac11")
+        . IF GROUPORDER'="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("Items arranged in Following Order:"_GROUPORDER_"<BR>","#e0ac11",.OPTION)
         . IF GROUPING=1 DO
         . . NEW UNGROUPED
         . . SET UNGROUPED=$$GETNOGRP(.ITEMARRAY)
@@ -462,9 +472,13 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . . . SET AVERAGE="ERROR CALCULATING"
         . . ELSE  DO
         . . . SET AVERAGE=(TOTALITEMS/GRPCOUNT)\1
-        . . IF UNGROUPED>0 SET GRPSTR=GRPSTR_", Ungrouped="_UNGROUPED_" (At top of note)"
+        . . IF UNGROUPED>0 DO
+        . . . NEW HANDLEDUNGRPED 
+        . . . IF GROUPORDER'="" SET HANDLEDUNGRPED="Set to current group order"
+        . . . ELSE  SET HANDLEDUNGRPED="At top of note"
+        . . . SET GRPSTR=GRPSTR_", Ungrouped="_UNGROUPED_" ("_HANDLEDUNGRPED_")"
         . . SET GRPSTR="Grouping count: "_GRPSTR_" Avg per group: "_AVERAGE_"<BR>"
-        . . SET TMGHPI=TMGHPI_$$WRAPTEXT^TMGTIUOT(GRPSTR,"#e0ac11")        
+        . . SET TMGHPI=TMGHPI_$$WRAPTEXT^TMGTIUOT(GRPSTR,"#e0ac11",.OPTION)        
         ;"        
         NEW WARNING SET WARNING=(SECTIONCT>10)&'GROUPING      
         NEW DELIM DO SUDELIM(.DELIM) 
@@ -496,6 +510,8 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . . . IF 'INLINE SET LINE=LINE_"<BR>"
         . . . SET LASTSECT="TABLE"
         . . DO  QUIT
+        . . . IF (DUZ=168)&(LINE'["GROUP")&(GROUPORDER'="") DO   ;"ELH ADDED THIS IF FOR TOPICS WITHOUT GROUPS, ASSUMING THE GROUPORDER  4/28/20
+        . . . . SET LINE=LINE_"[GROUP "_GROUPORDER_"] "
         . . . NEW TEXT SET TEXT=$GET(TEXTARR(PART))
         . . . SET LINE=LINE_$$FORMATTX(TEXT) ;"FORMAT BODY TEXT OF ONE SECION
         . . . SET LASTSECT="TEXT"
@@ -506,9 +522,9 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         QUIT TMGHPI
         ;
 GETNOGRP(ITEMARRAY)  ;"FIND WHICH SECTIONS DON'T HAVE GROUPS
-        NEW TEST SET TEST=0
-        IF TEST=1 MERGE ^TMG("ITEMARRAY")=ITEMARRAY
-        ELSE  MERGE ITEMARRAY=^TMG("ITEMARRAY")
+        ;"NEW TEST SET TEST=0
+        ;"IF TEST=1 MERGE ^TMG("ITEMARRAY")=ITEMARRAY
+        ;"ELSE  MERGE ITEMARRAY=^TMG("ITEMARRAY")
         NEW RESULT SET RESULT=0
         NEW IDX SET IDX=0
         FOR  SET IDX=$O(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO

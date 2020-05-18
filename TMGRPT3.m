@@ -300,32 +300,140 @@ GETDUE(idx) ;"
   IF found=0 SET Y=9999999  ;"DATE NOT FOUND, DON'T INCLUDE
   QUIT Y
   ;"
-HL7RPT(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)  ;"
-  S ^TMP("ORDATA",$J,"HL7",1)="1^1/12/19@12:01;Admission"
-  S ^TMP("ORDATA",$J,"HL7",2)="2^Admission TEST"
-  SET ROOT=$NA(^TMP("ORDATA",$J,"HL7"))
-  ;SET ROOT(0)="1^HERE^IS^REPORT^STUFF"
-  ;SET ROOT(1)="2^MORE^REPORT^STUFF^HERE"
-  ;SET ROOT(2)="1^1/12/18@12:01"
-  ;SET ROOT(3)="2^Admission"
-  QUIT
+HL7QUERY(ROOT,ORDFN,ID,ORALPHA,OROMEGA,ORDTRNG,REMOTE,ORMAX,ORFHIE) ; --Query to Health Summary Reports
+ ;"NOTES: I am perpetually confused by the Report definitions and cannot seem to find 
+ ;"       a Reports manual. I copied the definition for the Current Orders report and 
+ ;"       repurposed some of the fields. The format for the output is:
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="1^Family Phys of Greeneville;777"  <- Leave this in item one
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^>>"  <- all of item 2 will be the HL7 message text
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^HL7 MESSAGE LINE 1"
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^."
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="3^ADMISSION"  <-  Type of message
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="4^04/06/2020 09:05"  <- Date of message
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="5^Greeneville Community Hospital East"  <- Sending Facility
+ NEW OUT,ORDBEG,ORDEND,OREXT
+ NEW ARRTYPES
+ DO LOADTYPS^TMGHL76A(.ARRTYPES)
+ NEW IDX SET IDX=0
+ NEW THISDT SET THISDT=ORALPHA
+ FOR  SET THISDT=$O(^TMG(22720.5,ORDFN,1,"B",THISDT)) QUIT:(THISDT="")!(THISDT>OROMEGA)  DO
+ . NEW IEN22720 SET IEN22720=0
+ . FOR  SET IEN22720=$O(^TMG(22720.5,ORDFN,1,"B",THISDT,IEN22720)) QUIT:IEN22720'>0  DO
+ . . NEW DTADDED,IEN772,IEN773,FOLDER,FILE,ZN,HL7MSGARR,HOSPLOC,VSTTYPE,ADTTYPE,MSH,PATHFNAME
+ . . S ZN=$G(^TMG(22720.5,ORDFN,1,IEN22720,0))
+ . . SET DTADDED=$P(ZN,"^",6),FOLDER=$P(ZN,"^",2),FILE=$P(ZN,"^",3)
+ . . SET IEN772=+$P(ZN,"^",4),IEN773=+$P(ZN,"^",5)
+ . . IF FOLDER'["BalladADTHL7" QUIT  ;"ONLY ADT MESSAGES
+ . . ;"IF IEN773'>0 QUIT
+ . . ;"GET MESSAGE DETAILS
+ . . SET PATHFNAME=FOLDER_FILE
+ . . DO GETHL7MSG(PATHFNAME,.HL7MSGARR,.HOSPLOC,.VSTTYPE,.MSH)
+ . . SET ADTTYPE=$P(MSH,"|",9)
+ . . IF ADTTYPE'["ADT" QUIT
+ . . SET ADTTYPE=$P(ADTTYPE,"^",2)
+ . . IF (ADTTYPE'="A01")&(ADTTYPE'="A03") QUIT
+ . . ;"GET ACTUAL MESSAGE
+ . . 
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="1^Family Phys of Greeneville;777"
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^File Path: "_FOLDER
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^File Name: "_FILE
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^=========================================================================================="
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^"
+ . . NEW HL7IDX SET HL7IDX=0
+ . . FOR  SET HL7IDX=$O(HL7MSGARR(HL7IDX)) QUIT:HL7IDX'>0  DO
+ . . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^"_$G(HL7MSGARR(HL7IDX))
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^=========================================================================================="
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="3^"_ADTTYPE_"-"_$G(ARRTYPES(ADTTYPE))
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="4^"_$$EXTDATE^TMGDATE(THISDT)
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="5^"_$P(HOSPLOC,"^",1)
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="6^"_VSTTYPE
+ . . S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="7^"_$$EXTDATE^TMGDATE(DTADDED)
+ S ROOT=$NA(^TMP("HL7DATA",$J))
+ QUIT
+ ;S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="6^[+]"
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="7^339273;1"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="1^Family Phys of Greeneville;777"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^>>"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^NON-FASTING LABS. LABS ASAP. "
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^ TESTS ORDERED:  CBC-Platelet With Diff.. "
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^ DIAG: Low B12 - E53.8."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="3^DISCHARGE"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="4^03/03/2020 17:49"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="5^Greeneville Community Hospital East"
+ ;S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="6^[+]"
+ ;"S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="7^338867;1"
+ S ROOT=$NA(^TMP("HL7DATA",$J))
+ Q
   ;"
-HL7(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)  ;"
-  ;NEW ORDT SET ORDT="3190101"
-  S ^TMP("ORDATA",$J,"HL7",1)="1^1/12/19@12:01;Admission"
-  S ^TMP("ORDATA",$J,"HL7",2)="2^4/30/19@12:01"
-  S ^TMP("ORDATA",$J,"HL7",3)="3^Admission ADT Message"
-  SET ROOT=$NA(^TMP("ORDATA",$J,"HL7"))
-  ;SET ROOT(0)="1^1/12/19@12:01"
-  ;SET ROOT(1)="2^Admission"
-  ;SET ROOT(2)="1^1/12/18@12:01"
-  ;SET ROOT(3)="2^Admission"
-  QUIT
+GETHL7MSG(PATHFNAME,HL7MSGARR,HOSPLOC,VSTTYPE,MSH)  ;"FETCH THE HL7 MSG AND STORE IN HL7MSGARR
+ NEW IDX,OUTIDX,RESULT SET IDX=0,OUTIDX=1,MSH=""
+ SET RESULT=$$LOADHL7^TMGHL7U2(PATHFNAME,.HL7MSGARR,.MSH)
+ ;"FOR  SET IDX=$O(^HL(772,IEN772,"IN",IDX)) QUIT:IDX'>0  DO
+ FOR  SET IDX=$O(HL7MSGARR(IDX)) QUIT:IDX'>0  DO
+ . ;"NEW LINE SET LINE=$G(^HL(772,IEN772,"IN",IDX,0))
+ . NEW LINE SET LINE=$G(HL7MSGARR(IDX))
+ . NEW DONE SET DONE=0
+ . IF LINE["MSH" DO
+ . . SET MSH=LINE
+ . IF LINE["PD1" DO
+ . . SET HOSPLOC=$P(LINE,"|",4)
+ . IF LINE["PV1" DO
+ . . SET VSTTYPE=$P(LINE,"|",3) 
+ . SET HL7MSGARR(OUTIDX)=LINE
+ . SET OUTIDX=OUTIDX+1
+ . ;"FOR  QUIT:DONE=1  DO
+ . ;". IF $L(LINE)>120 DO
+ . ;". . SET HL7MSGARR(OUTIDX)=$E(LINE,0,120)
+ . ;". . SET LINE="       ->"_$E(LINE,121,$L(LINE))
+ . ;". ELSE  DO
+ . ;". . SET HL7MSGARR(OUTIDX)=LINE
+ . ;". . SET DONE=1
+ . ;". SET OUTIDX=OUTIDX+1
+ Q
+ ;"
+HL7EXT   ; I don't know the function of this. 
+        N ORVP
+        S ORVP=DFN_";DPT("
+        I '$D(^OR(100,"AC",ORVP)) Q
+        D EN^ORQ1(ORVP,,2,,ORDBEG,ORDEND,1) ; current orders. ORLIST is set in ORQ1
+        Q
+  ;"
+HL7(ROOT,ORALPHA,OROMEGA,ORMAX,ORDBEG,ORDEND,OREXT)     ; I don't know the function of this. 
+ NEW IDX SET IDX=0
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="1^Family Phys of Greeneville;777"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^>>"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^NON-FASTING LABS. LABS TODAY. "
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^ TESTS ORDERED:  B12. "
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^ DIAG: DM-2 - E11.9."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="3^ADMISSION"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="4^04/06/2020 09:05"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="5^Greeneville Community Hospital East"
+ ;S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="6^[+]"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="7^339273;1"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="1^Family Phys of Greeneville;777"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^>>"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^NON-FASTING LABS. LABS ASAP. "
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^ TESTS ORDERED:  CBC-Platelet With Diff.. "
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="2^ DIAG: Low B12 - E53.8."
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="3^DISCHARGE"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="4^03/03/2020 17:49"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="5^Greeneville Community Hospital East"
+ ;S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="6^[+]"
+ S IDX=IDX+1,^TMP("HL7DATA",$J,IDX)="7^338867;1"
+ S ROOT=$NA(^TMP("HL7DATA",$J))
+ Q
   ;"
 LABPULL  ;"
   ;"Get schedule for today and print all entries who have had lab results
   NEW RPTDATE SET RPTDATE=$$TODAY^TMGDATE
   ;"NEW RPTDATE SET RPTDATE=3191224
+  NEW ACTORDERS
   NEW WHEAD SET WHEAD=0
   NEW DT SET DT=RPTDATE
   FOR  SET DT=$O(^TMG(22723,"DT",DT)) QUIT:(DT="")!(DT'[RPTDATE)  DO
@@ -356,6 +464,19 @@ LABPULL  ;"
   . . FOR  SET FMDATE=$O(LABDATES(FMDATE)) QUIT:FMDATE'>0  DO
   . . . WRITE "  [ ] ",$$EXTDATE^TMGDATE(FMDATE),!
   . . WRITE !
+  . . DO GETAORD(DFN,.ACTORDERS)
+  ;"
+  ;"THE NEXT PORTION WILL CHECK ALL PATIENTS TO SEE IF THEY HAVE
+  ;"        ACTIVE LAB ORDERS
+  IF $D(ACTORDERS) DO
+  . WRITE !,"====================================================================================",!
+  . WRITE "======= THE BELOW DATA IS FOR EDDIE",!
+  . NEW NAME SET NAME=""
+  . FOR  SET NAME=$O(ACTORDERS(NAME)) QUIT:NAME=""  DO
+  . . NEW DATE SET DATE=0
+  . . WRITE !,!,NAME," HAS ACTIVE LAB ORDERS FOR:",!
+  . . FOR  SET DATE=$O(ACTORDERS(NAME,DATE)) QUIT:DATE'>0  DO
+  . . . WRITE $$EXTDATE^TMGDATE(DATE,1)," "
   QUIT
   ;"
 HEADING(RPTDATE)  ;"
@@ -377,6 +498,28 @@ HEADING(RPTDATE)  ;"
   WRITE "=======               If they cannot be located, give missing to office manager.",!
   WRITE "=======                                                (report in TMGRPT3)",!
   WRITE "===================================================================================",!,!,!
+  QUIT
+  ;"
+GETAORD(DFN,RESULTARR)
+  NEW DFNSTR SET DFNSTR=DFN_";DPT("
+  NEW RDATE SET RDATE=0
+  NEW ACTIVESTATUS SET ACTIVESTATUS=6
+  NEW RCUTOFF SET RCUTOFF=9999999-$$ADDDAYS^TMGDATE("-365")
+  FOR  SET RDATE=$O(^OR(100,"AR",DFNSTR,RDATE)) QUIT:(RDATE'>0)!(RDATE>RCUTOFF)  DO
+  . NEW ORDIEN SET ORDIEN=0
+  . FOR  SET ORDIEN=$O(^OR(100,"AR",DFNSTR,RDATE,ORDIEN)) QUIT:ORDIEN'>0  DO
+  . . NEW DATE,STATUS,TEXT
+  . . SET DATE=$P($G(^OR(100,ORDIEN,0)),"^",8)
+  . . SET STATUS=$P($G(^OR(100,ORDIEN,3)),"^",3)
+  . . IF STATUS'=ACTIVESTATUS QUIT
+  . . NEW ORDLINE SET ORDLINE=0
+  . . SET TEXT=""
+  . . FOR  SET ORDLINE=$O(^OR(100,ORDIEN,8,1,.1,ORDLINE)) QUIT:ORDLINE'>0  DO
+  . . . SET TEXT=TEXT_$G(^OR(100,ORDIEN,8,1,.1,ORDLINE,0))
+  . . SET TEXT=$$UP^XLFSTR(TEXT)
+  . . ;"WRITE TEXT,!
+  . . IF (TEXT'["LABS")&(TEXT'["TESTS ORDERED:") QUIT
+  . . SET RESULTARR($P($G(^DPT(DFN,0)),"^",1),DATE)=""
   QUIT
   ;"
 GETLABDT(DFN,RESULTARR)

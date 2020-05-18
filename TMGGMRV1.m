@@ -196,7 +196,7 @@ ONEVITAL(DFN,FMDT,TYPE,MAXDTVARIANCE)  ;"GET ONE VITAL
   NEW TMGRESULT SET TMGRESULT=$ORDER(ARR(TYPE,FMDT,""))_"^"_FMDT_"^"_$GET(UNITARR(TYPE))
   QUIT TMGRESULT
   ;
-TREND(ADFN,FMDT,VITAL,NUM,DELIMITER) ;
+TREND(ADFN,FMDT,VITAL,NUM,DELIMITER,ADDDT) ;
   ;"Purpose: return a trend of BP's staring from FMDT, and extending backwards in time
   ;"         up to NUM values, but not more than 2 yrs.  
   ;"Input:  ADFN -- Patient IEN
@@ -205,8 +205,11 @@ TREND(ADFN,FMDT,VITAL,NUM,DELIMITER) ;
   ;"        NUM -- OPTIONAL.  How many to return.  Defult = 99
   ;"        DELIMITER (OPTIONAL)-- Char(s) to place between values
   ;"                               Default is ";"
+  ;"        ADDDT(OPTIONAL) -- Add the date to the first value
+  ;"                           Default is 0
   ;"Result: returns formatted string of BP trend, or "" if none found.
   NEW RESULT SET RESULT=""
+  SET ADDDT=+$G(ADDDT)
   IF $GET(VITAL)="" QUIT
   SET NUM=+$GET(NUM) IF NUM=0 SET NUM=999
   IF $GET(DELIMITER)="" SET DELIMITER=";"
@@ -221,5 +224,6 @@ TREND(ADFN,FMDT,VITAL,NUM,DELIMITER) ;
   . SET CURNUM=CURNUM+1
   . IF RESULT'="" SET RESULT=RESULT_DELIMITER
   . SET RESULT=RESULT_$ORDER(OUT(VITAL,DATE,""))
+  . IF (ADDDT=1)&(CURNUM=2) SET RESULT=RESULT_" ("_$$EXTDATE^TMGDATE(DATE,1)_")"
   QUIT RESULT
   ;

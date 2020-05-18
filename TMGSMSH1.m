@@ -218,16 +218,15 @@ GETMSG(DFN,PROVIEN,TMGDT,REASON,HOURLEAD) ;"Create out-going message.
   ;"NEW MSG SET MSG="|FNAME| has an appt with |PROVNAME| on |DATE|, for |REASON|. "
   NEW MSG SET MSG=""
   IF REASON="PROTIME" DO
-  . SET MSG="|FNAME| has an appt with nurse for Rx check on |DATE|."
+  . SET MSG=$$GTMSGTXT^TMGSMS01("NURSE-HOUR","|FNAME| has an appt with nurse for Rx check at |TIME|.")
+  ELSE  IF REASON["TH-" DO
+  . SET MSG=$$GTMSGTXT^TMGSMS01("TELEMEDICINE-HOUR","|FNAME| has a telemedicine appointment TODAY at |TIME|. We will contact you when it is time to login. The virtual waiting room is at https://doxy.me/familyphysiciansofgreeneville")
+  ELSE  IF REASON["TELEPHONE" DO
+  . SET MSG=$$GTMSGTXT^TMGSMS01("TELEPHONE-HOUR","|FNAME| has a telephone appointment TODAY at |TIME|. We will contact you when we are ready to begin your visit.")
   ELSE  DO
-  . SET MSG="|FNAME| has an appt with |PROVNAME| TODAY at |TIME|. "
-  . ;"IF (HOURLEAD>1) DO 
-  . ;". SET MSG=MSG_" Reply ""OK"" to confirm. Please don't forget to get labs drawn, if ordered for this appt. "
-  . ;"ELSE  IF (TMGDT[".0815") DO
-  . SET MSG=MSG_" Please bring ALL your medications with you. "
-  . ;"ELSE  DO
-  . . SET MSG=MSG_" Please arrive 10 minutes prior to your appointment to complete paperwork. Please bring ALL your medications with you. "
-  SET MSG=MSG_"QUESTIONS? Call Family Physicians of Greeneville (423-787-7000)."
+  . SET MSG=$$GTMSGTXT^TMGSMS01("APPOINTMENT-HOUR","|FNAME| has an appt with |PROVNAME| TODAY at |TIME|.")
+  . SET MSG=MSG_" "_$$GTMSGTXT^TMGSMS01("MEDS","Please bring ALL your medications with you.")
+  SET MSG=MSG_" "_$$GTMSGTXT^TMGSMS01("QUESTIONS","QUESTIONS? Call Family Physicians of Greeneville (423-787-7000).")
   SET RESULT=$$SUBSTX(MSG,.ARR)
 GMDN  
   QUIT RESULT

@@ -20,7 +20,7 @@ TMGTIUOA ;TMG/kst-TIU OBJECTS ; 03/30/15
 GETPTBP(TMGDFN)  ;"Return patient's blood pressure readings
  ;"Purpose: Return patient's BP readings as a TIU Object
  ;"
- NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","BP",4," <- ")
+ NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","BP",4," <- ",1)
  QUIT TMGRESULT
  ;"
 GETPULSE(TMGDFN)  ;"Return patient's pulse readings

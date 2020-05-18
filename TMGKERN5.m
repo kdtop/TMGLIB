@@ -39,8 +39,13 @@ TMGKERN5 ;TMG/kst/OS Specific functions -- SMS Message ;12/8/14
  ;
  ;"=======================================================================
  ;
+FILEDATE() ;"RETURN FM DT WITHOUT "." FOR USE WITH THE FILENAME
+  NEW X,% DO NOW^%DTC
+  SET %=$TR(%,".","")
+  QUIT %
+  ;
 COMFILE() ;"RETURN COM FILE NAME
-  QUIT "sms_batch_msgs.txt"
+  QUIT "sms_batch_msgs_"_$$FILEDATE_".txt"
   ;
 COMFILEP() ;"RETURN COM FILE NAME WITH PATH
   QUIT "/tmp/"_$$COMFILE
@@ -70,13 +75,22 @@ SMSSEND(ARRAY,STORE,LIVE) ;"SEND SMS MESSAGES via FTP BATCH
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P
   NEW LINEIN,ID,%
+  NEW DELFILE SET DELFILE=1
   FOR  DO  QUIT:($ZEOF)
   . READ LINEIN
   . IF LINEIN["ERR" DO
   . . DO ALERTERR(LINEIN_" SENDING SMS MESSAGE BATCH - EDDIE TO TEST")
+  . . ;"saving off some info to help debug later
+  . . SET DELFILE=0
+  . . MERGE ^TMG("SMSSEND","ARRAY")=ARRAY
+  . . MERGE ^TMG("SMSSEND","STORE")=STORE
+  . . SET ^TMG("SMSSEND","FNAME")=FNAME
   CLOSE P
   USE $P
-  SET RESULT=$$DELFILE^TMGIOUTL(FNAME)
+  IF DELFILE=1 DO
+  . SET RESULT=$$DELFILE^TMGIOUTL(FNAME)
+  ELSE  DO
+  . SET RESULT=1
   ;"Result of 1 is OK, 0 is error
   IF RESULT=0 DO  GOTO SMSSDN
   . SET RESULT="-1^Unable to delete message file on HFS file '"_FNAME_"'"  
@@ -347,6 +361,7 @@ ALERTERR(ERRTEXT,AMSG,IENS) ;
   ;"MAKE AN ALERT WITH ERROR MESSAGE.
   ;"LATER I should put NEW PERSON IEN to receive alerts in the TMG SMS CREDENTIALS file or elsewhere
   NEW USRIEN SET USRIEN=168  ;"Kevin Toppenberg
+  SET USRIEN=150  ;"Setting to Eddie for now
   DO SENDALERT(USRIEN,"Error during sending/receiving SMS message.",TMGERROR)
   QUIT
   ;

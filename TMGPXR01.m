@@ -312,16 +312,16 @@ A1CISDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         NEW THRESHOLD,RESULTS,TESTRESULT
         DO GETVALS^TMGLRR01(TMGDFN_"^2",97,.RESULTS)             
         DO GETVALS^TMGLRR01(TMGDFN_"^2",175,.RESULTS)
-        NEW TESTNAME,DATE SET TESTNAME=1
+        NEW TESTNAME,THISDATE SET TESTNAME=1
         FOR  SET TESTNAME=$O(RESULTS(TESTNAME)) QUIT:+TESTNAME'>0  DO
         . IF TESTNAME["GLUCOSE" SET THRESHOLD=GLUCOSEHIGH
         . IF TESTNAME["A1C" SET THRESHOLD=A1CHIGH
-        . SET DATE=$$ADDDAYS^TMGDATE(DAYCOUNT)
-        . FOR  SET DATE=$O(RESULTS(TESTNAME,DATE)) QUIT:DATE'>0  DO
-        . . SET TESTRESULT=+$G(RESULTS(TESTNAME,DATE))
+        . SET THISDATE=$$ADDDAYS^TMGDATE(DAYCOUNT)
+        . FOR  SET THISDATE=$O(RESULTS(TESTNAME,THISDATE)) QUIT:THISDATE'>0  DO
+        . . SET TESTRESULT=+$G(RESULTS(TESTNAME,THISDATE))
         . . IF TESTRESULT>THRESHOLD DO
         . . . SET TEST=1,DATE=$$TODAY^TMGDATE
-        . . . SET TMGWHY=TMGWHY_" "_$P(TESTNAME,"^",2)_" on "_$$EXTDATE^TMGDATE(DATE)_" was "_TESTRESULT_"."
+        . . . SET TMGWHY=TMGWHY_" "_$P(TESTNAME,"^",2)_" on "_$$EXTDATE^TMGDATE(THISDATE)_" was "_TESTRESULT_"."
 A1CDN
         IF TMGWHY="[WHY]" SET TMGWHY="[WHY] THIS CAN BE IGNORED. No A1C>"_A1CHIGH_" or glucose>"_GLUCOSEHIGH_" in last 2 years."
         QUIT TMGWHY
@@ -1542,6 +1542,39 @@ P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         . . . ;"SET DATE=APPTDATE
         QUIT
         ;"
+AWVCOHRT(TMGDFN,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Return true if patient is scheduled for annual wellness visit
+        ;"Input: DFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;"                FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"            (NOTE: There is no need to SET the unsubscripted
+        ;"                   values of TEST and DATE in a multi-occurrence
+        ;"                   computed finding.)
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"SET TEST=0,DATE=0,
+        SET NFOUND=0
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        IF AGE<18 QUIT
+        NEW APPTSTR SET APPTSTR="AWV^ANNUAL^MEDANNUAL"
+        NEW APPTREASON,THISDATE,APPTDATE
+        SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY,THISDATE=TODAY
+        FOR  SET APPTDATE=$O(^TMG(22723,"DT",APPTDATE)) QUIT:(APPTDATE'[THISDATE)!(APPTDATE'>0)  DO
+        . NEW APPTDFN SET APPTDFN=0
+        . FOR  SET APPTDFN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN)) QUIT:APPTDFN'>0  DO
+        . . IF APPTDFN'=TMGDFN QUIT
+        . . NEW APPTIEN SET APPTIEN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN,0))
+        . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDATE,APPTDFN,APPTIEN))
+        . . IF STATUS="C" QUIT
+        . . NEW REASON SET REASON=$P($G(^TMG(22723,APPTDFN,1,APPTIEN,0)),"^",4)
+        . . IF APPTSTR[REASON DO
+        . . . SET TEST=1
+        . . . SET DATE=APPTDATE
+        QUIT
+        ;"        
 P9RESOLV(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Resolution logic for PHQ-9 reminder
         ;"Input: DFN -- the patient IEN

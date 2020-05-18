@@ -66,7 +66,8 @@ GETPATL(PCKINIT,ARRAY,REFRESH,DIRFN) ;
         IF (REFRESH'>0)!(RESULT=0) GOTO GPLDN
         NEW URLLIST,URL,URLBASE
         ;"SET URLBASE="mirrors.medsphere.org/pub/downloads.va.gov/files/FOIA/Software/"
-        SET URLBASE="foia-vista.osehra.org/"   ;"//kt 5/26/17
+        ;"SET URLBASE="foia-vista.osehra.org/"   ;"//kt 5/26/17   <--- no longer valid URL        
+        SET URLBASE="foia-vista.worldvista.org/"  ;"//kt 5/18/20        
         SET URLLIST(1)=URLBASE_"Patches_By_Application/"
         SET URLLIST(2)=URLBASE_"Patches_By_Application/COMBINED%20PATCH%20KIDS%20BUILDS/"
         SET URLBASE=URLBASE_"VISTA_FOIA_Historical_Files/VISTA_FOIA_RELEASES_BEFORE_2008/"

@@ -575,7 +575,7 @@ DETALRGY2(DFN)  ;
   . SET LINE=$GET(^GMR(120.8,IEN120D8,0))
   . SET Y=$P(LINE,"^",4)  ;date
   . X ^DD("DD")
-  . SET REACTIONS=$$GETREACT(IEN120D8)
+  . SET REACTIONS=$$GETREACT(IEN120D8,1)
   . SET RESULT=RESULT_"<B>"_$P(LINE,"^",2)_"</B><FONT SIZE=""-1""> (Entered: "_$P(Y,"@",1)_")</FONT>"_REACTIONS_"<BR>"   ;"$CHAR(13)_$CHAR(10)
   . SET IEN=IEN+1
   IF RESULT="<BR>" SET RESULT="No Known Allergies"

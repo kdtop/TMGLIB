@@ -228,10 +228,11 @@ GETALPTS(OUTARRAY)   ;
         WRITE !        
         QUIT TMGRESULT
         ;
-GETACTPTS(OUTARRAY)   ;
+GETACTPTS(OUTARRAY,WINDOW)   ;
         ;"Purpose: Gather list of ACTIVE patients to run report on
         ;"Result: 1^OK or -1^Message if problem
         NEW TMGRESULT SET TMGRESULT="1^OK"
+        SET WINDOW=+$G(WINDOW) IF WINDOW=0 SET WINDOW=3
         WRITE "Gathering list of all ACTIVE patients",!
         NEW DFNMAX SET DFNMAX=$ORDER(^DPT("!"),-1)
         NEW STIME SET STIME=$H
@@ -240,7 +241,7 @@ GETACTPTS(OUTARRAY)   ;
         FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:(+DFN'>0)  DO
         . IF DFN#5=0 DO
         . . DO PROGBAR^TMGUSRI2(DFN,"PROGRESS: "_DFN,0,DFNMAX,60,STIME)
-        . IF $$ACTIVEPT(DFN)=0 QUIT
+        . IF $$ACTIVEPT(DFN,WINDOW)=0 QUIT
         . SET OUTARRAY(DFN)=""
         DO PROGBAR^TMGUSRI2(100,"DONE: ",0,100,60,STIME)
         WRITE !        
