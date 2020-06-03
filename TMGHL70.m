@@ -199,23 +199,32 @@ TESTPARS(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) ;
         NEW TMGRESULT SET TMGRESULT=1
         SET INDENTN=+$GET(INDENTN)
         NEW INDENTSTR SET INDENTSTR=$JUSTIFY("",INDENTN)
-        IF $DATA(TMGTESTMSG)>0 DO
-        . SET TMGENV("INDENTN")=INDENTN
-        . SET TMGRESULT=$$PARSMSG2^TMGHL7X2(.TMGENV,.TMGTESTMSG,.TMGHL7MSG)
-        . ;"---------------------------------------------------
-        . ;"//kt added below 4/9/19 because a test was failing during full parse, but succeeding here and thus couldn't fix.              
-        . IF TMGRESULT<0 QUIT
-        . SET TMGHL7MSG("STAGE")="PRE"
-        . SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
-        . IF TMGRESULT<0 QUIT
-        . SET TMGRESULT=$$DOMORE^TMGHL7X2(.TMGENV,.TMGHL7MSG)
-        . IF TMGRESULT<0 QUIT
-        . SET TMGHL7MSG("STAGE")="FINAL"
-        . SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
-        . SET TMGHL7MSG("STAGE")=""
-        . ;"---------------------------------------------------
-        ELSE  DO
+        NEW TMGU MERGE TMGU=TMGENV("TMGU")
+        IF $DATA(TMGTESTMSG)'>0 DO  GOTO TSTMSG
         . SET TMGRESULT="-1^No message provided to parse, in TESTPARS.TMGHL70"
+        ;
+        ;"SET TMGENV("INDENTN")=INDENTN
+        NEW OPTION SET OPTION("INTERACTIVE MODE")=1
+        SET TMGRESULT=$$HL7PROCESS^TMGHL71(.TMGHL7MSG,.TMGENV,.TMGTESTMSG,.OPTION) ;" PARSE, then XFORM
+        ;
+        ;
+        ;"  NEW TEMP SET TEMP=1
+        ;"  SET TMGRESULT=$$PRSEARRY^TMGHL7X2(,.TMGTESTMSG,.TMGHL7MSG,.TMGU)        
+        ;"  IF TMGRESULT<0 QUIT
+        ;"  SET TMGRESULT=$$SETMAPS^TMGHL70B(.TMGENV,.TMGHL7MSG)
+        ;"  ;"---------------------------------------------------
+        ;"  ;"//kt added below 4/9/19 because a test was failing during full parse, but succeeding here and thus couldn't fix.              
+        ;"  IF TMGRESULT<0 QUIT
+        ;"  SET TMGHL7MSG("STAGE")="PRE"
+        ;"  SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
+        ;"  IF TMGRESULT<0 QUIT
+        ;"  SET TMGRESULT=$$SETMAPS^TMGHL70B(.TMGENV,.TMGHL7MSG)
+        ;"  IF TMGRESULT<0 QUIT
+        ;"  SET TMGHL7MSG("STAGE")="FINAL"
+        ;"  SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
+        ;"  SET TMGHL7MSG("STAGE")=""
+        ;"  ;"---------------------------------------------------
+TSTMSG ;    
         WRITE !,INDENTSTR        
         IF TMGRESULT<0 DO  
         . WRITE $PIECE(TMGRESULT,"^",2),!

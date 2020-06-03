@@ -15,6 +15,7 @@ TMGHL7X ;TMG/kst-HL7 transformation engine processing ;07/28/13, 2/2/14
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
+ ;"CYCLEXFMSG(TMGENV,TMGHL7MSG) -- Cycle through stages of transformation, PRE, FINAL etc.
  ;"XFMSG(TMGENV,TMGHL7MSG) -- take parsed message array, and apply transforms
  ;
  ;"=======================================================================
@@ -34,6 +35,22 @@ TMGHL7X ;TMG/kst-HL7 transformation engine processing ;07/28/13, 2/2/14
  ;"TMGSTUTL, all the HL*, LA* code that the HL processing path normally calls.
  ;"=======================================================================
  ;
+CYCLEXFMSG(TMGENV,TMGHL7MSG) ;
+        ;"Purpose: Cycle through stages of transformation, PRE, FINAL etc.
+        ;"Input: TMGENV -- PASS BY REFERENCE.  The lab environment array.  
+        ;"       TMGHL7MSG -- PASS BY REFERENCE.  Format -- See PARSEMSG^TMGHL7X2
+        ;"Result: 1 if OK, or -1^message IF problem.
+        NEW TMGRESULT SET TMGRESULT=1        
+        NEW IEN22720 SET IEN22720=TMGENV("IEN 22720")  ;"IEN in file TMG HL7 MESSAGE TRANSFORM SETTINGS
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(^TMG(22720,IEN22720,15,"B",IDX)) QUIT:(IDX'>0)!(+TMGRESULT'>0)  DO
+        . NEW SUBIEN SET SUBIEN=$ORDER(^TMG(22720,IEN22720,15,"B",IDX,0)) QUIT:SUBIEN'>0
+        . NEW ZN SET ZN=$GET(^TMG(22720,IEN22720,15,SUBIEN,0))
+        . NEW STAGE SET STAGE=$PIECE(ZN,"^",2) QUIT:STAGE=""
+        . SET TMGHL7MSG("STAGE")=STAGE
+        . SET TMGRESULT=$$XFMSG(.TMGENV,.TMGHL7MSG) 
+        QUIT TMGRESULT
+        ;
 XFMSG(TMGENV,TMGHL7MSG) ;"
         ;"Purpose: To take parsed message array, and applied transforms
         ;"Input: TMGENV -- PASS BY REFERENCE.  The lab environment array.  

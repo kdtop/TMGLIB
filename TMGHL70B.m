@@ -38,6 +38,59 @@ TMGHL70B ;TMG/kst-HL7 transformation utility functions ;11/18/15, 12/13/15
  ;" TMGDEBUG, TMGUSRI4, TMGHL7*
  ;"=======================================================================
  ;
+SETMAPS(TMGENV,TMGHL7MSG) ;
+        ;"Note: was previously named DOMORE()
+        ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
+        ;"           TMGENV("PREFIX") -- e.g. "LMH"
+        ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
+        ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)
+        ;"           TMGENV("INTERACTIVE MODE") IF 1, then user is prompted to fix problems, otherwise problem just reported.         
+        ;"           TMGENV(<other entries>)= etc.              
+        ;"       TMGHL7MSG --PASS BY REFERENCE.  AN IN / OUT PARAMETER.
+        ;"Output:  This gets mapping information of tests.
+        ;"         For OBR:
+        ;"           TMGHL7MSG(<Index#>,"ORDER")=""     
+        ;"           TMGHL7MSG(<Index#>,"ORDER","NLT")=<NLT CODE>^IEN60
+        ;"           TMGHL7MSG(<Index#>,"ORDER","SPECIMEN")=SpecimenIEN61
+        ;"           TMGHL7MSG(<Index#>,"ORDER","SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided
+        ;"           also
+        ;"           TMGHL7MSG("ORDER",<Index#>,)=""    
+        ;"           TMGHL7MSG("ORDER",<Index#>,"NLT")=<NLT CODE>^IEN60
+        ;"           TMGHL7MSG("ORDER",<Index#>,"SPECIMEN")=SpecimenIEN61
+        ;"           TMGHL7MSG("ORDER",<Index#>,"SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided
+        ;"         For OBX:
+        ;"           TMGHL7MSG(<Index#>,"RESULT","NLT")=<NLTCode>^IEN60    
+        ;"           TMGHL7MSG(<Index#>,"RESULT","SPECIMEN")=SpecimenIEN61
+        ;"           TMGHL7MSG(<Index#>,"RESULT","SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided
+        ;"           also
+        ;"           TMGHL7MSG("RESULT",<Index#>,"NLT")=<NLTCode>^IEN60    
+        ;"           TMGHL7MSG("RESULT",<Index#>,"SPECIMEN")=SpecimenIEN61
+        ;"           TMGHL7MSG("RESULT",<Index#>,"SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided        
+        ;"Result: 1 if OK, -1^Error Message IF error.
+        ;"NEW ORDERARR
+        NEW TMGRESULT SET TMGRESULT=1        
+        IF $$ISLMHRAD^TMGHL76R(.TMGHL7MSG) GOTO DMDN  ;"if Laughlin Radiology, then skip this part.
+        IF $$ISADT^TMGHL76A(.TMGHL7MSG) GOTO DMDN ;"If ADT message, skip this part.  
+        NEW TMGI SET TMGI=0                                                  
+        FOR  SET TMGI=$ORDER(TMGHL7MSG(TMGI)) QUIT:(+TMGI'>0)!(+TMGRESULT<0)  DO
+        . NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(TMGI,"SEG"))
+        . IF SEGTYPE="OBR" DO   
+        . . ;"KILL ORDERARR
+        . . NEW ORDERTEST SET ORDERTEST=$GET(TMGHL7MSG(TMGI,4)) QUIT:ORDERTEST=""
+        . . NEW TEMPARR 
+        . . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,ORDERTEST,"O",.TEMPARR)
+        . . MERGE TMGHL7MSG(TMGI,"ORDER")=TEMPARR
+        . . MERGE TMGHL7MSG("ORDER",TMGI)=TEMPARR
+        . . ;"MERGE ORDERARR=TEMPARR("ORDER")
+        . . IF TMGRESULT<0 SET TMGHL7MSG(TMGI,"ORDER","ERR")=$PIECE(TMGRESULT,"^",2,99)
+        . IF SEGTYPE="OBX" DO
+        . . NEW TEMPARR
+        . . NEW TEST SET TEST=$GET(TMGHL7MSG(TMGI,3)) QUIT:TEST=""
+        . . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TEST,"R",.TEMPARR)
+        . . MERGE TMGHL7MSG(TMGI,"RESULT")=TEMPARR
+        . . MERGE TMGHL7MSG("RESULT",TMGI)=TEMPARR
+DMDN    QUIT TMGRESULT
+        ; 
 GETMAP(TMGENV,TEST,MODE,OUT) ;
   ;"Purpose: Map HL7 test onto VistA data, optionally interacting with user to add missing 
   ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
@@ -270,6 +323,7 @@ FIX60(TMGENV,TEST,INFO,IEN60,MODE) ;"60=LABORATORY TEST
   NEW TESTCODE SET TESTCODE=$PIECE(TEST,TMGU(2),1)
   NEW TESTNAME SET TESTNAME=$PIECE(TEST,TMGU(2),2)
   NEW ALTNAME SET ALTNAME=$PIECE(TEST,TMGU(2),5)
+  ;"IF TESTNAME="",TESTCODE'="" SET TESTNAME=TESTCODE
   NEW LONGNAME SET LONGNAME=""
   IF $LENGTH(TESTNAME)>30 DO  GOTO:(+TESTNAME<0) F60DN
   . NEW TEMP SET TEMP=TESTNAME 
@@ -308,7 +362,7 @@ TRIMNAME(TESTNAME,INDENTN) ;"Trim test name to 30 characters
   NEW INDENTSTR SET INDENTSTR=""
   SET INDENTN=+$GET(INDENTN)
   IF INDENTN>0 SET INDENTSTR=$JUSTIFY(" ",INDENTN)
-  WRITE INDENTSTR,"'",TESTNAME,"' is too long.",!
+  WRITE !,INDENTSTR,"'",TESTNAME,"' is too long.",!
   WRITE INDENTSTR,"Please shorten this name to 30 characters or less.",!,!
   NEW TMGRESULT SET TMGRESULT="-1^User aborted"
   NEW NEWNAME,%

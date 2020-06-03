@@ -73,7 +73,7 @@ BATCH   ;"NOTE: Laughlin radiology reports will be dumped in with
 ISLMHRAD(TMGHL7MSG) ;"Test if message is LMH/GCHE rad HL7 message.
         ;"Input: TMGHL7MSG -- PASS BY REFERENCE.  
         ;"Result: 1 if is rad HL7, 0 otherwise
-        ;"note: this is called by DOMORE^TMGHL7X2
+        ;"note: this is called by SETMAPS^TMGHL70B
         NEW APP SET APP=$GET(TMGHL7MSG(1,3))
         NEW SNDR SET SNDR=$GET(TMGHL7MSG(1,4))
         NEW TMGRESULT SET TMGRESULT=0

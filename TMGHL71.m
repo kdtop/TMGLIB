@@ -15,9 +15,9 @@ TMGHL71	;TMG/kst-Entry Point for HL7 processing ;11/14/16, 4/1/18, 4/4/19
   ;"=======================================================================
   ;"TEST(DEFPATH) --Pick file and manually send through filing process.
   ;"HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH) -- Import files from a directory
-  ;"HL7FIN(DIRNAME,FNAME,NOALERT,DONEPATH,OPTION) -- Entry point for processing HL7 files loaded from HFS
-  ;"HL7IN -- Entry point, that could be  called from LA7V Process Results from PathGroup.
-  ;"HL7MSGIN(TMGMSG) -- Entry point to process message, stored in TMGMSG
+  ;"HLFILEIMPORT(DIRNAME,FNAME,DONEPATH,OPTION) -- Entry point for processing HL7 files loaded from HFS
+  ;"HL772IMPORT(TMGENV,NOALERT,OPTION) -- Entry point, that could be  called from LA7V Process Results from PathGroup.
+  ;"HLMSGIMPORT(TMGMSG,NOALERT,OPTION,.TMGENV) -- Entry point to process message, stored in TMGMSG
   ;"=======================================================================
   ;" API - Private Functions
   ;"=======================================================================
@@ -36,8 +36,7 @@ TSTL1  ;
   SET (DIRNAME,FNAME)=""
   IF $$FBROWSE^TMGIOUT2(.FILEOPTION,.DIRNAME,.FNAME)  ;"DIRNAME AND FNAME are OUT parameters
   IF FNAME="" GOTO TSTDN
-  NEW NOALERT SET NOALERT=$GET(OPTION("NO ALERT"),1)
-  SET TMGRESULT=$$HL7FIN(DIRNAME,FNAME,NOALERT,,.OPTION)
+  SET TMGRESULT=$$HLFILEIMPORT(DIRNAME,FNAME,,.OPTION)
   WRITE !
   IF TMGRESULT="-1^SPLIT" DO  GOTO TSTL2
   . WRITE "The HL7 message file was split into separate smaller files.  Nothing filed.",!
@@ -54,10 +53,7 @@ TSTDN ;
   QUIT
   ;
 TEST2  ;"Test one particular stored message (MUST BE EDITED TO BE USED)
-  NEW HLMTIEN SET HLMTIEN=543
-  NEW HLMTIENS SET HLMTIENS=544
-  NEW HLREC
-  WRITE $$HL7IN^TMGHL71(1)  ;"1=no alert. 
+  ;"WRITE $$HL772IMPORT^TMGHL71(543,544,1)  ;"1=no alert. 
   QUIT
   ;
 SHOWALTR  ;"SHOW ALERT RECIPIENT
@@ -76,33 +72,6 @@ SETALRTR ;"SET ALERT RECIPIENT
   . WRITE "ERROR: ",$PIECE(OUT,"^",2,99),!
   QUIT
   ;
-HL7IN0   ;"NOTE: I don't think this function is in use....
-  ;"Purpose: Entry point, as called from LA7V Process Results from LMH
-  ;"Input:
-  ;
-  N HLA,HLL,HLP,X,Y
-  N LA76248,LA76249,LA7AAT,LA7AERR,LA7CS,LA7DT,LA7ECH,LA7FS,LA7HLS,LA7HLSA,LA7INTYP,LA7MEDT,LA7MTYP,LA7RAP,LA7PRID,LA7RSITE,LA7SAP,LA7SEQ,LA7SSITE,LA7TYPE,LA7VER,LA7VI,LA7VJ,LA7X
-  ;
-  S DT=$$DT^XLFDT
-  S (LA76248,LA76249,LA7INTYP,LA7SEQ)=0
-  ;
-  ;K ^TMP("HLA",$J)
-  ;
-  ; Setup DUZ array to 'non-human' user LRLAB,HL
-  ; If user not found - send alert to G.LAB MESSAGING
-  S LA7X=$$FIND1^DIC(200,"","OX","LRLAB,HL","B","")
-  I LA7X<1 D  Q
-  . N MSG
-  . S MSG="Lab Messaging - Unable to identify user 'LRLAB,HL' in NEW PERSON file"
-  . D XQA^LA7UXQA(0,LA76248,0,0,MSG,"",0)
-  D DUZ^XUP(LA7X)
-  ;
-  ; Set up LA7HLS with HL variables to build ACK message.
-  ; Handle situation when systems use different encoding characters.
-  D RSPINIT^HLFNC2(HL("EIDS"),.LA7HLS)
-  ;"DO ORU^LA7VHL
-  QUIT
-  ;  
   ;"+-----------------------------------------------------------------+
   ;"| =============================================================== |
   ;"| |  General HL7 processing functions                           | |
@@ -124,7 +93,7 @@ HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH,EXT,OPTION)    ;
   ;"                  NOTE: subfolders ./Processed  and ./Failed_Messages defined.
   ;"                    will be auto-added if not present (if file permissions allow)
   ;"       EXT -- OPTIONAL.  Default = '.txt'.  
-  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PARSE for description
+  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PROCESS for description
   ;"Result: none
   SET COUNT=+$GET(COUNT,999999)
   SET MAXERRCT=+$GET(MAXERRCT,999999)
@@ -139,7 +108,7 @@ HLDR1 ;
   NEW FNAME SET FNAME=""
   FOR  SET FNAME=$ORDER(FILELIST(FNAME)) QUIT:(FNAME="")!(COUNT'>0)!(MAXERRCT'>0)!(HLDIRRETRY)  DO
   . WRITE FNAME," --> "
-  . SET TMGRESULT=$$HL7FIN^TMGHL71(DIRNAME,FNAME,0,.DONEPATH,.OPTION)
+  . SET TMGRESULT=$$HLFILEIMPORT^TMGHL71(DIRNAME,FNAME,.DONEPATH,.OPTION)
   . IF TMGRESULT="-1^SPLIT" SET HLDIRRETRY=1 QUIT 
   . IF TMGRESULT=1 WRITE "Processed OK.",!
   . ELSE  DO
@@ -151,39 +120,49 @@ HLDR1 ;
 HLDDN ;
   QUIT        
   ; 
-HL7FIN(DIRNAME,FNAME,NOALERT,DONEPATH,OPTION)  ;"POC file input HL7 message files from lab
+HLFILEIMPORT(DIRNAME,FNAME,DONEPATH,OPTION)  ;
   ;"Purpose: Entry point for processing HL7 files loaded from HFS
   ;"Input: DIRNAME -- file path name
   ;"       FNAME -- filename of HL7 file to load and file.  
-  ;"       NOALERT -- Optional.  If 1 then no alert made.
   ;"       DONEPATH -- Optional.  If provided, then specifies root of
   ;"                  folder to moved completed messages.  must
   ;"                  NOTE: subfolders ./Processed  and ./Failed_Messages defined.
   ;"                    will be auto-added if not present (if file permissions allow)
-  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PARSE for description
+  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PROCESS for description
   ;"          also OPTION("NO MOVE")=1 will prevent file from being moved after processing, AND prevent meta as if "NO META" provided
   ;"          also OPTION("NO META")=1 will prevent record from being added to 22720.5
   ;"Results: 1 if OK, or -1^Message if error  
-  NEW HLREC,HL,HLQUIT,HLNODE,HLNEXT,HLHDRO,HLMTIEN,HLMTIENS
+ ;" NEW HLREC,HL,HLQUIT,HLNODE,HLNEXT,HLHDRO,HLMTIEN,HLMTIENS
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("@@")  ;"kill message log for all processes.
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Starting HLFILEIMPORT^TMGHL72")
   NEW TEMPRESULT SET TEMPRESULT="" 
-  SET (HLMTIEN,HLMTIENS)=0  ;"NOTE: I THINK HLMTIEN,HLMTIENS ARE USED IN GLOBAL SCOPE DOWNSTREAM
-  NEW TMGRESULT SET TMGRESULT=$$HL7CHECKSPLIT(DIRNAME,FNAME,.DONEPATH)
+  NEW IEN772,IEN773
+  NEW TMGMSG,MSH
+  NEW NOALERT SET NOALERT=$GET(OPTION("NO ALERT"),1)
+  NEW TMGENV SET TMGENV("ALERT CODE")="SETALERT^TMGHL7E"  ;"Default, likely overwritten later
+  NEW TMGRESULT SET TMGRESULT=$$HL7CHECKSPLIT(DIRNAME,FNAME,.DONEPATH) 
   IF TMGRESULT="-1^SPLIT" GOTO FHLDN
   NEW FPNAME SET FPNAME=$$MKTRALDV^TMGIOUTL(DIRNAME)_FNAME
-  SET OPTION("FILEPATHNAME")=FPNAME  ;"Used in HL7MSGIN()
-  SET TMGRESULT=$$MKHL7MSG^TMGHL7U2(FPNAME,.HLMTIEN,.HLMTIENS) ;"MAKE HL7 MESSAGE 
-  NEW IEN772 SET IEN772=$GET(HLMTIEN)  
-  NEW IEN773 SET IEN773=$GET(HLMTIENS)
-  IF TMGRESULT<0 DO  GOTO FHL2
-  . DO SETALRT2^TMGHL7E(TMGRESULT)
-  SET TMGRESULT=$$HL7IN(.NOALERT,.OPTION)  ;"returns OPTION("HL7 DATE"), and other info.  
-  ;"//kt note 4/1/18 -- I have decided to keep copy of HL7 message in database, so commenting line below
-  ;"IF +TMGRESULT=1 SET TMGRESULT=$$KLHL7MSG^TMGHL7U2(HLMTIENS)  ;"kills records in 773 and linked 772
+  SET OPTION("FILEPATHNAME")=FPNAME  ;"Used in HLMSGIMPORT()
+  ;"SET TMGRESULT=$$MKHL7MSG^TMGHL7U2(FPNAME,.IEN772,.IEN773) ;"Store HL7 message in database
+  SET TMGRESULT=$$LOADHL7^TMGHL7U2(FPNAME,.TMGMSG,.MSH) ;"LOAD FILE INTO ARRAY
+  IF TMGRESULT'>0 GOTO FHL1
+  SET TMGRESULT=$$MKHLMARR^TMGHL7U2(.TMGMSG,MSH,.IEN772,.IEN773)  ;"Store HL7 message in database
+  SET TMGENV("IEN 772")=$GET(IEN772) SET TMGENV("IEN 773")=$GET(IEN773)
+  IF TMGRESULT>0 SET TMGRESULT=$$SETUPENV^TMGHL7U(.TMGMSG,.TMGENV)    
+FHL1 ;  
+  IF TMGRESULT<0 DO SETALERT(TMGRESULT,.TMGENV) GOTO FHL2  
+  ;"SET TMGRESULT=$$HL772IMPORT(.TMGENV,.NOALERT,.OPTION)  ;"returns OPTION("HL7 DATE"), and other info.
+  ;" -- REPLACING LINE ABOVE ----
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Here is message array",.TMGMSG) 
+  SET TMGRESULT=$$HLMSGIMPORT(.TMGMSG,.NOALERT,.OPTION,.TMGENV)
+  ;"NOTE: if HLMSGIMPORT encountered error, it will set it's own alerts, so don't duplicate here
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("After processing message, result was: "_TMGRESULT)
 FHL2 ;
-  IF $GET(OPTION("NO MOVE")) GOTO FHL4  ;//FHLDN
+  IF $GET(OPTION("NO MOVE")) GOTO FHL4 
   SET TEMPRESULT=$$MOVE(+TMGRESULT,FPNAME,.DONEPATH,$GET(OPTION("HL7 DATE")))
   IF TEMPRESULT'>0 DO
-  . DO SETALRT2^TMGHL7E(TEMPRESULT)
+  . DO SETALERT(TMGRESULT,.TMGENV)
   . IF +TMGRESULT=1 SET TMGRESULT=TEMPRESULT
   . ELSE  SET TMGRESULT=TMGRESULT_" AND ALSO "_$PIECE(TEMPRESULT,"^",2,99)
 FHL3 ;  
@@ -193,12 +172,171 @@ FHL3 ;
   SET TEMPRESULT=$$MAKEMETA(+TMGRESULT,FPNAME,.DONEPATH,.OPTION,.IEN772,.IEN773)
 FHL4 ;  
   IF (TEMPRESULT'=""),(TEMPRESULT'>0) DO
-  . DO SETALRT2^TMGHL7E(TEMPRESULT)
+  . DO SETALERT(TMGRESULT,.TMGENV)
   . IF +TMGRESULT=1 SET TMGRESULT=TEMPRESULT
   . ELSE  SET TMGRESULT=TMGRESULT_" AND ALSO "_$PIECE(TEMPRESULT,"^",2,99)
 FHLDN  ;  
   QUIT TMGRESULT
   ;                           
+HL772IMPORT(TMGENV,NOALERT,OPTION)   ;" -- NOTE: Code included in HLFILEIMPORT, making this redundant
+  ;"Purpose: Import of HL7 message already saved to database 
+  ;"Input:  NOALERT -- Optional.  If 1 then no alert made. 
+  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PROCESS for description
+  ;"            OPTION("HL7 DATE")=<HL7 DATE>  <-- an OUT parameter
+  ;"            OPTION("FM DATE")=<FMDT>       <-- an OUT parameter
+  ;"            OPTION("DFN")=<patient IEN>    <-- an OUT parameter         
+  ;"            OPTION("FILEPATHNAME")=<FilePathName> <-- provide for reference.            
+  ;"Results: 1 if OK, or -1^Message IF error
+  NEW TMGRESULT,TMGMSG,TMGINFO
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("@@")  ;"kill message log for all processes.
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Starting HL772IMPORT^TMGHL72 to process HL7 message")
+  SET IEN772=$GET(TMGENV("IEN 772"))
+  SET IEN773=$GET(TMGENV("IEN 773"))
+  SET TMGRESULT=$$FROM772^TMGHL7U2(IEN772,IEN773,.TMGMSG) ;"Pull HL7 message from database into array
+  IF TMGRESULT<0 GOTO HLIERR        
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Here is message array",.TMGMSG) 
+  SET TMGRESULT=$$HLMSGIMPORT(.TMGMSG,.NOALERT,.OPTION,.TMGENV)
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("After processing message, result was: "_TMGRESULT)
+  GOTO H7IN2DN  ;"NOTE: if HLMSGIMPORT encountered error, it will file it's own alerts          
+HLIERR ;
+  IF (TMGRESULT<0),(+$GET(NOALERT)'=1) DO  
+  . DO SETALERT(TMGRESULT,.TMGENV)
+H7IN2DN  ;
+  QUIT:$QUIT TMGRESULT
+  QUIT
+  ;        
+HLMSGIMPORT(TMGMSG,NOALERT,OPTION,TMGENV)  ;" PARSE, then XFORM, then FILE
+  ;"Purpose: Entry point to process message: parse, transform, and file.  
+  ;"Input: TMGMSG -- PASS BY REFERENCE.  HL7 message to process.  Format
+  ;"          TMGMSG(#)=<line of HL7 message>
+  ;"       NOALERT -- OPTIONAL.  If 1 then no alert is created for errors
+  ;"          NOTE: if OPTION("GUI")=1, then this value is forced to 1.
+  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PROCESS for description
+  ;"            OPTION("HL7 DATE")=<HL7 DATE>  <-- an OUT parameter
+  ;"            OPTION("FM DATE")=<FMDT>       <-- an OUT parameter
+  ;"            OPTION("DFN")=<patient IEN>    <-- an OUT parameter         
+  ;"            OPTION("FILEPATHNAME")=<FilePathName> <-- provided for reference.   
+  ;"Uses variables in global scope: IEN772, IEN773 (but OK if not defined)
+  ;"Results: 1 if OK, or -1^Message if error
+  NEW TMGHL7MSG,TMGU,ADFN
+  NEW TMGRESULT SET TMGRESULT=1
+  SET NOALERT=+$GET(NOALERT)
+  IF +$GET(OPTION("GUI")) SET NOALERT=1
+  SET TMGRESULT=$$HL7PROCESS(.TMGHL7MSG,.TMGENV,.TMGMSG,.OPTION) ;"PARSE, then XFORM
+  NEW HL7DT SET HL7DT=$GET(TMGHL7MSG(1,7))
+  SET OPTION("HL7 DATE")=HL7DT
+  NEW FMDT SET FMDT=$$HL72FMDT^TMGHL7U3(HL7DT),OPTION("FM DATE")=FMDT
+  NEW PIDIDX SET PIDIDX=+$ORDER(TMGHL7MSG("B","PID",""))
+  SET ADFN=+$GET(TMGHL7MSG(PIDIDX,4)),OPTION("DFN")=ADFN
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("After HL7PROCESS, here is parsed message array",.TMGHL7MSG) 
+  IF TMGRESULT<0 GOTO HLI3ERR
+  IF +$GET(OPTION("GUI","NO FILE"))=1 GOTO H7IN3DN
+  SET TMGRESULT=$$FILEMSG(.TMGENV,.TMGHL7MSG)
+  IF TMGRESULT<0 GOTO HLI3ERR
+HLI3ERR  ;
+  IF (TMGRESULT<0),(NOALERT'=1) DO SETALERT(TMGRESULT,.TMGENV)
+H7IN3DN  ;
+  QUIT TMGRESULT
+  ;
+HL7PROCESS(TMGHL7MSG,TMGENV,TMGMSG,OPTION) ;" PARSE, then XFORM
+  ;"Purpose: Entry point to process message, stored in TMGMSG
+  ;"Input: TMGHL7MSG -- PASS BY REFERENCE, AN OUT PARAMETER.
+  ;"       TMGENV -- PASS BY REFERENCE. Lab environment
+  ;"           TMGENV("PREFIX") -- e.g. "LMH"
+  ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
+  ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)
+  ;"           TMGENV(<other entries>)= etc.              
+  ;"       TMGMSG -- PASS BY REFERENCE.  HL7 message to process.  Format
+  ;"          TMGMSG(#)=<line of HL7 message>
+  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. Format:
+  ;"          OPTION("GUI")=1  <-- signal that GUI is driving this code
+  ;"          OPTION("GUI","NO FILE")=1  <-- signal to just test parsing, don't actually file. 
+  ;"          OPTION("GUI","MSG",#)=<message from server code to GUI> <-- OUT PARAMETER
+  ;"          OPTION("GUI","MSG",#,"REPLY")=<reply from GUI to server code>   <-- IN PARAMETER
+  ;"          OPTION("INTERACTIVE MODE")=1  <-- signal to ask user for solutions to problems. 
+  ;"          OPTION("AUTO REGISTER MODE")=1  <-- signal to register labs etc automatically.
+  ;"          OPTION("SCREEN OUTPUT TO NULL")=1 <-- signal to first open NULL devices
+  ;"Results: 1 if OK, or -1^Message if error
+  NEW IEN62D4,IEN22720,FS,ECH
+  NEW TMGRESULT SET TMGRESULT=1
+  SET NOALERT=+$GET(NOALERT)
+  KILL ^TMG("TMP","TMGHL71") ;"kill message log for all processes.
+  ;"SET TMGRESULT=$$SETUPENV^TMGHL7U(.TMGMSG,.TMGENV,0) IF TMGRESULT<0 GOTO PARSDN
+  IF +$GET(OPTION("GUI")) SET NOALERT=1 MERGE TMGENV("GUI")=OPTION("GUI")
+  MERGE TMGENV("INTERACTIVE MODE")=OPTION("INTERACTIVE MODE")
+  MERGE TMGENV("AUTO REGISTER MODE")=OPTION("AUTO REGISTER MODE")
+  NEW TONULL SET TONULL=$GET(OPTION("SCREEN OUTPUT TO NULL"))
+  IF TONULL DO
+  . SET TONULL("HANDLE")="TMGHNDL1"
+  . DO OPEN^%ZISUTL(TONULL("HANDLE"),"NULL")
+  . IF POP>0 SET TONULL=0 QUIT  ;"Unable to open NULL device
+  . USE IO
+  SET IEN62D4=TMGENV("IEN 62.4")  ;"I think this is used in global scope during transformation.
+  SET IEN22720=TMGENV("IEN 22720")
+  NEW TMGU MERGE TMGU=TMGENV("TMGU")
+  SET TMGRESULT=$$PRSEARRY^TMGHL7X2(,.TMGMSG,.TMGHL7MSG,.TMGU) ;"Split message into tree structure.  No transformations 
+  SET TMGRESULT=$$CYCLEXFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)  ;"XForm message through "PRE", "FINAL" stages etc.  
+  ;
+  ;" IF TMGRESULT<0 GOTO PARSDN
+  ;" SET TMGRESULT=$$SETMAPS^TMGHL70B(.TMGENV,.TMGHL7MSG)
+  ;" IF TMGRESULT<0 GOTO PARSDN
+  ;" ;
+  ;" SET TMGHL7MSG("STAGE")="PRE"
+  ;" SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
+  ;" IF TMGRESULT<0 GOTO PARSDN
+  ;" SET TMGRESULT=$$SETMAPS^TMGHL70B(.TMGENV,.TMGHL7MSG)
+  ;" IF TMGRESULT<0 GOTO PARSDN
+  ;" SET TMGHL7MSG("STAGE")="FINAL"
+  ;" SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
+PARSDN  ;
+  KILL OPTION("GUI") MERGE OPTION("GUI")=TMGENV("GUI")
+  IF +$G(TONULL) DO CLOSE^%ZISUTL(TONULL("HANDLE"))  ;"Close NULL device if opened above. 
+  QUIT TMGRESULT
+  ;
+FILEMSG(TMGENV,TMGHL7MSG)  ;"Call filer to handle prepped message           
+  ;"Input: TMGENV -- PASS BY REFERENCE
+  ;"       TMGHL7MSG -- PASS BY REFERENCE
+  ;"Results: 1 if OK, or -1^Message if error
+  NEW TMGRESULT SET TMGRESULT=1
+  NEW IEN22720 SET IEN22720=+$GET(TMGENV("IEN 22720"))
+  IF IEN22720'>0 DO  GOTO FMSGDN
+  . SET TMGRESULT="-1^Can't get IEN 22720 in FILEMSG^TMGHL71"
+  NEW NODE SET NODE=$GET(^TMG(22720,IEN22720,100))
+  NEW TAG SET TAG=$PIECE(NODE,"^",1) IF TAG="" DO  GOTO FMSGDN
+  . SET TMGRESULT="-1^Filer TAG (field 100) not defined for record IEN="_IEN22720_" in file 22720."           
+  NEW ROUTINE SET ROUTINE=$PIECE(NODE,"^",2) IF ROUTINE="" DO  GOTO FMSGDN
+  . SET TMGRESULT="-1^Filer ROUTINE (field 101) not defined for record IEN="_IEN22720_" in file 22720."           
+  NEW CODE SET CODE="SET TMGRESULT=$$"_TAG_"^"_ROUTINE_"(.TMGENV,.TMGHL7MSG)"
+  NEW TRAPECODE SET TRAPECODE=""
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Starting call to "_TAG_"^"_ROUTINE) 
+  DO
+  . NEW $ETRAP SET $ETRAP="SET TRAPECODE=$ECODE,$ETRAP="""",$ECODE="""""
+  . XECUTE CODE
+  IF TRAPECODE'="" DO
+  . SET TMGRESULT="-1^Mumps error calling filer: "_TRAPECODE
+  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("After call to "_TAG_"^"_ROUTINE_", result was: "_TMGRESULT)
+FMSGDN   ;
+  QUIT TMGRESULT
+  ;
+SETALERT(TMGRESULT,TMGENV) ;
+  NEW IGNORE SET IGNORE=0
+  ;"NOTE: block (line?) below shouldn't be needed as supposed to be filtered downstream.  
+  IF $$PTNOTFOUND^TMGHL7E(TMGRESULT),$$IGNORPT^TMGHL7E(TMGRESULT) GOTO ALTDN
+  NEW IEN22720 SET IEN22720=+$GET(TMGENV("IEN 22720"))
+  IF IEN22720'>0 GOTO ALTDN   ;"No way to send error message, so just leave
+  NEW IEN772 SET IEN772=$GET(TMGENV("IEN 772"))
+  NEW IEN773 SET IEN772=$GET(TMGENV("IEN 773"))
+  NEW NODE SET NODE=$GET(^TMG(22720,IEN22720,100))
+  NEW TAG SET TAG=$PIECE(NODE,"^",3) IF TAG="" GOTO ALTDN  
+  NEW ROUTINE SET ROUTINE=$PIECE(NODE,"^",4) IF ROUTINE="" GOTO ALTDN
+  NEW CODE SET CODE="SET TMGRESULT=$$"_TAG_"^"_ROUTINE_"(.TMGRESULT,,IEN772,IEN773)"
+  NEW TRAPECODE SET TRAPECODE=""
+  DO
+  . NEW $ETRAP SET $ETRAP="SET TRAPECODE=$ECODE,$ETRAP="""",$ECODE="""""
+  . XECUTE CODE
+ALTDN  ;
+  QUIT 
+  ;
 MOVE(SUCCESS,FNAME,DONEPATH,HL7DATE)  ;"Move HL7 messages to destination folders    
   ;"INPUT: SUCCESS--  Value >0: store in success folder, otherwise store in failed folder
   ;"       FNAME -- full filepathname of source HL7 file 
@@ -222,7 +360,7 @@ MAKEMETA(SUCCESS,FNAME,DONEPATH,OPTION,IEN772,IEN773)  ;"Store metadata about so
   ;"INPUT: SUCCESS--  Value >0: store in success folder, otherwise store in failed folder
   ;"       FNAME -- full filepathname of source HL7 file 
   ;"       DONEPATH -- Optional.  If provided, then specifies root of folder to moved completed messages
-  ;"       OPTION --  PASS BY REFERENCE. See HL7PARSE for description
+  ;"       OPTION --  PASS BY REFERENCE. See HL7PROCESS for description
   ;"            OPTION("HL7 DATE")=<HL7 DATE>  
   ;"            OPTION("FM DATE")=<FMDT>       
   ;"            OPTION("DFN")=<patient IEN>          
@@ -265,167 +403,6 @@ DESTFLDR(SUCCESS,FNAME,DONEPATH,HL7DATE)  ;
   IF TMGRESULT>0 SET TMGRESULT=OUTPATH
   QUIT TMGRESULT
   ;  
-HL7IN(NOALERT,OPTION)   ;"Purpose: Entry point, that could be  called from LA7V Process Results from PathGroup.
-  ;"Input:  NOALERT -- Optional.  If 1 then no alert made. 
-  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PARSE for description
-  ;"            OPTION("HL7 DATE")=<HL7 DATE>  <-- an OUT parameter
-  ;"            OPTION("FM DATE")=<FMDT>       <-- an OUT parameter
-  ;"            OPTION("DFN")=<patient IEN>    <-- an OUT parameter         
-  ;"            OPTION("FILEPATHNAME")=<FilePathName> <-- provide for reference.            
-  ;"  ALSO -- Several globally-scoped variables are  used:
-  ;"        HLMTIEN -- An IEN in 772     
-  ;"        HLMTIENS -- in IEN in 773    
-  ;"        HLREC                        ??
-  ;"Results: 1 if OK, or -1^Message IF error
-  ;"//kt 4/26/19 NEW MSGSTORE
-  NEW TMGHL7MSG,TMGRESULT,IEN62D4,IEN22720
-  NEW TMGHL7DEBUG SET TMGHL7DEBUG=0
-  NEW TMGMSG,TMGENV,TMGINFO
-  NEW IEN772,IEN773,TMGHLZZZ
-  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("@@")  ;"kill message log for all processes.
-  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Starting HL7IN^TMGHL72 to process HL7 message") 
-  SET TMGRESULT=$$SETFMENV^TMGHL7U()  ;"SETUP FILE MESSAGE ENVIRONMENT. 
-  IF TMGRESULT<0 GOTO HLIERR
-  SET TMGRESULT=$$FROM772^TMGHL7U2(IEN772,IEN773,.TMGMSG)
-  IF TMGRESULT<0 GOTO HLIERR        
-  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Here is message array",.TMGMSG) 
-  SET TMGRESULT=$$HL7MSGIN(.TMGMSG,.NOALERT,.OPTION)
-  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("After processing message, result was: "_TMGRESULT)
-  GOTO H7IN2DN  ;"NOTE: if HL7MSGIN encountered error, it will file it's own alerts          
-HLIERR ;
-  IF (TMGRESULT<0),(+$GET(NOALERT)'=1) DO  
-  . DO SETALRT2^TMGHL7E(TMGRESULT)
-H7IN2DN  ;
-  QUIT:$QUIT TMGRESULT
-  QUIT
-  ;        
-HL7MSGIN(TMGMSG,NOALERT,OPTION)    ;
-  ;"Purpose: Entry point to process message, stored in TMGMSG
-  ;"Input: TMGMSG -- PASS BY REFERENCE.  HL7 message to process.  Format
-  ;"          TMGMSG(#)=<line of HL7 message>
-  ;"       NOALERT -- OPTIONAL.  If 1 then no alert is created for errors
-  ;"          NOTE: if OPTION("GUI")=1, then this value is forced to 1.
-  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PARSE for description
-  ;"            OPTION("HL7 DATE")=<HL7 DATE>  <-- an OUT parameter
-  ;"            OPTION("FM DATE")=<FMDT>       <-- an OUT parameter
-  ;"            OPTION("DFN")=<patient IEN>    <-- an OUT parameter         
-  ;"            OPTION("FILEPATHNAME")=<FilePathName> <-- provided for reference.   
-  ;"Uses variables in global scope: IEN772, IEN773 (but OK if not defined)
-  ;"Results: 1 if OK, or -1^Message if error
-  NEW TMGHL7MSG,TMGU,TMGENV,ADFN
-  NEW TMGRESULT SET TMGRESULT=1
-  SET NOALERT=+$GET(NOALERT)
-  IF +$GET(OPTION("GUI")) SET NOALERT=1
-  ;"SET TMGRESULT=$$CKFIX(.TMGHL7MSG)  ;"opportunity to fix entire message or MSH if needed before starting parse.    
-  SET TMGRESULT=$$HL7PARSE(.TMGHL7MSG,.TMGENV,.TMGMSG,.OPTION)
-  NEW HL7DT SET HL7DT=$GET(TMGHL7MSG(1,7))
-  SET OPTION("HL7 DATE")=HL7DT
-  NEW FMDT SET FMDT=$$HL72FMDT^TMGHL7U3(HL7DT),OPTION("FM DATE")=FMDT
-  NEW PIDIDX SET PIDIDX=+$ORDER(TMGHL7MSG("B","PID",""))
-  SET ADFN=+$GET(TMGHL7MSG(PIDIDX,4)),OPTION("DFN")=ADFN
-  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("After HL7PARSE, here is parsed message array",.TMGHL7MSG) 
-  IF TMGRESULT<0 GOTO HLI3ERR
-  IF +$GET(OPTION("GUI","NO FILE"))=1 GOTO H7IN3DN
-  SET TMGRESULT=$$FILEMSG(.TMGENV,.TMGHL7MSG)
-  IF TMGRESULT<0 GOTO HLI3ERR
-HLI3ERR  ;
-  IF (TMGRESULT<0),(NOALERT'=1) DO SETALERT(TMGRESULT,.TMGENV)
-H7IN3DN  ;
-  QUIT TMGRESULT
-  ;
-HL7PARSE(TMGHL7MSG,TMGENV,TMGMSG,OPTION)    ;
-  ;"Purpose: Entry point to process message, stored in TMGMSG
-  ;"Input: TMGHL7MSG -- PASS BY REFERENCE, AN OUT PARAMETER.
-  ;"       TMGENV -- PASS BY REFERENCE, AN OUT PARAMETER.
-  ;"       TMGMSG -- PASS BY REFERENCE.  HL7 message to process.  Format
-  ;"          TMGMSG(#)=<line of HL7 message>
-  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. Format:
-  ;"          OPTION("GUI")=1  <-- signal that GUI is driving this code
-  ;"          OPTION("GUI","NO FILE")=1  <-- signal to just test parsing, don't actually file. 
-  ;"          OPTION("GUI","MSG",#)=<message from server code to GUI> <-- OUT PARAMETER
-  ;"          OPTION("GUI","MSG",#,"REPLY")=<reply from GUI to server code>   <-- IN PARAMETER
-  ;"          OPTION("INTERACTIVE MODE")=1  <-- signal to ask user for solutions to problems. 
-  ;"          OPTION("AUTO REGISTER MODE")=1  <-- signal to register labs etc automatically.
-  ;"          OPTION("SCREEN OUTPUT TO NULL")=1 <-- signal to first open NULL devices
-  ;"Results: 1 if OK, or -1^Message if error
-  NEW IEN62D4,IEN22720,FS,ECH
-  NEW TMGRESULT SET TMGRESULT=1
-  SET NOALERT=+$GET(NOALERT)
-  KILL ^TMG("TMP","TMGHL71") ;"kill message log for all processes.
-  SET TMGRESULT=$$SETUPENV^TMGHL7U(.TMGMSG,.TMGENV,0)
-  IF TMGRESULT<0 GOTO PARSDN
-  IF +$GET(OPTION("GUI")) DO
-  . SET NOALERT=1
-  . MERGE TMGENV("GUI")=OPTION("GUI")
-  MERGE TMGENV("INTERACTIVE MODE")=OPTION("INTERACTIVE MODE")
-  MERGE TMGENV("AUTO REGISTER MODE")=OPTION("AUTO REGISTER MODE")
-  NEW TONULL SET TONULL=$GET(OPTION("SCREEN OUTPUT TO NULL"))
-  IF TONULL DO
-  . SET TONULL("HANDLE")="TMGHNDL1"
-  . DO OPEN^%ZISUTL(TONULL("HANDLE"),"NULL")
-  . IF POP>0 SET TONULL=0 QUIT  ;"Unable to open NULL device
-  . USE IO
-  SET IEN62D4=TMGENV("IEN 62.4")  ;"I think this is used in global scope during transformation.
-  SET IEN22720=TMGENV("IEN 22720")
-  ;"NOTE: the line below divides up HL7 message into array.  But it
-  ;"      ALSO gathers information about each test (i.e. NLT codes etc)
-  SET TMGRESULT=$$PARSMSG2^TMGHL7X2(.TMGENV,.TMGMSG,.TMGHL7MSG) 
-  IF TMGRESULT<0 GOTO PARSDN
-  SET TMGHL7MSG("STAGE")="PRE"
-  SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
-  IF TMGRESULT<0 GOTO PARSDN
-  SET TMGRESULT=$$DOMORE^TMGHL7X2(.TMGENV,.TMGHL7MSG)
-  IF TMGRESULT<0 GOTO PARSDN
-  SET TMGHL7MSG("STAGE")="FINAL"
-  SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
-PARSDN  ;
-  KILL OPTION("GUI") MERGE OPTION("GUI")=TMGENV("GUI")
-  IF +$G(TONULL) DO CLOSE^%ZISUTL(TONULL("HANDLE"))  ;"Close NULL device if opened above. 
-  QUIT TMGRESULT
-  ;
-FILEMSG(TMGENV,TMGHL7MSG)  ;"Call filer to handle prepped message           
-  ;"Input: TMGENV -- PASS BY REFERENCE
-  ;"       TMGHL7MSG -- PASS BY REFERENCE
-  ;"Results: 1 if OK, or -1^Message if error
-  NEW TMGRESULT SET TMGRESULT=1
-  NEW IEN22720 SET IEN22720=+$GET(TMGENV("IEN 22720"))
-  IF IEN22720'>0 DO  GOTO FMSGDN
-  . SET TMGRESULT="-1^Can't get IEN 22720 in FILEMSG^TMGHL71"
-  NEW NODE SET NODE=$GET(^TMG(22720,IEN22720,100))
-  NEW TAG SET TAG=$PIECE(NODE,"^",1) IF TAG="" DO  GOTO FMSGDN
-  . SET TMGRESULT="-1^Filer TAG (field 100) not defined for record IEN="_IEN22720_" in file 22720."           
-  NEW ROUTINE SET ROUTINE=$PIECE(NODE,"^",2) IF ROUTINE="" DO  GOTO FMSGDN
-  . SET TMGRESULT="-1^Filer ROUTINE (field 101) not defined for record IEN="_IEN22720_" in file 22720."           
-  NEW CODE SET CODE="SET TMGRESULT=$$"_TAG_"^"_ROUTINE_"(.TMGENV,.TMGHL7MSG)"
-  NEW TRAPECODE SET TRAPECODE=""
-  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("Starting call to "_TAG_"^"_ROUTINE) 
-  DO
-  . NEW $ETRAP SET $ETRAP="SET TRAPECODE=$ECODE,$ETRAP="""",$ECODE="""""
-  . XECUTE CODE
-  IF TRAPECODE'="" DO
-  . SET TMGRESULT="-1^Mumps error calling filer: "_TRAPECODE
-  ;" SET TMGRESULT=$$FILEMSG^TMGLRW01(.TMGENV,.TMGHL7MSG)
-  IF $GET(TMGLOG) DO TMGLOG^TMGHL7U("After call to "_TAG_"^"_ROUTINE_", result was: "_TMGRESULT)
-FMSGDN   ;
-  QUIT TMGRESULT
-  ;
-SETALERT(TMGRESULT,TMGENV) ;
-  NEW IGNORE SET IGNORE=0
-  ;"NOTE: block below shouldn't be needed as supposed to be filtered downstream.  
-  IF $$PTNOTFOUND^TMGHL7E(TMGRESULT),$$IGNORPT^TMGHL7E(TMGRESULT) GOTO ALTDN
-  NEW IEN22720 SET IEN22720=+$GET(TMGENV("IEN 22720"))
-  IF IEN22720'>0 GOTO ALTDN   ;"No way to send error message, so just leave 
-  NEW NODE SET NODE=$GET(^TMG(22720,IEN22720,100))
-  NEW TAG SET TAG=$PIECE(NODE,"^",3) IF TAG="" GOTO ALTDN  
-  NEW ROUTINE SET ROUTINE=$PIECE(NODE,"^",4) IF ROUTINE="" GOTO ALTDN
-  NEW CODE SET CODE="SET TMGRESULT=$$"_TAG_"^"_ROUTINE_"(.TMGRESULT)"
-  NEW TRAPECODE SET TRAPECODE=""
-  DO
-  . NEW $ETRAP SET $ETRAP="SET TRAPECODE=$ECODE,$ETRAP="""",$ECODE="""""
-  . XECUTE CODE
-ALTDN  ;
-  QUIT 
-  ;
 TESTCKSPLIT(DEFPATH)     ;"Pick file and manually send through filing process.
   SET DEFPATH=$GET(DEFPATH,"/")
   NEW OPTION SET OPTION("PATH")=DEFPATH

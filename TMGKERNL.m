@@ -1,4 +1,4 @@
-TMGKERNL ;TMG/kst/OS Specific functions ;8/30/17, 3/8/18
+TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 5/29/20
          ;;1.0;TMG-LIB;**1**;04/24/09
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -791,12 +791,15 @@ GETSCRSZ(ROWS,COLS)  ;
   ;"Purpose: To query the OS and get the dimensions of the terminal window
   ;"Input: ROWS,COLS -- Optional.  PASS BY REFERENCE.  Filled with results
   ;"Results: Row^Col  e.g. '24^80', or '24^60' as a default IF problem.
-  ;"Note: thanks Bhaskar for figuring this out!
-  SET ROWS=20,COLS=90 
+  SET ROWS=20,COLS=90
+  ;"DO GSCRNSZ1(ROWS,COLS) ;
   ;"GOTO GSS2  ;"TEMP!!!
   ;"GOTO GSCRNSZ2+1 ;Sam's solution
-  DO GSCRNSZ3(.ROWS,.COLS)  GOTO GSSDN
+  ;"DO GSCRNSZ3(.ROWS,.COLS) 
+  DO GSCRNSZ4(.ROWS,.COLS) ;"Using Sam's latest routine  5/29/20
+  QUIT ROWS_"^"_COLS
   ;
+GSCRNSZ1(ROWS,COLS) ;
 GSS1 ;
   NEW p SET p="myTerm"
   NEW timeout SET timeout=1
@@ -814,9 +817,9 @@ GSS2 ;
   IF $$GTMUMPW(.TROWS,.TCOLS)  ;"drop result
   IF TROWS<ROWS SET ROWS=TROWS ;"Use smaller of devices vs terminal window
   IF TCOLS<COLS SET COLS=TCOLS
-GSSDN ;  
+GSS1DN ;  
   QUIT ROWS_"^"_COLS
-  ;      
+  ;
 GSCRNSZ2(ROWS,COLS) ;
   ;"Modified from code posted by Sam Habiel,'...stolen from George Timson's %ZIS3.'
   ;"Purpose: query console device (the terminal window) and get current
@@ -863,6 +866,14 @@ GSCRNSZ3(ROWS,COLS) ;"YET ANOTHER TRY....  8/30/17
   IF TEMP["LENGTH=" SET ROWS=+$PIECE(TEMP,"LENGTH=",2)
   QUIT
   ;  
+GSCRNSZ4(ROWS,COLS) ;"Using Sam's latest routine  5/29/20
+  NEW TEMP SET TEMP=$$AUTOMARG^XVEMKY
+  SET COLS=+$PIECE(TEMP,"^",1)
+  SET ROWS=+$PIECE(TEMP,"^",2)
+  IF COLS'>0 SET COLS=80
+  IF ROWS'>24 SET ROWS=24
+  QUIT
+
 GTMUMPW(ROWS,COLS) ;" GET MUMPS WIDTH        
   ;"Purpose: To query the GT.M mumps environment and get the dimensions of
   ;"       the terminal device.  E.g. this would be the width where a mumps 

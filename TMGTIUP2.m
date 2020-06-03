@@ -41,7 +41,7 @@ TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18
 TESTLHPI ;
         NEW X,Y,DIC SET DIC(0)="MAEQ",DIC=2
         DO ^DIC QUIT:+Y'>0
-        WRITE $$LASTHPI(+Y)
+        WRITE $$LASTHPI(+Y,1)
         QUIT
         ;
 T2()    ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
@@ -50,8 +50,9 @@ T2()    ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
         NEW OPTION SET OPTION("FORCE PROCESS")=1
         QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.OPTION)
         ;       
-LASTHPI(DFN)  ;"Return the last HPI section, with processing, formatting etc.
+LASTHPI(DFN,AWV)  ;"Return the last HPI section, with processing, formatting etc.
         ;"FIND LAST NOTE WITH HPI SECTION
+        ;"ADDED AWV AS AN OPTION TO BE USED WHEN COMPILING THE HPI, TO REORDER DIFFERENTLY
         NEW TIULASTOV SET TIULASTOV=$$LASTTIU(DFN,"HISTORY OF PRESENT ILLNESS (HPI):")
         IF TIULASTOV=0 QUIT ""           
         NEW ITEMARRAY,OUT  ;"<-- For now, these arrays are not being used.  
@@ -62,6 +63,7 @@ LASTHPI(DFN)  ;"Return the last HPI section, with processing, formatting etc.
         ;"   to do a Process Note to refresh them.  It shouldn't add too much
         ;"   computing burden. 
         NEW OPTION SET OPTION("FORCE PROCESS")=1
+        SET OPTION("AWV")=+$G(AWV)
         QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.OPTION)
         ;                   
 LASTTIU(DFN,SRCHTEXT)  ;
@@ -102,15 +104,6 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         ;" SET OPTION("BULLETS")=(+$GET(DUZ)'=83)  ;"<--- Eddie, please convert to use parameter.
         ;"Once below is tested, above line can be removed
         SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
-        ;"------ Remove below later... 5/20/18
-        ;"NEW ZZTMG SET ZZTMG=(+$GET(DUZ)=168)
-        ;"SET ZZTMG=1  ;<--- REMOVE TO PUT DR DEE BACK TO PRIOR METHOD.  
-        ;"IF ZZTMG=1 DO
-        ;". SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
-        ;". SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI    //kt 7/10/17 
-        ;"ELSE  DO
-        ;". SET TMGHPI=$$COMPHPI0(.ITEMARRAY,.OPTION,.OUT)  ;"EDDIE'S WORKING COMPILER OF HPI
-        ;"------ End Remove later... 5/20/18
         SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
         SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
 LHDN    QUIT TMGHPI
@@ -230,6 +223,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<LI>","*")
         SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)                            
         NEW PREVFOUND SET PREVFOUND=0
+        NEW SOCIALFOUND SET SOCIALFOUND=0
         NEW CONTRAFOUND SET CONTRAFOUND=0
         SET OPTION("GROUPING")=0
         ;"
@@ -278,12 +272,18 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . . ;"IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
         . . ;"JUST CHECK TITLE INSTEAD OF ENTIRE SECTION 4/8/19
         . . IF $$UP^XLFSTR(TITLE)["PREVENT" SET PREVFOUND=1
+        . . IF $$UP^XLFSTR(TITLE)["SOCIAL" SET SOCIALFOUND=1
         . . IF $$UP^XLFSTR(TITLE)["CONTRACEPTION" SET CONTRAFOUND=1
         . . IF $$UP^XLFSTR(SECTION)["[GROUP" SET OPTION("GROUPING")=1
         . . IF $$UP^XLFSTR(SECTION)["(GROUP" SET OPTION("GROUPING")=1
         IF PREVFOUND=0 DO  ;"if prevention section not found, add blank one
         . SET ITEMARRAY(IDX)="<U>Prevention</U>: (data needed)"
         . SET ITEMARRAY("TEXT",IDX)="Prevention"
+        . SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
+        . SET IDX=IDX+1
+        IF SOCIALFOUND=0 DO  ;"if socoail section not found, add blank one
+        . SET ITEMARRAY(IDX)="<U>Social</U>: (data needed)"
+        . SET ITEMARRAY("TEXT",IDX)="Social"
         . SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
         . SET IDX=IDX+1
         IF CONTRAFOUND=0 DO
@@ -432,7 +432,8 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         ;"                                or "A,B,C" This will output group A, then B, then C, and then non-grouped
         ;"                                or "C,B,A" This will output group C, then B, then A, and then non-grouped
         ;"                                or "C" This will output group C, then remaing groups in alphabetical order.                  
-        ;"                                or "" (or undefined), order should be as in prior note                  
+        ;"                                or "" (or undefined), order should be as in prior note  
+        ;"          OPTION("AWV") = 0 OR 1 .  1 for Annual Wellness Visit -- to be implemented....
         ;"       OUT -- PASS BY REFERENCE.  OPTIONAL.  Will get back formatted array with structured HPI.
         ;"           OUT(#)=<TEXT>
         ;"           OUT=<LINE COUNT>
@@ -444,6 +445,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         NEW ADDBR SET ADDBR=+$GET(OPTION("TRAILING <BR>"))
         NEW GROUPORDER SET GROUPORDER=$GET(OPTION("GROUP-ORDER"))
         NEW GROUPOFF SET GROUPOFF=+$G(OPTION("GROUP OFF"))
+        NEW AWV SET AWV=+$G(OPTION("AWV"))
         NEW TMGHPI SET TMGHPI=""
         IF GROUPING=1 SET AUTOGROUPING=0  ;"IF ALREADY GROUPING, DON'T ATTEMPT TO AUTOGROUP
         NEW IDX,SECTIONCT SET SECTIONCT=0,IDX=0
@@ -451,6 +453,8 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         IF AUTOGROUPING>0 DO
         . DO AUTOGRP(.ITEMARRAY,NUMOFGROUPS,SECTIONCT)
         . SET GROUPING=1
+        IF AWV=1 DO  ;"turn off grouping
+        . SET GROUPING=0,AUTOGROUPING=0,GROUPORDER=""
         IF DUZ=168 DO
         . IF GROUPORDER'="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("Items arranged in Following Order:"_GROUPORDER_"<BR>","#e0ac11",.OPTION)
         . IF GROUPING=1 DO
@@ -478,15 +482,16 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . . . ELSE  SET HANDLEDUNGRPED="At top of note"
         . . . SET GRPSTR=GRPSTR_", Ungrouped="_UNGROUPED_" ("_HANDLEDUNGRPED_")"
         . . SET GRPSTR="Grouping count: "_GRPSTR_" Avg per group: "_AVERAGE_"<BR>"
-        . . SET TMGHPI=TMGHPI_$$WRAPTEXT^TMGTIUOT(GRPSTR,"#e0ac11",.OPTION)        
+        . . ;"REMOVED BELOW FOR NOW, PER DR. K    5/19/20
+        . . ;"SET TMGHPI=TMGHPI_$$WRAPTEXT^TMGTIUOT(GRPSTR,"#e0ac11",.OPTION)        
         ;"        
         NEW WARNING SET WARNING=(SECTIONCT>10)&'GROUPING      
         NEW DELIM DO SUDELIM(.DELIM) 
         ;
-        IF (WARNING=1)&(GROUPING=0)&(+$GET(DUZ)'=83) DO
+        IF (WARNING=1)&(GROUPING=0)&(+$GET(DUZ)'=83)&(AWV'=1) DO
         . SET TMGHPI=TMGHPI_$$ADDSTR($$GRPNGSTR(SECTIONCT),.OUT)  
         IF BULLETS SET TMGHPI=TMGHPI_$$ADDSTR("<UL>",.OUT)  ;"//add to TMGHPI string and OUT array        
-        NEW SEQARR DO GETSEQAR(.SEQARR,.ITEMARRAY,GROUPORDER)  ;"Get process sequencing order.   
+        NEW SEQARR DO GETSEQAR(.SEQARR,.ITEMARRAY,GROUPORDER,.OPTION)  ;"Get process sequencing order.   
         ;"FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
         NEW CT SET CT=0
         FOR  SET CT=$ORDER(SEQARR(CT)) QUIT:CT'>0  DO
@@ -551,46 +556,61 @@ AUTOGRP(ITEMARR,NUMOFGRPS,SECTIONCOUNT)  ;"AUTO GROUP TOPICS
         . SET ITEMARR("TEXT",IDX,"GROUPX")=GRP
         QUIT
         ;"
-GETSEQAR(SEQARR,ITEMARRAY,GRPORDER)  ;"Get process sequencing order.
+GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
+        ;"Input:  SEQARR
+        ;"        ITEMARRAY
+        ;"        GRPORDER
+        ;"        OPTION
         ;"Output is SEQARR.  Format (SEQARR(#)=IDX order.  IDX is used as  ITEMARRAY("TITLE",IDX)
+        NEW AWV SET AWV=+$G(OPTION("AWV"))
         NEW IDX
         SET GRPORDER=$$TRIM^XLFSTR($GET(GRPORDER))
+        IF (AWV=1)&(DUZ=168) SET GRPORDER="A,B,C,D"
         ;"eddie adding 10/23/18
         NEW BREAKLINE SET BREAKLINE=-1
-        IF GRPORDER="" SET GRPORDER=$$GETFIRST(.ITEMARRAY)
-        ELSE  DO ADDBREAK(.ITEMARRAY,.BREAKLINE)
+        IF (GRPORDER="")&(AWV=0) SET GRPORDER=$$GETFIRST(.ITEMARRAY)
+        ELSE  DO ADDBREAK(.ITEMARRAY,.BREAKLINE)        
         IF GRPORDER'="" DO
         . ;"Create a sequence array based on requested grouping order
-        . NEW USEDIDXARR,USEDGRPARR,GRP,LASTGRP,CT 
-        . SET CT=5  ;"WE WILL LEAVE 1-4 FOR UNGROUPED, counting in tenths 10/11/18
+        . NEW USEDIDXARR,USEDGRPARR,GRP,LASTGRP,CT
+        . SET CT=7  ;"WE WILL LEAVE 4-6 FOR UNGROUPED, counting in tenths 10/11/18, 1 FOR SOCIAL, 2 FOR PREVENTION
+        . IF AWV=1 DO
+        . . SET SEQARR(3)=BREAKLINE,USEDIDXARR(BREAKLINE)=1
         . NEW GROUP
         . FOR PN=1:1:$LENGTH(GRPORDER,",") DO  ;"NOTE: GRPORDER may not mention all available group names
         . . SET GROUP=$$TRIM^XLFSTR($PIECE(GRPORDER,",",PN))
         . . SET LASTGRP=GROUP
-        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR)  
+        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,AWV)  
         . ;"Now that . . we have requested groups, continue with other groups, starting after last used group
         . ;"E.g. if we had groups A,B,C,D in note, and requested group of B, then get next C, then D
-        . IF BREAKLINE>-1 DO
+        . IF (BREAKLINE>-1)&(AWV=0) DO
         . . SET CT=CT+1,SEQARR(CT)=BREAKLINE,USEDIDXARR(BREAKLINE)=1
         . SET GROUP=LASTGRP
         . FOR  SET GROUP=$ORDER(ITEMARRAY("GROUP",GROUP)) QUIT:GROUP=""  DO
-        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR)  
+        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,AWV)  
         . ;"Now start over again at beginning of list. In example above, loop back to beginning of list and get group A
         . SET GROUP=""
         . FOR  SET GROUP=$ORDER(ITEMARRAY("GROUP",GROUP)) QUIT:GROUP=""  DO
-        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR)  
+        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,AWV)  
         . ;"Lastly, go through every item, which might include items NOT in ANY group, and add them
         . SET IDX=0
-        . SET CT=1
+        . SET CT=4
         . FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
         . . IF $GET(USEDIDXARR(IDX))>0 QUIT  ;"already used 
         . . SET CT=CT+.1,SEQARR(CT)=IDX        
         ELSE  DO
         . ;"Create a sequence array based on order of appearance in prior note. 
-        . NEW CT SET CT=0
+        . NEW CT SET CT=4
         . NEW IDX SET IDX=0
         . FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
-        . . SET CT=CT+1,SEQARR(CT)=IDX
+        . . IF $$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["SOCIAL" DO
+        . . . SET SEQARR(1)=IDX
+        . . ELSE  IF ($$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["PREVENTION")&(AWV=1) DO
+        . . . SET SEQARR(2)=IDX
+        . . ELSE  IF ($$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["HPI ISSUES BELOW WERE")&(AWV=1) DO
+        . . . SET SEQARR(3)=IDX
+        . . ELSE  DO
+        . . . SET CT=CT+1,SEQARR(CT)=IDX
         QUIT
         ;
 GETFIRST(ITEMARRAY)  ;"This function is used when no group is listed in the
@@ -609,14 +629,28 @@ ADDBREAK(ITEMARRAY,BREAKLINE)  ;"ADD A BREAK SECTION
         SET ITEMARRAY("TEXT",BREAKLINE)=$$NOTADDRE^TMGTIUOT
         QUIT
         ;"
-GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR)  ;
+GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR,AWV)  ;
         SET GROUP=$GET(GROUP)
+        SET AWV=+$G(AWV)
         IF $DATA(USEDGRPARR(GROUP)) QUIT
         SET USEDGRPARR(GROUP)=""
         NEW IDX SET IDX=0
+        NEW PREVIDX SET PREVIDX=0
         FOR  SET IDX=$ORDER(ITEMARRAY("GROUP",GROUP,IDX)) QUIT:IDX'>0  DO
         . IF $GET(USEDIDXARR(IDX))>0 QUIT  ;"already used  (some index can be in multiple groups)
-        . SET CT=CT+1,SEQARR(CT)=IDX,USEDIDXARR(IDX)=1        
+        . IF $$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["SOCIAL" DO
+        . . SET SEQARR(1)=IDX
+        . . SET USEDIDXARR(IDX)=1
+        . ELSE  IF $$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["PREVENTION" DO
+        . . IF AWV=1 DO
+        . . . SET SEQARR(2)=IDX
+        . . . SET USEDIDXARR(IDX)=1
+        . . ELSE  DO
+        . . . SET PREVIDX=IDX
+        . ELSE  DO
+        . . SET CT=CT+1,SEQARR(CT)=IDX,USEDIDXARR(IDX)=1
+        IF PREVIDX>0 DO  ;"PREV WAS FOUND AND IS MOVED TO BOTTOM OF SEQ FOR THIS GROUP
+        . SET CT=CT+1,SEQARR(CT)=PREVIDX,USEDIDXARR(PREVIDX)=1
         QUIT
         ;        
 GRPNGSTR(SECTIONCT) ;"GET GROUPING STRING

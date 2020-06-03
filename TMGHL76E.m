@@ -16,7 +16,7 @@ TMGHL76E ;TMG/kst-HL7 Processing Error/Alert handling; 11/18/16
   ;" API -- Public Functions.
   ;"=======================================================================
   ;"HNDLERR -- Handler for alert created during Radiology HL7 filing system.
-  ;"SETALRT(ERRTEXT,AMSG) --set up alerts for error handling of Rad filer problems. 
+  ;"SETALRT(ERRTEXT,AMSG,IEN772,IEN773) --set up alerts for error handling of Rad filer problems. 
   ;"
   ;"=======================================================================
   ;" API - Private Functions
@@ -28,13 +28,12 @@ TMGHL76E ;TMG/kst-HL7 Processing Error/Alert handling; 11/18/16
   ;"=======================================================================
   ;"==============================================================
   ;
-SETALERT(ERRTEXT,AMSG) ;
+SETALERT(ERRTEXT,AMSG,IEN772,IEN773) ;
   ;"Purpose: Set up alerts for error handling of Rad filer problems.
   ;"NOTE: called from CREATE^LA7LOG
   ;"Input: ERRTEXT -- Text of error.
   ;"       AMSG -- Additional message, IF any.
   ;"NOTE: uses some variable in global scope:
-  ;"          HLMTIEN (which is really an IEN772), HLMTIENS (an IEN773)
   ;"          TMGHL7MSG
   ;"Results: NONE:
   ;"Output: An alert is created. 
@@ -57,7 +56,8 @@ SETALERT(ERRTEXT,AMSG) ;
   NEW XQA,XQAARCH,XQADATA,XQAFLG,XQAGUID,XQAID,XQAOPT,XQAROU,XQASUPV,XQASURO,XQATEXT
   ;"SET XQA("LA7V IPL")=""
   SET XQA(150)=""   ;"//to Eddie Hagood
-  SET XQADATA=$J_"^"_NOWH_"^"_HLMTIEN_"^"_HLMTIENS
+  ;"SET XQADATA=$J_"^"_NOWH_"^"_HLMTIEN_"^"_HLMTIENS
+  SET XQADATA=$J_"^"_NOWH_"^"_IEN772_"^"_IEN773
   SET XQAID="TMG-HL7"
   SET XQAROU="HNDLERR^TMGHL7E2"
   SET XQAMSG=$$ERRLABEL(.TMGHL7MSG)
@@ -180,14 +180,14 @@ M2 ;
   IF TMGUSERINPUT="ViewMsg" DO VIEWMSG^TMGHL7U2(.TMGTESTMSG) GOTO M2
   IF TMGUSERINPUT="HL7FileMenu" DO FILEMENU^TMGHL70(.TMGTESTMSG,INDENTN+2) WRITE !,! GOTO M2  
   IF TMGUSERINPUT="FixCPT" DO FIXCPT(TMGERROR,INDENTN+2) WRITE !,! GOTO M2  
-  IF TMGUSERINPUT="TryAgain" IF +$$TRYAGAN2(.TMGTESTMSG,0)=1 GOTO HE2DN
-  IF TMGUSERINPUT="TryAgainDebugger" IF $$TRYAGAN2(.TMGTESTMSG,1)=1 GOTO HE2DN
+  IF TMGUSERINPUT="TryAgain" IF +$$TRYAGAN2(.TMGTESTMSG,0,IEN772,IEN773)=1 GOTO HE2DN
+  IF TMGUSERINPUT="TryAgainDebugger" IF $$TRYAGAN2(.TMGTESTMSG,1,IEN772,IEN773)=1 GOTO HE2DN
   IF TMGUSERINPUT="SearchPt" NEW TMGSRCH SET TMGSRCH=0 DO  GOTO HE2DN:TMGSRCH=1,M2
   . NEW TEMP,TMGHNDLERR
   . IF $$FINDPT(.TEMP,.TMGHL7MSG)=0 QUIT
   . SET TMGHNDLERR("SSN")=$GET(TEMP("SSN"))
   . SET TMGHNDLERR("DFN")=$GET(TEMP("DFN"))
-  . SET TMGSRCH=$$TRYAGAN2(.TMGTESTMSG,0)
+  . SET TMGSRCH=$$TRYAGAN2(.TMGTESTMSG,0,IEN772,IEN773)
   IF TMGUSERINPUT="IgnorePt" DO  GOTO M2:(TEMPRESULT'=1),HE2DN
   . SET TEMPRESULT=$$ADDIGNOR^TMGHL7E(.TMGENV,TMGERROR,INDENTN+2)
   . IF TEMPRESULT'=1 QUIT
@@ -195,7 +195,7 @@ M2 ;
   ;
   IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
   IF TMGUSERINPUT'="^" GOTO M2
-  IF $$TRYAGAN2(.TMGTESTMSG,0)'=1 DO
+  IF $$TRYAGAN2(.TMGTESTMSG,0,,IEN772,IEN773)'=1 DO
   . DO CLEANUP2(TMGJOBN,TMGTIME) 
 HE2DN  ;
   WRITE "Quitting.  Goodbye",!
@@ -288,7 +288,7 @@ CLEANUP2(TMGJOBN,TMGTIME)  ;
         DO KOLDDATA ;"KILL old data, older than 1 month
         QUIT
         ;
-TRYAGAN2(TMGMSG,DEBUG) ;
+TRYAGAN2(TMGMSG,DEBUG,IEN772,IEN773) ;
         ;"Purpose: Try processing again, using debugger to walk through code.
         ;"Input: TMGMSG -- Array holding HL7 message.  
         ;"       DEBUG -- OPTIONAL.  If 1, then code is launched through debugger. 
@@ -298,7 +298,7 @@ TRYAGAN2(TMGMSG,DEBUG) ;
         WRITE "Send HL7 message through Rad filer again" DO YN^DICN WRITE !
         IF %'=1 DO  GOTO DBDN2  ;"DEBG2DN
         . SET TMGRESULT="-1^HL7 Message Filing Aborted"        
-        NEW CODE SET CODE="SET TMGRESULT=$$HL7MSGIN^TMGHL71(.TMGMSG,1)"
+        NEW CODE SET CODE="SET TMGRESULT=$$HLMSGIMPORT^TMGHL71(.TMGMSG,1)"
         IF +$GET(DEBUG)=1 DO
         . DO DIRDEBUG^TMGIDE(CODE)
         ELSE  DO
@@ -310,7 +310,7 @@ DEBG2DN IF TMGRESULT<0 DO
         . WRITE $PIECE(TMGRESULT,"^",2,99),!
         . SET %=2 WRITE "Create a NEW alert for this NEW error" DO YN^DICN WRITE !
         . IF %'=1 QUIT
-        . DO SETALERT(TMGRESULT)
+        . DO SETALERT(TMGRESULT,,IEN772,IEN773)
         . WRITE "Alert has been created.  Exit this handler and select NEW alert to process.",!        
         DO PRESS2GO^TMGUSRI2
 DBDN2   QUIT TMGRESULT

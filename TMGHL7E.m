@@ -16,7 +16,7 @@ TMGHL7E ;TMG/kst-HL7 Processing Error/Alert handling; 10/27/15
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"HNDLERR2 -- Handler for alert created during POC filing system.
- ;"SETALRT2(ERRTEXT,AMSG) --set up alerts for error handling of POC filer problems. 
+ ;"SETALERT(ERRTEXT,AMSG,IEN772,IEN773) --set up alerts for error handling of POC filer problems. 
  ;"
  ;"=======================================================================
  ;" API - Private Functions
@@ -28,12 +28,12 @@ TMGHL7E ;TMG/kst-HL7 Processing Error/Alert handling; 10/27/15
  ;"=======================================================================
  ;
  ;"==============================================================
-SETALRT2(ERRTEXT,AMSG) ;
+SETALERT(ERRTEXT,AMSG,IEN772,IEN773) ;
         ;"Purpose: Set up alerts for error handling of POC filer problems.
-        ;"NOTE: called from CREATE^LA7LOG
         ;"Input: ERRTEXT -- Text of error.
-        ;"       AMSG -- Additional message, IF any. 
-        ;"NOTE: uses HLMTIEN (which is really an IEN772), HLMTIENS (an IEN773) in global scope
+        ;"       AMSG -- Additional message, IF any.
+        ;"       IEN772
+        ;"       IEN773
         ;"Results: NONE:
         ;"Output: An alert is created. 
         ;"Restore original message
@@ -43,7 +43,6 @@ SETALRT2(ERRTEXT,AMSG) ;
         SET AMSG=$GET(AMSG)
         KILL MSGSTORE ;"Not needed, and clutters variable table.
         NEW PTNOTFOUND SET PTNOTFOUND=$$PTNOTFOUND^TMGHL7E(ERRTEXT) 
-        ;"NEW PTNOTFOUND SET PTNOTFOUND=(ERRTEXT["Patient not found in system:")
         IF PTNOTFOUND,$$IGNORPT(ERRTEXT) GOTO SA2DN         
         NEW TMGERROR SET TMGERROR="[POC ERR]: "_ERRTEXT
         IF AMSG'="" SET TMGERROR=TMGERROR_"; POC MESSAGE]: "_AMSG
@@ -55,7 +54,7 @@ SETALRT2(ERRTEXT,AMSG) ;
         NEW XQA,XQAARCH,XQADATA,XQAFLG,XQAGUID,XQAID,XQAOPT,XQAROU,XQASUPV,XQASURO,XQATEXT
         SET XQA("LA7V IPL")=""
         SET XQA(168)=""   ;"//to Kevin Toppenberg (?)
-        SET XQADATA=$J_"^"_NOWH_"^"_HLMTIEN_"^"_HLMTIENS
+        SET XQADATA=$J_"^"_NOWH_"^"_IEN772_"^"_IEN773
         SET XQAID="TMG-HL7"
         SET XQAROU="HNDLERR2^TMGHL7E"
         SET XQAMSG=$$ERRLABEL()
@@ -111,8 +110,8 @@ HNDLERR2 ;
         NEW IEN772 SET IEN772=$PIECE(XQADATA,"^",3)
         NEW IEN773 SET IEN773=$PIECE(XQADATA,"^",4)
         NEW INDENTN SET INDENTN=0
-        NEW HLMTIEN,HLMTIENS
-        SET HLMTIEN=IEN772,HLMTIENS=IEN773
+        ;"NEW HLMTIEN,HLMTIENS
+        ;"SET HLMTIEN=IEN772,HLMTIENS=IEN773
         NEW TMGTESTMSG,TMGHL7MSG,TMGU,TEMPRESULT
         DO LOAD772^TMGHL7S(IEN773,.TMGTESTMSG,.TMGHL7MSG,.TMGU)
         WRITE !,!,"Job that had transform problem was: ",TMGJOBN,!
@@ -140,7 +139,8 @@ HNDLERR2 ;
         . NEW % SET %=1 WRITE "Delete" DO YN^DICN WRITE !
         . IF %=2 SET SKIP=0 QUIT        
         . KILL ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME)        
-        NEW TMGRESULT SET TMGRESULT=$$SETUPENV^TMGHL7U(.TMGTESTMSG,.TMGENV,1)        
+        NEW TMGRESULT SET TMGRESULT=$$SETUPENV^TMGHL7U(.TMGTESTMSG,.TMGENV,1)
+        SET TMGENV("IEN 772")=IEN772 SET TMGENV("IEN 773")=IEN773
         IF TMGRESULT'>0 DO  GOTO HE2DN
         . WRITE !,"Unable to SET up environment for processing HL7 POC Lab error.",!
         . WRITE "Message was: ",$PIECE(TMGRESULT,"^",2),!
@@ -189,8 +189,8 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         IF TMGUSERINPUT="ViewMsg" DO VIEWMSG^TMGHL7U2(.TMGTESTMSG) GOTO M2
         IF TMGUSERINPUT="TestMap" DO TESTMAP^TMGHL70A(.TMGENV,.TMGTESTMSG,.TMGHL7MSG) WRITE !,! GOTO M2  
         IF TMGUSERINPUT="HL7FileMenu" DO FILEMENU^TMGHL70(.TMGTESTMSG,INDENTN+2) WRITE !,! GOTO M2  
-        IF TMGUSERINPUT="TryAgain" IF +$$TRYAGAN2(.TMGTESTMSG,0)=1 GOTO HE2DN
-        IF TMGUSERINPUT="TryAgainDebugger" IF $$TRYAGAN2(.TMGTESTMSG,1)=1 GOTO HE2DN
+        IF TMGUSERINPUT="TryAgain" IF +$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV)=1 GOTO HE2DN
+        IF TMGUSERINPUT="TryAgainDebugger" IF $$TRYAGAN2(.TMGTESTMSG,1,.TMGENV)=1 GOTO HE2DN
         IF TMGUSERINPUT="InvalidValue" DO INVAL(IEN22720,.TMGERROR,INDENTN+2) GOTO M2
         IF TMGUSERINPUT="SetupTest" DO HESUTST2(.TMGENV,.TMGTESTMSG,INDENTN+2) GOTO M2 
         IF TMGUSERINPUT="SearchPt" NEW TMGSRCH SET TMGSRCH=0 DO  GOTO HE2DN:TMGSRCH=1,M2
@@ -198,7 +198,7 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         . IF $$FINDPT(.TEMP,.TMGHL7MSG)=0 QUIT
         . SET TMGHNDLERR("SSN")=$GET(TEMP("SSN"))
         . SET TMGHNDLERR("DFN")=$GET(TEMP("DFN"))
-        . SET TMGSRCH=$$TRYAGAN2(.TMGTESTMSG,0)
+        . SET TMGSRCH=$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV)
         IF TMGUSERINPUT="IgnorePt" DO  GOTO M2:(TEMPRESULT'=1),HE2DN
         . SET TEMPRESULT=$$ADDIGNOR(.TMGENV,TMGERROR,INDENTN+2)
         . IF TEMPRESULT'=1 QUIT
@@ -207,7 +207,7 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         ;
         IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
         IF TMGUSERINPUT'="^" GOTO M2
-        IF $$TRYAGAN2(.TMGTESTMSG,0)'=1 DO
+        IF $$TRYAGAN2(.TMGTESTMSG,0,.TMGENV)'=1 DO
         . DO CLEANUP2(TMGJOBN,TMGTIME) 
 HE2DN   WRITE "Quitting.  Goodbye",!
         KILL TMGHNDLERR  ;"just in case it was set here. 
@@ -324,19 +324,17 @@ GETPTINO2(TMGHL7MSG) ;
         SET TMGRESULT=$G(TMGHL7MSG(PIDSEG,5,1))_","_$G(TMGHL7MSG(PIDSEG,5,2))_" ("_DATE_")"
         QUIT TMGRESULT
         ;        
-TRYAGAN2(TMGMSG,DEBUG) ;
+TRYAGAN2(TMGMSG,DEBUG,TMGENV) ;
         ;"Purpose: Try processing again, using debugger to walk through code.
         ;"Input: TMGMSG -- Array holding HL7 message.  
         ;"       DEBUG -- OPTIONAL.  If 1, then code is launched through debugger. 
         ;"Result: 1 if OK, or -1^Abort IF aborted. 
         NEW TMGRESULT SET TMGRESULT=1
         NEW % SET %=1
-        ;"12/2/19  WRITE "Send HL7 message through POC filer again" DO YN^DICN WRITE !
         WRITE "Send HL7 message through POC filer again" SET %=+$$YNA^TMGUSRI2(%) WRITE !
         IF %'=1 DO  GOTO DBDN2  ;"DEBG2DN
         . SET TMGRESULT="-1^HL7 Message Filing Aborted"        
-        ;"NEW CODE SET CODE="SET TMGRESULT=$$HL7MSGIN^TMGHL71(.TMGMSG,1)"
-        NEW CODE SET CODE="SET TMGRESULT=$$HL7MSGIN^TMGHL71(.TMGMSG,1)"
+        NEW CODE SET CODE="SET TMGRESULT=$$HLMSGIMPORT^TMGHL71(.TMGMSG,1,,.TMGENV)"
         IF +$GET(DEBUG)=1 DO
         . DO DIRDEBUG^TMGIDE(CODE)
         ELSE  DO
@@ -350,7 +348,6 @@ DEBG2DN IF TMGRESULT<0 DO
         . WRITE !,ERR,!
         . IF $$PTNOTFOUND(ERR) DO  QUIT:IGNORE
         . . SET ERR=$PIECE(ERR,".",1)
-        . . ;"new code here 11/15/19
         . . NEW NOIGNORE SET NOIGNORE=0
         . . IF $$IGNORPT(ERR)=0 DO  QUIT:NOIGNORE
         . . . SET %=1 WRITE "Would you like to ignore this patient" DO YN^DICN WRITE !
@@ -359,13 +356,13 @@ DEBG2DN IF TMGRESULT<0 DO
         . . . . SET TMGRESULT=1  ;"12/1/19 This needs to be tested.
         . . . ELSE  DO
         . . . . SET NOIGNORE=1
-        . . ;"original code below  11/15/19
-        . . ;"IF $$IGNORPT(ERR)=0 QUIT 
         . . DO CLEANUP2(TMGJOBN,TMGTIME,1) 
         . . SET IGNORE=1
         . SET %=2 WRITE "Create a NEW alert for this NEW error" DO YN^DICN WRITE !
         . IF %'=1 QUIT
-        . DO SETALRT2(TMGRESULT)
+        . NEW IEN772,IEN773
+        . SET IEN772=$GET(TMGENV("IEN 772")),IEN773=$GET(TMGENV("IEN 773"))
+        . DO SETALERT(TMGRESULT,,IEN772,IEN773) 
         . WRITE "Alert has been created.  Exit this handler and select NEW alert to process.",!        
         DO PRESS2GO^TMGUSRI2
 DBDN2   QUIT TMGRESULT

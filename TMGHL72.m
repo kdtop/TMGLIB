@@ -22,6 +22,10 @@ TMGHL72 ;TMG/kst-HL7 transformation engine processing ;5/9/17, 4/1/18, 4/11/19
  ;
  ;"=======================================================================
  ;"=======================================================================
+ ;
+ ;"NOTE2: the transformation process is 
+ ;"=======================================================================
+ ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
  ;
@@ -261,23 +265,30 @@ XORC13  ;"Purpose: Process empty ORC message, field 13
         QUIT
         ;
 OBR     ;"Purpose: setup for OBR fields.
-        ;"Input: Uses globally scoped vars: TMGVALUE,TMGENV,TMGHL7MSG,TMGSEGN
-        ;"NEW CE SET CE=$PIECE(TMGVALUE,TMGU(1),4)  ;"e.g. 'CRE^CREATININE'
-        ;"NEW VACODE SET VACODE=$$XFTEST(.TMGENV,CE,"O")  ;"WRKLDCode^LabPrintName^LabName^LabIEN60, or -1^Error Message        
-        NEW ARR MERGE ARR=TMGHL7MSG(TMGSEGN,"ORDER")
+        ;"Input: Uses globally scoped vars: TMGVALUE, TMGENV, TMGHL7MSG, TMGSEGN, TMGINFO
+        ;
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        ;
+        NEW ARR,ORDERTEST SET ORDERTEST=$GET(TMGHL7MSG(TMGSEGN,4)) IF ORDERTEST="" GOTO OBRDN
+        SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,ORDERTEST,"O",.ARR)
+        KILL TMGHL7MSG(TMGSEGN,"ORDER") MERGE TMGHL7MSG(TMGSEGN,"ORDER")=ARR
+        KILL TMGHL7MSG("ORDER",TMGSEGN) MERGE TMGHL7MSG("ORDER",TMGSEGN)=ARR
+        ;
         NEW NLT SET NLT=$GET(ARR("NLT"),"??")
         NEW IEN60 SET IEN60=$GET(ARR("IEN60"),"??")
         NEW LABNAME SET LABNAME=$PIECE(IEN60,"^",2)
         NEW LABPRNAME SET LABPRNAME=$PIECE(IEN60,"^",3)
-        SET VACODE=NLT_"^"_LABPRNAME_"^"_LABNAME_"^"_+IEN60
+        SET VACODE=NLT_"^"_LABPRNAME_"^"_LABNAME_"^"_+IEN60  ;"WRKLDCode^LabPrintName^LabName^LabIEN60
         ;
         SET TMGINFO("VACODE")=VACODE
-        SET TMGINFO("VACODE","OBR")=VACODE
-OBRDN   QUIT
+OBRDN   IF TMGRESULT<0 SET TMGXERR=$PIECE(TMGRESULT,"^",2,99)   
+        QUIT
 
 OBR4    ;"Purpose: To transform the OBR segment, field 4
         ;"Input: Uses globally scoped vars: TMGVALUE
         ;"Transform 'Universal Service ID' -- test name
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        ;
         NEW VACODE SET VACODE=$GET(TMGINFO("VACODE"))
         IF VACODE="" SET TMGXERR="In OBR4.TMGHL72: OBR setup code didn't fire to setup TMGINFO(""VACODE"")."
         SET TMGVALUE=$P(VACODE,"^",1)_TMGU(2)_$P(VACODE,"^",2)_TMGU(2)_"99VA64"
@@ -314,7 +325,6 @@ OBR16   ;"Transform Ordering provider.
         ;
 OBX     ;"Purpose: to transform the entire OBX segment before any fields are processed
         ;"Uses TMGSEGN, that is set up in from TMGHL7X* code before calling here.
-        ;"SET TMGLASTOBXSEGN=TMGSEGN  ;"Will be killed in MSG2^TMHL72        
         SET TMGLASTOBX("SEGN")=TMGSEGN  ;"Will be killed in MSG2^TMHL72        
         QUIT
         ;
@@ -322,19 +332,26 @@ OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifi
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE, IEN62D4,
         ;"       TMGSEGN, TMGINFO, TMGENV
         ;"Example TMGVALUE -- 'CRE^CREATININE'
-        ;"NEW VACODE SET VACODE=$$XFTEST(.TMGENV,TMGVALUE,"R")   ;"WRKLDCode^LabPrintName^LabName^LabIEN60, or -1^Error Message
-        ;"SET TMGVALUE=$P(VACODE,"^",1)_TMGU(2)_$P(VACODE,"^",2)_TMGU(2)_"99VA64"
-        NEW ARR MERGE ARR=TMGHL7MSG(TMGSEGN,"RESULT")
+        ;
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        ;
+        NEW ARR,TEST SET TEST=$GET(TMGHL7MSG(TMGSEGN,3)) IF TEST="" GOTO OBX2DN
+        SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TEST,"R",.ARR) 
+        KILL TMGHL7MSG(TMGSEGN,"RESULT") MERGE TMGHL7MSG(TMGSEGN,"RESULT")=ARR
+        KILL TMGHL7MSG("RESULT",TMGSEGN) MERGE TMGHL7MSG("RESULT",TMGSEGN)=ARR
+        ;        
+        ;"NEW INITVALUE SET INITVALUE=$GET(TMGVALUE)
         NEW NLT SET NLT=$GET(ARR("NLT"),"??")
         NEW LABPRNAME SET LABPRNAME=$PIECE($GET(ARR("IEN60")),"^",3)
         SET TMGVALUE=NLT_TMGU(2)_LABPRNAME_TMGU(2)_"99VA64"
+        ;"IF NLT["??",INITVALUE'["??" DO   ;"-- Save original test name.
+        ;". DO SETPCE^TMGHL7X2(INITVALUE,.TMGHL7MSG,.TMGU,TMGSEGN,35)  ;"35 is an arbitrary number not part of standard OBX definition.  Shouldn't collide with anything.  
         NEW LABNAME SET LABNAME=$PIECE($GET(ARR("IEN60")),"^",2)
         IF LABNAME="" SET LABNAME=LABPRNAME
         SET TMGLASTOBX("NAME")=LABNAME
         SET TMGLASTOBX("SEGN")=TMGSEGN
-        ;"SET TMGINFO("MOST RECENT OBX")=LABNAME
-        ;"SET TMGINFO("MOST RECENT OBX","SEGN")=TMGSEGN
-OBX2DN  QUIT
+OBX2DN  IF TMGRESULT<0 SET TMGXERR=$PIECE(TMGRESULT,"^",2,99)
+        QUIT
         ;
 OBX5    ;"Purpose: To transform the OBX segment, field 5 -- Observation value
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE, TMGSEGN, IEN22720, TMGENV
@@ -491,6 +508,7 @@ VALIDVAL(TMGENV,TMGWKLD,TMGVALUE,MAP) ;"
         ;"Also TMGXERR is SET IF error.
         NEW HLP SET HLP=""
         NEW TMGRESULT SET TMGRESULT=1
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" GOTO VVDN
         SET TMGWKLD=$GET(TMGWKLD)
         IF TMGWKLD="" DO  GOTO VVDN
         . SET TMGRESULT="-1^WKLD code not provided to VALIDVAL.TMGHL72"

@@ -18,7 +18,7 @@ TMGHL7U ;TMG/kst-HL7 transformation utility functions ;10/20/15, 8/11/16
  ;"=======================================================================
  ;"SETUPENV(TMGMSG,TMGENV,VERBOSE) -- Establish array with common variable values needed throughout. 
  ;"SETENV  -- general setup of environment for incoming HL7 message transformation and then VistA processing.
- ;"SETFMENV()  --SETUP FILE MESSAGE TYPE MESSAGES ENVIRONMENT, for PATHGROUP txt files.
+ ;"SETFMENV(IEN772,IEN773,IEN22720,TMGU)  --SETUP FILE MESSAGE TYPE MESSAGES ENVIRONMENT, for PATHGROUP txt files.
  ;"GETDIV(TMGMSG,IEN22720,TMGU) -- Get division characters, from HL7 message or defaults 
  ;"LMAPAPI(TMGENV,TESTID,OUT) --Gather mapping information between lab code and LABORATORY TEST entry.
  ;"IEN60API(TMGENV,IEN60,OUT) -- Gather mapping information between lab code and LABORATORY TEST entry.
@@ -157,7 +157,7 @@ SU8     SET TMGENV("PREFIX")=TMGLABPREFIX
         SET TMGENV("ALERT CODE")=ALERT
 SUEDN   QUIT TMGRESULT
         ; 
-SETENV()  ;
+SETENV()  ;" -- NOT USED, CONSIDER DELETING LATER...
         ;"Purpose: general setup of environment for incoming HL7 message
         ;"      transformation and then VistA processing.
         ;"Input: uses HLMTIEN, HLMTIENS in global scope.  
@@ -172,18 +172,6 @@ SETENV()  ;
         ;"      --Consider merging these two  <-- NO.  Rad filer needs to avoid SETUPENV code.  
         ;
         NEW TMGRESULT SET TMGRESULT=1
-        SET TMGHLZZZ=0
-        IF TMGHLZZZ=0,+$GET(TMGNOSTOR)=0 DO
-        . DO TMGLOG^HLCSTCP1("In HL7IN^TMGHL7IN")  ;"//kt
-        . DO TMGLOG^HLCSTCP1("IEN in #772="_HLMTIEN)  ;"//kt
-        . DO TMGLOG^HLCSTCP1("IEN in #773="_HLMTIENS)  ;"//kt
-        . DO
-        . . NEW VTABLE
-        . . ZSHOW "V":VTABLE
-        . . MERGE ^TMG("TMP","TMGHL71",$J,"VARS")=VTABLE("V")
-        ;
-        ;"//kt 4/26/19  MERGE MSGSTORE("MSH")=^HLMA(HLMTIENS,"MSH")
-        ;"//kt 4/26/19  MERGE MSGSTORE("IN")=^HL(772,HLMTIEN,"IN")
         ;
         SET IEN772=+$GET(HLMTIEN) IF IEN772'>0 DO  GOTO SEDN
         . SET TMGRESULT="-1^IEN in file 772 not provided to HL7XFRM^TMGHL72"
@@ -214,58 +202,25 @@ SETENV()  ;
 SEV2    DO SUTMGU^TMGHL7X2(.TMGU,FS,ECH)
 SEDN    QUIT TMGRESULT
         ;
-SETFMENV()  ;"SETUP FILE MESSAGE TYPE MESSAGES ENVIRONMENT. 
+SETFMENV(IEN772,IEN773,IEN22720,TMGU)  ;"SETUP FILE MESSAGE TYPE MESSAGES ENVIRONMENT. 
         ;"Purpose: setup of environment for processing PATHGROUP txt files.
-        ;"Input: Uses HLMTIEN,HLMTIENS in global scope. 
-        ;"Output: Sets variables with global scope:
-        ;"        MSGSTORE,  <--- removing 4/26/19 
-        ;"        TMGHL7MSG, IEN22720, TMGU, IEN62D4, IEN772, IEN773
+        ;"Input:  
         ;"Results: 1 if OK, or -1^Message
         ;
         ;"NOTE: SETUPENV^TMGHL7U setups up environment for editing mapping etc.
         ;"      This function sets up environment for processing HL7 messages
-        ;"      --Consider merging these two
+        ;"      --Consider merging these
         ;
         NEW TMGRESULT SET TMGRESULT=1
-        ;"//kt 4/26/19  MERGE MSGSTORE("MSH")=^HLMA(HLMTIENS,"MSH")
-        ;"//kt 4/26/19  MERGE MSGSTORE("IN")=^HL(772,HLMTIEN,"IN")
         NEW FS,ECH
         SET (FS,HLREC("FS"))="|"
         SET (ECH,HLREC("ECH"))="^~\&"   ;"ENCODING CHARACTERS
         SET HLQUIT=0,HLNODE="",HLNEXT="D HLNEXT^HLCSUTL"     
         ;
-        ;"Copied and modified from HLTP3
-        ;"---------------        
-        NEW X
-        SET X=^HLMA(HLMTIENS,0)  ;"HLMTIENS = ien773
-        SET HL("MID")=$P(X,U,2)  ;"MESSAGE ID
-        SET HL("MTIENS")=$P(X,U,10)  ;"ACKNOWLEDGEMENT TO (PTR TO 773)
-        SET HL("LL")=$P(X,U,7)   ;"LOGICAL LINK (PTR TO 870)
-        SET HLTCP=""
-        SET HL("Q")=""""""
-        SET HL("EIDS")=$P(X,U,8) ;"SUBSCRIBER PROTOCOL.
-        SET HL("SAP")=$P(X,U,11) ;"SENDING APPLICATION (pointer to file 771)
-        SET HL("RAP")=$P(X,U,12) ;"RECEIVING APPLICATION
-        SET HL("MTP")=$P(X,U,13) ;"MESSAGE TYPE
-        SET HL("ETP")=$P(X,U,14) ;"EVENT TYPE
-        S:$P(X,U,15) HL("MTP_ETP")=$P(X,U,15)  ;"??NOT IN MY SYSTEM
-        S:HL("SAP") HL("SAN")=$P($G(^HL(771,HL("SAP"),0)),U) 
-        S:HL("RAP") HL("RAN")=$P($G(^HL(771,HL("RAP"),0)),U)
-        S:HL("MTP") HL("MTN")=$P($G(^HL(771.2,HL("MTP"),0)),U) 
-        S:HL("ETP") HL("ETN")=$P($G(^HL(779.001,HL("ETP"),0)),U)
-        S:$G(HL("MTP_ETP")) HL("MTN_ETN")=$P($G(^HL(779.005,HL("MTP_ETP"),0)),U)
-        S HL("EID")=$P($G(^HL(772,HLMTIEN,0)),U,10)
-        M HLHDRO=^HLMA(HLMTIENS,"MSH")
-        ;"---------------
-        ;"---------------
-        NEW MSH SET MSH=$GET(^HLMA(HLMTIENS,"MSH",1,0))
+        NEW MSH SET MSH=$GET(^HLMA(IEN773,"MSH",1,0))
         NEW INFO SET TMGRESULT=$$MSH2IENA^TMGHL7U2(MSH,.INFO) ;"MSH HEADER TO IEN INFO ARRAY
         IF TMGRESULT'>0 GOTO SEFMDN
-        MERGE TMGHL7MSG=INFO
-        SET HL("EIDS")=INFO("IEN101")   ;"IEN in PROTOCOL (#101) file 
-        SET HLREC("SAN")=INFO("IEN771","NAME")
-        SET IEN772=HLMTIEN
-        SET IEN773=HLMTIENS
+        ;"Is this needed?? --> MERGE TMGHL7MSG=INFO
         SET IEN22720=INFO("IEN22720")
         DO SUTMGU^TMGHL7X2(.TMGU,FS,ECH)
 SEFMDN  QUIT TMGRESULT
@@ -812,16 +767,16 @@ GRSLTMAP(TMGENV,WKLD,OUT)  ;"GET RESULT --> REPLACEMENT MAP
 GRMDN   QUIT TMGRESULT
         ;
 TMGLOG(MSG,ARR) ; "//kt added entire function for log messages for debugging
-  ;"'@' --> delete entire log
-  SET MSG=$GET(MSG)
-  IF MSG="@" DO  QUIT  
-  . KILL ^TMG("TMP","TMGHL71",$J,"LOG")
-  NEW TMGI SET TMGI=$GET(^TMG("TMP","TMGHL71",$J,"LOG"))+1
-  SET ^TMG("TMP","TMGHL71",$J,"LOG",TMGI)=MSG
-  MERGE ^TMG("TMP","TMGHL71",$J,"LOG",TMGI,"ARR")=ARR
-  SET ^TMG("TMP","TMGHL71",$J,"LOG")=TMGI
-  QUIT
-	;	
+        ;"'@' --> delete entire log
+        SET MSG=$GET(MSG)
+        IF MSG="@" DO  QUIT  
+        . KILL ^TMG("TMP","TMGHL71",$J,"LOG")
+        NEW TMGI SET TMGI=$GET(^TMG("TMP","TMGHL71",$J,"LOG"))+1
+        SET ^TMG("TMP","TMGHL71",$J,"LOG",TMGI)=MSG
+        MERGE ^TMG("TMP","TMGHL71",$J,"LOG",TMGI,"ARR")=ARR
+        SET ^TMG("TMP","TMGHL71",$J,"LOG")=TMGI
+        QUIT
+	    ;	
 CMPLTORD(ORDERNUM,TMGHL7MSG) ;"
        ;"Purpose: Set a given order number to complete status
        ;"Input: ORDERNUM - IEN of order in file #100
@@ -860,4 +815,3 @@ STANDING(ORDERNUM)  ;"CHECK TO SEE IF ORDER IS STANDING
        IF ORDERTEXT["STANDING ORDER" SET TMGRESULT=1
        QUIT TMGRESULT
        ;"
-       

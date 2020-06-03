@@ -18,9 +18,10 @@ TMGHL7X2 ;TMG/kst-HL7 transformation engine processing ;10/21/15
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"PARSEMSG(IEN772,IEN773,FS,ECH,TMGHL7MSG) -- take pointers to files 772,773, and create an array with parsed elements
- ;"PARSMSG2(TMGENV,TMGTESTMSG,TMGHL7MSG,TMGU) --parse HL7 Message into a usable array.
+ ;"DEPRECIATED -- PARSMSG2(TMGENV,TMGTESTMSG,TMGHL7MSG,TMGU) --parse HL7 Message into a usable array.
  ;"COMPILEM(IEN772,IEN773,TMGHL7MSG) -- TAKE completed TMGHL7MSG arran, and put back into files 772,773
  ;"TESTCOMP(TMGHL7MSG,OUTARRAY) -- take completed TMGHL7MSG array, and compile into test array
+ ;"FLATNARR(TMGHL7MSG,ARRAY,TMGU) -- Reverse of PRSEARRY.  
  ;"PRSEARRY(ARRAY,TMGHL7MSG,TMGU) -- take an ARRAY, containing HL7 message, and parse to TMGHL7MSG
  ;"REFRESHM(TMGHL7MSG,TMGU,SEGN,FLDN,COMPN,SCMPN) --refresh the array after changes are made to one part.
  ;"$$GETPCE(TMGHL7MSG,SEG,FLDN,COMPN,SCMPN) --return a requested piece parsed TMGHL7MSG array
@@ -124,88 +125,19 @@ PARSEMSG(IEN22720,IEN772,IEN773,TMGHL7MSG,TMGU) ;
         SET TMGRESULT=$$PRSEARRY(IEN22720,.ARRAY,.TMGHL7MSG,.TMGU) ;
 PMDN    QUIT TMGRESULT
         ;
-PARSMSG2(TMGENV,TMGTESTMSG,TMGHL7MSG,TMGU) ;
+PARSMSG2(TMGENV,TMGTESTMSG,TMGHL7MSG,TMGU) ;" (INTERACTIVE WITH USER)   -- DEPRECIATED   
         ;"Purpose: To parse HL7 Message into a usable array.
         ;"         ALSO -- this launches an interactive process to fix problems, if found. 
         ;"Note: uses globally-scoped vars" TMGLABPREFIX, IEN68D2, IEN62D4
         ;"NOTE: I think that this function does more than just separating the parts
-        ;"             from HL7 format into a tree structure.  The DOMORE()
+        ;"             from HL7 format into a tree structure.  The SETMAPS()
         ;"             function does mapping of tests names to VistA tests 
-        ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
-        ;"           TMGENV("PREFIX") -- e.g. "LMH"
-        ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
-        ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)
-        ;"           TMGENV(<other entries>)= etc.              
-        ;"       TMGTESTMSG -- PASS BY REFERENCE.  Array containing the text of the HL7 message
-        ;"              Format: TMGTESTMSG(1) -- 1st line.
-        ;"       TMGHL7MSG --PASS BY REFERENCE.  AN OUT PARAMETER.
-        ;"       TMGU -- OPTIONAL.  Array of divisor characters.  Filled if passed in empty
-        ;"Output: TMGHL7MSG <--- will have all formatting found in PARSEMSG^TMGHL7X2
-        ;"        Also will have extra, added below.
-        ;"        ----------------------------------
-        ;"        Below, ONLY IF segment is an OBR segment.
-        ;"        ----------------------------------
-        ;"        TMGHL7MSG(<Index#>,"ORDER")=""     
-        ;"        TMGHL7MSG(<Index#>,"ORDER","NLT")=<NLT CODE>^IEN60
-        ;"        TMGHL7MSG(<Index#>,"ORDER","SPECIMEN")=SpecimenIEN61
-        ;"        TMGHL7MSG(<Index#>,"ORDER","SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided
-        ;"        also
-        ;"        TMGHL7MSG("ORDER",<Index#>,)=""    
-        ;"        TMGHL7MSG("ORDER",<Index#>,"NLT")=<NLT CODE>^IEN60
-        ;"        TMGHL7MSG("ORDER",<Index#>,"SPECIMEN")=SpecimenIEN61
-        ;"        TMGHL7MSG("ORDER",<Index#>,"SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided
-        ;"        ----------------------------------
-        ;"        Below, ONLY IF segment is an OBX segment.
-        ;"        ----------------------------------
-        ;"        TMGHL7MSG(<Index#>,"RESULT","NLT")=<NLTCode>^IEN60    
-        ;"        TMGHL7MSG(<Index#>,"RESULT","SPECIMEN")=SpecimenIEN61
-        ;"        TMGHL7MSG(<Index#>,"RESULT","SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided
-        ;"        also
-        ;"        TMGHL7MSG("RESULT",<Index#>,"NLT")=<NLTCode>^IEN60    
-        ;"        TMGHL7MSG("RESULT",<Index#>,"SPECIMEN")=SpecimenIEN61
-        ;"        TMGHL7MSG("RESULT",<Index#>,"SPECIMEN 64.061")=SpecimenIEN64.061, OR "" IF not provided        
-        ;"Result: 1 if OK, -1^Error Message IF error.
         KILL TMGHL7MSG
-        SET AUTOFIX=+$GET(AUTOFIX)
-        NEW TMGRESULT SET TMGRESULT=$$PRSEARRY^TMGHL7X2(,.TMGTESTMSG,.TMGHL7MSG)
+        ;"//kt 6/1/20 -- not used(?) -- SET AUTOFIX=+$GET(AUTOFIX)
+        NEW TMGRESULT SET TMGRESULT=$$PRSEARRY^TMGHL7X2(,.TMGTESTMSG,.TMGHL7MSG,.TMGU)
         IF +TMGRESULT<0 GOTO PH7DN
-        SET TMGRESULT=$$DOMORE(.TMGENV,.TMGHL7MSG)
-PH7DN   QUIT TMGRESULT
-        ;
-DOMORE(TMGENV,TMGHL7MSG) ;"DO MORE PROCESSING ON TMGHL7MSG   //kt split function from about 8/12/15
-        ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
-        ;"           TMGENV("PREFIX") -- e.g. "LMH"
-        ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
-        ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)
-        ;"           TMGENV(<other entries>)= etc.              
-        ;"       TMGHL7MSG --PASS BY REFERENCE.  AN IN / OUT PARAMETER.
-        ;"Result: 1 if OK, -1^Error Message IF error.
-        NEW ORDERARR
-        NEW TMGRESULT SET TMGRESULT=1        
-        IF $$ISLMHRAD^TMGHL76R(.TMGHL7MSG) GOTO DMDN  ;"if Laughlin Radiology, then skip this part.
-        ;"//kt del later --> NEW APP SET APP=$GET(TMGHL7MSG(1,3))
-        ;"//kt del later --> NEW SNDR SET SNDR=$GET(TMGHL7MSG(1,4))
-        ;"//kt del later --> IF (APP="RM")&((SNDR="LMH")!(SNDR["LAUGHLIN")!(SNDR["GCHE")) GOTO DMDN
-        IF $$ISADT^TMGHL76A(.TMGHL7MSG) GOTO DMDN ;"If ADT message, skip this part.  
-        NEW TMGI SET TMGI=0
-        FOR  SET TMGI=$ORDER(TMGHL7MSG(TMGI)) QUIT:(+TMGI'>0)!(+TMGRESULT<0)  DO
-        . NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(TMGI,"SEG"))
-        . IF SEGTYPE="OBR" DO
-        . . KILL ORDERARR
-        . . NEW ORDERTEST SET ORDERTEST=$GET(TMGHL7MSG(TMGI,4)) QUIT:ORDERTEST=""
-        . . NEW TEMPARR 
-        . . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,ORDERTEST,"O",.TEMPARR)
-        . . MERGE TMGHL7MSG(TMGI,"ORDER")=TEMPARR
-        . . MERGE TMGHL7MSG("ORDER",TMGI)=TEMPARR
-        . . MERGE ORDERARR=TEMPARR("ORDER")
-        . . IF TMGRESULT<0 SET TMGHL7MSG(TMGI,"ORDER","ERR")=$PIECE(TMGRESULT,"^",2,99)
-        . IF SEGTYPE="OBX" DO
-        . . NEW TEMPARR
-        . . NEW TEST SET TEST=$GET(TMGHL7MSG(TMGI,3)) QUIT:TEST=""
-        . . SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TEST,"R",.TEMPARR)
-        . . MERGE TMGHL7MSG(TMGI,"RESULT")=TEMPARR
-        . . MERGE TMGHL7MSG("RESULT",TMGI)=TEMPARR
-DMDN    QUIT TMGRESULT
+        SET TMGRESULT=$$SETMAPS^TMGHL70B(.TMGENV,.TMGHL7MSG)
+PH7DN   QUIT TMGRESULT    
         ;
 COMPILEM(IEN772,IEN773,TMGHL7MSG,MODE,TMGRESIDUAL) ;
         ;"Purpose: take completed TMGHL7MSG array, and put back into files 772,773
@@ -228,7 +160,7 @@ COMPILEM(IEN772,IEN773,TMGHL7MSG,MODE,TMGRESIDUAL) ;
         IF +TMGRESULT<0 GOTO CPLMDN
         SET TMGRESULT=$$TO772H^TMGHL7U2(.ARRAY,.MSH,IEN772,IEN773)
 CPLMDN  QUIT TMGRESULT
-        
+        ;
 COMP2ARR(TMGHL7MSG,ARRAY,MSH,MODE,TMGRESIDUAL) ;
         ;"Purpose: take completed TMGHL7MSG array, and convert back to simple array
         ;"Input:  TMGHL7MSG -- Pass by REFERENCE.  The message to reassemble
@@ -322,17 +254,32 @@ TESTCOMP(TMGHL7MSG,OUTARRAY) ;
         . SET OUTARRAY(AI)="",AI=AI+1  ;"separate lines with blank lines as original format
 TCPMDN  QUIT TMGRESULT
         ;
+FLATNARR(TMGHL7MSG,ARRAY,TMGU) ;"Reverse of PRSEARRY.  
+        ;"Purpose: Reverse of PRSEARRY.  Takes parsed array and flatten it.
+        ;"Input: TMGHL7MSG -- PASS BY REFERENCE.  Format as per PRSEARRY() below.  
+        ;"       OUTARR -- PASS BY REFERENCE.  OUT PARAMETER.  Prior contents KILLED   
+        ;"              ARRAY(1)="1st line" <-- must be MSH segment
+        ;"              ARRAY(2)="2nd line etc."
+        ;"       TMGU -- Array of divisor characters.  
+        DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU)
+        KILL ARRAY
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(TMGHL7MSG(IDX)) QUIT:IDX'>0  DO
+        . SET ARRAY(IDX)=$GET(TMGHL7MSG(IDX))
+        QUIT
+        ;
 PRSEARRY(IEN22720,ARRAY,TMGHL7MSG,TMGU) ;
         ;"Purpose: to take an ARRAY, containing HL7 message, and parse to TMGHL7MSG
         ;"Input: IEN22720 --OPTIONAL.  IEN in TMG HL7 MESSAGE TRANSFORM SETTINGS file
-        ;"      ARRAY -- pass by REFERENCE.  Format
-        ;"              ARRAY(1)="1st line" <-- must be MSH segment
-        ;"              ARRAY(2)="2nd line etc."
-        ;"      TMGHL7MSG -- an OUT PARAMETER.  PASS BY REFERENCE.
-        ;"              See PARSEMSG() for format.
-        ;"      TMGU -- Array of divisor characters.  Filled if passed in empty
-        ;"Results: 1 if OK, or -1^Error Message
-        NEW TMGRESULT SET TMGRESULT=1
+        ;"       ARRAY -- pass by REFERENCE.  Format
+        ;"               ARRAY(1)="1st line" <-- must be MSH segment
+        ;"               ARRAY(2)="2nd line etc."
+        ;"       TMGHL7MSG -- an OUT PARAMETER.  PASS BY REFERENCE.
+        ;"               See PARSEMSG() for format.
+        ;"       TMGU -- Array of divisor characters.  Filled if passed in empty
+        ;"Output: TMGHL7MSG <--- will have all formatting found in PARSEMSG^TMGHL7X2
+        ;"Result: 1 if OK, -1^Error Message IF error.
+        NEW TMGRESULT SET TMGRESULT=1                  
         IF $DATA(TMGU)=0 DO
         . NEW MSH SET MSH=$GET(ARRAY(1))
         . IF $EXTRACT(MSH,1,3)'="MSH" DO  QUIT

@@ -84,7 +84,7 @@ EditDone
 EditAbort
         QUIT
 
-EDITARR(REF,EDITOR) ;"DEPRECIATED  ...  USE EDITARR2
+EDITARR(REF,EDITOR) ;
         ;"Purpose: to use linux editor to edit an array.
         ;"Input: REF -- an reference (name of) to array to edit.  E.g. "ARRAY"
         ;"          ARRAY(1) -- 1st line
@@ -97,7 +97,7 @@ EDITARR(REF,EDITOR) ;"DEPRECIATED  ...  USE EDITARR2
         NEW TMGEWP
         SET REF=$GET(REF)
         IF REF="" GOTO EADN
-        DO ARRAY2WP^TMGSTUTL(REF,"TMGEWP")
+        DO ARRAY2WP^TMGSTUT2(REF,"TMGEWP")
         NEW DIC SET DIC="TMGEWP"
         DO EDIT(.EDITOR)
         DO WP2ARRAY^TMGSTUT2("TMGEWP",REF)

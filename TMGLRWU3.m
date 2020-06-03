@@ -101,7 +101,7 @@ DLBDN   QUIT TMGRESULT
   ;
 PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) ;"PRIOR LAB DATES
         ;"Purpose: Fill DATESUSED with dates already filed in database on same day
-        ;"Input: TMGHL7MSG -- PASS BY REFERNCE.  Array as created by PARSMSG2^TMGHL7X2
+        ;"Input: TMGHL7MSG -- PASS BY REFERNCE.  Array as created by PRSEARRY^TMGHL7X2 
         ;"       DATESUSED --PASS BY REFERENCE.  OUT PARAMETER. Array of other date/times already found.
         ;"          DATESUSED(FMDT)="" <-- was DATESUSED(FMDT_" ")=""
         ;"       MSGINFO.  PASS BY REFERENCE.  Array as created by GETINFO()

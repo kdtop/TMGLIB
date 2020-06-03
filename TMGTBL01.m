@@ -193,6 +193,7 @@ WRPVITAL(VALUE,VITAL,PTAGE)  ;"This function will take a vital and wrap in color
         . IF (VALUE1>100)!(VALUE1<60) SET COLOR=$$YELLOW()
         . IF (VALUE1>120)!(VALUE1<50) SET COLOR=$$RED()
         ELSE  IF VITAL="POX" DO
+        . IF VALUE1<94 SET COLOR=$$YELLOW()
         . IF VALUE1<90 SET COLOR=$$RED()
         ELSE  IF VITAL="BMI" DO
         . IF VALUE1<18.5 SET COLOR=$$YELLOW()

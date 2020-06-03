@@ -54,7 +54,7 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         ;"           TMGENV("TMGU",2)=$EXTRACT(ECH,1)
         ;"           TMGENV("TMGU",3)=$EXTRACT(ECH,4)
         ;"           TMGENV(<other entries>)= etc.              
-        ;"       TMGHL7MSG -- array as created by PARSMSG2^TMGHL7X2
+        ;"       TMGHL7MSG -- array as created by PRSEARRY^TMGHL7X2 
         ;"       TMGU -- PASS BY REFERENCE.  Array containing piece divider chars for HL7 message
         ;"Result: 1 if OK, or -1^Error Msg IF any
         NEW TMGLRDEBUG SET TMGLRDEBUG=0

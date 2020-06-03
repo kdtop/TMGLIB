@@ -43,13 +43,15 @@ HRAFORM(DFN,MODE)
  ;"
  ;"Cycle through the topics
  IF MODE=0 DO
- . SET TMGRESULT="<TABLE BORDER=1 width=""900""><CAPTION><B>HEALTH RISK ASSESSMENT QUESTIONNAIRE<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
+ . SET TMGRESULT="<TABLE BORDER=1 width=""900"" ID=""tmg_risk_assessment""><CAPTION><B>HEALTH RISK ASSESSMENT QUESTIONNAIRE<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
  ELSE  DO
- . SET TMGRESULT="<TABLE BORDER=1 width=""900""><CAPTION><B>ANSWERS TO REVIEW<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
+ . SET TMGRESULT="<TABLE BORDER=1 width=""900"" ID=""tmg_risk_assessment_physician_review"">"   ;""<TABLE BORDER=1 width=""900""><CAPTION><B>ANSWERS TO REVIEW<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
  . SET TMGRESULT=TMGRESULT_"<tr style=""background-color:"_$$COLOR("TOPIC")_"""><td>Question<br><B>Answer</B></td><td width=""350"">Physician's Comments</td></tr>"
  FOR  SET TOPICIEN=$O(AWVLIST(TOPICIEN)) QUIT:TOPICIEN'>0  DO
  . NEW TOPIC SET TOPIC=$G(AWVLIST(TOPICIEN,0))
- . SET TMGRESULT=TMGRESULT_"<tr><th colspan=""2"" style=""background-color:"_$$COLOR("TOPIC")_""" >"_TOPIC_"</th></tr>"
+ . IF MODE=0 DO  ;"SKIP FOR MODE 1 AND ONLY ADD BELOW IF NOT ALREADY ENTERED
+ . . SET TMGRESULT=TMGRESULT_"<tr><th colspan=""2"" style=""background-color:"_$$COLOR("TOPIC")_""" >"_TOPIC_"</th></tr>"
+ . NEW TOPICADDED SET TOPICADDED=0
  . NEW QUESTIEN SET QUESTIEN=0
  . ;"
  . ;"Cycle through the questions
@@ -84,6 +86,9 @@ HRAFORM(DFN,MODE)
  . . . SET FOUND=1
  . . . IF MODE=1 DO  ;"IF MODE 1 AND ANSWER HAS A COLOR THEN WE WANT IT REPORTED FOR PHYSICIAN REVIEW
  . . . . IF COLOR'="" DO
+ . . . . . IF TOPICADDED=0 DO
+ . . . . . . SET TMGRESULT=TMGRESULT_"<tr><th colspan=""2"" style=""background-color:"_$$COLOR("TOPIC")_""" >"_TOPIC_"</th></tr>"
+ . . . . . . SET TOPICADDED=1
  . . . . . SET QUESTION=QUESTION_"<BR><B>"_ANSWER_"</B>"
  . . . . . DO SET1ROW(.TMGRESULT,QUESTION," .","")
  . . . ELSE  DO
@@ -161,19 +166,19 @@ GTQUESTS(ARRAY)
      SET ARRAY(1,3,2)="2425^0^^Moderate (like brisk walking)"
      SET ARRAY(1,3,3)="2426^0^^Heavy (like jogging or swiming)"
      SET ARRAY(1,3,4)="2427^0^^Very heavy (like fast running or stair climbing)"
-     SET ARRAY(1,3,5)="2428^0^SEVERE^I am currently not exercising"
+     SET ARRAY(1,3,5)="2428^0^MODERATE^I am currently not exercising"
 
  SET ARRAY(2,0)="Tobacco Use"
    SET ARRAY(2,1,0)="In the last 30 days, have you used tobacco? Smoked:"
-     SET ARRAY(2,1,1)="2431^0^SEVERE^Yes"
+     SET ARRAY(2,1,1)="2431^0^MODERATE^Yes"
      SET ARRAY(2,1,2)="2432^0^^No"
 
    SET ARRAY(2,2,0)="Used a smokeless tobacco product:"
-     SET ARRAY(2,2,1)="2433^0^SEVERE^Yes"
+     SET ARRAY(2,2,1)="2433^0^MODERATE^Yes"
      SET ARRAY(2,2,2)="2434^0^^No"
 
    SET ARRAY(2,3,0)="If Yes to either, Would you be interested in quitting tobacco use within the next month?"
-     SET ARRAY(2,3,1)="2436^0^SEVERE^Yes"
+     SET ARRAY(2,3,1)="2436^0^MODERATE^Yes"
      SET ARRAY(2,3,2)="2437^0^^No"
 
  SET ARRAY(3,0)="Alcohol Use"
@@ -206,19 +211,19 @@ GTQUESTS(ARRAY)
  SET ARRAY(5,0)="Seat Belt Use"
    SET ARRAY(5,1,0)="Do you always fasten your seat belt when you are in a car?"
      SET ARRAY(5,1,1)="2453^0^^Yes"
-     SET ARRAY(5,1,2)="2454^0^^No"    
+     SET ARRAY(5,1,2)="2454^0^MODERATE^No"    
 
  SET ARRAY(6,0)="Depression"
    SET ARRAY(6,1,0)="In the past 2 weeks, how often have you felt down, depressed, or hopeless?"
-     SET ARRAY(6,1,1)="2469^0^^Almost all of the time"
-     SET ARRAY(6,1,2)="2470^0^^Most of the time"
-     SET ARRAY(6,1,3)="2471^0^^Some of the time"
+     SET ARRAY(6,1,1)="2469^0^SEVERE^Almost all of the time"
+     SET ARRAY(6,1,2)="2470^0^MODERATE^Most of the time"
+     SET ARRAY(6,1,3)="2471^0^MILD^Some of the time"
      SET ARRAY(6,1,4)="2472^0^^Almost never"
    
    SET ARRAY(6,2,0)="In the past 2 weeks, how often have you felt little interest or pleasure in doing things?"
-     SET ARRAY(6,2,1)="2461^0^^Almost all of the time"
-     SET ARRAY(6,2,2)="2462^0^^Most of the time"
-     SET ARRAY(6,2,3)="2463^0^^Some of the time"
+     SET ARRAY(6,2,1)="2461^0^SEVERE^Almost all of the time"
+     SET ARRAY(6,2,2)="2462^0^MODERATE^Most of the time"
+     SET ARRAY(6,2,3)="2463^0^MILD^Some of the time"
      SET ARRAY(6,2,4)="2464^0^^Almost never"   
 
    SET ARRAY(6,3,0)="Have your feelings caused you distress or interfered with your ability to get along socially with family or friends?" 
@@ -229,34 +234,34 @@ GTQUESTS(ARRAY)
    SET ARRAY(7,1,0)="In the past 2 weeks, how often have you felt nervous, anxious, or on edge?"
      SET ARRAY(7,1,1)="2473^0^SEVERE^Almost all of the time"
      SET ARRAY(7,1,2)="2478^0^MODERATE^Most of the time"
-     SET ARRAY(7,1,3)="2479^0^^Some of the time"
+     SET ARRAY(7,1,3)="2479^0^MILD^Some of the time"
      SET ARRAY(7,1,4)="2480^0^^Almost never"     
 
    SET ARRAY(7,2,0)="In the past 2 weeks, how often were you not able to stop worrying or control your worrying?"
      SET ARRAY(7,2,1)="2455^0^SEVERE^Almost all of the time"
      SET ARRAY(7,2,2)="2458^0^MODERATE^Most of the time"
-     SET ARRAY(7,2,3)="2459^0^^Some of the time"
+     SET ARRAY(7,2,3)="2459^0^MILD^Some of the time"
      SET ARRAY(7,2,4)="2460^0^^Almost never"  
 
  SET ARRAY(8,0)="High Stress"
    SET ARRAY(8,1,0)="How often is stress a problem for you in handling such things as: –Your health? –Your finances? –Your family or social relationships? –Your work?" 
-     SET ARRAY(8,1,1)="2481^0^SEVERE^Never or rarely"
-     SET ARRAY(8,1,2)="2486^0^MODERATE^Sometimes"
-     SET ARRAY(8,1,3)="2487^0^^Often"
-     SET ARRAY(8,1,4)="2488^0^^Always"     
+     SET ARRAY(8,1,1)="2481^0^^Never or rarely"
+     SET ARRAY(8,1,2)="2486^0^MILD^Sometimes"
+     SET ARRAY(8,1,3)="2487^0^MODERATE^Often"
+     SET ARRAY(8,1,4)="2488^0^SEVERE^Always"     
 
  SET ARRAY(9,0)="Social/Emotional Support"
    SET ARRAY(9,1,0)="How often do you get the social and emotional support you need:"
      SET ARRAY(9,1,1)="2489^0^^Always"
      SET ARRAY(9,1,2)="2490^0^^Usually"
-     SET ARRAY(9,1,3)="2495^0^^Sometimes"
+     SET ARRAY(9,1,3)="2495^0^MILD^Sometimes"
      SET ARRAY(9,1,4)="2496^0^MODERATE^Rarely"
      SET ARRAY(9,1,5)="2497^0^SEVERE^Never" 
 
  SET ARRAY(10,0)="Pain"
    SET ARRAY(10,1,0)="In the past 7 days, how much pain have you felt?"
      SET ARRAY(10,1,1)="2498^0^^None"
-     SET ARRAY(10,1,2)="2499^0^^Some"
+     SET ARRAY(10,1,2)="2499^0^MODERATE^Some"
      SET ARRAY(10,1,3)="2504^0^SEVERE^A lot"   
 
  SET ARRAY(11,0)="General Health"
@@ -289,7 +294,7 @@ GTQUESTS(ARRAY)
      SET ARRAY(14,1,1)="2530^1^^"
 
    SET ARRAY(14,2,0)="Do you snore or has anyone told you that you snore?"
-     SET ARRAY(14,2,1)="2532^0^SEVERE^Yes"
+     SET ARRAY(14,2,1)="2532^0^MODERATE^Yes"
      SET ARRAY(14,2,2)="2533^0^^No"
 
    SET ARRAY(14,3,0)="In the past 7 days, how often have you felt sleepy during the daytime?"
@@ -301,21 +306,21 @@ GTQUESTS(ARRAY)
      
  SET ARRAY(15,0)="Fall Risk"
    SET ARRAY(15,1,0)="Any falls in the past year?"
-     SET ARRAY(15,1,1)="2550^0^SEVERE^Yes"
+     SET ARRAY(15,1,1)="2550^0^MILD^Yes"
      SET ARRAY(15,1,2)="2551^0^^No"
      
    SET ARRAY(15,2,0)="Do you have any worries about falling or feel unsteady when standing or walking?"
-     SET ARRAY(15,2,1)="2553^0^SEVERE^Yes"
+     SET ARRAY(15,2,1)="2553^0^MODERATE^Yes"
      SET ARRAY(15,2,2)="2555^0^^No"   
      
    SET ARRAY(15,3,0)="Do you have problems with your vision that affect your ability to safely walk?"
-     SET ARRAY(15,3,1)="2557^0^SEVERE^Yes"
+     SET ARRAY(15,3,1)="2557^0^MODERATE^Yes"
      SET ARRAY(15,3,2)="2558^0^^No"     
    
-   SET ARRAY(15,4,0)="Nurse observed gait"
+   SET ARRAY(15,4,0)="Observed gait"
      SET ARRAY(15,4,1)="2561^0^^Normal"
      SET ARRAY(15,4,2)="2562^0^^Mildly impaired"
-     SET ARRAY(15,4,3)="2563^0^^Moderately impaired"
+     SET ARRAY(15,4,3)="2563^0^MODERATE^Moderately impaired"
      SET ARRAY(15,4,4)="2564^0^^Non-Ambulatory"
      
    SET ARRAY(15,5,0)="Do you use any assistance devices? (Check all that apply)"
@@ -329,7 +334,7 @@ GTQUESTS(ARRAY)
      
    SET ARRAY(15,6,0)="Have you reviewed your home for safety hazards (adequate lighting, loose rugs)?"
      SET ARRAY(15,6,1)="2593^0^^Yes"
-     SET ARRAY(15,6,2)="2594^0^SEVERE^No"
+     SET ARRAY(15,6,2)="2594^0^MODERATE^No"
      
  QUIT
  ;"
@@ -357,7 +362,7 @@ HELHRPT(TMGDFN)
   ;"       ORFHIE --
   ;"Result: None.  Output goes into @ROOT
   ;"NEW THHEAD SET THHEAD="<TH style=""background-color:"_$$COLOR("TOPIC")_""">"
-  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>HEALTH MAINTENANCE</B></CAPTION><TR style=""background-color:"_$$COLOR("TOPIC")_"""><TH>ITEM</TH>"
+  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>PERSONALIZED PREVENTION PLAN OF SERVICE</B></CAPTION><TR style=""background-color:"_$$COLOR("TOPIC")_"""><TH>ITEM</TH>"
   SET HD=HD_"<TH>STATUS</TH><TH>LAST DONE</TH><TH>DUE DATE</TH></TR>"
   NEW REMIEN,REMLIST SET REMIEN=0
   DO AWVREMS^TMGRPT2(.REMLIST)
@@ -366,6 +371,9 @@ HELHRPT(TMGDFN)
   . SET REMRESULT=$$DOREM^TMGPXR03(TMGDFN,REMIEN,5,$$TODAY^TMGDATE,1)
   . NEW STATUS,DUE,DONE
   . SET STATUS=$P(REMRESULT,"^",1),DONE=$P(REMRESULT,"^",3),DUE=$P(REMRESULT,"^",2)
+  . NEW STATUSTOKEEP SET STATUSTOKEEP="DUE NOW^DUE SOON^RESOLVED"
+  . IF STATUSTOKEEP'[STATUS QUIT
+  . IF STATUS="RESOLVED" SET STATUS="Up To Date"
   . IF DONE="" SET DONE="NO RECORD OF BEING DONE"
   . IF DUE="" SET DUE="NO DUE DATE CALCULATED"
   . SET TMGRESULT(REMIEN)=$G(REMLIST(REMIEN))_"^"_STATUS_"^"_DONE_"^"_DUE
@@ -379,7 +387,7 @@ BIOTBL(TMGDFN)  ;"
   ;"Purpose: This table returns the patients most recent BP, Lipids, Glucose, Weight
   NEW TMGRESULT,TMGOUT SET TMGRESULT=""
   NEW OUT
-  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>VITAL MEASUREMENTS</B></CAPTION><TR style=""background-color:"_$$COLOR("TOPIC")_"""><TH>MEASUREMENT</TH>"
+  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>MOST RECENT BIOMETRIC MEASURES</B></CAPTION><TR style=""background-color:"_$$COLOR("TOPIC")_"""><TH>MEASUREMENT</TH>"
   SET HD=HD_"<TH>VALUE</TH><TH>DATE</TH></TR>"     ;"<TH>RESULT</TH></TR>"  
   ;"BP
   NEW BP,BPDATE SET BP=$$TREND^TMGGMRV1(TMGDFN,"T","BP",1,"",1) ;" <-Get last BP with date
@@ -387,10 +395,10 @@ BIOTBL(TMGDFN)  ;"
   SET TMGRESULT(1)="BP^"_BP_"^"_BPDATE    ;"_"^OK"
   ;"LIPIDS
   NEW CHOL SET CHOL=$$GETLLAB(TMGDFN,183)
-  SET TMGRESULT(2)="CHOLESTEROL^"_$P(CHOL,"^",1)_"^"_$P(CHOL,"^",2)  ;"_"^GOOD"
+  SET TMGRESULT(2)="Cholesterol^"_$P(CHOL,"^",1)_"^"_$P(CHOL,"^",2)  ;"_"^GOOD"
   ;"GLUCOSE
   NEW GLU SET GLU=$$GETLLAB(TMGDFN,175)
-  SET TMGRESULT(3)="GLUCOSE^"_$P(GLU,"^",1)_"^"_$P(GLU,"^",2)  ;"^GREAT"
+  SET TMGRESULT(3)="Glucose^"_$P(GLU,"^",1)_"^"_$P(GLU,"^",2)  ;"^GREAT"
   ;"WEIGHT
   NEW WT,WTDATE SET WT=$$TREND^TMGGMRV1(TMGDFN,"T","WT",1,"",1) ;" <-Get last BP with date
   SET WTDATE=$P($P(WT,"(",2),")",1),WT=$P(WT," ",1)

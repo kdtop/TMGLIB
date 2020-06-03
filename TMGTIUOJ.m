@@ -247,8 +247,9 @@ ALLHFTBL(DFN)  ;"Return an HTML table containing all health factors
 FUITEMS(DFN)  ;"Return the followup table if data is contained
   QUIT $$FUITEMS^TMGTIUO3(.DFN)  
   ;
-LASTHPI(DFN)  ;"Return the last HPI section.  Called by TIU TEXT OBJECT 'TMG LAST HPI'
-  QUIT $$LASTHPI^TMGTIUP2(.DFN)  ;"Moved to TMGTIUP2 to minimize file size 
+LASTHPI(DFN,AWV)  ;"Return the last HPI section.  Called by TIU TEXT OBJECT 'TMG LAST HPI'
+  SET AWV=+$G(AWV)
+  QUIT $$LASTHPI^TMGTIUP2(.DFN,AWV)  ;"Moved to TMGTIUP2 to minimize file size 
   ;
 ADMINDOC(TMGRESULT);
   NEW IEN SET IEN=0
