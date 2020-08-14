@@ -1,4 +1,4 @@
-TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19
+TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/15/20
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -252,11 +252,11 @@ SPLITLN(STR,LINEARRAY,WIDTH,SPECIALINDENT,INDENT,DIVSTR)  ;"SPLIT LINE
   . . SET TEMPSTR=$PIECE(STR,DIVSTR,1,SPLITPOINT)
   . IF SPLITPOINT>1 DO
   . . SET TEMPSTR=$PIECE(STR,DIVSTR,1,SPLITPOINT-1)
-  . . SET STR=$PIECE(STR,DIVSTR,SPLITPOINT,WIDTH)
+  . . SET STR=$PIECE(STR,DIVSTR,SPLITPOINT,9999)  ;"6/12/20 4th param was WIDTH. Changed to 9999
   . ELSE  DO
   . . ;"We must have a word > WIDTH with no spaces--so just divide
   . . SET TEMPSTR=$EXTRACT(STR,1,WIDTH)
-  . . SET STR=$EXTRACT(STR,WIDTH+1,999)
+  . . SET STR=$EXTRACT(STR,WIDTH+1,9999)
   . SET INDEX=INDEX+1
   . SET LINEARRAY(INDEX)=TEMPSTR
   . SET STR=PRESPACE_STR

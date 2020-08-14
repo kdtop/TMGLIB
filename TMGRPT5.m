@@ -23,6 +23,8 @@ TMGRPT5  ;TMG/kst TMG REPORTS  ;04/30/20
  ;
  ;"=======================================================================
  ;
+ ;"NOTE: 7/20/20, changed table width from 900 to 700 because the note font
+ ;"      size was being decreased to accomodate the wide tables
 HRAFORM(DFN,MODE)
  ;"Purpose: This creates an HTML table for the Health Risk Assessment
  ;"         If MODE=0, then the table contains all questions with the patient's answers
@@ -43,9 +45,9 @@ HRAFORM(DFN,MODE)
  ;"
  ;"Cycle through the topics
  IF MODE=0 DO
- . SET TMGRESULT="<TABLE BORDER=1 width=""900"" ID=""tmg_risk_assessment""><CAPTION><B>HEALTH RISK ASSESSMENT QUESTIONNAIRE<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
+ . SET TMGRESULT="<TABLE BORDER=1 width=""700"" ID=""tmg_risk_assessment""><CAPTION><B>HEALTH RISK ASSESSMENT QUESTIONNAIRE<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
  ELSE  DO
- . SET TMGRESULT="<TABLE BORDER=1 width=""900"" ID=""tmg_risk_assessment_physician_review"">"   ;""<TABLE BORDER=1 width=""900""><CAPTION><B>ANSWERS TO REVIEW<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
+ . SET TMGRESULT="<TABLE BORDER=1 width=""700"" ID=""tmg_risk_assessment_physician_review"">"   ;""<TABLE BORDER=1 width=""700""><CAPTION><B>ANSWERS TO REVIEW<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
  . SET TMGRESULT=TMGRESULT_"<tr style=""background-color:"_$$COLOR("TOPIC")_"""><td>Question<br><B>Answer</B></td><td width=""350"">Physician's Comments</td></tr>"
  FOR  SET TOPICIEN=$O(AWVLIST(TOPICIEN)) QUIT:TOPICIEN'>0  DO
  . NEW TOPIC SET TOPIC=$G(AWVLIST(TOPICIEN,0))
@@ -431,7 +433,7 @@ SETHTML(ROOT,RESULTS,HEADING,COLNUMS)  ;
   NEW END SET END=3
   MERGE ^EDDIE("TMGRPT2")=RESULTS
   NEW DATA
-  SET ROOT=""  ;""<TABLE BORDER=1 width=""900"">"  ;"<CAPTION><B>"_TITLE_"</CAPTION></B>"
+  SET ROOT=""  ;""<TABLE BORDER=1 width=""700"">"  ;"<CAPTION><B>"_TITLE_"</CAPTION></B>"
   SET DATA=HEADING
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(RESULTS(IDX)) QUIT:IDX'>0  DO

@@ -92,7 +92,7 @@ LOADHL7(FNAME,ARRAY,MSH) ;"LOAD FILE INTO ARRAY
         ;"                  ARRAY(#)=<text>
         ;"       MSH   -- PASS BY REFERENCE, AN OUT PARAMETER.  Filled with MSH segment
         ;"Result: 1 if OK, or -1^Error Message
-        NEW TMGRESULT,OPTION
+        NEW TMGRESULT,OPTION,LINE
         SET OPTION("LINE-TERM")=$CHAR(13)  ;"NOTE: HL7 messages have just #13 as line terminator. 
         SET OPTION("OVERFLOW")=1 ;"Overflow portion is concat'd to the orig line (making length>255)
         SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)

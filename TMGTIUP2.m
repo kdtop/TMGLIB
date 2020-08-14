@@ -135,6 +135,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"       OPTION -PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
         ;"          OPTION("AUTOGROUPING") = 0 OR 1
         ;"          OPTION("NUMOFGROUPS") =
+        ;"          OPTION("FORCEAUTOGROUP") = 1 if forcing from macro
         ;"          OPTION("GROUP-ORDER") = "C"  <---- if directions found in note.
         ;"          OPTION("RETURN-REST") = 0 OR1 , IF 1 RETURN NOTE WITHOUT HPI IN RTNNOTE
         ;"Result: 1^OK, or -1^Error message
@@ -159,11 +160,12 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         IF TMGHPI="" SET TMGRESULT="-1^No text for not found for processing." GOTO PRSDN
         ;
         ;"GET GROUPING SIGNAL, IF PRESENT
-        SET OPTION("AUTOGROUPING")=0
-        SET OPTION("NUMOFGROUPS")=0
-        IF TMGHPI["[GROUP AUTO " DO
-        . SET OPTION("NUMOFGROUPS")=+$P($P(TMGHPI,"[GROUP AUTO ",2),"]",1)
-        . IF OPTION("NUMOFGROUPS")>0 SET OPTION("AUTOGROUPING")=1
+        IF +$G(OPTION("FORCEAUTOGROUP"))'>0 DO  ;"ELH ADDED IF FOR MACRO TO FORCE AUTOGROUPING
+        . SET OPTION("AUTOGROUPING")=0
+        . SET OPTION("NUMOFGROUPS")=0
+        . IF TMGHPI["[GROUP AUTO " DO
+        . . SET OPTION("NUMOFGROUPS")=+$P($P(TMGHPI,"[GROUP AUTO ",2),"]",1)
+        . . IF OPTION("NUMOFGROUPS")>0 SET OPTION("AUTOGROUPING")=1
         ;
         IF TMGHPI["GROUP OFF" SET OPTION("GROUP OFF")=1  ;"ADDED 7/25/19
         ELSE  SET OPTION("GROUP OFF")=0   

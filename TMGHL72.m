@@ -396,10 +396,19 @@ OBX18   ;"Purpose: To transform the OBX segment, field 18 ---- Equipment Identif
         QUIT
         ;
 NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
+        ;"Vars available in global scope: TMGSEGN, TMGHL7MSG,TMGVALUE
         SET TMGVALUE=$TRANSLATE(TMGVALUE,"""","'") ;" quote char disallowed by input transform.
         IF $EXTRACT(TMGVALUE,1)="-" SET TMGVALUE=" "_TMGVALUE   ;""-" not allowed in space 1
         IF TMGVALUE["^" SET TMGVALUE=$$REPLSTR^TMGSTUT3(TMGVALUE,"^","/\") 
         IF TMGVALUE["""" SET TMGVALUE=$TRANSLATE(TMGVALUE,"""","'") 
+        IF $LENGTH(TMGVALUE)>80 DO
+        . ;"LINE IS NOW SPLIT INTO ARRAY, BUT NOT SURE HOW TO FILE THE SPLIT LINE
+        . NEW SPLITARR,SPLITCOUNT
+        . SET SPLITCOUNT=$$SPLITLN^TMGSTUT2(TMGVALUE,.SPLITARR,80)
+        . IF '$D(SPLITARR) QUIT
+        . SET TMGVALUE=$G(SPLITARR(1))
+        . KILL SPLITARR(1) ;"SO WE DON'T CREATE A REDUNDANT ENTRY
+        . DO APPNDNTE(.SPLITARR,.TMGHL7MSG,.TMGU,TMGSEGN)
         IF TMGVALUE="" SET TMGVALUE="  "
         NEW TMGCODE SET TMGCODE=$PIECE($GET(^DD(63.041,.01,0)),"^",5,999)
         NEW X SET X=TMGVALUE
@@ -781,7 +790,7 @@ APPNDNTE(ARR,TMGHL7MSG,TMGU,LASTNTESEGN)   ;"APPEND NOTE
         ;"      TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
         ;"      TMGU -- The array with divisor chars.
         ;"      LASTNTESEGN -- The segment number of the **last** line in the NTE array
-        ;"  that ARR is to be appended to.
+        ;"                     that ARR is to be appended to.
         ;"NOTE: This assumes that inputs are valid and that NTE segment exists
         ;"Results: none
         NEW FIRST SET FIRST=1

@@ -140,7 +140,8 @@ ORC13  ;"Purpose: Process empty ORC message, field 13
         ;
 OBR     ;"Purppse: setup for OBR fields.
         ;"Uses TMGEXAMIDX,TMGSEGN in global scope
-        DO OBR^TMGHL72
+        ;"//kt 6/11/20 --> This does mapping for labs, not needed for Rad studies...   DO OBR^TMGHL72
+
         SET TMGEXAMIDX=+$GET(TMGEXAMIDX)+1  ;"will be killed in MSG2 at end of process
         SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"OBR")=TMGSEGN
         QUIT

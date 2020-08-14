@@ -41,6 +41,13 @@ ONLIPDTX(DFN,DT) ;"Is patient on LIPID treatment as of DT (if DT supplied)?
   NEW TMGRESULT,OUT SET TMGRESULT=$$TABHASRX(DFN,"LIPIDS",.OUT,DT)
   QUIT (TMGRESULT=1)  
   ;
+ONGERDTX(DFN,DT,OUT) ;"Is patient on GERD treatment as of DT (if DT supplied)?
+  ;"INPUT: DFN -- Patient IEN
+  ;"       DT -- OPTIONAL.  If desire to test AS OF a given FMDT, then pass in.
+  ;"Result: 1 if on HTN treatment, or 0 if not.
+  NEW TMGRESULT,OUT SET TMGRESULT=$$TABHASRX(DFN,"EGD COHORT MEDS",.OUT,DT)
+  QUIT (TMGRESULT=1)  
+  ;  
 ONDMTX(DFN,DT) ;"Is patient diabetic?
   ;"INPUT: DFN -- Patient IEN
   ;"       DT -- OPTIONAL.  If desire to test AS OF a given FMDT, then pass in.

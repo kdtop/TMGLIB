@@ -1096,7 +1096,7 @@ HTNMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         . SET TEST=1
         . SET DATE=$$TODAY^TMGDATE
         QUIT WHY
-        ;"
+        ;"    
 HTNCTRL(TMGDFN)  ;"Determine 
         NEW TMGRESULT SET TMGRESULT="ERROR DETERMINING CONTROL STATUS"
         NEW GOAL,SGOAL,DGOAL
@@ -1632,7 +1632,37 @@ MRFNDN(DFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
         IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_"^"_DATE
         QUIT TMGRESULT
         ;"
-GETEGDFU(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+GETEGDFU(TMGDFN,TEST,DATE,DATA,TEXT)  ;"  
+        ;"GERDMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Determine if patient is on GERD medication
+        ;"Input: DFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;" FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: WHY - returns why HTNMEDS is true 
+        SET TEST=0
+        SET DATE=0
+        NEW WHY SET WHY="Patient is NOT on GERD meds and does NOT have a GERD topic"
+        NEW X DO NOW^%DTC
+        NEW TMGRESULT,MEDARR SET TMGRESULT=$$ONGERDTX^TMGC0QT4(TMGDFN,X,.MEDARR)
+        NEW MED SET MED=""
+        IF $D(MEDARR) DO
+        . SET WHY=""
+        . FOR  SET MED=$O(MEDARR(MED)) QUIT:MED=""  DO
+        . . IF WHY'="" SET WHY=WHY_", "
+        . . SET WHY=WHY_MED_$C(13,10)
+        . SET WHY="PATIENT IS ON THESE GERD MEDS: "_WHY
+        IF TMGRESULT=1 DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        QUIT  ;"DON'T PASS BACK WHY AT THIS TIME
+        ;"    
+        ;"BELOW IS THE PREVIOUS COHORT. MAY BE USEFUL LATER
         ;"This computed finding will determine if the patient should be in
         ;"the cohort by 
         ;" 1) Has an EGD been done prior
@@ -1836,3 +1866,65 @@ NEGIFOBT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
 NIDN
         QUIT
         ;"
+WANTSPSA(TMGDFN)  ;"Determine if the patient has already stated that
+        ;"they wanted the PSA done at a previous appointment
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW WANTDT,ORDEREDDT,HFARRAY
+        SET WANTDT=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG PSA PATIENT WANTS SCREENING",.HFARRAY)
+        IF WANTDT'>0 GOTO WPDN    
+        SET ORDEREDDT=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG PSA ORDERED",.HFARRAY)
+        SET TMGRESULT="PATIENT STATED HE DID WANT PSA SCREENING ON: "_$$EXTDATE^TMGDATE(WANTDT,1)_". "
+        IF ORDEREDDT'<WANTDT SET TMGRESULT=TMGRESULT_$C(13,10)_"IT WAS ORDERED ON: "_$$EXTDATE^TMGDATE(ORDEREDDT,1)_". "
+WPDN        
+        QUIT TMGRESULT
+        ;"
+LDLISHI(TMGDFN,TEST,DATE,DATA,TEXT)  ;" DETERMINE IF LDL IS HIGH ENOUGH TO WARRANT LIPID TOPIC
+        NEW WHY SET WHY=""
+        SET (TEST,DATE)=0
+        NEW ARRAY,S
+        SET S=$$GETTABLX^TMGTIUO6(TMGDFN,"[LIPIDS]",.ARRAY)
+        DO PARSTABL^TMGTIUO7(.ARRAY)  ;"Parse out data values
+        SET S=+$GET(ARRAY("KEY-VALUE","LDL Cholesterol"))  ;"GET ONLY FIRST VALUE                
+        IF S'>0 QUIT
+        IF S>160 DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        . SET WHY="PATIENT HAD A LDL VALUE OF "_S_" ON "_$$EXTDATE^TMGDATE(DATE)
+        QUIT WHY
+        ;"
+LIPIDTOP(TMGDFN,TEST,DATE,DATA,TEXT)   ;
+        ;"Purpose: Return whether patient needs a lipid topic.
+        ;"         It is true if pt doesn't have lipid topic AND has HTN or DM
+        ;"              or LDL is > 160
+        ;"         Will search the TMG TIU
+        ;"Input: DFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0,DATE=0
+        NEW DONE,WHY SET DONE=0
+        NEW IEN22719 SET IEN22719=0
+        FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719)) QUIT:(IEN22719'>0)!(DONE=1)  DO
+        . NEW TOPICTEXT SET TOPICTEXT=""
+        . FOR  SET TOPICTEXT=$ORDER(^TMG(22719,IEN22719,2,"B",TOPICTEXT)) QUIT:(TOPICTEXT="")!(DONE=1)  DO
+        . . NEW UPTOPIC SET UPTOPIC=$$UP^XLFSTR(TOPICTEXT)
+        . . IF (UPTOPIC["LIPID") DO
+        . . . SET (TEST,DATE)=0
+        . . . SET DONE=1
+        . . . SET WHY="TOPIC ALREADY EXISTS"
+        . . ELSE  IF (UPTOPIC["HTN")!(UPTOPIC["HYPERTENSION")!(UPTOPIC["DM") DO
+        . . . NEW TOPICDATE SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
+        . . . IF TOPICDATE>DATE SET DATE=TOPICDATE
+        . . . SET TEST=1
+        . . . IF UPTOPIC["DM" SET WHY="PATIENT HAS DIABETES TOPIC"
+        . . . ELSE  SET WHY="PATIENT HAS A HYPERTENSION TOPIC"
+        IF (DONE=1)!(TEST=1) QUIT WHY  ;"NO FURTHER TESTING NEEDED
+        SET WHY=$$LDLISHI(.TMGDFN,.TEST,.DATE,.DATA,.TEXT)        
+        QUIT WHY
+        ;"        

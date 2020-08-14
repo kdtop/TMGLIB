@@ -1,4 +1,4 @@
-TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15
+cTMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15
          ;;1.0;TMG-LIB;**1,17**;03/25/06
  ;
  ;"Kevin Toppenberg MD
@@ -271,7 +271,7 @@ GETOCCLT(TMGRESULT,DFN) ;"Return dates of last iFOBTs and FOBT
         NEW RESULT,RESULTARR
         SET RESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
         SET RESULT=$GET(RESULTARR("KEY-VALUE","IFOBT"))   ;"_" [T]"
-        IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"iFOBT= "_RESULT_" [T]"
+        IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"iFOBT= "_RESULT_" [T]"_$C(13,10)_"NOTE: iFOBT satisfies on a calendar year basis only."
         QUIT
         ;"
 FOBTNOTE(TMGRESULT,DFN)  ;"Return a note if FOBT was done this year w/ result
@@ -281,6 +281,8 @@ FOBTNOTE(TMGRESULT,DFN)  ;"Return a note if FOBT was done this year w/ result
         SET HFARRAY(787)="iFOBT was POSITIVE on:"
         SET HFARRAY(783)="FOBT was Negative on:"
         SET HFARRAY(786)="FOBT was POSITIVE on:"
+        SET HFARRAY(2627)="Cologuard was POSITIVE on:"
+        SET HFARRAY(2628)="Cologuard was Negative on:"
         NEW CUTOFFDT SET CUTOFFDT=$$FIRSTYR^TMGDATE
         FOR  SET HFIEN=$O(HFARRAY(HFIEN)) QUIT:HFIEN'>0  DO        
         . NEW DATE SET DATE=9999999
@@ -337,7 +339,23 @@ GETLBONE(DFN) ;"Return date of bone density
         IF DATES="" SET DATES="DATES NOT FOUND. DATA IS: "_TMGRESULT
         ELSE  SET DATES=PREFIX_DATES_" [HF]"
         SET TMGRESULT=DATES        
-GBDDN   QUIT TMGRESULT
+GBDDN   
+        ;"Pull data from bone density radiology studies
+        NEW RADFN SET RADFN=+$$ENSRADFN^TMGRAU01(.DFN)
+        NEW TESTDATES SET TESTDATES=""
+        IF RADFN>0 DO
+        . NEW RADDT SET RADDT=0
+        . FOR  SET RADDT=$O(^RADPT(RADFN,"DT",RADDT)) QUIT:RADDT'>0  DO
+        . . NEW IEN70D03 SET IEN70D03=0
+        . . FOR  SET IEN70D03=$O(^RADPT(RADFN,"DT",RADDT,"P",IEN70D03)) QUIT:IEN70D03'>0  DO
+        . . . NEW ZN SET ZN=$GET(^RADPT(RADFN,"DT",RADDT,"P",IEN70D03,0))
+        . . . NEW PROCIEN SET PROCIEN=$PIECE(ZN,"^",2)
+        . . . IF PROCIEN=536 DO  ;"BONE DENSITY
+        . . . . NEW FMDATE SET FMDATE=9999999-$P(RADDT,".",1)
+        . . . . IF TESTDATES'="" SET TESTDATES=TESTDATES_", "
+        . . . . SET TESTDATES=TESTDATES_$$EXTDATE^TMGDATE(FMDATE,1)
+        IF TESTDATES'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"  Bone Density studies done on: "_TESTDATES
+        QUIT TMGRESULT
         ;
 GETLTSH(DFN)  ;"Return last lab data for TSH
         NEW TMGRESULT,RESULTARR
@@ -506,6 +524,37 @@ GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         . ELSE  DO
         . . DO LARR2TBL(.TMGRESULT,.ARR)
         ;"write TMGRESULT
+        QUIT TMGRESULT
+        ;"
+GETPTICK(DFN)  ;"Return
+        NEW TMGRESULT SET TMGRESULT=""
+        NEW TICKLIEN,ARRAY SET TICKLIEN=0
+	    NEW DATA,TEMPARR,TIU,STATUS,USER,DUE,IDX,TIUDATE,TIUNAME
+	    FOR  SET TICKLIEN=$O(^TMG(22705.5,"B",DFN,TICKLIEN)) QUIT:TICKLIEN'>0  DO
+	    . NEW ZN SET ZN=$G(^TMG(22705.5,TICKLIEN,0))
+	    . SET TIU=$P(ZN,"^",4),STATUS=$P(ZN,"^",3),USER=$P(ZN,"^",5),DUE=$P(ZN,"^",2)
+	    . IF +$G(TIU)'>0 QUIT
+	    . SET TIUDATE=$$EXTDATE^TMGDATE($P($G(^TIU(8925,TIU,0)),"^",7))
+	    . SET TIUNAME=$P($G(^TIU(8925.1,$P($G(^TIU(8925,TIU,0)),"^",1),0)),"^",1)
+	    . NEW OVERDUE SET OVERDUE=$$OVERDUE^TMGRPT2(STATUS,DUE)
+	    . NEW MESSAGE SET MESSAGE=$$FLMSG^TMGTICK2(TICKLIEN)
+	    . IF MESSAGE="" SET MESSAGE="----NO MESSAGE FOUND----"
+	    . IF STATUS'="S" QUIT
+	    . IF TMGRESULT="" DO
+	    . . SET TMGRESULT="---- PENDING TICKLERS ----"
+	    . IF OVERDUE=1 SET OVERDUE="<B><FONT style=""BACKGROUND-COLOR:"_$$RED()_""">OVERDUE</B></FONT> " ELSE  SET OVERDUE=""
+	    . SET TMGRESULT=TMGRESULT_"<BR>"_OVERDUE_"Due on: "_$P($$EXTDATE^TMGDATE(DUE),"@",1)_"; Set on: "_$P(TIUDATE,"@",1)_"; "_MESSAGE
+	    . ;"SET TEMPARR(DUE,TIU,OVERDUE)=$$TSTATUS(STATUS)_"^"_$P($G(^VA(200,USER,0)),"^",1)_"^"_MESSAGE_"^"_TIUDATE_"^"_TIUNAME
+	    ;SET DUE=9999999,IDX=1
+	    ;FOR  SET DUE=$O(TEMPARR(DUE),-1) QUIT:DUE'>0  DO
+	    ;. SET TIU=0
+	    ;. FOR  SET TIU=$O(TEMPARR(DUE,TIU)) QUIT:TIU'>0  DO
+	    ;. . NEW OVERDUE SET OVERDUE=$O(TEMPARR(DUE,TIU,-1))
+	    ;. . IF OVERDUE>0 DO
+	    ;. . . SET DATA(IDX)="<b>"_$$EXTDATE^TMGDATE(DUE)_"^<b>"_$G(TEMPARR(DUE,TIU,OVERDUE))_"</b>"
+	    ;. . ELSE  DO
+	    ;. . . SET DATA(IDX)=$$EXTDATE^TMGDATE(DUE)_"^"_$G(TEMPARR(DUE,TIU,OVERDUE))
+	    ;. . SET IDX=IDX+1
         QUIT TMGRESULT
         ;"
 LABTOARR(RESULT,LRDFN,DATEIDX)  ;"Return lab results for a given date in array

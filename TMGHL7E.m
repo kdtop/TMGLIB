@@ -324,17 +324,19 @@ GETPTINO2(TMGHL7MSG) ;
         SET TMGRESULT=$G(TMGHL7MSG(PIDSEG,5,1))_","_$G(TMGHL7MSG(PIDSEG,5,2))_" ("_DATE_")"
         QUIT TMGRESULT
         ;        
-TRYAGAN2(TMGMSG,DEBUG,TMGENV) ;
+TRYAGAN2(TMGMSG,DEBUG,TMGENV,OPTION) ;
         ;"Purpose: Try processing again, using debugger to walk through code.
         ;"Input: TMGMSG -- Array holding HL7 message.  
-        ;"       DEBUG -- OPTIONAL.  If 1, then code is launched through debugger. 
+        ;"       DEBUG -- OPTIONAL.  If 1, then code is launched through debugger.
+        ;"       TMGENV -- Required environment.  
+        ;"       OPTION -- OPTIONAL var to pass to HLMSGIMPORT()
         ;"Result: 1 if OK, or -1^Abort IF aborted. 
         NEW TMGRESULT SET TMGRESULT=1
         NEW % SET %=1
         WRITE "Send HL7 message through POC filer again" SET %=+$$YNA^TMGUSRI2(%) WRITE !
         IF %'=1 DO  GOTO DBDN2  ;"DEBG2DN
         . SET TMGRESULT="-1^HL7 Message Filing Aborted"        
-        NEW CODE SET CODE="SET TMGRESULT=$$HLMSGIMPORT^TMGHL71(.TMGMSG,1,,.TMGENV)"
+        NEW CODE SET CODE="SET TMGRESULT=$$HLMSGIMPORT^TMGHL71(.TMGMSG,1,.OPTION,.TMGENV)"
         IF +$GET(DEBUG)=1 DO
         . DO DIRDEBUG^TMGIDE(CODE)
         ELSE  DO

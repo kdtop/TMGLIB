@@ -44,9 +44,10 @@ TEST ;
   ELSE  WRITE !,"None found.",!
   QUIT
   ;   
-GETLDATS(OUT,DFN) ;"
+GETLDATS(OUT,DFN,FMDT) ;"
   ;"Purpose: Get an array of all dates a patient has lab results for
   ;"OUT(IDX)=DATE 
+  SET FMDT=+$G(FMDT)   ;"RETURN FM DATE 
   NEW LABS,LDATE,CURDATE,IDX
   SET LDATE=0,CURDATE=9999999,IDX=0
   NEW OPTION SET OPTION("ADD SUMMARY")=1
@@ -55,7 +56,10 @@ GETLDATS(OUT,DFN) ;"
   . NEW THISDATE SET THISDATE=$P(CURDATE,".",1)
   . IF THISDATE=CURDATE QUIT
   . SET CURDATE=THISDATE
-  . SET OUT(IDX)=$$EXTDATE^TMGDATE(CURDATE)_"-"_$$TSTNAMES(.LABS,CURDATE)
+  . IF FMDT=1 DO
+  . . SET OUT(IDX)=CURDATE_"^"_$$TSTNAMES(.LABS,CURDATE) 
+  . ELSE  DO
+  . . SET OUT(IDX)=$$EXTDATE^TMGDATE(CURDATE)_"-"_$$TSTNAMES(.LABS,CURDATE)
   . SET IDX=IDX+1
   QUIT
   ;"
@@ -73,7 +77,10 @@ TSTNAMES(LABARR,CURDATE)
 FRMTDTS(INPUT,OUTPUT)
   NEW IDX SET IDX=0
   FOR  SET IDX=$O(INPUT(IDX)) QUIT:IDX'>0  DO
-  . SET OUTPUT($$INTDATE^TMGDATE($P($G(INPUT(IDX)),"-",1)))=""
+  . IF $G(INPUT(IDX))'["-" DO
+  . . SET OUTPUT(IDX)=""   ;"DOESN'T NEED TO BE CONVERTED
+  . ELSE  DO
+  . . SET OUTPUT($$INTDATE^TMGDATE($P($G(INPUT(IDX)),"-",1)))=""
   QUIT
   ;"
 GETREPRT(OUT,DFN,ARRAY) ;"
@@ -176,7 +183,7 @@ GETLABS(OUT,DFN,SDT,EDT,NCM,NTNX,NTFX,NNMX,NDT,NPNL) ;
   ;"       1 DFN -- Patient IEN
   ;"       2 SDT -- Optional.  Start date FMDT format.  Default is 0 (earliest)
   ;"       3 EDT -- Optional.  End date FMDT format.  Default is 9999999 (last possible)
-  ;"       4 NCM  -- Optional.  if 1 then don't return comments
+  ;"       4 NCM  -- Optional.  if 1 then don't return comment
   ;"       5 NTNX -- Optional.  if 1 then don't return TEST NAMES index node
   ;"       6 NTFX -- Optional.  if 1 then don't return TEST FLD index node
   ;"       7 NNMX -- Optional.  if 1 then don't return NAMES index

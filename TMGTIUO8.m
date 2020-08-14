@@ -468,6 +468,7 @@ GTLKMDARR(OUT,DFN,IEN,OPTION)  ;"GET LINKED MEDS ARRAY
         . NEW ALINE SET ALINE=""
         . FOR  SET ALINE=$ORDER(CLASSMEDS("LINE",ALINE)) QUIT:ALINE=""  DO
         . . NEW TEMP SET TEMP=$$REMTAGS(ALINE)
+        . . IF $$EXCUDMED(IEN,TEMP)=1 QUIT
         . . SET OUT(TEMP)=""
         . ;"Next, add meds that match with Associated Meds tied to table.  
         . NEW IDX SET IDX=0
@@ -475,6 +476,7 @@ GTLKMDARR(OUT,DFN,IEN,OPTION)  ;"GET LINKED MEDS ARRAY
         . . NEW ALINE SET ALINE=$GET(MEDTABL(IDX)) QUIT:ALINE=""
         . . NEW MATCH SET MATCH=$$RXMATCH(IEN,ALINE,ONLYRELATED) QUIT:'MATCH
         . . SET ALINE=$$REMTAGS(ALINE)
+        . . IF $$EXCUDMED(IEN,ALINE)=1 QUIT
         . . SET OUT(ALINE)=""        
         . NEW ARR,H SET H=$H MERGE ARR("HTIME")=H 
         . MERGE ARR("TABLE")=OUT              
@@ -486,6 +488,14 @@ REMTAGS(ALINE)  ;" REMOVE SPECIAL TAGS FROM MEDICATIONS
         . SET ALINE=$P(ALINE,"[HOSP",1)
         . SET ALINE=$P(ALINE,"[Auto",1)
         QUIT ALINE
+        ;"
+EXCUDMED(IEN,ALINE)  ;"
+        ;"CHECK TO SEE IF MED IS SET FOR EXCLUSION
+        NEW TMGEXCLUDE SET TMGEXCLUDE=0
+        NEW EXIEN SET EXIEN=0
+        FOR  SET EXIEN=$O(^TMG(22708,IEN,7,EXIEN)) QUIT:(EXIEN'>0)!(TMGEXCLUDE=1)  DO
+        . IF $$UP^XLFSTR(ALINE)[$$UP^XLFSTR($P($G(^TMG(22708,IEN,7,EXIEN,0)),"^",1)) SET TMGEXCLUDE=1        
+        QUIT TMGEXCLUDE
         ;"
 GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,OPTION) ;
         ;"Purpose: GET PRIOR VALUES FROM PRIOR TABLE.
@@ -563,6 +573,13 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . . . IF LABEL[TMPO QUIT  ;"//leave in old info.  Only happens first time this NEW table is used
         . . . NEW UPLABEL SET UPLABEL=$$UP^XLFSTR(LABEL)
         . . . KILL PRIORTABLE(TABLENAME,"KEY-VALUE",$$UP^XLFSTR(LABEL))
+        . . . ;"ELH note: 6/25/20. The above line kills existing entries, however it is using the Label as provided in the DISPLAY TEXT ITEMS. 
+        . . . ;"   This works if the LINENAME matches the LABEL, but if it doesn't you can get duplicate values. For example,
+        . . . ;"   PAIN MANAGEMENT table with item "Date of Last Pain Contract", pulls "{PRIOR:MEDICATIONS|*CSM Contract}". So when the
+        . . . ;"   above kills the entry... it kills *CSM CONTRACT, not Date of Last Pain Contract. This leaves the Date of Last Pain Contract
+        . . . ;"   in PRIORTABLE and then duplicates it moving forward. I am adding the line below to alleviate this. I wonder if the above
+        . . . ;"   KILL even needs to be there. Will leave for now but the below KILL may work by itself
+        . . . KILL PRIORTABLE(TABLENAME,"KEY-VALUE",$$UP^XLFSTR(LINENAME))
         . IF ERROR>0 SET RESULT=RESULT_$CHAR(13,10)_"ERROR: "_$PIECE(ERROR,"^",2) QUIT
         . ;"Next collect remaining entries, in KEY-VALUE form
         . NEW PRIORFOUNDLABEL SET PRIORFOUNDLABEL=""
@@ -581,6 +598,10 @@ GETPRIOR(DFN,NEWLABEL,IEN,TABLENAME,PARAMS,SHOWNULL,PRIORTABLE,TABLEDEFS,OUTARR,
         . . SET OUTARR(I2)=ALINE
         . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_$CHAR(13)
         . . SET TMGRESULT=TMGRESULT_ALINE
+        . ;"NOTE: 6/23/20... PRIORTABLE ARRAY IS BEING ALTERED INSIDE THIS
+        . ;"IF AND ULTIMATELY ENDED UP BEING A PARTAL TABLE. KILLING OFF SO IT IS
+        . ;"REFRESHED NEXT ITEM
+        . KILL PRIORTABLE(TABLENAME)
         ELSE  DO
         . SET PRIORLABEL=$$UP^XLFSTR(PRIORLABEL)
         . SET STRVAL=$GET(PRIORTABLE(TABLENAME,"KEY-VALUE",PRIORLABEL))

@@ -68,6 +68,7 @@ M1      KILL TMGUSERINPUT,TMGMNU
         SET TMGMNU(TMGMNUI)="HL7 Message Transform <MENU>"_$CHAR(9)_"XFRMMenu",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="HL7 Message FILE <MENU>"_$CHAR(9)_"FileMenu",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Utility <MENU>"_$CHAR(9)_"UtilMenu",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Try processing HL7 Message using DEBUGGER"_$CHAR(9)_"TryWithDebugger",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Pick lab source other than "_TMGENV("INST")_" to work on."_$CHAR(9)_"OtherInst",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Done setting up NEW HL7 Test."_$CHAR(9)_"^",TMGMNUI=TMGMNUI+1
         ;
@@ -79,6 +80,7 @@ M1      KILL TMGUSERINPUT,TMGMNU
         IF TMGUSERINPUT="UtilMenu" DO UTILITY(.TMGENV,INDENTN+2) GOTO M1
         IF TMGUSERINPUT="FileMenu" DO FILEMENU(.TMGTESTMSG,INDENTN+2) GOTO M1
         IF TMGUSERINPUT="XFRMMenu" DO SETUP^TMGHL7S(.TMGENV,.TMGTESTMSG,INDENTN+2) GOTO M1
+        IF TMGUSERINPUT="TryWithDebugger" DO DEBUGTRY(.TMGTESTMSG,.TMGENV) GOTO M1
         ;
         IF TMGUSERINPUT="OtherInst" DO  GOTO SU1
         . KILL ^TMG("TMP","TMGHL70","IEN 68.2")
@@ -235,6 +237,13 @@ TSTMSG ;
         WRITE !
 ADDTDN  QUIT
         ;
+DEBUGTRY(TMGTESTMSG,TMGENV)  ;"Try processing message via debugger.  
+        NEW OPTION 
+        SET OPTION("GUI","NO FILE")=1  ;"prevent filing of message.  
+        WRITE !,"NOTE: HL7 message will be processed but NOT be filed into database.",!
+        IF $$TRYAGAN2^TMGHL7E(.TMGTESTMSG,1,.TMGENV)  ;"ignore results
+        QUIT
+        ;
 MAPMENU(TMGENV,INDENTN) ;
         ;"Purpose: show Mapping menu, and interact with user...
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
@@ -352,7 +361,12 @@ VIEWMAP(TMGENV,TESTID) ;
 VM1     IF TESTID="" DO
         . IF $DATA(TMGTESTMSG) DO
         . . NEW TMGU MERGE TMGU=TMGENV("TMGU")
-        . . SET TESTID=$$GETIDFRM(.TMGTESTMSG,.TMGU) ;"GET TEST ID FROM TEST HL7 MESSAGE
+        . . NEW TEST SET TEST=$$GETTESTFROM(.TMGTESTMSG,.TMGU) ;"GET LAB TEST FROM TEST HL7 MESSAGE
+        . . ;"sample return: 1989-3^Vitamin D 25-Hydroxy^LN'  //kt changed 6/5/20.  Had returned just TestID before.
+        . . SET TESTID=$PIECE(TEST,TMGU(2),1)
+        . . ;"NOTE: To fix in future.  Needs to also try looking up by TESTNAME, not just TESTID.  This is
+        . . ;"  because when processing HL7 message, if test can't be found by ID, then it falls back to 
+        . . ;"  lookup by name.  Thus TESTID might not have map but TESTNAME might.  So need to show both. 
         . ELSE  DO
         . . WRITE !,"Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
         . . READ TESTID:$GET(DTIME,3600),!
@@ -412,7 +426,7 @@ VM3     SET %=2
         . WRITE !
 VMDN    QUIT
         ;
-GETIDFRM(TESTMSG,TMGU) ;"GET TEST ID FROM TEST HL7 MESSAGE
+GETTESTFROM(TESTMSG,TMGU) ;"GET TEST ID&NAME FROM TEST HL7 MESSAGE
         ;"Input: TESTMSG -- PASS BY REFERENCE.  FORMAT:
         ;"          TESTMSG(#)=<TEXT>, E.g. TESTMSG(133)= "NTE|1|L|Interpretation of Vitamin D 25 OH:|"
         ;"       TMGU -- ARRAY WITH DIVIDER INFO, E.G. 
@@ -421,8 +435,8 @@ GETIDFRM(TESTMSG,TMGU) ;"GET TEST ID FROM TEST HL7 MESSAGE
         ;"       TMGU(3)="~"
         ;"       TMGU(4)="\"
         ;"       TMGU(5)="&"
-        ;"Result: returns 'testID', or "" if none chosen.    e.g., if user picks:
-        ;"         Vitamin D 25-Hydroxy (ID: 1989-3), then '1989-3"
+        ;"Result: returns lab or "" if none chosen.    e.g., if user picks:
+        ;"         Vitamin D 25-Hydroxy (ID: 1989-3), then '1989-3^Vitamin D 25-Hydroxy^LN' returned.
         NEW MENU,TMGUSERINPUT,MENUCT SET MENUCT=0
         SET MENU(0)="Select lab result from test message to show mapping."
         NEW TMGRESULT SET TMGRESULT=""
@@ -434,7 +448,7 @@ GETIDFRM(TESTMSG,TMGU) ;"GET TEST ID FROM TEST HL7 MESSAGE
         . NEW LAB SET LAB=$PIECE(LINE,TMGU(1),4) QUIT:LAB=""
         . NEW ID SET ID=$PIECE(LAB,TMGU(2),1)
         . NEW LABNAME SET LABNAME=$PIECE(LAB,TMGU(2),2)
-        . SET MENUCT=MENUCT+1,MENU(MENUCT)=LABNAME_" (ID: "_ID_")"_$CHAR(9)_ID
+        . SET MENUCT=MENUCT+1,MENU(MENUCT)=LABNAME_" (ID: "_ID_")"_$CHAR(9)_LAB
         SET MENUCT=MENUCT+1,MENU(MENUCT)="Manual entry of a lab code (e.g. OSMOC)"_$CHAR(9)_"<MANUAL>" 
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.MENU,"^")
         IF TMGUSERINPUT="<MANUAL>" DO
@@ -467,14 +481,11 @@ GETCFG2(MSH,TMGU,HL7INST,HL7APP) ;
         ;"       TMGU -- the array with delimeters
         ;"       HL7INST -- an OUT PARAMETER
         ;"       HL7APP -- an OUT PARAMETER.  
-        ;"Result: IEN in 22720 or -1^message if not found or problem.
-        
-        SET HL7INST=$PIECE($PIECE(MSH,TMGU(1),4),TMGU(2),1)
-        SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1)
+        ;"Result: IEN in 22720 or -1^message if not found or problem.        
+        SET HL7INST=$PIECE($PIECE(MSH,TMGU(1),4),TMGU(2),1) IF HL7INST="" SET HL7INST="?"
+        SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1) IF HL7APP="" SET HL7APP="?"
         NEW MSGTYPE SET MSGTYPE=$PIECE($PIECE(MSH,TMGU(1),9),TMGU(2),1)
         NEW IEN22720 SET IEN22720=0
-        SET HL7INST=$GET(HL7INST,"?")
-        SET HL7APP=$GET(HL7APP)
         NEW FOUND SET FOUND=0
         FOR  QUIT:FOUND  SET IEN22720=+$ORDER(^TMG(22720,"D",HL7INST,IEN22720)) QUIT:(+IEN22720'>0)!FOUND  DO
         . IF HL7APP="" SET FOUND=1 QUIT  ;"If not APP specified, then use first found. 

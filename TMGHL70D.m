@@ -187,6 +187,11 @@ DELMAP(TMGENV)  ;
         ;"Purpose: remove maping between lab code and LABORATORY TEST entry.
         ;"Input: TMGENV -- Environment array.  See definition elsewhere. 
         ;"Note: uses globally-scoped vars" TMGLABPREFIX
+        ;"NOTE:  Future fix needed!!
+        ;"  this removes maping between TESTID and IEN60.  However, it should ALSO ensure
+        ;"  that the mapping between corresponding TESTNAME is removed.  
+        ;"  It should allow user to pick from HL7 message (as is done for showing map), and then
+        ;"  remove map for each...  TO DO...  
         WRITE "Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
         NEW TESTID READ TESTID:$GET(DTIME,3600),!
         IF "^"[TESTID GOTO DMDN
