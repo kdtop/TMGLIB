@@ -287,9 +287,13 @@ SENDALRT(RADFN,IDT,IEN70D03)  ;" Fire off OE/RR notifications, version 3.0+
   IF RARPT'>0 DO  GOTO SADN
   . SET TMGRESULT="-1^No linked report in field #17 of file 70.03.  IENS="_IEN70D03_","_IDT_","_RADFN_","
   NEW RAAB  ;"<-- used in OE3^RAUTL00
-  ;"Note: the routine below sends the alert to ZN;14 (the requesting physician)
-  ;"      consider pulling parts of that routine in here, so different recipents can be specified.
-  ;"      see SNDALRT2  
+  ;"2/16/21 Note: the below alert goes to the provider of the radiology report (piece 14 in ZN).
+  ;"      since this may be a provider from another facility, the below code will replace
+  ;"      the provider with the patient's PCP (or failing that default to 168 (Kevin Toppenberg)
+  ;"
+  NEW PCP DO GETPROV^TMGPROV1(.PCP,RADFN,168)
+  IF +PCP'>0 SET PCP=168   ;"SHOULDN'T BE NEEDED, BUT JUST IN CASE
+  SET $P(ZN,"^",14)=PCP  ;"END 2/16/21 CHANGE
   DO OE3^RAUTL00(RADFN,IDT,IEN70D03,ZN)  ;"doesn't return any result state
 SADN ;  
   QUIT TMGRESULT
@@ -368,7 +372,7 @@ GETRADFN(DFN)  ;"
   NEW TMGRESULT SET TMGRESULT=+$ORDER(^RADPT("B",+$GET(DFN),0))
   QUIT TMGRESULT
   ;
-ASKDELRAD ;
+ASKDELRAD ; "SEE ALSO ASKDELRAD^TMGLRWU3 (duplicate function)
   NEW IENS SET IENS=$$ASKIENS^TMGDBAP3(70.03)
   IF IENS'>0 QUIT
   NEW TMGRESULT SET TMGRESULT=$$DELRAD(IENS)

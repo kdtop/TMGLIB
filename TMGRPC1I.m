@@ -204,11 +204,17 @@ RFRSHTBL(TMGRESULT,TMGIN,SELECTION) ;
         QUIT
         ;"
 KTMAMMO(TMGRESULT,TMGIN,SELECTION) ;   
+        NEW TEST SET TEST=0
+        IF TEST=0 DO
+        . KILL ^TMP("TMGRPC1I","TMGIN")
+        . MERGE ^TMP("TMGRPC1I","TMGIN")=TMGIN
+        ELSE  DO
+        . MERGE TMGIN=^TMP("TMGRPC1I","TMGIN")
         KILL TMGRESULT
         SET TMGRESULT(0)="1^Success"
         NEW TEXT MERGE TEXT=TMGIN("TEXT")
         SET L1=1
-        SET SRCH("<TD>")=""
+        NEW SRCH SET SRCH("<TD>")=""
         SET L1=$$SCANTO(.TEXT,L1,.SRCH)  ;"//find  first <TD>
         IF L1=-1 GOTO KTMABORT
         KILL SRCH SET SRCH("Exm Date:")=""
@@ -223,16 +229,17 @@ KTMAMMO(TMGRESULT,TMGIN,SELECTION) ;
         SET L1=L2
         KILL SRCH SET SRCH("DENSITYCODE:")=""
         SET L1=$$SCANTO(.TEXT,L1,.SRCH)
-        IF L1=-1 GOTO KTMABORT
+        IF L1=-1 GOTO KT1
         KILL SRCH SET SRCH("</TD>")=""
         SET L2=$$SCANTO(.TEXT,L1,.SRCH)
         IF L2=-1 GOTO KTMABORT
         DO DELBETWEEN(.TEXT,L1+1,L2-1)  ;"Delete between from after DENSITYCODE and end of report
         SET L1=L2
+KT1     ;        
         MERGE TMGRESULT=TEXT
         GOTO KTMDN
 KTMABORT ;
-        SET TMGRESULT(0)="-1^Error processing"        
+        SET TMGRESULT(0)="-1^Error processing code in KTMAMMO^TMGRPC1I (Report probably doesn't fit expected pattern.)"        
 KTMDN   QUIT
         ;"    
 TKT ;

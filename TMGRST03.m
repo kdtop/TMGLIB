@@ -44,8 +44,9 @@ TMGRST03 ;TMG/kst/REST web service; 3/3/15
 MAKEURL(DFN)  ;"
   QUIT "Old Recs^http://192.168.3.99:9080/data/"_DFN
   ;"
-HFSROOT()  ;"Get the hard coded root in the HFS to the folder holding 'data'
-  QUIT "/opt/worldvista/EHR/www/oldrecs/"
+HFSROOT(DIR)  ;"Get the hard coded root in the HFS to the folder holding 'data'
+  IF DIR="" SET DIR="oldrecs"
+  QUIT "/opt/worldvista/EHR/www/"_DIR_"/"
   ;
 DATA(RESULT,ARGS) ; GET Mumps Routine   ;"Modified from R^%W0
   ;"Input: RESULT -- PASSED BY REFRENCE. AN OUT PARAMETER.  Format:
@@ -136,6 +137,7 @@ PREPRCLK(OUTARR,DFN)  ;"Prep listing of record links
   ;"Input: OUTARR -- AN OUT PARAMETER.  PASS BY REFERENCE.  Format:
   ;"            OUTARR(FMDT,URLPATH^FILENAME)=""
   ;"       DFN -- PATIENT IEN
+  ;"       DIR -- DIRECTORY TO CHECK
   ;"RESULTS: NONE
   NEW PATHS DO PATH4DFN(.PATHS,DFN)   ;"Get one or more filepaths for patient name, including aliases
   NEW APATH SET APATH=""
@@ -171,7 +173,7 @@ ADDROW(OUT,DATA1,DATA2,ISROWEVEN,INDENT)  ;
   DO ADDLN(.OUT,INDENT_"</tr>")
   QUIT
   ;
-PATH4DFN(OUT,DFN)   ;"Get one or more filepaths for patient name, including aliases
+PATH4DFN(OUT,DFN,DIR)   ;"Get one or more filepaths for patient name, including aliases
   ;"Input: OUT -- PASS BY REFERENCE, an OUT PARAMETER.  Format:
   ;"        OUT(<full filepath>)=""
   ;"       DFN -- PATIENT IEN
@@ -180,7 +182,7 @@ PATH4DFN(OUT,DFN)   ;"Get one or more filepaths for patient name, including alia
   NEW ANAME SET ANAME=""
   FOR  SET ANAME=$ORDER(NAMES(ANAME)) QUIT:ANAME=""  DO
   . NEW FNAME,LNAME DO PREPNAME(ANAME,.LNAME,.FNAME)
-  . DO PATH4NAM(.OUT,LNAME,FNAME,FMDOB)  ;"Get one or more filepaths for patient name  
+  . DO PATH4NAM(.OUT,LNAME,FNAME,FMDOB,DIR)  ;"Get one or more filepaths for patient name  
   QUIT
   ;
 GETNAMES(OUT,DFN) ;"Get prepped names, including aliases
@@ -204,7 +206,7 @@ PREPNAME(NAME,OUTLNAME,OUTFNAME) ;"Format names into desired format
   SET OUTFNAME=FIRSTINIT_$EXTRACT($$LOW^XLFSTR(FNAME),2,$LENGTH(FNAME))
   QUIT
   ;
-PATH4NAM(OUT,LNAME,FNAME,FMDOB)  ;"Get one or more filepaths for patient name
+PATH4NAM(OUT,LNAME,FNAME,FMDOB,DIR)  ;"Get one or more filepaths for patient name
   ;"Input: OUT -- PASS BY REFERENCE, an OUT PARAMETER.  Format:
   ;"        OUT(<PARTIAL filepath>)=""          
   ;"    LNAME -- last name -- Should be in Camelcase
@@ -212,7 +214,7 @@ PATH4NAM(OUT,LNAME,FNAME,FMDOB)  ;"Get one or more filepaths for patient name
   ;"    FMDOB -- DOB in FM format.  Should not include any time values (should be date only)
   NEW LASTINIT SET LASTINIT=$$UP^XLFSTR($EXTRACT(LNAME,1))
   NEW RELPATH SET RELPATH=$$GRPNAME(LNAME)_LASTINIT_"/"  
-  NEW HFSPATH SET HFSPATH=$$HFSROOT()_RELPATH  
+  NEW HFSPATH SET HFSPATH=$$HFSROOT(DIR)_RELPATH  
   NEW TMGFILTER SET TMGFILTER(LNAME_","_FNAME_"*")=""
   NEW TMGLIST,TMP
   SET TMP=$$LIST^%ZISH(HFSPATH,"TMGFILTER","TMGLIST")

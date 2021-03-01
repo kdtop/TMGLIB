@@ -1,4 +1,4 @@
-cTMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15
+TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15
          ;;1.0;TMG-LIB;**1,17**;03/25/06
  ;
  ;"Kevin Toppenberg MD
@@ -149,7 +149,8 @@ ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
         . SET RESULT=RESULT_"; "_WTDELTA
         ;
         IF RESULT="" DO
-        . SET RESULT="[See vital-signs documented in chart]"
+        . ;"SET RESULT="[See vital-signs documented in chart]"
+        . SET RESULT="[Current vital signs not available]"  ;"changed 12/1/20
         ELSE  DO
         . NEW OUTARRAY,I
         . NEW R2 SET R2=""
@@ -224,7 +225,39 @@ GETLMAMO(DFN) ;"Return date of last mammogram
         . NEW Y
         . SET Y=DATE X ^DD("DD")
         . SET TMGRESULT=TMGRESULT_$C(13,10)_"F/U HF DATA: "_NAME_" on "_Y
-GMAMDN        QUIT TMGRESULT
+        ;"
+        ;"GET NOTE TITLES
+        NEW MAMMOARRAY,NOTEDATE,COUNT
+        SET NOTEDATE=9999999,COUNT=0
+        DO TIUDATES^TMGPXR01(DFN,"MAMMOGRAM REPORT",.MAMMOARRAY)
+        IF $DATA(MAMMOARRAY) SET TMGRESULT=TMGRESULT_$C(13,10)_"MAMMOGRAM NOTE DATES : "
+        FOR  SET NOTEDATE=$ORDER(MAMMOARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
+        . NEW Y
+        . SET Y=NOTEDATE
+        . X ^DD("DD")
+        . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
+        ;"GET RAD PROCEDURE DATES
+        ;"CHECK ^RADPT( FOR IENs 708 AND 792
+        ;"Pull data from bone density radiology studies
+        NEW RADFN SET RADFN=+$$ENSRADFN^TMGRAU01(.DFN)
+        NEW TESTDATES SET TESTDATES=""
+        NEW TESTCOUNT SET TESTCOUNT=0
+        IF RADFN>0 DO
+        . NEW RADDT SET RADDT=0
+        . FOR  SET RADDT=$O(^RADPT(RADFN,"DT",RADDT)) QUIT:(RADDT'>0)!(TESTCOUNT>3)  DO
+        . . NEW IEN70D03 SET IEN70D03=0
+        . . FOR  SET IEN70D03=$O(^RADPT(RADFN,"DT",RADDT,"P",IEN70D03)) QUIT:IEN70D03'>0  DO
+        . . . NEW ZN SET ZN=$GET(^RADPT(RADFN,"DT",RADDT,"P",IEN70D03,0))
+        . . . NEW PROCIEN SET PROCIEN=$PIECE(ZN,"^",2)
+        . . . NEW PROCNAME SET PROCNAME=$P($G(^RAMIS(71,PROCIEN,0)),"^",1)
+        . . . ;"IF (PROCIEN=708)!(PROCIEN=792) DO  ;"MAMMO DIAGNOSTIC BILATERAL INCL CAD or MAMMO SCREEN BIL W IMP W TOMO INCL CAD
+        . . . IF PROCNAME["MAMMO" DO
+        . . . . SET TESTCOUNT=TESTCOUNT+1
+        . . . . NEW FMDATE SET FMDATE=9999999-$P(RADDT,".",1)
+        . . . . IF TESTDATES'="" SET TESTDATES=TESTDATES_", "
+        . . . . SET TESTDATES=TESTDATES_$$EXTDATE^TMGDATE(FMDATE,1)
+        IF TESTDATES'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"  Mammogram done on: "_TESTDATES_" [RAD]"
+GMAMDN  QUIT TMGRESULT
         ;
 GETLCOLN(DFN) ;"Return date of last colonoscopy
         NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","Colonoscopy")
@@ -252,6 +285,17 @@ GCOLDN
         ;"Get FOBT dates
         DO GETOCCLT(.TMGRESULT,DFN)        
         DO FOBTNOTE(.TMGRESULT,DFN)
+        ;"Get cologuard note
+        NEW COLOARRAY,NOTEDATE,COUNT
+        SET NOTEDATE=9999999,COUNT=0
+        DO TIUDATES^TMGPXR01(DFN,"COLOGUARD RESULT (IMAGE)",.COLOARRAY)
+        IF $DATA(COLOARRAY) SET TMGRESULT=TMGRESULT_$C(13,10)_"COLOGUARD NOTE DATES : "
+        FOR  SET NOTEDATE=$ORDER(COLOARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
+        . NEW Y
+        . SET Y=NOTEDATE
+        . X ^DD("DD")
+        . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
+        ;"
         ;"If over 75, include message
         NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(DFN,"")  ;"
         IF PTAGE>75 DO

@@ -133,4 +133,18 @@ area2(b,h)  ;"expect integer inputs
   . write x,": ",$j(y0,1,2)," -> ",$j(y1,1,2)," ==> ",$j(n1,1,2)," ->  ",$j(n2,1,2),"  ",$$pctarea(n1,n2),!
   quit
   
+TestRandom(array) ;
+  new i
+  for i=1:1:50 do
+  . set array($$RANDOM^TMGKERNL(0,1))=i
+  quit
 
+TestRandom2() ;
+  new array
+  do TestRandom(.array)
+  new i
+  set i=-1
+  for  set i=$ORDER(array(i)) quit:i=""  do
+  . write "For index ",i,", value was",array(i),!
+  quit
+  

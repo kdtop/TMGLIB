@@ -483,6 +483,7 @@ GETCFG2(MSH,TMGU,HL7INST,HL7APP) ;
         ;"       HL7APP -- an OUT PARAMETER.  
         ;"Result: IEN in 22720 or -1^message if not found or problem.        
         SET HL7INST=$PIECE($PIECE(MSH,TMGU(1),4),TMGU(2),1) IF HL7INST="" SET HL7INST="?"
+        IF $$XFRMFACILITY^TMGHL7U2(.HL7INST) ;"ignore result  //kt 1/14/21
         SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1) IF HL7APP="" SET HL7APP="?"
         NEW MSGTYPE SET MSGTYPE=$PIECE($PIECE(MSH,TMGU(1),9),TMGU(2),1)
         NEW IEN22720 SET IEN22720=0

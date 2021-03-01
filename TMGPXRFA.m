@@ -64,7 +64,7 @@ COLNSCOP(LIST,FIEVAL,RESULT) ;"SET FOLLOWUP FREQUENCY FOR COLONOSCOPY.
         NEW YR,MO,DAY DO INTRVLST^TMGPXRF1(NAME,4,.YR,.MO,.DAY) ;"FU interval from string
         NEW FREQ SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
         SET $PIECE(DEFARR(25,FFN,0),"^",2)=50  ;"MIN age of 50 for routine colonoscopies
-        SET $PIECE(DEFARR(25,FFN,0),"^",3)=75  ;"MAX age of 75 for routine colonoscopies
+        SET $PIECE(DEFARR(25,FFN,0),"^",3)=99  ;"MAX age of 75 for routine colonoscopies
         SET $PIECE(DEFARR(25,FFN,0),"^",4)=FREQ
         SET DEFARR(25,FFN,1,1,0)="Patient marked for follow up "_FREQ_" after last colonoscopy"
         SET RESULT=1 ;"Enables this finding to SET the reminder frequency. 

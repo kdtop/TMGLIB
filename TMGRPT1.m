@@ -996,3 +996,50 @@ MAMSCHED(DFN)  ;"IS MAMMO SCHEDULED
        ;. . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
        ;. . SET s=s_"^"_Y
        QUIT RESULT
+       ;"
+FLUAGE  ;" REPORT TO DETERMINE AGE OF PATIENTS WHO GOT FLU VACCINATIONS
+       NEW IDX SET IDX=0
+       NEW TOTALCNT,OVER65CNT
+       SET TOTALCNT=0,OVER65CNT=0
+       FOR  SET IDX=$O(^AUPNVCPT("B",90686,IDX)) QUIT:IDX'>0  DO
+       . NEW VISIT,DATE,DFN
+       . SET VISIT=$P($G(^AUPNVCPT(IDX,0)),"^",3)
+       . SET DATE=$P($G(^AUPNVSIT(VISIT,0)),"^",1)
+       . IF DATE<3200501 QUIT
+       . SET TOTALCNT=TOTALCNT+1
+       . SET DFN=$P($G(^AUPNVCPT(IDX,0)),"^",2)
+       . NEW AGE K VADM SET AGE=+$$AGE^TIULO(DFN)
+       . IF AGE<65 QUIT
+       . W AGE," INCLUDED",!
+       . SET OVER65CNT=OVER65CNT+1
+       W TOTALCNT," TOTAL FLU VACCINATIONS",!,OVER65CNT," WERE OVER 65",!
+       QUIT
+       ;"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

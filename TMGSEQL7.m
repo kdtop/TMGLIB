@@ -116,6 +116,8 @@ PARSE(REFDATA)  ;"Parse data from future appointents output, from SequelPMS
   ;    
 PARSE1(REFDATA,IDX) ;
   NEW ERR SET ERR=""
+  ;"NEW NAMEIDX SET NAMEIDX=5  ;"1/19/21 ADDED
+  ;"IF $G(DATA("A",1))="provider_name" SET NAMEIDX=1     
   NEW NAME SET NAME=$GET(@REFDATA@(IDX,5))
   SET NAME=$$GETPROVNAME(NAME)
   NEW SEQLNUM SET SEQLNUM=+$GET(@REFDATA@(IDX,13))
@@ -425,7 +427,7 @@ LOADONE ;"LOAD ONE DAY, FOR SCHEDULE STATUSES
   NEW OBSOLETE DO CHKREMVD(.DATA,MINDT,MAXDT,.OBSOLETE)
   DO ENSURALL(.DATA)
   DO DOCANCEL(.OBSOLETE,$NAME(DATA("ERR2"))) ;"Set status of obsolete records to CANCELLED
-  DO MARKOLD($$NOW^XLFDT,$NAME(DATA("ERR2"))) ;"Set status of past records to OLD
+  ;" do we really need to do this here??    ;->  1/19/21 DO MARKOLD($$NOW^XLFDT,$NAME(DATA("ERR2"))) ;"Set status of past records to OLD
   IF ($DATA(DATA("ERR")))!($DATA(DATA("ERR2")))!($DATA(DATA("APPT","ERR"))) DO
   . DO ERR("Error(s) during schedule import")
   ELSE  IF $GET(DELFILE)=1 DO

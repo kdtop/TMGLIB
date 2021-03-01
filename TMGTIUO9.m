@@ -57,6 +57,7 @@ GETFUDTS(TMGDFN)  ;"Return info about followup
   . . IF FUDT=1 SET SFUDT=" ( PRN )" QUIT
   . . SET SFUDT=$$FMTE^XLFDT(FUDT,"2DZ")
   . NEW TEXT SET TEXT=$PIECE(STR,"^",3)
+  . IF TEXT["Time spent" SET TEXT=$P(TEXT,"Time spent",1)
   . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_CRLF
   . IF SFUDT["PRN" DO
   . . SET TMGRESULT=TMGRESULT_"  Note on "_SVISITDT_" --> f/u due: "_SFUDT_" """_TEXT_""""

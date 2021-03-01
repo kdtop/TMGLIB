@@ -1,4 +1,4 @@
-TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 5/29/20
+TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 12/2/20
          ;;1.0;TMG-LIB;**1**;04/24/09
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -33,11 +33,14 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 5/29/20
  ;"$$ENSURDIR(DIR) -- ensure directory path exists  
  ;"$$EnsureDir(Dir) -- ensure directory path exists
  ;"$$MOVE^TMGKERNL(Source,Dest)
- ;"$$Copy^TMGKERNL(Source,Dest)
+ ;"$$COPY(SRC,DEST) ;copy file
+ ;"$$Copy^TMGKERNL(Source,Dest) ;copy file
  ;"$$MKDIR(Dir) -- provide a shell for the Linux command 'mkdir'
  ;"$$RMDIR(Dir) -- provide a shell for the Linux command 'rmdir'
  ;"$$WGET(URL,OPTIONS,DIR) Provide a shell for the linux command 'wget'
  ;"$$Convert^TMGKERNL(FPathName,NewType) -- convert a graphic image to new type
+ ;"$$THUMBNAIL(PATH,SOURCEFNAME,DESTFNAME,SIZE)  ;Create thumbnail of graphic image file
+ ;"$$BLACKIMG(DESTPATHFNAME,SIZE) ;Make empty black image
  ;"$$XLTLANG(Phrase,langPair) -- execute a linux OS call to convert a phrase into another spoken language
  ;"(DEPRECIATED) $$GetPckList(PCKINIT,Array,NeedsRefresh,PckDirFNAME) -- launch special linux script to get patch file list from ftp.va.gov
  ;"$$DownloadFile^TMGKERNL(URL,DestDir) -- Interact with Linux to download a file with wget
@@ -245,6 +248,19 @@ LINUXCMD(CMD,OUT)  ;"Execute command on linux system, and return output
   IF TEMP>0 SET TMGRESULT="-1^Linux error code returned: "_TEMP  
   QUIT TMGRESULT        
   ;  
+RANDOM(LOW,HI) ;"Return random number
+  ;"Input: LOW -- OPTIONAL, low end of range for random number. Default = 0
+  ;"       HI -- OPTIONAL, high end of range for random number.  Default = 1
+  ;"Result: returns fractional random number in range, getting number from Linux 
+  NEW TEMP
+  SET LOW=+$GET(LOW)
+  SET HI=+$GET(HI) IF HI=0 SET HI=1
+  DO LINUXCMD("echo $RANDOM",.TEMP)
+  NEW FRAC
+  SET FRAC=TEMP(1)/32768
+  NEW RESULT SET RESULT=(HI-LOW)*FRAC+LOW
+  QUIT RESULT
+  ;
 ISFILE(FPNAME)  ;"Does file exist?  See also $$FILEXIST^TMGIOUTL(FilePathName)
   ;"Result: 1 if file exists, 0 if doesn't exist.  
   NEW TEMP DO FSTAT(.TEMP,FPNAME)
@@ -388,6 +404,9 @@ MOVE(Source,Dest)  ;
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
   QUIT RESULT
   ;
+COPY(SRC,DEST) ;
+  QUIT $$Copy(.SRC,.DEST)
+  ;
 Copy(Source,Dest)  ;
   ;"Purpose to provide a shell for the Linux command 'cp'
   ;"      This can serve to move or rename a file
@@ -486,6 +505,64 @@ Convert(FPathName,NewType)  ;
   ;"new temp SET temp=$$DEL^%ZISH(FPath,"FileSpec")
 ConvDone ;
   QUIT newFPathName
+  ;
+THUMBNAIL(PATH,SOURCEFNAME,DESTFNAME,SIZE)  ;
+  ;"Purpose: to convert a graphic image on the linux host to a thumbnail
+  ;"Input: SOURCEPATHFNAME -- full path, filename and extention of sourcefile
+  ;"       DESTPATHFNAME -- full path, filename and extention of output file to be created
+  ;"       SIZE =  width and height.  E.g. '256' OPTIONAL.  Default is 64
+  ;"Output: "1^DESTPATHFNAME" to new image file, or "-1^Error Message" if problem
+  ;"
+  ;"Note: This function depends on the ImageMagick graphic utility "convert" to be
+  ;"      installed on the host linux system, and in the path so that it can be
+  ;"      launched from any directory.
+  NEW TMGRESULT SET TMGRESULT=""
+  SET PATH=$GET(PATH)
+  IF PATH="" DO  GOTO THUMBDN
+  . SET TMGRESULT="-1^No directory path provided"
+  SET SOURCEFNAME=$GET(SOURCEFNAME)
+  IF SOURCEFNAME="" DO  GOTO THUMBDN
+  . SET TMGRESULT="-1^No source filename provided"
+  SET DESTFNAME=$GET(DESTFNAME)
+  IF DESTFNAME="" DO  GOTO THUMBDN
+  . SET TMGRESULT="-1^No destination filename provided"
+  SET SIZE=+$GET(SIZE) IF SIZE'>0 SET SIZE=64
+  NEW FN1 SET FN1=PATH_SOURCEFNAME
+  NEW FN2 SET FN2=PATH_DESTFNAME
+  ;"Setup and launch linux command to execute convert
+  NEW CMDSTR SET CMDSTR="convert "_FN1_" -thumbnail '"_SIZE_"X"_SIZE_"' "_FN2
+  ZSYSTEM CMDSTR  ;"Launch command
+  ;"get result of execution. (low byte only)  -- IF wanted
+  NEW TEMP SET TEMP=$ZSYSTEM&255   ;"0 means no error
+  IF TEMP'=0 DO  GOTO THUMBDN
+  . SET TMGRESULT="-1^Error executing Linux convert command."
+  SET TMGRESULT="1^"_FN2
+THUMBDN ;
+  QUIT TMGRESULT
+  ;
+BLACKIMG(DESTPATHFNAME,SIZE)  ;"Make empty black image
+  ;"Purpose: to convert a graphic image on the linux host to a thumbnail
+  ;"Input: DESTPATHFNAME -- full path, filename and extention of output file to be created
+  ;"       SIZE =  width and height.  E.g. '256' OPTIONAL.  Default is 64
+  ;"Output: "1^DESTPATHFNAME" to new image file, or "-1^Error Message" if problem
+  ;"
+  ;"Note: This function depends on the ImageMagick graphic utility "convert" to be
+  ;"      installed on the host linux system, and in the path so that it can be
+  ;"      launched from any directory.
+  NEW TMGRESULT SET TMGRESULT=""
+  SET DESTPATHFNAME=$GET(DESTPATHFNAME)
+  IF DESTPATHFNAME="" DO  GOTO BLKDN
+  . SET TMGRESULT="-1^No destination filename provided"
+  SET SIZE=+$GET(SIZE) IF SIZE'>0 SET SIZE=64
+  NEW CMDSTR SET CMDSTR="convert -size '"_SIZE_"X"_SIZE_"' "_DESTPATHFNAME
+  ZSYSTEM CMDSTR  ;"Launch command
+  ;"get result of execution. (low byte only)  -- IF wanted
+  NEW TEMP SET TEMP=$ZSYSTEM&255   ;"0 means no error
+  IF TEMP'=0 DO  GOTO THUMBDN
+  . SET TMGRESULT="-1^Error executing Linux convert command."
+  SET TMGRESULT="1^"_DESTPATHFNAME
+BLKDN ;
+  QUIT TMGRESULT
   ;
 XLTLANG(Phrase,langPair)  ;
   ;"Purpose: To execute a linux OS call to convert a phrase into another

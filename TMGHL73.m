@@ -288,3 +288,14 @@ SUORL   ;"Purpose: Setup TMGINFO("ORL") and TMGINFO("LOC") -- Ordering locations
         DO SUORL^TMGHL72
         QUIT
         ;
+        ;
+ZEF2    ;"Purpose: To transform the ZEF segment, field 2 ----  Embedded PDF
+        ;
+        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        NEW TMGARR 
+        DO DATAWRAP^TMGBINF(.TMGVALUE,"TMGARR",60) ;"Cut data string into array. (NOTE : size MUST be multiple of 4)
+        MERGE TMGHL7MSG("PDF")=TMGARR
+        SET TMGVALUE="(PDF)"
+        ;"NOTE: This will be processed in STOREPDF^TMGLRW01
+        QUIT
+        ;

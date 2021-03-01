@@ -164,6 +164,8 @@ OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifi
         . . . SET TMGVALUE="TMG-OSMOC^GCHE-CALC-OSMO"
         . . IF $GET(INFO(6))="Ratio" DO  QUIT  ;"real life example:  OBX|18|ST||||Ratio|7.0-25.0||||F||4||1230000058|
         . . . SET TMGVALUE="TMG-BUN/CR^GCHE-BUN/CR-RATIO"
+        . . IF $GET(INFO(6))="ml/min/SA",$GET(TMGLASTOBX3)["BKR EGFR NON-AFRICAN AMERICAN" DO  QUIT  ;"real life example: OBX|20|ST|||48|ml/min/SA|>=60|L|||F||4||1230000058|
+        . . . SET TMGVALUE="TMG-EGFR-BLK^GCHE-EGFR-AFRICAN AMERICAN"
         . IF "IRON AND TIBC"[OBRNAME DO
         . . IF $GET(INFO(6))="%" DO  QUIT  ;"real life example: OBX|1|ST|||9|%|14-50|L|||F||4||1230000058|
         . . . SET TMGVALUE="TMG-TIBC-PCT-SAT^GCHE-TIBC-PCT-SAT"

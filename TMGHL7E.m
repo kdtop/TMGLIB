@@ -46,6 +46,15 @@ SETALERT(ERRTEXT,AMSG,IEN772,IEN773) ;
         IF PTNOTFOUND,$$IGNORPT(ERRTEXT) GOTO SA2DN         
         NEW TMGERROR SET TMGERROR="[POC ERR]: "_ERRTEXT
         IF AMSG'="" SET TMGERROR=TMGERROR_"; POC MESSAGE]: "_AMSG
+        NEW ZEF DO CHECKLONGZEF^TMGHL71(.TMGMSG,.ZEF) ;"Remove any long ZEF segment from TMGMSG, which is an embedded file, causing problems. 
+        IF $DATA(ZEF) DO   ;"CODE COPIED FROM ZEF2^TMGHL73
+        . NEW IDX SET IDX=0
+        . FOR  SET IDX=$ORDER(ZEF(IDX)) QUIT:IDX'>0  DO
+        . . NEW TMGARR,LONG
+        . . SET LONG=$GET(ZEF(IDX)) QUIT:LONG=""
+        . . DO DATAWRAP^TMGBINF(LONG,"TMGARR",60) ;"Cut data string into array. (NOTE : size MUST be multiple of 4)
+        . . MERGE TMGMSG(IDX,"PDF")=TMGARR
+        . KILL ZEF
         NEW VTABLE 
         ZSHOW "V":VTABLE        
         MERGE ^TMG("TMP","TMGHL73",$J,NOWH,"ERROR VARS")=VTABLE("V")
@@ -56,7 +65,7 @@ SETALERT(ERRTEXT,AMSG,IEN772,IEN773) ;
         SET XQA(168)=""   ;"//to Kevin Toppenberg (?)
         SET XQADATA=$J_"^"_NOWH_"^"_IEN772_"^"_IEN773
         SET XQAID="TMG-HL7"
-        SET XQAROU="HNDLERR2^TMGHL7E"
+        SET XQAROU="HNDLERR^TMGHL7E"
         SET XQAMSG=$$ERRLABEL()
         SET ^TMG("TMP","TMGHL73",$J,NOWH,"ERROR")=TMGERROR
         SET ^TMG("TMP","TMGHL73","$H",NOWH,$J)=""
@@ -69,33 +78,34 @@ SETALERT(ERRTEXT,AMSG,IEN772,IEN773) ;
 SA2DN   QUIT
         ;
 ERRLABEL()  ;
-  QUIT "Error during POC lab filer process."
+        QUIT "Error during POC lab filer process."
   ;"---------------------------------------------------------------------
   ;"---------------------------------------------------------------------
 IDXDATA ;
-  KILL ^TMG("TMP","TMGHL73","$H")
-  NEW JN SET JN=0  
-  FOR  SET JN=$ORDER(^TMG("TMP","TMGHL73",JN)) QUIT:+JN'>0  DO
-  . NEW DH SET DH=0
-  . FOR  SET DH=$ORDER(^TMG("TMP","TMGHL73",JN,DH)) QUIT:+DH'>0  DO
-  . . SET ^TMG("TMP","TMGHL73","$H",DH,JN)=""
-  QUIT
-  ;
+        KILL ^TMG("TMP","TMGHL73","$H")
+        NEW JN SET JN=0  
+        FOR  SET JN=$ORDER(^TMG("TMP","TMGHL73",JN)) QUIT:+JN'>0  DO
+        . NEW DH SET DH=0
+        . FOR  SET DH=$ORDER(^TMG("TMP","TMGHL73",JN,DH)) QUIT:+DH'>0  DO
+        . . SET ^TMG("TMP","TMGHL73","$H",DH,JN)=""
+        QUIT
+        ;
 KOLDDATA ;"KILL old data, older than 1 month
-  DO IDXDATA
-  NEW HCUTOFF SET HCUTOFF=+$H-30
-  NEW DH SET DH=0
-  FOR  SET DH=$ORDER(^TMG("TMP","TMGHL73","$H",DH)) QUIT:+DH'>0  DO
-  . NEW JN SET JN=0
-  . FOR  SET JN=$ORDER(^TMG("TMP","TMGHL73","$H",DH,JN)) QUIT:+JN'>0  DO
-  . . IF ($DATA(^TMG("TMP","TMGHL73",JN,DH,"ERROR VARS"))=0)!(+DH<HCUTOFF) DO
-  . . . KILL ^TMG("TMP","TMGHL73",JN,DH)
-  . . . KILL ^TMG("TMP","TMGHL73","$H",DH,JN)
-  QUIT
+        DO IDXDATA
+        NEW HCUTOFF SET HCUTOFF=+$H-30
+        NEW DH SET DH=0
+        FOR  SET DH=$ORDER(^TMG("TMP","TMGHL73","$H",DH)) QUIT:+DH'>0  DO
+        . NEW JN SET JN=0
+        . FOR  SET JN=$ORDER(^TMG("TMP","TMGHL73","$H",DH,JN)) QUIT:+JN'>0  DO
+        . . IF ($DATA(^TMG("TMP","TMGHL73",JN,DH,"ERROR VARS"))=0)!(+DH<HCUTOFF) DO
+        . . . KILL ^TMG("TMP","TMGHL73",JN,DH)
+        . . . KILL ^TMG("TMP","TMGHL73","$H",DH,JN)
+        QUIT
   ;"---------------------------------------------------------------------
   ;"---------------------------------------------------------------------
-  ;
-HNDLERR2 ;
+        ;
+HNDLERR2 ;  
+HNDLERR ;
         ;"Purpose -- Handler for alert created during POC filing system.
         ;"Input: Globally scoped variable: XQADATA will hold $J^$H^ien772^ien773
         ;"       ^TMG("TMP","TMGHL73",$J,$H,"VARS") holds variable table at start of transform
@@ -107,16 +117,17 @@ HNDLERR2 ;
         SET XQADATA=$GET(XQADATA)
         NEW TMGJOBN SET TMGJOBN=+$PIECE(XQADATA,"^",1)
         NEW TMGTIME SET TMGTIME=$PIECE(XQADATA,"^",2)
-        NEW IEN772 SET IEN772=$PIECE(XQADATA,"^",3)
-        NEW IEN773 SET IEN773=$PIECE(XQADATA,"^",4)
+        NEW IEN772 SET IEN772=$PIECE(XQADATA,"^",3) IF IEN772="" SET IEN772=-1
+        NEW IEN773 SET IEN773=$PIECE(XQADATA,"^",4) IF IEN773="" SET IEN773=-1
         NEW INDENTN SET INDENTN=0
-        ;"NEW HLMTIEN,HLMTIENS
-        ;"SET HLMTIEN=IEN772,HLMTIENS=IEN773
         NEW TMGTESTMSG,TMGHL7MSG,TMGU,TEMPRESULT
-        DO LOAD772^TMGHL7S(IEN773,.TMGTESTMSG,.TMGHL7MSG,.TMGU)
         WRITE !,!,"Job that had transform problem was: ",TMGJOBN,!
-        WRITE "HL7 Message header stored in file# 773, record #",IEN773,!
-        WRITE "HL7 Message text stored in file# 772, record #",IEN772,!
+        DO LOADXQMSG(TMGJOBN,TMGTIME,.TMGTESTMSG,.TMGHL7MSG,.TMGU,.IEN22720)
+        IF $DATA(TMGTESTMSG)=0,IEN773>0 DO
+        . WRITE "Loading HL7 Message header stored in file# 773, record #",IEN773,!
+        . WRITE "Loading HL7 Message text stored in file# 772, record #",IEN772,!
+        . DO LOAD772^TMGHL7S(IEN773,.TMGTESTMSG,.TMGHL7MSG,.TMGU)
+        NEW OPTION DO LOADOPTION(TMGJOBN,TMGTIME,.OPTION)
         NEW TMGERROR SET TMGERROR=$GET(^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ERROR"))
         IF TMGERROR["^" SET TMGERROR=$PIECE(TMGERROR,"^",2,99)
         IF TMGERROR["Missing CPT: File# 71" GOTO HNDLERR^TMGHL7E2
@@ -133,7 +144,8 @@ HNDLERR2 ;
         . SET TMGERROR=TMGERROR_": "_PTINFO
         . SET PTNOTFOUND=1
         IF PTNOTFOUND,$$IGNORPT(TMGERROR) DO CLEANUP2(TMGJOBN,TMGTIME,1) GOTO HE2DN
-        IF (IEN772=0)&(IEN773=0) NEW SKIP SET SKIP=1 DO  GOTO:SKIP=1 HE2DN
+        ;"IF (IEN772=0)&(IEN773=0) NEW SKIP SET SKIP=1 DO  GOTO:SKIP=1 HE2DN
+        IF $DATA(TMGTESTMSG)=0 NEW SKIP SET SKIP=1 DO  GOTO:SKIP=1 HE2DN
         . WRITE "Insufficient information available to handle this alert.",!
         . IF TMGERROR'="" WRITE "Message was: "_TMGERROR,!
         . NEW % SET %=1 WRITE "Delete" DO YN^DICN WRITE !
@@ -146,9 +158,9 @@ HNDLERR2 ;
         . WRITE "Message was: ",$PIECE(TMGRESULT,"^",2),!
         . WRITE "Please fix error, and then try reprocessing this alert.",!
         . DO PRESS2GO^TMGUSRI2
+        NEW DIRNAME,FNAME SET (DIRNAME,FNAME)=""
         SET TMGENV("INTERACTIVE MODE")=1
         IF TMGERROR="" SET TMGUSERINPUT="TryAgain" GOTO M3
-        ;"11/15/19, added below to catch the 
         IF (TMGERROR["The value")&(TMGERROR["for field PATIENT in") SET TMGUSERINPUT="TryAgain" GOTO M3
         ;
 M2      KILL TMGUSERINPUT,TMGMNU,TMPERR
@@ -189,8 +201,8 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         IF TMGUSERINPUT="ViewMsg" DO VIEWMSG^TMGHL7U2(.TMGTESTMSG) GOTO M2
         IF TMGUSERINPUT="TestMap" DO TESTMAP^TMGHL70A(.TMGENV,.TMGTESTMSG,.TMGHL7MSG) WRITE !,! GOTO M2  
         IF TMGUSERINPUT="HL7FileMenu" DO FILEMENU^TMGHL70(.TMGTESTMSG,INDENTN+2) WRITE !,! GOTO M2  
-        IF TMGUSERINPUT="TryAgain" IF +$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV)=1 GOTO HE2DN
-        IF TMGUSERINPUT="TryAgainDebugger" IF $$TRYAGAN2(.TMGTESTMSG,1,.TMGENV)=1 GOTO HE2DN
+        IF TMGUSERINPUT="TryAgain" IF +$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV,.OPTION)=1 GOTO HE2DN
+        IF TMGUSERINPUT="TryAgainDebugger" IF $$TRYAGAN2(.TMGTESTMSG,1,.TMGENV,.OPTION)=1 GOTO HE2DN
         IF TMGUSERINPUT="InvalidValue" DO INVAL(IEN22720,.TMGERROR,INDENTN+2) GOTO M2
         IF TMGUSERINPUT="SetupTest" DO HESUTST2(.TMGENV,.TMGTESTMSG,INDENTN+2) GOTO M2 
         IF TMGUSERINPUT="SearchPt" NEW TMGSRCH SET TMGSRCH=0 DO  GOTO HE2DN:TMGSRCH=1,M2
@@ -198,7 +210,7 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         . IF $$FINDPT(.TEMP,.TMGHL7MSG)=0 QUIT
         . SET TMGHNDLERR("SSN")=$GET(TEMP("SSN"))
         . SET TMGHNDLERR("DFN")=$GET(TEMP("DFN"))
-        . SET TMGSRCH=$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV)
+        . SET TMGSRCH=$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV,.OPTION)
         IF TMGUSERINPUT="IgnorePt" DO  GOTO M2:(TEMPRESULT'=1),HE2DN
         . SET TEMPRESULT=$$ADDIGNOR(.TMGENV,TMGERROR,INDENTN+2)
         . IF TEMPRESULT'=1 QUIT
@@ -207,7 +219,7 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         ;
         IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
         IF TMGUSERINPUT'="^" GOTO M2
-        IF $$TRYAGAN2(.TMGTESTMSG,0,.TMGENV)'=1 DO
+        IF $$TRYAGAN2(.TMGTESTMSG,0,.TMGENV,.OPTION)'=1 DO
         . DO CLEANUP2(TMGJOBN,TMGTIME) 
 HE2DN   WRITE "Quitting.  Goodbye",!
         KILL TMGHNDLERR  ;"just in case it was set here. 
@@ -282,7 +294,8 @@ GETPTLST(PTINFO,PTARRAY)
         NEW IDX SET IDX=1
         NEW PTMATCHARRAY
         ;"GET PT INFO
-        NEW LNAME SET LNAME=$P($G(PTINFO(5)),"^",1)
+        NEW LNAME SET LNAME=$GET(PTINFO(5,1))
+        NEW FNAME SET FNAME=$GET(PTINFO(5,2))
         NEW DOB SET DOB=$G(PTINFO("FMDT"))
         NEW NAME SET NAME=LNAME
         NEW DFN
@@ -293,11 +306,22 @@ GETPTLST(PTINFO,PTARRAY)
         . . NEW THISDOB SET THISDOB=$P($G(^DPT(DFN,0)),"^",3)
         . . IF THISDOB=DOB DO
         . . . SET PTMATCHARRAY(DFN)=""
-        SET DFN=0
+        IF $DATA(PTARRAY)>0 GOTO GPLFIN
+        ;"Current match criteria last name and first name
+        SET NAME=LNAME
+        FOR  SET NAME=$O(^DPT("B",NAME)) QUIT:(NAME'[LNAME)!(NAME="")  DO
+        . SET DFN=0
+        . FOR  SET DFN=$O(^DPT("B",NAME,DFN)) QUIT:DFN'>0  DO
+        . . NEW ZN SET ZN=$G(^DPT(DFN,0))
+        . . NEW THISNAME SET THISNAME=$PIECE(ZN,"^",1)
+        . . NEW THISFNAME SET THISFNAME=$PIECE(THISNAME,",",2)
+        . . IF THISFNAME'[FNAME QUIT
+        . . SET PTMATCHARRAY(DFN)=""        
+GPLFIN  SET DFN=0
         FOR  SET DFN=$O(PTMATCHARRAY(DFN)) QUIT:DFN'>0  DO
         . NEW ZN SET ZN=$G(^DPT(DFN,0))
         . SET PTARRAY(IDX)=$P(ZN,"^",1)_"^"_$$EXTDATE^TMGDATE($P(ZN,"^",3))_"^"_$P(ZN,"^",9)_"^"_$P(ZN,"^",2)_"^"_DFN
-        . SET IDX=IDX+1
+        . SET IDX=IDX+1        
         QUIT
         ;"
 GETPTINO(OUT,TMGHL7MSG) ;
@@ -344,6 +368,18 @@ TRYAGAN2(TMGMSG,DEBUG,TMGENV,OPTION) ;
         IF TMGRESULT<0 GOTO DEBG2DN
         WRITE "-------------------",!
         WRITE "Done with filer.  Processing seems to have been without problems.",!
+        SET %=1 WRITE !,"Move HL7 message file to SUCCESS folder" DO YN^DICN WRITE !
+        IF %=1 DO
+        . NEW OPT2 MERGE OPT2=OPTION
+        . NEW FNAME SET FNAME=$GET(OPTION("FAILURE STORE FNAME"))
+        . NEW FPATH SET FPATH=$GET(OPTION("FAILURE STORE FPATH"))
+        . SET OPT2("FILEPATHNAME")=FPATH_FNAME
+        . NEW TEMPRESULT SET TEMPRESULT=$$MOVE^TMGHL71(1,.OPT2)
+        . IF TEMPRESULT>0 QUIT
+        . NEW TEMPRESULT2 SET TEMPRESULT2=$$MOVE^TMGHL71(1,.OPTION)
+        . IF TEMPRESULT2>0 QUIT
+        . WRITE $PIECE(TEMPRESULT,"^",2),!
+        . WRITE $PIECE(TEMPRESULT2,"^",2),!
 DEBG2DN IF TMGRESULT<0 DO
         . NEW ERR SET ERR=$PIECE(TMGRESULT,"^",2,99)
         . NEW IGNORE SET IGNORE=0
@@ -505,6 +541,76 @@ AGN3    NEW %DT,X,Y
 IGRPCDN
         QUIT
         ;"
+LOADXQMSG(TMGJOBN,TMGTIME,TMGMSG,TMGHL7MSG,TMGU,IEN22720) ;
+        ;"Purpose: to load a message saved during alert creation
+        ;"Input: TMGJOBN -- $J of error
+        ;"       TMGTIME -- $H of error
+        ;"       TMGMSG -- PASS BY REFERENCE. AN OUT PARAMETER. 
+        ;"       TMGHL7MSG -- PASS BY REFERENCE. AN OUT PARAMETER. 
+        ;"       TMGU -- PASS BY REFERENCE. AN OUT PARAMETER. 
+        ;"       IEN22720 -- PASS BY REFERENCE. AN OUT PARAMETER.
+        ;"Input: Globally scoped variable: XQADATA will hold $J^$H^ien772^ien773
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"VARS") holds variable table at start of transform
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ERROR VARS") holds variable table at time of error.
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ERROR")=POC error message.
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ALERT ID")=The alert handle/ID
+        ;"       ^TMG("TMP","TMGHL71",TMGJOBN,"ZZLOG") holds a log of run.           
+        ;"Accesses IEN22720 by global scope (but not required)
+        ;"Result: NONE
+        NEW TMGRESULT SET TMGRESULT="-1^OK"
+        NEW EVARS
+        MERGE EVARS=^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ERROR VARS")
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(EVARS(IDX)) QUIT:IDX'>0  DO
+        . NEW LINE SET LINE=$GET(EVARS(IDX)) QUIT:LINE=""
+        . IF $PIECE(LINE,"(",1)'="TMGMSG" QUIT
+        . SET @LINE
+        SET IDX=0
+        FOR  SET IDX=$ORDER(TMGMSG(IDX)) QUIT:IDX'>0  DO
+        . IF $DATA(TMGMSG(IDX,"PDF"))=0 QUIT
+        . NEW LONG SET LONG=""
+        . NEW JDX SET JDX=0
+        . FOR  SET JDX=$ORDER(TMGMSG(IDX,"PDF",JDX)) QUIT:JDX'>0  DO
+        . . SET LONG=LONG_$GET(TMGMSG(IDX,"PDF",JDX))
+        . KILL TMGMSG(IDX,"PDF")
+        . SET TMGMSG(IDX)=LONG
+        IF $DATA(TMGMSG)=0 DO  GOTO LXMDN
+        . SET TMGRESULT="-1^Unable to extract HL7 message from saved data"
+        SET TMGRESULT=$$SETUPENV^TMGHL7U(.TMGMSG,.TMGENV) 
+        IF TMGRESULT<0 GOTO LXMDN
+        SET IEN22720=$GET(TMGENV("IEN 22720"))
+        MERGE TMGU=TMGENV("TMGU")
+        SET TMGRESULT=$$PRSEARRY^TMGHL7X2(IEN22720,.TMGMSG,.TMGHL7MSG,.TMGU) ;
+LXMDN   ;        
+        IF TMGRESULT<0 DO
+        . WRITE $PIECE(TMGRESULT,"^",2),!
+        . DO PRESS2GO^TMGUSRI2                          
+        QUIT
+        ;   
+LOADOPTION(TMGJOBN,TMGTIME,OPTION) ;
+        ;"Purpose: to load a message saved during alert creating
+        ;"Input: TMGJOBN -- $J of error
+        ;"       TMGTIME -- $H of error
+        ;"       OPTION -- AN OUT PARAMETER
+        ;"Input: Globally scoped variable: XQADATA will hold $J^$H^ien772^ien773
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"VARS") holds variable table at start of transform
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ERROR VARS") holds variable table at time of error.
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ERROR")=POC error message.
+        ;"       ^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ALERT ID")=The alert handle/ID
+        ;"       ^TMG("TMP","TMGHL71",TMGJOBN,"ZZLOG") holds a log of run.           
+        ;"Accesses IEN22720 by global scope (but not required)
+        ;"Result: none
+        NEW EVARS MERGE EVARS=^TMG("TMP","TMGHL73",TMGJOBN,TMGTIME,"ERROR VARS")
+        NEW LOCALOPTION
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(EVARS(IDX)) QUIT:IDX'>0  DO
+        . NEW LINE SET LINE=$GET(EVARS(IDX)) QUIT:LINE=""
+        . NEW P1 SET P1="^"_$PIECE(LINE,"(",1)_"^"
+        . IF "^LOCALOPTION^OPTION^"[P1 DO        
+        . . SET @LINE
+        MERGE OPTION=LOCALOPTION
+        QUIT
+        ;   
   ;"---------------------------------------------------------------------
   ;"---------------------------------------------------------------------
   ;        

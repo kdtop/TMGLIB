@@ -33,10 +33,10 @@ TMGRPC1 ;TMG/kst-RPC Functions ; 4/19/15, 5/23/14
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
  ;"ENCODE(GREF,incSubscr,encodeFn)    ; Depreciated MOVED to TMGRPC1C
- ;"DECODE(GREF,incSubscr,decodeFn)    ; Depreciated MOVED to TMGRPC1C
- ;"$$HEXCODER(INPUT)    ;encode the input string.  Currently using simple hex encoding/
- ;"$$B64CODER(INPUT)    ;encode the input string via UUENCODE (actually Base64)
- ;"$$B64DECODER(INPUT)  ;encode the input string via UUDECODE (actually Base64)
+ ;"DECODE(GREF,incSubscr,decodeFn)    ; Depreciated MOVED to TMGRPC1C 
+ ;"$$HEXCODER(INPUT)    ;encode the input string.  Currently using simple hex encoding/ <-- moved to TMGRPC1C
+ ;"$$B64CODER(INPUT)    ;encode the input string via UUENCODE (actually Base64) <-- moved to TMGRPC1C
+ ;"$$B64DECODER(INPUT)  ;encode the input string via UUDECODE (actually Base64) <-- moved to TMGRPC1C
  ;
  ;"=======================================================================
  ;"=======================================================================

@@ -1,7 +1,7 @@
 TMGHL7S ;TMG/kst-HL7 transformation engine processing ;03/28/11, 2/2/14
               ;;1.0;TMG-LIB;**1**;03/28/11
- ;
- ;"TMG HL7 TRANSFORMATION FUNCTIONS
+ ;                                                                          
+ ;"TMG HL7 TRANSFORMATION FUNCTIONS                                      
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
@@ -141,7 +141,7 @@ M1      DO NSURTMGU(.TMGTESTMSG,.IEN22720,.TMGU)
         ;
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
         KILL TMGMNU ;"Prevent from cluttering variable table during debug run
-        ;
+        ;                                                      
 M1B     IF TMGUSERINPUT="ViewMsg" DO VIEWMSG^TMGHL7U2(.TMGTESTMSG) GOTO M1
         IF TMGUSERINPUT="LoadMsg" DO LOAD(.TMGTESTMSG,.TMGHL7MSG,.TMGU) GOTO M1
         IF TMGUSERINPUT="AddXForm" DO XFORM(IEN22720,.TMGHL7MSG,.TMGU,INDENTN+2) GOTO M1
@@ -182,7 +182,7 @@ AD2     SET TMGRESULT=$$PRSEARRY^TMGHL7X2(IEN22720,.TMGTESTMSG,.TMGHL7MSG,.TMGU)
         . WRITE $PIECE(TMGRESULT,"^",2),!
         . DO PRESS2GO^TMGUSRI2
 LOADDN  QUIT
-        ;
+        ;                          
 LOAD772(IEN773,TMGTESTMSG,TMGHL7MSG,TMGU) ;
         ;"Purpose: to load a test message for reference during setup.
         ;"Input: IEN773 -- IEN IN 773 (HL7 MESSAGE ADMINISTRATION)
@@ -213,7 +213,7 @@ LOAD772(IEN773,TMGTESTMSG,TMGHL7MSG,TMGU) ;
         SET TMGRESULT=$$PRSEARRY^TMGHL7X2(IEN22720,.TMGTESTMSG,.TMGHL7MSG,.TMGU) ;
 LD72    IF TMGRESULT<0 DO  GOTO LD772DN
         . WRITE $PIECE(TMGRESULT,"^",2),!
-        . DO PRESS2GO^TMGUSRI2
+        . DO PRESS2GO^TMGUSRI2                          
 LD772DN QUIT
         ;
 XFORM(IEN22720,TMGHL7MSG,TMGU,INDENTN)   ;

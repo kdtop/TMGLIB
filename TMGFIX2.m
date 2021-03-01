@@ -1440,3 +1440,36 @@ COMPORDR()  ;"This function completes any orders that are older than 18 months o
         . SET $PIECE(^OR(100,ORDERIEN,3),"^",3)=COMPLETEIEN
         QUIT
         ;"
+TIUNOPAT   ;"This function will find all TIU Documents that don't have
+           ;"   patients assigned to them, separated by whether they have
+           ;"   text or not
+        NEW TIUIEN,COUNTWDAT,COUNTWODAT SET (TIUIEN,COUNTWDAT,COUNTWODAT)=0
+        NEW TIUARRAYWDAT,TIUARRAYWODAT
+        FOR  SET TIUIEN=$O(^TIU(8925,TIUIEN)) QUIT:TIUIEN'>0  DO
+        . NEW PATIENT SET PATIENT=+$P($G(^TIU(8925,TIUIEN,0)),"^",2)       
+        . IF PATIENT>0 QUIT
+        . IF $D(^TIU(8925,TIUIEN,"TEXT")) DO  ;"these have text
+        . . SET TIUARRAYWDAT(TIUIEN)=""
+        . . SET COUNTWDAT=COUNTWDAT+1
+        . . ZWR ^TIU(8925,TIUIEN,*)
+        . ELSE  DO                            ;"these do not
+        . . SET TIUARRAYWODAT(TIUIEN)=""
+        . . SET COUNTWODAT=COUNTWODAT+1
+        . . ZWR ^TIU(8925,TIUIEN,*)
+        W COUNTWDAT_" DOCUMENTS FOUND WITHOUT PATIENTS - WITH NOTE TEXT",!
+        W COUNTWODAT_" DOCUMENTS FOUND WITHOUT PATIENTS - WITH NO NOTE TEXT",!
+        ;"
+        ;"NOW PREPARE TO DELETE THESE NOTES
+        SET TIUIEN=0
+        FOR  SET TIUIEN=$O(TIUARRAYWDAT(TIUIEN)) QUIT:TIUIEN'>0  DO
+        . NEW TMGFDA SET TMGFDA(8925,TIUIEN_",",.01)="@"
+        . NEW TMGMSG
+        . WRITE "DELETING ",TIUIEN,!
+        . DO FILE^DIE("E","TMGFDA","TMGMSG")
+        SET TIUIEN=0
+        FOR  SET TIUIEN=$O(TIUARRAYWODAT(TIUIEN)) QUIT:TIUIEN'>0  DO
+        . NEW TMGFDA SET TMGFDA(8925,TIUIEN_",",.01)="@"
+        . NEW TMGMSG
+        . WRITE "DELETING ",TIUIEN,!
+        . DO FILE^DIE("E","TMGFDA","TMGMSG")
+        QUIT

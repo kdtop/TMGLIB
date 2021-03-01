@@ -442,7 +442,8 @@ WEIGHT(DFN,TIU)  ;
   SET STRING="Wt "_STRING
   SET STRING=$TR(STRING,$C(13,10))
   SET STRING=$$REPLSTR^TMGSTUT3(STRING,"         ","")
-  SET STRING=$$REPLSTR^TMGSTUT3(STRING,"[See vital-signs documented in chart]","")
+  ;"SET STRING=$$REPLSTR^TMGSTUT3(STRING,"[See vital-signs documented in chart]","")
+  SET STRING=$$REPLSTR^TMGSTUT3(STRING,"[Current vital signs not available]","")  ;"changed 12/1/20
   ;"FINISH PARSING STRING
   SET ^TMP("EDDIE","WEIGHT")=STRING
   QUIT STRING

@@ -454,9 +454,9 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         . SET PROV=ADUZ_TMGU(2)_LNAME_TMGU(2)_FNAME
         . SET TMGINFO("PROV")=PROV
         IF $DATA(TMGINFO("PROV"))=0,$GET(TMGXERR)="" DO
-        . NEW LNAME,FNAME,MNAME
+        . NEW LNAME,FNAME,MNAME,NAME  ;"added "NAME" here on 2/25/21
         . SET TMGINFO("PROV","ORIGINAL")=PROV
-        . IF $$UP^XLFSTR(PROV)'["TOPPENBERG" SET PROV="^Doctor^Unspecified^"
+        . ;"//kt 2/4/21 Changing to register outside providers.  Old --> IF $$UP^XLFSTR(PROV)'["TOPPENBERG" SET PROV="^Doctor^Unspecified^"
         . IF PROV="" DO  QUIT
         . . SET TMGXERR="In SUPROV.TMGHL72: Ordering provider not provided in field #16 or 'OBR' segment in HL7 message"
         . ;"SET LNAME=$PIECE(PROV,TMGU(2),2)
@@ -470,6 +470,10 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         . SET NAME=$$HL7N2FMN(.TMGU,PROV,.LNAME,.FNAME,.MNAME)
         . NEW DIC,X,Y SET DIC=200,DIC(0)="M",X=NAME
         . DO ^DIC
+        . IF Y'>0 DO  QUIT:($GET(TMGXERR)'="")  ;"//kt added 2/4/21
+        . . NEW TEMP SET TEMP=$$ADDPROV(NAME,.TMGU)
+        . . IF TEMP>0 SET Y=TEMP QUIT
+        . . SET TMGXERR=TEMP
         . IF Y'>0 DO  QUIT
         . . SET TMGXERR="In SUPROV.TMGHL72: Unable find provider in lookup: '"_NAME_"'"
         . SET PROV=+Y_TMGU(2)_LNAME_TMGU(2)_FNAME
@@ -477,6 +481,23 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         . SET TMGINFO("PROV")=PROV
 SPVDN   QUIT
         ;
+ADDPROV(FMNAME,TMGU)  ;"ADD PROVIDER TO NEW PERSON FILE.  (*CAUTION*)
+        ;"Input: Name of  user to add: 'LNAME,FNAME' 
+        ;"Return 'DFN^<NAME>^TMG', or -1^Message
+        ;"NOTE: This does NOT check for pre-existence of user, so could cause DUPLICATES.  
+        NEW TMGFDA,TMGIEN,TMGIENS,TMGMSG,DIC,TMGRESULT
+        SET TMGRESULT=0
+        SET DIC(0)=""
+        SET TMGFDA(200,"+1,",.01)=FMNAME
+        DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
+        IF $DATA(TMGMSG("DIERR")) DO  GOTO ADDDN
+        . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(TMGMSG("DIERR"))
+        SET TMGIEN=+$GET(TMGIEN(1))
+        IF +TMGIEN<1 DO  GOTO ADDDN
+        . SET TMGRESULT="-1^USER NOT CREATED FOR UNKNOWN REASON"
+        SET TMGRESULT=TMGIEN_"^"_FMNAME_"^TMG"
+ADDDN   QUIT TMGRESULT
+        ;                
 HL7N2FMN(TMGU,HL7NAME,LNAME,FNAME,MNAME)  ;"CONVERT HL7-FORMAT NAME TO FILEMAN-FORMAT NAME
         SET LNAME=$PIECE(HL7NAME,TMGU(2),2)
         SET FNAME=$PIECE(HL7NAME,TMGU(2),3)

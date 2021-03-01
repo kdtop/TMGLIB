@@ -1,4 +1,4 @@
-TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18
+TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18, 10/19/20
               ;;1.0;TMG-LIB;**1**;06/20/13
  ;
  ;"TMG LAB RESULTS STORAGE API
@@ -22,7 +22,7 @@ TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18
  ;"=======================================================================
  ;" API - Private Functions
  ;"=======================================================================
- ;"GETINFO(TMGHL7MSG,MSGINFO) -- PARSE HEADER INFO INTO USABLE ARRAY
+ ;"GETINFO(TMGHL7MSG,TMGENV,MSGINFO) -- PARSE MESSAGE INFO INTO USABLE ARRAY
  ;"FILESUBM(INFO,MSGARR,DATESUSED,ALERTS) -- FILE SUB HL7 MESSAGE
  ;"PREPINFO(INFO,FILEARR) -- Fill in FILEARR with relevant parts of INFO
  ;"PREPOBR(INFO,OBRARR,FILEARR,DATESUSED) -- Prepair array for LRWRITE
@@ -66,11 +66,11 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         NEW MSGINFO,DATESUSED
         NEW NTEARR,FILEARR
         NEW TMGU MERGE TMGU=TMGENV("TMGU")
-        SET IEN62D4=+$GET(TMGENV("IEN 62.4"))
-        IF IEN62D4'>0 DO  GOTO FMGDN
-        . SET TMGRESULT="-1^In FILEMSG.TMGLRW01: No IEN for file 62.4 found."
-        SET MSGINFO("IEN 62.4")=IEN62D4
-        SET TMGRESULT=$$GETINFO(.TMGHL7MSG,.MSGINFO)
+        ;" SET IEN62D4=+$GET(TMGENV("IEN 62.4"))
+        ;" IF IEN62D4'>0 DO  GOTO FMGDN
+        ;" . SET TMGRESULT="-1^In FILEMSG.TMGLRW01: No IEN for file 62.4 found."
+        ;" SET MSGINFO("IEN 62.4")=IEN62D4
+        SET TMGRESULT=$$GETINFO(.TMGHL7MSG,.TMGENV,.MSGINFO)
         IF +TMGRESULT<0 GOTO FMGDN
         DO PRIORLDT^TMGLRWU3(.TMGHL7MSG,.DATESUSED,.MSGINFO) ;"Fill used prior lab dates
         ;        
@@ -113,6 +113,7 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         . MERGE NTEARR=HDRNTEARR
         . SET TMGRESULT=$$STORNOTE(SUBFILE,IENS,.NTEARR)
         IF +TMGRESULT<0 GOTO FMGDN
+        IF $DATA(TMGHL7MSG("PDF")) DO STOREPDF^TMGLRPD1(.TMGHL7MSG,.MSGINFO)
         ;"Next, send alert that lab has been filed and is available for review.
         NEW PROV SET PROV=$GET(MSGINFO("PROV IEN"))
         IF PROV'>0 SET PROV=168 ;"NOTE!!! This hard codes KEVIN TOPPENBERG to get alerts if other provider not found.
@@ -146,7 +147,7 @@ GETSUBMSG(TMGHL7MSG,OBRIDX,SUBMSGARR) ;
         . MERGE SUBMSGARR(OBRIDX)=TMGHL7MSG(OBRIDX)
         QUIT TMGRESULT
         ;
-GETINFO(TMGHL7MSG,MSGINFO)  ;"PARSE HEADER INFO INTO USABLE ARRAY
+GETINFO(TMGHL7MSG,TMGENV,MSGINFO)  ;"PARSE MESSAGE INFO INTO USABLE ARRAY
         ;"Input: TMGHL7MSG.  PASS BY REFERENCE.  Parsed HL7 message array
         ;"       MSGINFO.  PASS BY REFERENCE.  AN OUT PARAMETER
         ;"Output: MSGINFO is filled. 
@@ -159,6 +160,7 @@ GETINFO(TMGHL7MSG,MSGINFO)  ;"PARSE HEADER INFO INTO USABLE ARRAY
         . SET SEGMENT=$PIECE(DATA,TMGU(1),1)
         . IF SEGMENT="MSH" DO   ;"Process header with sender information
         . . SET MSGINFO("LAB IEN4")=$GET(TMGHL7MSG(IDX,4,2))_"^"_$GET(TMGHL7MSG(IDX,4,1))
+        . . SET MSGINFO("IEN 4")=+MSGINFO("LAB IEN4")
         . IF SEGMENT="PID" DO   ;"Process patient segment
         . . SET MSGINFO("NAME")=$GET(TMGHL7MSG(IDX,5,1))_","_$GET(TMGHL7MSG(IDX,5,2))
         . . NEW DOB SET DOB=$GET(TMGHL7MSG(IDX,7))
@@ -186,6 +188,13 @@ GETINFO(TMGHL7MSG,MSGINFO)  ;"PARSE HEADER INFO INTO USABLE ARRAY
         NEW TMGDFN SET TMGDFN=+$GET(MSGINFO("DFN"))
         NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(TMGDFN,"LR")),"^",1)
         SET MSGINFO("LRDFN")=LRDFN
+        ;
+        NEW IEN FOR IEN="22720","62.4","68.2","772","773" DO  QUIT:TMGRESULT<0
+        . NEW IEN2 SET IEN2=+$GET(TMGENV("IEN "_IEN))
+        . IF IEN2="" DO  QUIT
+        . . SET TMGRESULT="-1^In GINFDN.TMGLRW01: No IEN for file "_IEN_" found."
+        . SET MSGINFO("IEN "_IEN)=IEN2
+        ;
 GINFDN  QUIT TMGRESULT
         ;
 FILESUBM(INFO,MSGARR,DATESUSED,ALERTS) ;"FILE SUB HL7 MESSAGE
@@ -364,7 +373,7 @@ SN2     SET IDX=0
         . IF $DATA(TMGMSG("DIERR")) DO  GOTO STNTDN 
         . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
 STNTDN  QUIT TMGRESULT
-        
+        ;
 PREPNTE(NTEARR,FILEARR) ;"prep NTE   "//DEPRECIATED
         ;"Result: 1 if OK, or -1^Error Msg IF any
         NEW TMGRESULT SET TMGRESULT=1
@@ -520,6 +529,7 @@ LRWRITE(DFN,ARRAY,LABTYPE,FLAGS,ALERTS) ;"Store data in LAB DATA (^LR), file# 63
         . IF ALVL>LEVEL SET LEVEL=ALVL
         SET ALERTS(DFN_"^"_DT_"^"_LEVEL_"^"_LABTYPE)=""
 LRWDN   QUIT TMGRESULT        
+        ;
         ;
  ;"FILESARR(DFN,FNUM,IENS,ARRAY,FLAGS,TMGRESULT) ;// DEPRECIATED ;"FILE SUB ENTRIES
  ;"        ;"Purpose: To take user input array and prepair for passing into Fileman

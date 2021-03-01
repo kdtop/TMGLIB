@@ -86,39 +86,39 @@ ADDN  ;
   ;   
 SHR(NUM,DIGITS)  ;"//BINARY SHIFT RIGHT
   NEW RESULT SET RESULT=NUM
-  SET DIGITS=$GETD(DIGITS,1)
+  SET DIGITS=$GET(DIGITS,1)
   NEW I FOR I=1:1:DIGITS DO
   . SET RESULT=(RESULT/2)\1
   QUIT RESULT
   ;
 SHL(NUM,DIGITS) ;"//BINARY SHIFT LEFT
   NEW RESULT SET RESULT=NUM
-  SET DIGITS=$GETD(DIGITS,1)
+  SET DIGITS=$GET(DIGITS,1)
   NEW I FOR I=1:1:DIGITS DO
   . SET RESULT=RESULT*2
   QUIT RESULT
   ;
-GCD(U, V) ;"//GREATEST COMMON DENOMINATOR
+GCD(U,V) ;"//GREATEST COMMON DENOMINATOR
   ;"From here: https://en.wikipedia.org/wiki/Binary_GCD_algorithm
-  // simple cases (termination)
+  ;"// simple cases (termination)
   IF U=V QUIT U
   IF U=0 QUIT V
   IF V=0 QUIT U
   ;
   NEW RESULT SET RESULT=0
-  // look for factors of 2
-  IF U#2=0 DO // u is even
-  . IF V#2=1 DO // v is odd
+  ;"// look for factors of 2
+  IF U#2=0 DO  ;"// u is even
+  . IF V#2=1 DO  ;"// v is odd
   . . SET RESULT=$$GCD($$SHR(U),V)
-  . ELSE  DO // both u and v are even
+  . ELSE  DO  ;"// both u and v are even
   . . SET RESULT=$$SHL($$GCD($$SHR(U),$$SHR(V)))
   ;
-  ELSE  IF V#2=0 DO // u is odd, v is even
+  ELSE  IF V#2=0 DO  ;"// u is odd, v is even
   . SET RESULT=$$GCD(U,$$SHR(V))
-  // reduce larger argument
+  ;"// reduce larger argument
   ELSE  IF U>V DO   
-  . SET RESULT=$$GCD($$SHR(U-V), V)
+  . SET RESULT=$$GCD($$SHR(U-V),V)
   ELSE  SET RESULT=$$GCD($$SHR(V-U),U)
   ;
   QUIT RESULT
-
+  ;

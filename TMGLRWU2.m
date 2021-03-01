@@ -164,7 +164,7 @@ CHKALERT(RECIPARR,DFN,ALERTMSG)
   . . . ;"note: don't enact this portion yet until top has been tested
   . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
   . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
-  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) DO
+  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART)&(ALERTMSG'["Abnormal") DO
   . . . . KILL ^XTV(8992,RECIP,"XQA",DTTIME)
   . ;"Just in case an alert was previously created in the same job, but 
   . ;"was tasked off and hasn't been fully completed yet... we will test

@@ -1,4 +1,4 @@
-TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18
+TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18, 2/16/21
               ;;1.0;TMG-LIB;**1**;9/13/13
  ;
  ;"TMG LAB ENTRY UTILITY
@@ -17,7 +17,8 @@ TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18
  ;"=======================================================================
  ;"DELLAB(LRDFN,DT,FLD)  -- DELETE 1 LAB 
  ;"PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) -- PRIOR LAB DATES
- ;"ASKDELAB  -- Interact with user and delete stored
+ ;"ASKDELAB  -- Interact with user and delete stored LAB
+ ;"ASKDELRAD(DFN) -- Interact with user and delete stored RAD STUDY
  ;"
  ;"DUPSCAN  -- Scan for duplicate labs
  ;"=======================================================================
@@ -31,7 +32,7 @@ TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18
 ASKDELAB(DFN) ;
         ;"INPUT: DFN-- optional
         WRITE !,!,"--------------------------------------------------------",!
-        WRITE "This utility will cause PERMANENT DELETION of store lab values. CAUTION!",!
+        WRITE "This utility will cause PERMANENT DELETION of stored lab values. CAUTION!",!
         WRITE "--------------------------------------------------------",!
         NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
         SET DFN=$GET(DFN) 
@@ -125,6 +126,65 @@ PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) ;"PRIOR LAB DATES
         . . . SET DATESUSED("B",ALAB,FMDT)=LABRDT
         QUIT
         ;
+ASKDELRAD(DFN) ;"ARRRGGG!!! I wrote this function twice!!  see ASKDELRAD^TMGRAU01
+        ;"INPUT: DFN-- optional
+        WRITE !,!,"--------------------------------------------------------------------------------",!
+        WRITE "This utility will cause PERMANENT DELETION of stored radiology studies. CAUTION!",!
+        WRITE "--------------------------------------------------------------------------------",!
+        NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
+        SET DFN=$GET(DFN) 
+        IF DFN>0 SET Y=DFN
+        ELSE  DO ^DIC WRITE !
+ADR1    IF Y'>0 DO  GOTO ADRDN
+        . WRITE "No patient selected.  Aborting.",!
+        SET DFN=+Y        
+        NEW %DT,X,Y SET %DT="AEP"
+        SET %DT("A")="Enter date of radiographic studies to delete: "
+        DO ^%DT WRITE !
+        IF Y'>0 DO  GOTO ADRDN
+        . WRITE "No date selected.  Aborting.",!
+        NEW MENU,MENUCT,USRPICK,ADT,FLD
+ADRL0   KILL MENU SET MENUCT=0
+        SET MENU(0)="Pick radiographic studies to delete"
+        NEW SRDT SET SRDT=$$FMDT2RDT^TMGLRWU1(Y+1)  
+        NEW ERDT SET ERDT=$$FMDT2RDT^TMGLRWU1(Y) 
+        NEW RDT SET RDT=SRDT
+        FOR  SET RDT=+$ORDER(^RADPT(DFN,"DT",RDT)) QUIT:((RDT\1)>(ERDT\1))!(RDT=0)  DO
+        . NEW SUBIEN SET SUBIEN=0
+        . FOR  SET SUBIEN=+$ORDER(^RADPT(DFN,"DT",RDT,"P",SUBIEN)) QUIT:SUBIEN'>0  DO
+        . . NEW DT SET DT=$$RDT2FMDT^TMGLRWU1(RDT)
+        . . NEW IENS SET IENS=SUBIEN_","_RDT_","_DFN_","
+        . . NEW FLD SET FLD=".01;2"
+        . . NEW TMGMSG,TMGERR
+        . . DO GETS^DIQ(70.03,IENS,FLD,"E","TMGMSG","TMGERR")
+        . . IF $DATA(TMGMSG("DIERR")) DO  QUIT
+        . . . WRITE "ERROR: "_$$GETERRST^TMGDEBU2(.TMGMSG),!
+        . . NEW CASENUM SET CASENUM=$GET(TMGMSG(70.03,IENS,.01,"E"))
+        . . NEW STUDYNAME SET STUDYNAME=$GET(TMGMSG(70.03,IENS,2,"E"))
+        . . NEW STR SET STR=$$FMTE^XLFDT(DT,"5D")_" "_STUDYNAME_" (case# "_CASENUM_")"
+        . . SET MENUCT=MENUCT+1,MENU(MENUCT)=STR_$CHAR(9)_MENUCT_";"_IENS
+        IF MENUCT=0 DO  GOTO ADRDN
+        . WRITE "No radiographic studies  found for patient on specified data.  Aborting.",!
+        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        IF "^"[USRPICK GOTO ADRDN
+        SET MENUCT=$PIECE(USRPICK,";",1)
+        NEW STR SET STR=$PIECE($GET(MENU(MENUCT)),$CHAR(9),1)
+        WRITE !,"Permanently delete study (CAN NOT BE UNDONE):",!
+        WRITE "    ",STR,!
+        WRITE "PERMANENTLY DELETE" SET %=2 DO YN^DICN WRITE !
+        IF %=-1 GOTO ADRDN
+        IF %'=1 GOTO ADRL1
+        NEW IENS SET IENS=$PIECE(USRPICK,";",2)
+        NEW TMGFDA SET TMGFDA(70.03,IENS,.01)="@"
+        NEW TMGERR
+        DO FILE^DIE("E","TMGFDA","TMGERR")
+        IF $DATA(TMGMSG("DIERR")) DO
+        . WRITE "ERROR: "_$$GETERRST^TMGDEBU2(.TMGMSG),!
+        ELSE  WRITE !,"DELETED.",!        
+ADRL1   SET %=1 WRITE !,"DELETE ANOTHER" DO YN^DICN WRITE !
+        IF %=1 GOTO ADRL0
+ADRDN   QUIT
+        ;         
  ;"=====================
  ;"The code looks for instances where the same lab is filed multiple times,
  ;"  with a timestamp within the same minute (differing only by seconds).

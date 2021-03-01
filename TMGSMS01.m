@@ -518,6 +518,13 @@ GETFSTAT() ;"Process FINAL status report. <--- SUITABLE ENTRY POINT FOR TASKMAN
  ;"The procedures below are single use only. Kept here to repurpose in the
  ;"future if need be but can be deleted before pushing up to github
  ;" 
+SENDFLUMSG
+  NEW MESSAGE 
+  SET MESSAGE="Family Physicians of Greeneville is now offering Flu Vaccinations. We are accepting walk-ins for flu vaccines EVERY THURSDAY, from 9A-12P and 1P-4P. Simply call us from the parking lot and let us know you are here. "
+  SET MESSAGE=MESSAGE_" You can also get one during your in-office appointment. If you have any questions, please call us at 423-787-7000."
+  DO ONEMSG(MESSAGE)
+  QUIT
+  ;" 
 SENDWEBSITEMSG
   NEW MESSAGE 
   SET MESSAGE="Please visit the Family Physicians website for updated Coronavirus information at www.familyphysiciansofgreeneville.com/covid-19"
@@ -598,7 +605,8 @@ ONEMSG(MESSAGE)  ;"
   . . DO ADDLINE^TMGSMS01(.ARR,"csv:"_PHONENUM_"|"_MESSAGE)
   . . SET COUNT=COUNT+1
   ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14235258434|"_MESSAGE)
-  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14233295446|"_MESSAGE)
+  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14233295443|"_MESSAGE)
+  ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14234260236|"_MESSAGE)
   ZWR ARR
   WRITE COUNT," TOTAL MESSAGES",!
   ;"WRITE "NOT SENDING AT THIS TIME",!

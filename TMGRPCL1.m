@@ -279,13 +279,13 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   . . . ;"WRITE "PATIENT:",$P($G(^DPT(DFN,0)),"^",1),"-",DFN,!
   . . . ;"WRITE "    DATE:",DATE,!
   . . . ;"WRITE "!!!!!! NOT REVIEWED  !!!!!!!",!
-  . . NEW DUZ SET DUZ=0
+  . . NEW TMGDUZ SET TMGDUZ=0
   . . NEW REVIEWED SET REVIEWED=0
-  . . FOR  SET DUZ=$O(^TMG(22732,IDX,1,TMGIDX,1,"B",DUZ)) QUIT:DUZ'>0  DO
-  . . . IF DUZ=83 DO
+  . . FOR  SET TMGDUZ=$O(^TMG(22732,IDX,1,TMGIDX,1,"B",TMGDUZ)) QUIT:TMGDUZ'>0  DO
+  . . . IF TMGDUZ=83 DO
   . . . . ;"WRITE "   ---->>>>REVIEWED BY DR DEE",!
   . . . . SET REVIEWED=1
-  . . . IF DUZ=168 DO
+  . . . IF TMGDUZ=168 DO
   . . . . ;"WRITE "   ---->>>>REVIEWED BY DR KEVIN",!
   . . . . SET REVIEWED=1
   . . IF REVIEWED=0 DO
@@ -321,7 +321,7 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   . . . NEW TEMPDATE SET TEMPDATE=$P($$EXTDATE^TMGDATE(DATE,1),"@",1)
   . . . IF TEMPDATE=LASTDATE QUIT
   . . . IF LASTDATE'=0 WRITE ", "
-  . . . WRITE TEMPDATE
+  . . . WRITE TEMPDATE," ORDERED BY ",$G(ERRARRAY(NAME,DATE))
   . . . SET LASTDATE=TEMPDATE
   . . WRITE !,!
   . WRITE COUNT," PATIENTS WITH UNREVIEWED LAB RESULTS",!
@@ -329,3 +329,7 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   DO PRESS2GO^TMGUSRI2
   QUIT
   ;"
+HASPDF(OUT,DFN,SDT,EDT)  ;"RPC FOR HAS LAB PDF for given date range?
+  DO RPCHASPDF^TMGLRPD1(.OUT,.DFN,.SDT,.EDT)
+  QUIT
+  ;
