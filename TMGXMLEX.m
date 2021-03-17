@@ -16,6 +16,8 @@ TMGXMLEX ;TMG/kst/XML Exporter ;10/26/14, 6/9/17
  ;"=======================================================================
  ;"EXPORT  -- To ask for parameters, select output, and do actual export
  ;
+ ;"NOTE: for information about expected formats etc, see TMGXMLE2
+ ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================

@@ -409,7 +409,8 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(STR,STARTPOS,"-- [","--&nbsp;[","[","{E-Scribe}")
        . ;"FUTURE EDDIE - HERE IS WHERE YOU NEED TO LOOK FOR THE MISCOUNT WHEN [] ARE USED. LOVE PRESENT EDDIE
        . IF DIV="" DO  QUIT
-       . . SET IDX=IDX+1,TEXT(IDX)=$$REPLSTR^TMGSTUT3(STR,"&nbsp;"," ")
+       . . SET STR=$$FIXSPCS(STR)  ;"//kt 3/9/21  was --> SET STR=$$REPLSTR^TMGSTUT3(STR,"&nbsp;"," ")         
+       . . SET IDX=IDX+1,TEXT(IDX)=STR
        . . SET STR="",STARTPOS=0 
        . NEW STRA,STRA2,STRB SET STRA=""
        . IF STARTPOS>0 DO
@@ -417,7 +418,7 @@ PRTIUHTM(TEXT,TABLES)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO AR
        . . ;"SET STR=$EXTRACT(STR,STARTPOS,$LENGTH(STR))
        . SET STRA=STRA_$PIECE(STR,DIV,1) 
        . IF STRA'="" DO  QUIT
-       . . SET STRA2=$$REPLSTR^TMGSTUT3(STRA,"&nbsp;"," ")
+       . . SET STRA2=$$FIXSPCS(STRA)  ;"//kt 3/9/21  was --> SET STRA2=$$REPLSTR^TMGSTUT3(STRA,"&nbsp;"," ")
        . . SET IDX=IDX+1,TEXT(IDX)=STRA2
        . . SET STR=$EXTRACT(STR,$LENGTH(STRA)+1,$LENGTH(STR))
        . . SET STARTPOS=0
@@ -506,3 +507,10 @@ SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2
        KILL TMGGSMEDLIST(DFN) ;"clear out any cached med table
        QUIT
        ;"       
+FIXSPCS(STR)  ;"STRIP OUT EXCESS WHITE SPACE, &nbsp;   //kt 3/9/21         
+       SET STR=$$REPLSTR^TMGSTUT3(STR,"&nbsp;"," ")
+       NEW OLDSTR
+       FOR  SET OLDSTR=STR DO  QUIT:OLDSTR=STR
+       . SET STR=$$REPLSTR^TMGSTUT3(STR,"   ","  ")  ;"convert all 3-spaces to 2-spaces,
+       QUIT STR
+       ;

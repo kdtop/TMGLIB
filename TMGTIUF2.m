@@ -255,17 +255,19 @@ TIULOOSE(TMGRESULT,DOCIEN,FPATH,TIUDETAILS)  ;"
    SET NOTETEXT("HDR")="1^1"
    DO SETTEXT^TMGTIUS1(.TMGRESULT,TIUIEN,.NOTETEXT,0)
    ;"NOW SIGN THE NOTE
-   NEW SIGNATURE SET SIGNATURE=$PIECE($GET(^VA(200,DUZ,20)),"^",2) ;"elh added for signature reasons
-       ;"IF SIGNATURE="" SET SIGNATURE=AuthorName  ;"elh added for signature 10/1/15
-   SET TMGFDA(8925,TIUIEN_",",.05)="COMPLETED"      ;"field .05 = STATUS
-   SET TMGFDA(8925,TIUIEN_",",1501)="NOW"           ;"field 1501 = Signed date
-   SET TMGFDA(8925,TIUIEN_",",1502)="`"_DUZ   ;"field 1502 = signed by
-   SET TMGFDA(8925,TIUIEN_",",1503)=SIGNATURE    ;"formerly AuthorName  ;"field 1503 = Signature block name
-   SET TMGFDA(8925,TIUIEN_",",1504)="[Scanned image auto-signed]" ;"field 1504 = Signature block title
-   SET TMGFDA(8925,TIUIEN_",",1505)="C"  ;C=Chart   ;"field 1505 = Signature mode
-   DO FILE^DIE("E","TMGFDA","TMGMSG")
+   ;"3/2/21... Don't autosign the note any longer. It will now be handled by client
+   ;"NEW SIGNATURE SET SIGNATURE=$PIECE($GET(^VA(200,DUZ,20)),"^",2) ;"elh added for signature reasons
+           ;"IF SIGNATURE="" SET SIGNATURE=AuthorName  ;"elh added for signature 10/1/15
+   ;"SET TMGFDA(8925,TIUIEN_",",.05)="COMPLETED"      ;"field .05 = STATUS
+   ;"SET TMGFDA(8925,TIUIEN_",",1501)="NOW"           ;"field 1501 = Signed date
+   ;"SET TMGFDA(8925,TIUIEN_",",1502)="`"_DUZ   ;"field 1502 = signed by
+   ;"SET TMGFDA(8925,TIUIEN_",",1503)=SIGNATURE    ;"formerly AuthorName  ;"field 1503 = Signature block name
+   ;"SET TMGFDA(8925,TIUIEN_",",1504)="[Scanned image auto-signed]" ;"field 1504 = Signature block title
+   ;"SET TMGFDA(8925,TIUIEN_",",1505)="C"  ;C=Chart   ;"field 1505 = Signature mode
+   ;"DO FILE^DIE("E","TMGFDA","TMGMSG")
    ;"
    SET TMGRESULT=$$DELFILE(FPATH)
+   SET TMGRESULT="1^"_TIUIEN
    QUIT
    ;"
 DELREF(DOCIEN)  ;"DELETE THE REFERENCE IN THE ^TMG(22742.1
@@ -309,6 +311,8 @@ TIUTOLOS(TMGRESULT,DFN,TIUIEN,FILENAME)  ;"RPC ENTRY: TMG TIU NOTE TO LOOSE
    NEW FOLDERNAME SET FOLDERNAME=$$HFSROOT("loosedocs")_$O(PATHS(""))  ;"JUST USE FIRST PATH
    NEW PDFNAME,HTMLNAME
    IF FILENAME["" SET FILENAME=$TR(FILENAME," ","_")
+   IF FILENAME["(" SET FILENAME=$TR(FILENAME,"(","[")
+   IF FILENAME[")" SET FILENAME=$TR(FILENAME,")","]")
    SET PDFNAME=FILENAME_".pdf"
    SET HTMLNAME=FILENAME_".html"
    ;"GET NOTE TEXT AND RESOLVE PATHS TO IMAGES

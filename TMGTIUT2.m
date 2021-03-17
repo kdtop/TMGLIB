@@ -53,6 +53,7 @@ GETROOTS(OUT,DUZ) ;Get template root info  ;"Modified from  GETROOTS^TIUSRVT.m
   QUIT
   ;
 ADDNODE(IEN,OUT,IDX) ;"Add node data
+  SET IEN=+$GET(IEN)  ;"Had situation where user had no templates, led to IEN=""  3/3/21
   SET IDX=IDX+1,OUT(IDX)=IEN_"^"_$PIECE($GET(^TIU(8927,IEN,0)),"^",1)
   QUIT
   ;

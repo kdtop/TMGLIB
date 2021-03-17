@@ -114,7 +114,7 @@ WRIT1FIL(FILE,RECS,FLAGS,INDENTS,TEMPLATE,SHOWPROG,RWRITER,FWRITER,LWRITER,WPLWR
         ;"                fields, so it doesn't have to be done each time (faster)
         ;"Output: RESULTs are written to the current device.
         ;"RESULT : none
-        NEW OROOT,GREF
+        NEW OROOT,GREF,IEN
         NEW FILENUM,FNAME
         NEW PROGCT SET PROGCT=0
         NEW PROGMAX
@@ -155,7 +155,8 @@ WRIT1FIL(FILE,RECS,FLAGS,INDENTS,TEMPLATE,SHOWPROG,RWRITER,FWRITER,LWRITER,WPLWR
         IF FLAGS["D" DO WRITEDD^TMGXMLE4(FILENUM,FLAGS,INDENTS_INCINDENT)  ;"WRITE out data dictionary file
         ;
         NEW INDS2 SET INDS2=INDENTS_INCINDENT
-        NEW IEN SET IEN=0
+        SET IEN=0
+        SET IEN("FILE-NUMBER")=FILENUM  ;"//kt mod 3/11/21
         FOR  DO  QUIT:(IEN'>0)
         . IF $DATA(FIELDS)'>1 SET FIELDS("*")=""
         . IF RECSSPECIFIED DO

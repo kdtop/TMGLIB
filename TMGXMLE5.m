@@ -129,6 +129,7 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         . . SET EXECFN="DO "_FWRITER_"(LABEL,"""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",1)"
         . . XECUTE EXECFN
         . ELSE  DO   ;"Other multiple (subfile)
+        . . NEW SUBFILE  ;//kt 3/11/21
         . . SET SUBFILE=+FLDTYPE
         . . NEW ALLSUBRECS,TEMPFIELD
         . . NEW OROOT,NODE
@@ -144,33 +145,52 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         . . IF (+NODE'=NODE) SET NODE=""""_NODE_""""  ;" enclose text indices with quotes
         . . SET SROOT=OROOT_IEN_","_NODE_","  ;"open root
         . . SET CROOT=OROOT_IEN_","_NODE_")" ;"closed root
+        . . NEW SUBREC   ;"//kt 3/11/21
+        . . SET SUBREC("SUBFILE-NUMBER")=SUBFILE
         . . SET SUBREC=$ORDER(@CROOT@(0))
         . . IF (SUBREC'="")!(FLAGS["b") DO
         . . . IF FLAGS["i" WRITE $GET(INDENTS)
-        . . . NEW EXECFN SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0,.TMGXMLPROPS)"
+        . . . NEW EXECFN,TMGXMLPROPS
+        . . . IF $GET(FIELDINFO("TYPE"))="POINTER" DO    ;"//kt mod 3/11/21
+        . . . . SET TMGXMLPROPS("SUBFILE-NUMBER")=SUBFILE
+        . . . . SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""",""SUBFILE"",0,.TMGXMLPROPS)"
+        . . . ELSE  DO
+        . . . .  SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",0,.TMGXMLPROPS)"
         . . . XECUTE EXECFN
         . . . WRITE !
         . . . NEW INDS2 SET INDS2=$GET(INDENTS)_INCINDENT
-        . . . IF +SUBREC>0 FOR  DO  QUIT:+SUBREC'>0
-        . . . . ;"descend into subfile (if allowed subrecord #)
-        . . . . IF (ALLSUBRECS)!($DATA(FIELDS(TEMPFIELD,SUBREC))>0) DO
-        . . . . . IF $DATA(FIELDS(TEMPFIELD,"Rec Exclude",SUBREC))>0 QUIT
-        . . . . . NEW SUBIENS,SUBFIELDS,TEMPSR
-        . . . . . IF ALLSUBRECS SET TEMPSR="*"
-        . . . . . ELSE  SET TEMPSR=SUBREC
-        . . . . . SET SUBIENS=SUBREC_","_IENS
-        . . . . . MERGE SUBFIELDS=FIELDS(TEMPFIELD,TEMPSR)
-        . . . . . IF (ALLFIELDS)!($DATA(SUBFIELDS)=0) SET SUBFIELDS("*")=""
-        . . . . . IF FLAGS["i" WRITE $GET(INDS2)
-        . . . . . NEW EXECFN SET EXECFN="DO "_RWRITER_"("_$$QTPROTCT^TMGSTUT3(SUBREC)_",0)"
-        . . . . . XECUTE EXECFN
-        . . . . . DO WRIT1REC^TMGXMLE4(SUBFILE,SUBREC,.SUBFIELDS,FLAGS,SROOT,SUBIENS,INDS2_INCINDENT,.RWRITER,.FWRITER,.LWRITER,.WPLWRITER,.SAVFIELDINFO)
-        . . . . . IF FLAGS["i" WRITE $GET(INDS2)
-        . . . . . NEW EXECFN SET EXECFN="DO "_RWRITER_"("_$$QTPROTCT^TMGSTUT3(SUBREC)_",1)"
-        . . . . . XECUTE EXECFN
-        . . . . SET SUBREC=$ORDER(@CROOT@(SUBREC))
+        . . . IF +SUBREC>0 DO
+        . . . . IF FLAGS["i" WRITE $GET(INDS2)       ;"//kt mod 3/11/21
+        . . . . WRITE "<FILE id="""_SUBFILE_""">",!  ;"//kt mod 3/11/21 <-- NOTE: could later set this writer to be a parameter. 
+        . . . . NEW INDS3 SET INDS3=INDS2_INCINDENT
+        . . . . FOR  DO  QUIT:+SUBREC'>0
+        . . . . . ;"descend into subfile (if allowed subrecord #)
+        . . . . . IF (ALLSUBRECS)!($DATA(FIELDS(TEMPFIELD,SUBREC))>0) DO
+        . . . . . . IF $DATA(FIELDS(TEMPFIELD,"Rec Exclude",SUBREC))>0 QUIT
+        . . . . . . NEW SUBIENS,SUBFIELDS,TEMPSR
+        . . . . . . IF ALLSUBRECS SET TEMPSR="*"
+        . . . . . . ELSE  SET TEMPSR=SUBREC
+        . . . . . . SET SUBIENS=SUBREC_","_IENS
+        . . . . . . MERGE SUBFIELDS=FIELDS(TEMPFIELD,TEMPSR)
+        . . . . . . IF (ALLFIELDS)!($DATA(SUBFIELDS)=0) SET SUBFIELDS("*")=""
+        . . . . . . IF FLAGS["i" WRITE $GET(INDS3)
+        . . . . . . ;"NEW EXECFN SET EXECFN="DO "_RWRITER_"(."_$$QTPROTCT^TMGSTUT3(SUBREC)_",0)"
+        . . . . . . NEW EXECFN SET EXECFN="DO "_RWRITER_"(.SUBREC,0)"
+        . . . . . . XECUTE EXECFN
+        . . . . . . DO WRIT1REC^TMGXMLE4(SUBFILE,SUBREC,.SUBFIELDS,FLAGS,SROOT,SUBIENS,INDS3_INCINDENT,.RWRITER,.FWRITER,.LWRITER,.WPLWRITER,.SAVFIELDINFO)
+        . . . . . . IF FLAGS["i" WRITE $GET(INDS3)
+        . . . . . . ;"NEW EXECFN SET EXECFN="DO "_RWRITER_"(."_$$QTPROTCT^TMGSTUT3(SUBREC)_",1)"
+        . . . . . . SET EXECFN="DO "_RWRITER_"(.SUBREC,1)"
+        . . . . . . XECUTE EXECFN
+        . . . . . SET SUBREC=$ORDER(@CROOT@(SUBREC))
+        . . . . IF FLAGS["i" WRITE $GET(INDS2)            ;"//kt mod 3/11/21
+        . . . . WRITE "</FILE id="""_SUBFILE_""">",!      ;"//kt mod 3/11/21 <-- NOTE: could later set this writer to be a parameter.  
         . . . IF FLAGS["i" WRITE $GET(INDENTS)
-        . . . SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",1)"
+        . . . IF $GET(FIELDINFO("TYPE"))="POINTER" DO   ;"//kt mod 3/11/21
+        . . . . SET TMGXMLPROPS("SUBFILE NUMBER")=+$GET(FIELDINFO("SPECIFIER"))
+        . . . . SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""",""SUBFILE"",1)"
+        . . . ELSE  DO
+        . . . . SET EXECFN="DO "_FWRITER_"("""_$$QTPROTCT^TMGSTUT3(LABEL)_""","""_$$QTPROTCT^TMGSTUT3(FIELD)_""","""_FIELDINFO("TYPE")_""",1)"
         . . . XECUTE EXECFN
         ELSE  DO  ;"the usual case here...
         . NEW LINE SET LINE=""
@@ -209,6 +229,17 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         . . . . IF P2FILE="MV",FIELDINFO("TYPE")="VARIABLE-POINTER" DO
         . . . . . NEW P2FREF SET P2FREF="^"_$PIECE(IEN,";",2),IEN=+IEN
         . . . . . SET P2FILE=+$GET(FIELDINFO("VARIABLE-POINTER","GL",P2FREF))
+        . . . . ELSE  IF P2FILE="RV",FIELDINFO("TYPE")="VARIABLE-POINTER" DO
+        . . . . . NEW P2FREF SET P2FREF="^"_$PIECE(IEN,";",2),IEN=+IEN
+        . . . . . SET P2FILE=$GET(FIELDINFO("VARIABLE-POINTER","GL",P2FREF))
+        . . . . . IF P2FILE'>0 DO
+        . . . . . . NEW ARR DO GL2FIL^TMGFMUT(P2FREF,.ARR)
+        . . . . . . NEW IDX SET IDX=""
+        . . . . . . FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:(IDX="")!(P2FILE>0)  DO
+        . . . . . . . NEW INFO SET INFO=$GET(ARR(IDX)) QUIT:INFO="" 
+        . . . . . . . IF $PIECE(INFO,";",2)'=P2FREF QUIT
+        . . . . . . . SET P2FILE=+INFO
+        . . . . . . . SET FIELDINFO("VARIABLE-POINTER","GL",P2FREF)=P2FILE        
         . . . . ELSE  SET P2FILE=+$PIECE($GET(FIELDINFO("SPECIFIER")),"P",2)
         . . . . IF (FLAGS["p"),($GET(FIELDINFO("TYPE"))["POINTER"),(LINE'="") DO
         . . . . . SET LINE=LINE_" (`"_IEN_" in #"_P2FILE_")"
@@ -226,6 +257,17 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,RWRITER,FWRITER,LWRITE
         ;
 W1FDN   QUIT
         ;
+TEMPTEST  ; "Delete this bit later...
+  NEW XMLARRAY,REFARR SET REFARR=$NAME(XMLARRAY)
+  SET XMLARRAY(200,168)=""
+  SET XMLARRAY(200,83)=""
+  SET XMLARRAY(200,"TEMPLATE","*")=""
+  SET XMLARRAY("!DOCTYPE")="TMG_VISTA_XML_EXPORT"
+  SET XMLARRAY("EXPORT_SYSTEM_NAME")="EHR:poweredge"
+  SET XMLARRAY("FLAGS","i")=""
+  DO WTXMLOUT^TMGXMLE2(REFARR,,,1)
+  QUIT
+  ;
 WTRLABEL(IEN,ENDER) ;
         ;"Purpose: To actually WRITE out labels for record starting and ending.
         ;"      IEN -- the IEN (record number) of the record

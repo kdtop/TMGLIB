@@ -812,6 +812,7 @@ PTHASDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . . IF UPTOPIC["FH" QUIT  ;"elh added 9/8/16 to keep family history from giving false positive
         . . . IF UPTOPIC["SCREEN" QUIT ;"elh added 9/12/16 to keep screenings from giving false positives
         . . . IF UPTOPIC["PRE" QUIT ;"elh added 9/15/16 to keep pre-diabetes from giving false positives
+        . . . IF UPTOPIC["POSSIBLE" QUIT ;"elh added 3/5/21
         . . . NEW TOPICDATE SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
         . . . IF TOPICDATE>DATE SET DATE=TOPICDATE
         . . . SET TEST=1
@@ -1520,7 +1521,7 @@ P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         SET NFOUND=0
         NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
         IF AGE<18 QUIT
-        NEW APPTSTR SET APPTSTR="PHYSICAL^1 YR CHECK^WELL CPE^OFFICE VISIT^MO CHECK"
+        NEW APPTSTR SET APPTSTR="PHYSICAL^1 YR CHECK^WELL CPE^OFFICE VISIT^MO CHECK^OFF VISIT"
         NEW APPTREASON,THISDATE,APPTDATE
         ;"SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY
         SET THISDATE=$P(EDT,".",1),APPTDATE=THISDATE

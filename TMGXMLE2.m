@@ -1,4 +1,4 @@
-TMGXMLE2 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
+TMGXMLE2 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14, 3/4/21  
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG XML EXPORT FUNCTIONS (CORE FUNCTIONALITY)
@@ -41,7 +41,8 @@ TMGXMLE2 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
  ;"
  ;"-----------------------------------------------------------------------------------------------
  ;"Note: FILE numbers can be replaced with full FILE NAMES, e.g.
- ;"   ARRAY("NEW PERSON",1234,.01)=""
+ ;"   ARRAY("NEW PERSON",1234,.01)=""     
+ ;"     UPDATE: This is NOT true.  Files have to NUMBERS!                               
  ;"
  ;"Example:  For ALL records, output ALL fields, and ALL subfields
  ;"     ARRAY(8925,"*")=""   <--- this is default if RECS is not specified/passed
@@ -173,120 +174,120 @@ TMGXMLE2 ;TMG/kst/XML Exporter -- Core functionality ;10/26/14
  ;
  ;
 WTXMLOUT(PARRAY,FLAGS,INDENTS,SHOWPROG)  ;
-        ;"Scope: PUBLIC
-        ;"Purpose: to dump out a specified SET of files and records in XML Format
-        ;"         Output is to current output stream (to the console if not otherwise set via USE command)
-        ;"Input: PARRAY -- pointer to (i.e. name of) array containing formatting/output info.
-        ;"              REQUIRED An array specifying which files and records to display
-        ;"              Format as follows:
-        ;"              ;"-----------------------------------------
-        ;"              ARRAY(FILE,IEN,FieldINFO)   ; For FieldINFO, see WRIT1FIL, and WRIT1REC
-        ;"              ARRAY(FILE,["TEMPLATE"],...)   ;For TEMPLATE info see function WRIT1FIL
-        ;"              ARRAY("FLAGS","b")=""  b -- show tags for ALL fields, even IF field has no data
-        ;"              ARRAY("FLAGS","i")=""  i -- indent tags for pretty, but technically useless, file formating.
-        ;"              ARRAY("FLAGS","I")=""  I -- output INTERNAL values
-        ;"              ARRAY("FLAGS","D")=""  D -- output the data dictionary
-        ;"              ARRAY("FLAGS","S")=""  S -- output export settings.
-        ;"              ARRAY("!DOCTYPE")=MyLABEL
-        ;"              ARRAY("EXPORT_SYSTEM_NAME")=LABELForExportingSystem   -- OPTIONAL
-        ;"              ARRAY("!DOCTYPE")=  The doc type for the <!DOCTYPE header.  Default is UNDEFINED
-        ;"              ;"-----------------------------------------
-        ;"
-        ;"      e.g.    ARRAY(8925,1234)=""
-        ;"              ARRAY(8925,1235)=""
-        ;"              ARRAY(8925,1236)=""
-        ;"              ARRAY(8925,1237)=""
-        ;"              ARRAY(8925,1232)="TAG=value^TAG2=value2" <-- optional extra info for record
-        ;"                  e.g. -->  <Record id=1232 TAG="value" TAG2="value2">
-        ;"              ARRAY(200,"*")=""
-        ;"              ARRAY(22705,3)=""
-        ;"              ARRAY(22705,5)=""
-        ;"              ARRAY(2,"*")=""
-        ;"
-        ;"              This would print from:
-        ;"                      file 8925, records 1234,1235,1236,1237
-        ;"                      file 200, ALL records
-        ;"                      file 22705, records 3,5
-        ;"                      file 2, ALL records
-        ;"
-        ;"           Example:
-        ;"              ARRAY(8925,"TEMPLATE",.01)=""   <-- define a template for file 8925
-        ;"              ARRAY(8925,"TEMPLATE",.02)=""
-        ;"              ARRAY(8925,"TEMPLATE",.02)=""
-        ;"              ARRAY(8925,1234)   <-- print record 1234
-        ;"              ARRAY(8925,1235)   <-- print record 1235
-        ;"
-        ;"           Example:
-        ;"              ARRAY(8925,1234)   <-- print record 1234
-        ;"              ARRAY(8925,1235)   <-- print record 1235
-        ;"
-        ;"           Example:
-        ;"              ARRAY(8925,1234,.01)   <-- print record 1234, only field .01
-        ;"              ARRAY(8925,1235,.04)   <-- print record 1235, only field .04
-        ;"
-        ;"              Note: FILE numbers can be replaces with full FILE NAMES, e.g.
-        ;"              ARRAY("NEW PERSON","*")=""
-        ;"
-        ;"            Note: All FILE numbers and field numbers can be replaced with NAMES
-        ;"
-        ;"         FLAGS -- OPTIONAL  (Note FLAGS can also be specified with a "FLAGS" node)
-        ;"                      b -- show tags for ALL fields, even IF field has no data
-        ;"                      i -- indent tags for pretty, but technically useless, file formating.
-        ;"                      I -- output INTERNAL values
-        ;"                      D -- output Data dictionary
-        ;"                      p -- for Pointers, show record number after name, e.g. DOE,JOHN (`123)
-        ;"                      e.g. FLAGS="b"  or "bi"  or "ib"  or "iI" etc.
-        ;"         INDENTS -- OPTIONAL -- current string to WRITE to indent line.
-        ;"                    INDENTS("INCINDENT")=INCINDENT
-        ;"        SHOWPROG -- OPTIONAL -- IF =1, then a progress bar will be shown.
-        ;"Output: RESULTs are written to the current device.
-        ;"RESULT : none
-        ;
-        NEW FILE,TARRAY,SAVFIELDINFO
-        MERGE TARRAY=@PARRAY
-        SET FLAGS=$GET(FLAGS)
-        NEW INCINDENT SET INCINDENT=$GET(INDENTS("INCINDENT")," ")
-        ;
-        IF ($DATA(TARRAY("FLAGS","b"))>0)&(FLAGS'["b") SET FLAGS=FLAGS_"b"
-        IF ($DATA(TARRAY("FLAGS","i"))>0)&(FLAGS'["i") SET FLAGS=FLAGS_"i"
-        IF ($DATA(TARRAY("FLAGS","I"))>0)&(FLAGS'["I") SET FLAGS=FLAGS_"I"
-        IF ($DATA(TARRAY("FLAGS","D"))>0)&(FLAGS'["D") SET FLAGS=FLAGS_"D"
-        IF ($DATA(TARRAY("FLAGS","S"))>0)&(FLAGS'["S") SET FLAGS=FLAGS_"S"
-        IF ($DATA(TARRAY("FLAGS","p"))>0)&(FLAGS'["p") SET FLAGS=FLAGS_"p"
-        ;
-        DO WRITEHDR
-        WRITE "<!DOCTYPE "_$GET(TARRAY("!DOCTYPE"),"UNDEFINED"),">",!
-        NEW SRCNAME SET SRCNAME=$GET(TARRAY("EXPORT_SYSTEM_NAME"),"?Unnamed?")
-        WRITE "<EXPORT source=""",$$SYMENC^MXMLUTL(SRCNAME),""">",!
-        SET INDENTS=$GET(INDENTS)_INCINDENT
-        IF FLAGS["S" DO WRTSTNGS^TMGXMLE3(.FLAGS,.INDENTS)  ;"output writing settings
-        ;
-        SET FILE=""
-        FOR  SET FILE=$ORDER(TARRAY(FILE)) QUIT:(+FILE'>0)  DO
-        . NEW IEN,TEMPLATE,RECS
-        . MERGE TEMPLATE=TARRAY(FILE,"TEMPLATE")
-        . KILL TARRAY(FILE,"TEMPLATE")
-        . MERGE RECS=TARRAY(FILE)
-        . SET IEN=$ORDER(TARRAY(FILE,""))
-        . IF IEN'="" DO
-        . . IF $DATA(TMGXDEBUG) DO
-        . . . USE $P WRITE "Writing file: ",FILE,! USE IO
-        . . IF IEN="*" DO
-        . . . DO WRIT1FIL^TMGXMLE3(FILE,.RECS,.FLAGS,.INDENTS,.TEMPLATE,.SHOWPROG,,,,,.SAVFIELDINFO)
-        . . ELSE  DO
-        . . . NEW RECS MERGE RECS=TARRAY(FILE)
-        . . . DO WRIT1FIL^TMGXMLE3(FILE,.RECS,.FLAGS,.INDENTS,,.SHOWPROG,,,,,.SAVFIELDINFO)
-        ;
-        WRITE "</EXPORT>",!
-        QUIT
-        ;
+  ;"Scope: PUBLIC
+  ;"Purpose: to dump out a specified set of files and records in XML Format
+  ;"         Output is to current output stream (to the console if not otherwise set via USE command)
+  ;"Input: PARRAY -- pointer to (i.e. name of) array containing formatting/output info.
+  ;"          REQUIRED An array specifying which files and records to display
+  ;"          Format as follows:
+  ;"          ;"-----------------------------------------
+  ;"          ARRAY(FILE,IEN,FieldINFO)   ; For FieldINFO, see WRIT1FIL, and WRIT1REC
+  ;"          ARRAY(FILE,["TEMPLATE"],...)   ;For TEMPLATE info see function WRIT1FIL
+  ;"          ARRAY("FLAGS","b")=""  b -- show tags for ALL fields, even IF field has no data
+  ;"          ARRAY("FLAGS","i")=""  i -- indent tags for pretty, but technically useless, file formating.
+  ;"          ARRAY("FLAGS","I")=""  I -- output INTERNAL values
+  ;"          ARRAY("FLAGS","D")=""  D -- output the data dictionary
+  ;"          ARRAY("FLAGS","S")=""  S -- output export settings.
+  ;"          ARRAY("!DOCTYPE")=MyLABEL
+  ;"          ARRAY("EXPORT_SYSTEM_NAME")=LABELForExportingSystem   -- OPTIONAL
+  ;"          ARRAY("!DOCTYPE")=  The doc type for the <!DOCTYPE header.  Default is UNDEFINED
+  ;"          ;"-----------------------------------------
+  ;"
+  ;"  e.g.    ARRAY(8925,1234)=""
+  ;"          ARRAY(8925,1235)=""
+  ;"          ARRAY(8925,1236)=""
+  ;"          ARRAY(8925,1237)=""
+  ;"          ARRAY(8925,1232)="TAG=value^TAG2=value2" <-- optional extra info for record
+  ;"              e.g. -->  <Record id=1232 TAG="value" TAG2="value2">
+  ;"          ARRAY(200,"*")=""
+  ;"          ARRAY(22705,3)=""
+  ;"          ARRAY(22705,5)=""
+  ;"          ARRAY(2,"*")=""
+  ;"
+  ;"          This would print from:
+  ;"                  file 8925, records 1234,1235,1236,1237
+  ;"                  file 200, ALL records
+  ;"                  file 22705, records 3,5
+  ;"                  file 2, ALL records
+  ;"
+  ;"       Example:
+  ;"          ARRAY(8925,"TEMPLATE",.01)=""   <-- define a template for file 8925
+  ;"          ARRAY(8925,"TEMPLATE",.02)=""
+  ;"          ARRAY(8925,"TEMPLATE",.02)=""
+  ;"          ARRAY(8925,1234)   <-- print record 1234
+  ;"          ARRAY(8925,1235)   <-- print record 1235
+  ;"
+  ;"       Example:
+  ;"          ARRAY(8925,1234)   <-- print record 1234
+  ;"          ARRAY(8925,1235)   <-- print record 1235
+  ;"
+  ;"       Example:
+  ;"          ARRAY(8925,1234,.01)   <-- print record 1234, only field .01
+  ;"          ARRAY(8925,1235,.04)   <-- print record 1235, only field .04
+  ;"
+  ;"          Note: FILE numbers can be replaces with full FILE NAMES, e.g.
+  ;"          ARRAY("NEW PERSON","*")=""
+  ;"
+  ;"        Note: All FILE numbers and field numbers can be replaced with NAMES
+  ;"
+  ;"     FLAGS -- OPTIONAL  (Note FLAGS can also be specified with a "FLAGS" node)
+  ;"                  b -- show tags for ALL fields, even IF field has no data
+  ;"                  i -- indent tags for pretty, but technically useless, file formating.
+  ;"                  I -- output INTERNAL values
+  ;"                  D -- output Data dictionary
+  ;"                  p -- for Pointers, show record number after name, e.g. DOE,JOHN (`123)
+  ;"                  e.g. FLAGS="b"  or "bi"  or "ib"  or "iI" etc.
+  ;"     INDENTS -- OPTIONAL -- current string to WRITE to indent line.
+  ;"                INDENTS("INCINDENT")=INCINDENT
+  ;"    SHOWPROG -- OPTIONAL -- IF =1, then a progress bar will be shown.
+  ;"Output: RESULTs are written to the current device.
+  ;"RESULT : none
+  ;
+  NEW FILE,TARRAY,SAVFIELDINFO
+  MERGE TARRAY=@PARRAY
+  SET FLAGS=$GET(FLAGS)
+  NEW INCINDENT SET INCINDENT=$GET(INDENTS("INCINDENT")," ")
+  ;
+  IF ($DATA(TARRAY("FLAGS","b"))>0)&(FLAGS'["b") SET FLAGS=FLAGS_"b"
+  IF ($DATA(TARRAY("FLAGS","i"))>0)&(FLAGS'["i") SET FLAGS=FLAGS_"i"
+  IF ($DATA(TARRAY("FLAGS","I"))>0)&(FLAGS'["I") SET FLAGS=FLAGS_"I"
+  IF ($DATA(TARRAY("FLAGS","D"))>0)&(FLAGS'["D") SET FLAGS=FLAGS_"D"
+  IF ($DATA(TARRAY("FLAGS","S"))>0)&(FLAGS'["S") SET FLAGS=FLAGS_"S"
+  IF ($DATA(TARRAY("FLAGS","p"))>0)&(FLAGS'["p") SET FLAGS=FLAGS_"p"
+  ;
+  DO WRITEHDR
+  WRITE "<!DOCTYPE "_$GET(TARRAY("!DOCTYPE"),"UNDEFINED"),">",!
+  NEW SRCNAME SET SRCNAME=$GET(TARRAY("EXPORT_SYSTEM_NAME"),"?Unnamed?")
+  WRITE "<EXPORT source=""",$$SYMENC^MXMLUTL(SRCNAME),""">",!
+  SET INDENTS=$GET(INDENTS)_INCINDENT  
+  IF FLAGS["S" DO WRTSTNGS^TMGXMLE3(.FLAGS,.INDENTS)  ;"output writing settings
+  ;
+  SET FILE=""
+  FOR  SET FILE=$ORDER(TARRAY(FILE)) QUIT:(+FILE'>0)  DO
+  . NEW IEN,TEMPLATE,RECS
+  . MERGE TEMPLATE=TARRAY(FILE,"TEMPLATE")
+  . KILL TARRAY(FILE,"TEMPLATE")
+  . MERGE RECS=TARRAY(FILE)
+  . SET IEN=$ORDER(TARRAY(FILE,""))
+  . IF IEN'="" DO
+  . . IF $DATA(TMGXDEBUG) DO
+  . . . USE $P WRITE "Writing file: ",FILE,! USE IO
+  . . IF IEN="*" DO
+  . . . DO WRIT1FIL^TMGXMLE3(FILE,.RECS,.FLAGS,.INDENTS,.TEMPLATE,.SHOWPROG,,,,,.SAVFIELDINFO)
+  . . ELSE  DO
+  . . . NEW RECS MERGE RECS=TARRAY(FILE)
+  . . . DO WRIT1FIL^TMGXMLE3(FILE,.RECS,.FLAGS,.INDENTS,,.SHOWPROG,,,,,.SAVFIELDINFO)
+  ;
+  WRITE "</EXPORT>",!
+  QUIT
+  ;
 WRITEHDR ;
-        ;"Scope: PUBLIC
-        ;"Purpose: A shell to WRITE out a proper XML header.  This should be done prior
-        ;"              to writing out XML formatted data to a device
-        ;"Output: Header is output to current device
-        ;"Results: none
-        NEW STR SET STR=$$XMLHDR^MXMLUTL
-        WRITE STR,!
-        QUIT
-        ;
+  ;"Scope: PUBLIC
+  ;"Purpose: A shell to WRITE out a proper XML header.  This should be done prior
+  ;"              to writing out XML formatted data to a device
+  ;"Output: Header is output to current device
+  ;"Results: none
+  NEW STR SET STR=$$XMLHDR^MXMLUTL
+  WRITE STR,!
+  QUIT
+  ;
