@@ -1,4 +1,4 @@
-TMGDEBU3 ;TMG/kst/Debug utilities: logging, record dump ;3/18/15, 6/12/17
+TMGDEBU3 ;TMG/kst/Debug utilities: logging, record dump ;3/18/15, 6/12/17, 3/17/21
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG DEBUG UTILITIES
@@ -87,7 +87,7 @@ AL2     SET IENS=$$ASKIENS^TMGDBAP3(FILENUM,IENS)
         . DO SHOWERR^TMGDEBU2(,"Error opening output.  Aborting.")
         USE IO
         ;"Do the output
-        WRITE ! DO DUMPREC(FILENUM,IENS,(%=1))
+        WRITE ! DO DUMPREC(FILENUM,IENS,(%=1),,.OPTION)
         ;" Close the output device
         DO ^%ZISC
         DO PRESS2GO^TMGUSRI2
@@ -97,7 +97,7 @@ AL2     SET IENS=$$ASKIENS^TMGDBAP3(FILENUM,IENS)
         IF $GET(OPTION("NO LOOP"))'=1 GOTO AL1
 ASKDN   QUIT
         ;
-DUMPREC(FILENUM,IENS,SHOWEMPTY,FIELDSARRAY)  ;
+DUMPREC(FILENUM,IENS,SHOWEMPTY,FIELDSARRAY,OPTION)  ;
         ;"Purpose: to dump (display) a record, NOT using ^DII (Fileman's Inquire code)
         ;"Input: FILENUM -- the number of the file to dump from
         ;"       IENS -- the record number to display (or IENS: #,#,#,)
@@ -107,12 +107,50 @@ DUMPREC(FILENUM,IENS,SHOWEMPTY,FIELDSARRAY)  ;
         ;"            FIELDSARRAY(FieldtoShow)="" <-- FieldtoShow is name or number
         ;"            FIELDSARRAY(FieldtoShow)="" <-- FieldtoShow is name or number
         ;"          Default is an empty array, in which all fields are considered
+        ;"       OPTION -- OPTIONAL.  Can pass in options to pass to xporter.  
+        ;"         OPTION("WRITE FILE LABEL FN")         
+        ;"         OPTION("WRITE REC LABEL FN")  
+        ;"         OPTION("WRITE FLD LABEL FN") 
+        ;"         OPTION("WRITE LINE FN") 
+        ;"         OPTION("WRITE WP LINE") 
+        ;"         OPTION("SHOW PROG")=1  IF 1, then progress bar shown.
+        NEW WRITERS
+        SET WRITERS("WRITE FILE LABEL FN")=$GET(OPTION("WRITE FILE LABEL FN"),"WTFILLAB^TMGDEBU3")
+        SET WRITERS("WRITE REC LABEL FN")=$GET(OPTION("WRITE REC LABEL FN"),"WTRECLAB^TMGDEBU3")
+        SET WRITERS("WRITE FLD LABEL FN")=$GET(OPTION("WRITE FLD LABEL FN"),"WTFLDLAB^TMGDEBU3")
+        SET WRITERS("WRITE LINE FN")=$GET(OPTION("WRITE LINE FN"),"WTLINE^TMGDEBU3")
+        SET WRITERS("WRITE WP LINE")=$GET(OPTION("WRITE WP LINE"),"WTWPLN^TMGDEBU3")
+        NEW RECS SET RECS(IENS)=""
+        MERGE RECS(IENS)=FIELDSARRAY
+        IF $$ISSUBFIL^TMGFMUT2(FILENUM)=0 SET IENS=""
+        NEW SHOWPROG SET SHOWPROG=+$GET(OPTION("SHOW PROG"))
+        DO WRIT1FIL^TMGXMLE3(FILENUM,IENS,.RECS,"ip","",SHOWPROG,.WRITERS)
+        QUIT
+        ;
+DUMPREC0(FILENUM,IENS,SHOWEMPTY,FIELDSARRAY,OPTION)  ;"depreciated.... delete later....
+        ;"Purpose: to dump (display) a record, NOT using ^DII (Fileman's Inquire code)
+        ;"Input: FILENUM -- the number of the file to dump from
+        ;"       IENS -- the record number to display (or IENS: #,#,#,)
+        ;"       SHOWEMPTY -- OPTIONAL;  IF 1 then empty fields will be displayed
+        ;"       FIELDSARRAY -- OPTIONAL.  PASS BY REFERENCE.
+        ;"          Allows user to specify which fields to show.  Format:
+        ;"            FIELDSARRAY(FieldtoShow)="" <-- FieldtoShow is name or number
+        ;"            FIELDSARRAY(FieldtoShow)="" <-- FieldtoShow is name or number
+        ;"          Default is an empty array, in which all fields are considered
+        ;"       OPTION -- OPTIONAL.  Can pass in options to pass to xporter.  
+        ;"         OPTION("WRITE FILE LABEL FN")         
+        ;"         OPTION("WRITE REC LABEL FN")  
+        ;"         OPTION("WRITE FLD LABEL FN") 
+        ;"         OPTION("WRITE LINE FN") 
+        ;"         OPTION("WRITE WP LINE") 
+
         ;"Result: None
-        NEW FIELDS
-        SET FIELDS("*")=""
+        NEW FIELDS SET FIELDS("*")=""
         NEW FLAGS SET FLAGS="ip"
         IF $GET(SHOWEMPTY)=1 SET FLAGS=FLAGS_"b"
         ;
+        ;"NOTE: Later I should just call WRIT1FIL^TMGXMLE2 with custom File start callbacks.  
+        ;"      specify RECS(selected IEN)=""
         WRITE "Record# ",IENS," in FILE: ",FILENUM,!
         NEW AFIELD,FIELDNAME
         IF $DATA(FIELDSARRAY)=0 DO
@@ -138,68 +176,110 @@ DUMPREC(FILENUM,IENS,SHOWEMPTY,FIELDSARRAY)  ;
         . . SET FIELDNAME=$PIECE(^DD(FILENUM,AFIELD,0),"^",1)
         . . SET FIELDS("Field Exclude",AFIELD)=""
         ;
-        NEW RFUNC,FFUNC,LFUNC,WPLFUNC
-        SET RFUNC="WTRECLAB^TMGDEBU3"
-        SET FFUNC="WTFLDLAB^TMGDEBU3"
-        SET LFUNC="WTLINE^TMGDEBU3"
-        SET WPLFUNC="WTWPLN^TMGDEBU3"
-        IF +IENS=IENS DO
-        . DO WRIT1REC^TMGXMLE4(FILENUM,IENS,.FIELDS,FLAGS,,,"",RFUNC,FFUNC,LFUNC,WPLFUNC)
-        ELSE  DO  ;"dump a subfile record
-        . DO WRIT1REC^TMGXMLE4(FILENUM,+IENS,.FIELDS,FLAGS,,IENS,"",RFUNC,FFUNC,LFUNC,WPLFUNC)
+        NEW WRITERS
+        SET WRITERS("WRITE FILE LABEL FN")=$GET(OPTION("WRITE REC FN"),"WTFILLAB^TMGDEBU3")
+        SET WRITERS("WRITE REC LABEL FN")=$GET(OPTION("WRITE REC FN"),"WTRECLAB^TMGDEBU3")
+        SET WRITERS("WRITE FLD LABEL FN")=$GET(OPTION("WRITE FLD FN"),"WTFLDLAB^TMGDEBU3")
+        SET WRITERS("WRITE LINE FN")=$GET(OPTION("WRITE LINE FN"),"WTLINE^TMGDEBU3")
+        SET WRITERS("WRITE WP LINE")=$GET(OPTION("WRITE WP LINE"),"WTWPLN^TMGDEBU3")
+        ;
+        DO WRIT1REC^TMGXMLE4(FILENUM,+IENS,.FIELDS,FLAGS,,IENS,"",.WRITERS)
         QUIT
         ;
-WTRECLAB(IEN,ENDER) ;
-        ;"Purpose: To actually WRITE out labels for record starting and ending.
-        ;"      IEN -- the IEN (record number) of the record
-        ;"      ENDER -- OPTIONAL IF 1, then ends field.
-        ;"Results: none.
-        ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
-        IF +$GET(ENDER)>0 WRITE !
-        ELSE  WRITE "     Multiple Entry #",IEN,"",!
-        QUIT
-        ;
-WTFLDLAB(LABEL,FIELD,TYPE,ENDER,IGNORE) ;
-        ;"Purpose: This is the code that actually does writing of labels etc for output
-        ;"      This is a CUSTOM CALL BACK function called by WRIT1FLD^TMGXMLE2
-        ;"Input: LABEL -- OPTIONAL -- Name of label, to WRITE after  'label='
-        ;"       FIELD -- OPTIONAL -- Name of field, to WRITE after  'id='
-        ;"       TYPE -- OPTIONAL -- type of field, to WRITE after  'type='
-        ;"       ENDER -- OPTIONAL IF 1, then ends field.
-        ;"       IGNORE -- a properties array, that is ignored here.  
-        ;"Results: none.
-        ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
-        ;
-        ;"To WRITE out <Field label="NAME" id=".01" type="FREE TEXT"> or </Field>
-        ;
-        IF +$GET(ENDER)>0 DO
-        . IF $GET(^TMP("FORMATED OUT TMGDEBU3",$J))="" QUIT  ;"try to prevent sequential empty lines 
-        . WRITE !
-        . KILL ^TMP("FORMATED OUT TMGDEBU3",$J)
-        ELSE  DO
-        . KILL ^TMP("FORMATED OUT TMGDEBU3",$J)
-        . NEW STR SET STR=FIELD
-        . NEW OUT SET OUT=""
-        . IF $GET(FIELD)'="" SET OUT=OUT_$$RJ^XLFSTR(.STR,6," ")_"-"
-        . IF $GET(LABEL)'="" SET OUT=OUT_LABEL_" "
-        . ;"IF $GET(TYPE)'="" WRITE "type=""",TYPE,""" "
-        . SET OUT=OUT_": "
-        . WRITE OUT SET ^TMP("FORMATED OUT TMGDEBU3",$J)=OUT
-        QUIT
-        ;
-WTLINE(LINE)  ;
-        ;"Purpose: To actually WRITE out labels for record starting and ending.
-        ;"Input: LINE -- The line of text to be written out.
-        ;"Results: none.
-        ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
-        WRITE LINE
-        QUIT
-        ;
-WTWPLN(LINE) ;
-        ;"Purpose: To actually WRITE out line from WP field
-        ;"Input: LINE -- The line of text to be written out.
-        ;"Results: none.
-        ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
-        WRITE LINE,!
-        QUIT
-        ;
+CHKINDENT(INDENTS)  ;"check and adjust INDENTS if needed.
+  NEW XPOS SET XPOS=$GET(INDENTS("LABEL_END_XPOS")) QUIT:XPOS'>0
+  SET XPOS=XPOS-$LENGTH($GET(INDENTS("LABEL")))-$LENGTH("<MULTIPLE-VALUED>")-2
+  IF XPOS<0 SET XPOS=0
+  ;"NEW SPC SET SPC=".........+"
+  NEW SPC SET SPC="            "
+  FOR  QUIT:($LENGTH(SPC)>XPOS)  SET SPC=SPC_SPC
+  SET INDENTS=$EXTRACT(SPC,1,XPOS)
+  KILL INDENTS("LABEL_END_XPOS")
+  QUIT
+  ;
+WTFILLAB(INDENTS,FILENUM,FILENAME,ENDER,PROPS) ;"WRITE FILE LABEL
+  ;"Purpose: This is the code that actually does writing of labels etc for file output
+  ;"Input: FILENUM -- Number of file, to WRITE after  'id='
+  ;"       FILENAME -- OPTIONAL -- Name of FILE, to WRITE after  'label='
+  ;"       ENDER -- OPTIONAL IF 1, then ends field.
+  ;"       PROPS -- OPTIONAL, PASS BY REFERENCE.  Format:
+  ;"           PROPS(<property name>)=<property value>
+  ;"Results: none.
+  ;"Note: This is a separate function so that a different callback function can replace it
+  ;
+  IF $$ISSUBFIL^TMGFMUT2(FILENUM) QUIT
+  ;
+  DO CHKINDENT(.INDENTS)
+  IF +$GET(ENDER)>0 DO
+  . WRITE "-------------------------------",!
+  ELSE  DO
+  . WRITE $GET(INDENTS)
+  . WRITE "Showing FILE: ",FILENAME," (#",FILENUM,") "
+  . NEW APROP SET APROP=""
+  . FOR  SET APROP=$ORDER(PROPS(APROP)) QUIT:APROP=""  DO
+  . . WRITE APROP,"=""",$GET(PROPS(APROP)),""" "
+  . WRITE !
+  ;
+  QUIT       
+WTRECLAB(INDENTS,IEN,ENDER) ;
+  ;"Purpose: To actually WRITE out labels for record starting and ending.
+  ;"      IEN -- the IEN (record number) of the record
+  ;"      ENDER -- OPTIONAL IF 1, then ends field.
+  ;"Results: none.
+  ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
+  DO CHKINDENT(.INDENTS)
+  IF +$GET(ENDER)>0 DO
+  . ;"WRITE !
+  ELSE  DO
+  . WRITE $GET(INDENTS)
+  . WRITE "Entry #",IEN,"",!
+  QUIT
+  ;
+WTFLDLAB(INDENTS,LABEL,FIELD,TYPE,ENDER,PROPS) ;
+  ;"Purpose: This is the code that actually does writing of labels etc for output
+  ;"      This is a CUSTOM CALL BACK function called by WRIT1FLD^TMGXMLE2
+  ;"Input: LABEL -- OPTIONAL -- Name of label, to WRITE after  'label='
+  ;"       FIELD -- OPTIONAL -- Name of field, to WRITE after  'id='
+  ;"       TYPE -- OPTIONAL -- type of field, to WRITE after  'type='
+  ;"       ENDER -- OPTIONAL IF 1, then ends field.
+  ;"       PROPS -- a properties array, that is ignored here.  
+  ;"Results: none.
+  ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
+  ;
+  ;"To WRITE out <Field label="NAME" id=".01" type="FREE TEXT"> or </Field>
+  ;
+  DO CHKINDENT(.INDENTS)
+  IF +$GET(ENDER)>0 DO
+  . WRITE !
+  ELSE  DO
+  . NEW STR SET STR=FIELD
+  . NEW OUT SET OUT=""
+  . IF $GET(FIELD)'="" SET OUT=OUT_$$RJ^XLFSTR(.STR,6," ")_"-"
+  . IF $GET(LABEL)'="" SET OUT=OUT_LABEL_" "
+  . SET OUT=OUT_": "
+  . WRITE $GET(INDENTS)
+  . WRITE OUT 
+  . IF $DATA(PROPS("SUBFILE-NUMBER")) DO
+  . . WRITE "<MULTIPLE-VALUED>"
+  QUIT
+  ;
+WTLINE(INDENTS,LINE)  ;
+  ;"Input: LINE -- The line of text to be written out.
+  ;"Results: none.
+  ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
+  ;
+  ;"DO CHKINDENT(.INDENTS)
+  ;"WRITE $GET(INDENTS)
+  WRITE LINE
+  QUIT
+  ;
+WTWPLN(INDENTS,LINE) ;
+  ;"Purpose: To actually WRITE out line from WP field
+  ;"Input: LINE -- The line of text to be written out.
+  ;"Results: none.
+  ;"Note: Used by DUMPREC above, with callback from TMGXMLE2
+  DO CHKINDENT(.INDENTS)
+  WRITE $GET(INDENTS)
+  WRITE LINE,!
+  QUIT
+  ;

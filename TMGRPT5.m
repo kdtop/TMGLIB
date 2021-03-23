@@ -177,19 +177,23 @@ GTQUESTS(ARRAY)
    ;"  SET ARRAY(1,3,4)="2427^0^^Very heavy (like fast running or stair climbing)"
    ;"  SET ARRAY(1,3,5)="2428^0^MODERATE^I am currently not exercising"
 
- SET ARRAY(2,0)="Tobacco Use"
+ SET ARRAY(2,0)="Tobacco/Nicotine Use"
    SET ARRAY(2,1,0)="In the last 30 days, have you used tobacco? Smoked:"
      SET ARRAY(2,1,1)="2431^0^MODERATE^Yes"
      SET ARRAY(2,1,2)="2432^0^^No"
+     
+  SET ARRAY(2,2,0)="Vaped or used an e-cigarette?"
+     SET ARRAY(2,2,1)="2719^0^MODERATE^Yes"
+     SET ARRAY(2,2,2)="2721^0^^No"     
 
-   SET ARRAY(2,2,0)="Used a smokeless tobacco product:"
-     SET ARRAY(2,2,1)="2433^0^MODERATE^Yes"
-     SET ARRAY(2,2,2)="2434^0^^No"
-
-   SET ARRAY(2,3,0)="If Yes to either, Would you be interested in quitting tobacco use within the next month?"
-     SET ARRAY(2,3,1)="2436^0^MODERATE^Yes"
-     SET ARRAY(2,3,2)="2437^0^^No"
-     SET ARRAY(2,3,2)="2718^0^^N/A"
+   SET ARRAY(2,3,0)="Used a smokeless tobacco product:"
+     SET ARRAY(2,3,1)="2433^0^MODERATE^Yes"
+     SET ARRAY(2,3,2)="2434^0^^No"
+     
+   SET ARRAY(2,4,0)="If Yes to either, Would you be interested in quitting tobacco use within the next month?"
+     SET ARRAY(2,4,1)="2436^0^MODERATE^Yes"
+     SET ARRAY(2,4,2)="2437^0^^No"
+     SET ARRAY(2,4,2)="2718^0^^N/A"
 
  SET ARRAY(3,0)="Alcohol Use"
    SET ARRAY(3,1,0)="In the past 7 days, on how many days did you drink alcohol?"

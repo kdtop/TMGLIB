@@ -429,9 +429,8 @@ GETGREF(FILENUM,IENS) ;
         ;"Input: IENS -- A standard IENS string to locate subfile.    Not used unless FILENUM is a subfile.
         ;"              NOTE: the lowest level IEN is not used.  e.g. '7,22345,' --> 7 is not used
         ;"Returns : an OPEN format reference.
-        NEW GREF
         NEW IENDEPTH SET IENDEPTH=1
-        SET GREF=$$GETGL(FILENUM,.IENDEPTH)
+        NEW GREF SET GREF=$$GETGL(FILENUM,.IENDEPTH)
         IF $$ISSUBFIL(FILENUM)=0 GOTO GGRDN
         SET GREF=$$CREF^DILF(GREF)
         NEW IEN DO IENS2IEN(.IENS,.IEN)

@@ -1410,7 +1410,7 @@ AWVREMS(REMLIST)  ;"list of reminders to include on AWV report
   SET REMLIST(257)="PNEUMOCOCCAL-23^Once, over the age of 65"
   SET REMLIST(224)="MAMMOGRAM/BREAST IMAGING^Annually"
   ;"Turn off until completed -> SET REMLIST(293)="TOBACCO CESSATION^Annually"
-  SET REMLIST(232)="ADVANCE CARE PLANNING^Every 2 years"  
+  SET REMLIST(231)="ADVANCE CARE PLANNING^Every 2 years"  
   SET REMLIST(220)="FECAL OCCULT BLOOD TEST^Annually"
   SET REMLIST(223)="COLONOSCOPY^Every 10 years, if not otherwise specified"
   ;"SET REMLIST(242)="DIABETIC EYE EXAM^Annually"

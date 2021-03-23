@@ -1,4 +1,4 @@
-TMGDBAP3 ;TMG/kst/SACC-compliant DB APT utilities ;9/23/17
+TMGDBAP3 ;TMG/kst/SACC-compliant DB APT utilities ;9/23/17, 3/18/21
          ;;1.0;TMG-LIB;**1,17**;07/12/05
   ;  
   ;"TMG DB API UTILITIES
@@ -27,6 +27,8 @@ TMGDBAP3 ;TMG/kst/SACC-compliant DB APT utilities ;9/23/17
   ;"READWP(FILE,IENS,FIELD,ARRAY) --a wrapper for reading a WP with error trap, error reporting
   ;"$$GFLDINFO(FILENUMBER,FIELD,POUT,INFOS) -- GET FIELD INFO
   ;"$$ISSUBFIL(FILE) -- Returns if file is a subfile
+  ;"$$HASREC(FILE,IENS) --Return if file (or subfile) has any records
+  ;"$$REC1(BFILE,IENS) -- Return 1st IEN of file or subfile, or 0 if none
   ;"$$SFUPFLD(SUBFILE) --'SUBFILE UP FIELD'.  Return field in parent that holds given subfile
   ;"SFUPARR(OUT,SUBFILE) --Return an array of subfile info up to root.
   ;
@@ -316,7 +318,17 @@ ISSUBFIL(FILE) ;"IS SUBFILE?
   . IF +FLDINFO=FILE SET FLDINPARENT=FIELD SET DONE=1
   IF FLDINPARENT>0 SET RESULT=RESULT_"^"_FLDINPARENT
 ISFDN   QUIT RESULT
-  ;                                       
+  ; 
+HASREC(FILE,IENS) ;"FILE (or SUBFILE) HAS A RECS?
+  ;"Return boolean result of whether subfile actually has any records
+  QUIT ($$REC1(FILE,IENS)>0)
+  ;
+REC1(FILE,IENS) ;"RETURN 1ST IEN IN FILE OR SUBFILE, OR 0 IF NONE.
+  NEW OROOT SET OROOT=$$GETGREF^TMGFMUT2(FILE,IENS) 
+  IF OROOT="" QUIT 0
+  NEW CROOT SET CROOT=$$CREF^DILF(OROOT)
+  QUIT $ORDER(@CROOT@(0))
+  ;
 SFUPFLD(SUBFILE)  ;"'SUBFILE UP FIELD':  RETURN FIELD IN PARENT THAT HOLDS GIVEN SUBFILE.
   ;"Results: 0^0^0 if not found, 
   ;"         or <FIELD IN PARENT FILE>^<PARENT FILE>^<Storage subscript node in parent>

@@ -1,4 +1,4 @@
-TMGSIPH0 ;TMG/kst/SIPHON PROGRAM, FOR TRANSFERRING VISTA INSTANCES ;11/27/09, 2/2/14
+TMGSIPH0 ;TMG/kst/SIPHON PROGRAM, FOR TRANSFERRING VISTA INSTANCES ;11/27/09, 2/2/14, 3/19/21
          ;;1.0;TMG-LIB;**1**;11/27/09
  ;
  ;"TMG SIPHON PROGRAM, FOR TRANSFERRING VISTA INSTANCE
@@ -38,6 +38,18 @@ TMGSIPH0 ;TMG/kst/SIPHON PROGRAM, FOR TRANSFERRING VISTA INSTANCES ;11/27/09, 2/
  ;"=============================================================
  ;" Below will be core of server-side request handler.
  ;"=============================================================
+ 
+ ;"=======================================================================
+ ;"=======================================================================
+ ;"!!Notice!!: The XML export engine, which this code uses, has been revised
+ ;"  as of 3/19/21.  The engine calls back to writer functions, and the
+ ;"  signatures may have changed slightly.  If/when this code is used
+ ;"  in the future, this will have to be debugged...  //kt  3/19/21
+ ;"=======================================================================
+ ;"=======================================================================
+ 
+ 
+ 
 HANDLMSG(MESSAGE) ;
         ;"Purpose: A message handler for communication between VistA instances.
         ;"Input MESSAGE -- This is the message send from the client, who will be asking for
@@ -294,8 +306,8 @@ DUMPREC(PARAMS) ;
         IF (FILENUM'>0)!(IENS'>0) QUIT
         SET SHOWEMPTY=+$PIECE(PARAMS,"^",3)
         NEW OPTION
-        SET OPTION("WRITE REC FN")="WRLABEL^TMGSIPH0"
-        SET OPTION("WRITE FLD FN")="WFLABEL^TMGSIPH0"
+        SET OPTION("WRITE REC LABEL FN")="WRLABEL^TMGSIPH0"
+        SET OPTION("WRITE FLD LABEL FN")="WFLABEL^TMGSIPH0"
         SET OPTION("WRITE LINE FN")="WLINE^TMGSIPH0"
         SET OPTION("WRITE WP LINE")="WWPLINE^TMGSIPH0"
         NEW TMGDUMPS ;"Will be used with global scope
@@ -303,7 +315,7 @@ DUMPREC(PARAMS) ;
         QUIT
  ;
  ;
-WRLABEL(IEN,ENDER)
+WRLABEL(INDENTS,IEN,ENDER)
         ;"Purpose: To actually WRITE out labels for record starting and ending.
         ;"Input: IEN -- the IEN (record number) of the record
         ;"       ENDER -- OPTIONAL IF 1, then ends field.
@@ -318,7 +330,7 @@ WRLABEL(IEN,ENDER)
         SET TMGDUMPS=""
         QUIT
  ;
-WFLABEL(LABEL,FIELD,TYPE,ENDER)
+WFLABEL(INDENTS,LABEL,FIELD,TYPE,ENDER)
         ;"Purpose: This is the code that actually does writing of labels etc for output
         ;"      This is a CUSTOM CALL BACK function called by WRIT1FLD^TMGXMLE2
         ;"Input: LABEL -- OPTIONAL -- Name of label, to WRITE after  'label='
@@ -340,7 +352,7 @@ WFLABEL(LABEL,FIELD,TYPE,ENDER)
         . SET TMGDUMPS=TMGDUMPS_": "
         QUIT
  ;
-WLINE(LINE)
+WLINE(INDENTS,LINE)
         ;"Purpose: To actually WRITE out labels for record starting and ending.
         ;"Input: Line -- The line of text to be written out.
         ;"Note: also uses globally scoped variable TMGDUMPS
@@ -348,7 +360,7 @@ WLINE(LINE)
         SET TMGDUMPS=$GET(TMGDUMPS)_$GET(LINE)
         QUIT
  ;
-WWPLINE(LINE)
+WWPLINE(INDENTS,LINE)
         ;"Purpose: To actually WRITE out line from WP field
         ;"Input: Line -- The line of text to be written out.
         ;"Note: also uses globally scoped variable TMGDUMPS
