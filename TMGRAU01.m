@@ -145,12 +145,13 @@ ENSRADFN(DFN)  ;"Ensure patient registered in RAD/NUC MED PATIENT file, #70
 ENSDN ;  
   QUIT TMGRESULT
   ;
-STOREXAM(DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
-  ;"INPUT: DATA -- PASS BY REFERENCE.  FORMAT:
+STOREXAM(DFN,DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
+  ;"INPUT: DFN - PATIENT IEN
+  ;"       DATA -- PASS BY REFERENCE.  FORMAT:
   ;"          DATA("DT")=FM format of date-time of study
   ;"          DATA("IEN70.02")=IEN of registered exams in 70.02. 
   ;"                          NOTE: this is automatically added to data array by REGEXAM()
-  ;"          DATA("RADFN")=RADFN <-- an OUT PARAMETER.  
+  ;"          DATA("RADFN")=RADFN   
   ;"          DATA("DIV")=Name or IEN of HOSPITAL DIVISION (#79) of imaging study <--- NOTE: not used in this routine
   ;"          DATA("LOC")=Name or IEN of IMAGING LOCATION (#79.1) of imaging study  <--- NOTE: not used in this routine
   ;"          DATA("TYPE")=IEN of IMAGING TYPE (#79.2) of type of study <--- NOTE: not used in this routine

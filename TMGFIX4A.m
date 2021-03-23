@@ -135,3 +135,34 @@ MAKENOTE(STUDIESARR,VALUE,TXTARRAY)  ;
         . SET TXTARRAY(CT,0)=" "
 MNDN    QUIT
         ;
+CHECKRAD  ;" TEMP REPORT TO CHECK THE RAD DAY CASE POINTERS FOR ERRORS
+        ;"Purpose: Provide an interactive entry point for report, asking device.
+        NEW %ZIS,IOP
+        SET IOP="S121-LAUGHLIN-LASER"
+        DO ^%ZIS  ;"standard device call
+        IF POP DO  QUIT
+        . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
+        use IO
+        NEW DFN SET DFN=0
+        FOR  SET DFN=$O(^RADPT("B",DFN)) QUIT:DFN'>0  DO
+        . NEW DISPLAYNAME SET DISPLAYNAME=0
+        . NEW DT SET DT=9999999
+        . FOR  SET DT=$O(^RADPT(DFN,"DT",DT),-1) QUIT:DT'>0  DO
+        . . NEW IDX SET IDX=0
+        . . FOR  SET IDX=$O(^RADPT(DFN,"DT",DT,"P",IDX)) QUIT:IDX'>0  DO
+        . . . NEW IEN73
+        . . . SET IEN73=+$P($G(^RADPT(DFN,"DT",DT,"P",IDX,0)),"^",17)
+        . . . IF IEN73'>0 QUIT
+        . . . ;"TEST THE PATIENT FOR THE POINTED TO REPORT
+        . . . NEW TEMPDFN SET TEMPDFN=$P($G(^RARPT(IEN73,0)),"^",2)
+        . . . IF TEMPDFN'=DFN DO
+        . . . . IF DISPLAYNAME=0 DO
+        . . . . . WRITE "==",$P($G(^DPT(DFN,0)),"^",1),!
+        . . . . . SET DISPLAYNAME=1
+        . . . . WRITE "      !! DAYCASE # ",$P($G(^RARPT(IEN73,0)),"^",1)
+        . . . . WRITE " ASSIGNED TO ",$P($G(^DPT(TEMPDFN,0)),"^",1),!
+        . . . . WRITE "         *DATE: ",$$EXTDATE^TMGDATE(9999999-$P(DT,".",1),1),". FILE 73 IEN: ",IEN73,!
+        . IF DISPLAYNAME=1 WRITE !
+        DO ^%ZISC  ;" Close the output device
+        QUIT
+        ;"
