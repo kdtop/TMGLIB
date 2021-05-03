@@ -1,4 +1,4 @@
-TMGIMM1 ;TMG/kst/Immunication interface 12/4/12, 2/2/14
+TMGIMM1 ;TMG/kst/Immunication interface 12/4/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;12/4/12
  ;
  ;"TMG C0Q FUNCTIONS
@@ -19,14 +19,14 @@ TMGIMM1 ;TMG/kst/Immunication interface 12/4/12, 2/2/14
  ;
  ;"V04(TIUIEN) -- Event handler for note completion with immuniztion data, to be sent to registry
  ;"------------ Messages --------------------------------
- ;"GETVXQ(DFN,ERR) -- GET QUERY FOR VACCINATION RECORD
- ;"GETVXU(DFN,IENS,ERR)-- GET UNSOLICITED VACCINATION RECORD UPDATE
+ ;"GETVXQ(TMGDFN,ERR) -- GET QUERY FOR VACCINATION RECORD
+ ;"GETVXU(TMGDFN,IENS,ERR)-- GET UNSOLICITED VACCINATION RECORD UPDATE
  ;"------------ Message Segments ------------------------
  ;"GETMSH() -- GET MESSAGE HEADER
- ;"GETQRD(DFN) -- DEFINES THE QUERY IN HL7 MESSAGE
+ ;"GETQRD(TMGDFN) -- DEFINES THE QUERY IN HL7 MESSAGE
  ;"GETQRF(SDT,EDT) -- SUBORDINATE TO QRD TO FURTHER REFINE A QUERY
- ;"GETPID(DFN) -- GET PATIENT IDENTIFICATION SEGMENT
- ;"GETNK1(DFN) -- GET NEXT OF KIN INFORMATION SEGMENT
+ ;"GETPID(TMGDFN) -- GET PATIENT IDENTIFICATION SEGMENT
+ ;"GETNK1(TMGDFN) -- GET NEXT OF KIN INFORMATION SEGMENT
  ;"GETRXA(IENS) -- PHARMACY ADMINISTRATION SEGMENT
  ;"GETRXR(IENS) -- GET PHARMACY ROUTE INFORMATION AND SITE INFO
  ;"GETOBX(IENS) -- Get OBSERVATION AND RESULT SEGMENT (ANY ADVERSE REACTIONS)
@@ -35,7 +35,7 @@ TMGIMM1 ;TMG/kst/Immunication interface 12/4/12, 2/2/14
  ;"=======================================================================
  ;" API -- Private Functions.
  ;"=======================================================================
- ;"GETIENS(TIUIEN,DFN,IENS) -- Get IENS to careplan for given TIUIEN
+ ;"GETIENS(TIUIEN,TMGDFN,IENS) -- Get IENS to careplan for given TIUIEN
  ;"ADD(OUT,VALUE) -- Add value to growing HL7 message
  ;"OUTPUT(TEXT) -- Output HL7 text to file system etc. 
  ;"TEST -- To see test output
@@ -50,10 +50,10 @@ V04(TIUIEN) ;
         ;"Output: Will output file
         ;"Result: 1^Success or -1^Message IF error.
         ;
-        NEW TMGRESULT,DFN,IENS,ERR,TEXTARRAY
-        SET TMGRESULT=$$GETIENS(TIUIEN,.DFN,.IENS)
+        NEW TMGRESULT,TMGDFN,IENS,ERR,TEXTARRAY
+        SET TMGRESULT=$$GETIENS(TIUIEN,.TMGDFN,.IENS)
         IF +TMGRESULT<0 GOTO V04DN
-        SET TMGRESULT=$$GETVXU(DFN,IENS,.TEXTARRAY)
+        SET TMGRESULT=$$GETVXU(TMGDFN,IENS,.TEXTARRAY)
         IF +TMGRESULT<0 GOTO V04DN
         SET TMGRESULT=$$OUTPUT(.TEXTARRAY)
 V04DN   QUIT TMGRESULT
@@ -62,9 +62,9 @@ V04DN   QUIT TMGRESULT
         ;"------------ Messages --------------------------------
         ;"------------------------------------------------------
         ;
-GETVXQ(DFN,OUT) ;
+GETVXQ(TMGDFN,OUT) ;
         ;"Purpose: QUERY FOR VACCINATION RECORD
-        ;"Input: DFN -- patient IEN
+        ;"Input: TMGDFN -- patient IEN
         ;"       OUT -- PASS BY REFERENCE, AN OUT PARAMETER
         ;"Structure:
         ;" MSH
@@ -75,13 +75,13 @@ GETVXQ(DFN,OUT) ;
         ;"             OUT(2)=<2nd line> ...
         NEW RESULT SET RESULT="1^Success"
         SET RESULT=$$ADD(.OUT,$$GETMSH()) IF +RESULT<0  GOTO VXQDN
-        SET RESULT=$$ADD(.OUT,$$GETQRD(DFN)) IF +RESULT<0  GOTO VXQDN
+        SET RESULT=$$ADD(.OUT,$$GETQRD(TMGDFN)) IF +RESULT<0  GOTO VXQDN
         SET RESULT=$$ADD(.OUT,$$GETQRF) IF +RESULT<0  GOTO VXQDN
 VXQDN   QUIT RESULT
         ;
-GETVXU(DFN,IENS,OUT) ;
+GETVXU(TMGDFN,IENS,OUT) ;
         ;"Purpose: UNSOLICITED VACCINATION RECORD UPDATE
-        ;"Input: DFN -- patient IEN 
+        ;"Input: TMGDFN -- patient IEN 
         ;"       IENS -- pointer to subfile 19009.03
         ;"       OUT -- PASS BY REFERENCE, AN OUT PARAMETER
         ;"Structure:
@@ -97,8 +97,8 @@ GETVXU(DFN,IENS,OUT) ;
         ;"             OUT(2)=<2nd line> ...
         NEW RESULT SET RESULT="1^Success"
         SET RESULT=$$ADD(.OUT,$$GETMSH) IF +RESULT<0 GOTO VXQDN
-        SET RESULT=$$ADD(.OUT,$$GETPID(DFN)) IF +RESULT<0 GOTO VXQDN
-        SET RESULT=$$ADD(.OUT,$$GETNK1(DFN)) IF +RESULT<0 GOTO VXQDN
+        SET RESULT=$$ADD(.OUT,$$GETPID(TMGDFN)) IF +RESULT<0 GOTO VXQDN
+        SET RESULT=$$ADD(.OUT,$$GETNK1(TMGDFN)) IF +RESULT<0 GOTO VXQDN
         SET RESULT=$$ADD(.OUT,$$GETRXA(IENS)) IF +RESULT<0 GOTO VXQDN
         SET RESULT=$$ADD(.OUT,$$GETRXR(IENS)) IF +RESULT<0 GOTO VXQDN
         SET RESULT=$$ADD(.OUT,$$GETOBX(IENS)) IF +RESULT<0 GOTO VXQDN
@@ -137,9 +137,9 @@ GETMSH() ;
         SET TMGRESULT=TMGRESULT_PROCESSINGID_"|2.3.1|"
         QUIT TMGRESULT
         ;
-GETQRD(DFN) ;
+GETQRD(TMGDFN) ;
         ;"Purpose: DEFINES THE QUERY IN HL7 MESSAGE
-        ;"Input: DFN -- patient IEN 
+        ;"Input: TMGDFN -- patient IEN 
         ;"Structure:    Prefix: QRD
         ;"              Seq 1: Query Time Date
         ;"              Seq 2: Query Format Code ("D"=Display,"R"=Record,"T"=Tabular)
@@ -158,7 +158,7 @@ GETQRD(DFN) ;
         NEW DATE SET DATE=$$HL7DT($$NOW^XLFDT)
         ;"
         NEW PATIENTNAME,FNAME,LNAME
-        SET PATIENTNAME=$$GET1^DIQ(2,DFN_",",".01")
+        SET PATIENTNAME=$$GET1^DIQ(2,TMGDFN_",",".01")
         SET FNAME=$PIECE(PATIENTNAME,",",2)
         SET LNAME=$PIECE(PATIENTNAME,",",1)
         SET TMGRESULT="QRD|"_DATE_"|R|I|00001||2000^RD|^"_LNAME_"%^"_FNAME_"%|VXI|SIIS"
@@ -177,9 +177,9 @@ GETQRF(SDT,EDT) ;
         SET TMGRESULT="QRF|TNSIIS|"
         QUIT TMGRESULT
         ;
-GETPID(DFN) ;
+GETPID(TMGDFN) ;
         ;"Purpose: GET PATIENT IDENTIFICATION SEGMENT
-        ;"Input: DFN -- patient IEN 
+        ;"Input: TMGDFN -- patient IEN 
         ;"Structure:    Prefix: PID
         ;"              Seq 1: Set ID - PID (Optional)
         ;"              Seq 2: Patient ID (Optional)
@@ -195,13 +195,13 @@ GETPID(DFN) ;
         ;"        or -1^Message for cases of error
         NEW TMGRESULT
         NEW PATIENTNAME,PATIENTSSN,PATIENTDOB,SEX
-        SET DFN=+$GET(DFN)
-        IF DFN'>0 SET TMGRESULT="-1^NO DFN PROVIDED" GOTO PIDDN
+        SET TMGDFN=+$GET(TMGDFN)
+        IF TMGDFN'>0 SET TMGRESULT="-1^NO DFN PROVIDED" GOTO PIDDN
         ;"
-        SET PATIENTNAME=$$GET1^DIQ(2,DFN_",",".01")
-        SET PATIENTSSN=$$GET1^DIQ(2,DFN_",",".09")
-        SET PATIENTDOB=$$GET1^DIQ(2,DFN_",",".03","I")
-        SET SEX=$$GET1^DIQ(2,DFN_",",.02,"I")
+        SET PATIENTNAME=$$GET1^DIQ(2,TMGDFN_",",".01")
+        SET PATIENTSSN=$$GET1^DIQ(2,TMGDFN_",",".09")
+        SET PATIENTDOB=$$GET1^DIQ(2,TMGDFN_",",".03","I")
+        SET SEX=$$GET1^DIQ(2,TMGDFN_",",.02,"I")
         SET PATIENTDOB=$$HL7DT(PATIENTDOB)
         IF PATIENTNAME="" SET TMGRESULT="-1^PATIENT NAME NOT FOUND" GOTO PIDDN
         IF PATIENTSSN["P" SET PATIENTSSN=$PIECE(PATIENTSSN,"P",1) ;"THIS LINE IS FOR TEST DATA ONLY
@@ -213,14 +213,14 @@ GETPID(DFN) ;
         SET $PIECE(TMGRESULT,"|",5)=PATIENTNAME
         SET $PIECE(TMGRESULT,"|",7)=PATIENTDOB
         SET $PIECE(TMGRESULT,"|",8)=SEX
-        SET $PIECE(TMGRESULT,"|",18)=DFN
+        SET $PIECE(TMGRESULT,"|",18)=TMGDFN
         SET $PIECE(TMGRESULT,"|",19)=PATIENTSSN
         SET TMGRESULT=TMGRESULT
 PIDDN   QUIT TMGRESULT
         ;
-GETNK1(DFN) ;
+GETNK1(TMGDFN) ;
         ;"Purpose: GET NEXT OF KIN INFORMATION SEGMENT
-        ;"Input: DFN -- patient IEN 
+        ;"Input: TMGDFN -- patient IEN 
         ;"Result: returns string for HL7 message segment.
         ;"        or -1^Message for cases of error
         QUIT ""  ;<---- temporary.  Remove if/when NK1 implemented.
@@ -358,10 +358,10 @@ OUTPUT(ARRAY) ;
         DO CLOSE^%ZISH(FHANDLE)
 OPDN    QUIT TMGRESULT
         ;
-GETIENS(TIUIEN,DFN,IENS) ;
+GETIENS(TIUIEN,TMGDFN,IENS) ;
         ;"Purpose: Get IENS to careplan for given TIUIEN
         ;"Input: TIUIEN -- IEN in 8925
-        ;"       DFN  -- PASS BY REFERENCE, AN OUT PARAMETER 
+        ;"       TMGDFN  -- PASS BY REFERENCE, AN OUT PARAMETER 
         ;"       IENS -- PASS BY REFERENCE, AN OUT PARAMETER
         ;"Result: 1^Success, or -1^Message IF error
         NEW TMGRESULT,CPIEN,ENTRYIEN
@@ -370,8 +370,8 @@ GETIENS(TIUIEN,DFN,IENS) ;
         IF CPIEN=0 SET TMGRESULT="-1^CarePlan not found" GOTO GTIDN 
         SET ENTRYIEN=+$ORDER(^VEFA(19009,"TIU",TIUIEN,CPIEN,0))
         IF ENTRYIEN=0 SET TMGRESULT="-1^CarePlan entry not found" GOTO GTIDN
-        SET DFN=+$PIECE($GET(^VEFA(19009,CPIEN,0)),"^",1)
-        IF DFN=0 SET TMGRESULT="-1^DFN not found" GOTO GTIDN
+        SET TMGDFN=+$PIECE($GET(^VEFA(19009,CPIEN,0)),"^",1)
+        IF TMGDFN=0 SET TMGRESULT="-1^DFN not found" GOTO GTIDN
         SET IENS=ENTRYIEN_","_CPIEN_","
 GTIDN   QUIT TMGRESULT        
         ;"------------------------------------------------------

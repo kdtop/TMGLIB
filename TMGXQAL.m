@@ -1,4 +1,4 @@
-TMGXQAL   ;TMG/ELH-RPCS FOR ALERT PROCESSES ; 3/2/17
+TMGXQAL   ;TMG/ELH-RPCS FOR ALERT PROCESSES ; 3/2/17, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;3/2/17
          ;"
 INFRMALT(TMGRESULT,DUZ,MESSAGE);
@@ -62,13 +62,13 @@ CNSLTALT
     . ;"QUIT
     . NEW XQADATA,XQAID,XQAROU,XQA,XQAMSG,RESULT,XQADFN
     . SET XQA(PROV)=""
-    . NEW DFN SET DFN=$P($P($G(^OR(100,ORDIEN,0)),"^",2),";",1)
-    . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+    . NEW TMGDFN SET TMGDFN=$P($P($G(^OR(100,ORDIEN,0)),"^",2),";",1)
+    . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
     . NEW DATE SET DATE=$P($G(^OR(100,ORDIEN,0)),"^",7)
     . SET XQAMSG=NAME_" (X1234): Order requires electronic signature"
     . SET XQADATA=ORDIEN_"@"
-    . SET XQAID="OR,"_DFN_",12;"_PROV_";"_DATE
-    . SET XQADFN=DFN
+    . SET XQAID="OR,"_TMGDFN_",12;"_PROV_";"_DATE
+    . SET XQADFN=TMGDFN
     . SET XQAROU="ESORD^ORB3FUP1"
     . SET RESULT=$$SETUP1^XQALERT
     QUIT
@@ -110,16 +110,16 @@ ORALTEXS(DUZ,ORDIEN)  ;" DOES THE ORDER ALERT EXIST?
 PRINTRPT
 ALERTRPT  ;"This is a report to display all alerts that are over 5 days
           ;"old
-    NEW DFN SET DFN=0
+    NEW TMGDFN SET TMGDFN=0
     NEW DAYS SET DAYS="-5"
     NEW CUTOFFDATE SET CUTOFFDATE=$$ADDDAYS^TMGDATE(DAYS)
     NEW RETARRAY
-    FOR  SET DFN=$O(^XTV(8992,DFN)) QUIT:DFN'>0  DO
+    FOR  SET TMGDFN=$O(^XTV(8992,TMGDFN)) QUIT:TMGDFN'>0  DO
     . NEW DATE SET DATE=0
-    . FOR  SET DATE=$O(^XTV(8992,DFN,"XQA",DATE)) QUIT:DATE'>0  DO
+    . FOR  SET DATE=$O(^XTV(8992,TMGDFN,"XQA",DATE)) QUIT:DATE'>0  DO
     . . IF DATE>CUTOFFDATE QUIT
-    . . NEW ZN SET ZN=$G(^XTV(8992,DFN,"XQA",DATE,0))
-    . . SET RETARRAY(DFN,DATE)=$P(ZN,"^",3)
+    . . NEW ZN SET ZN=$G(^XTV(8992,TMGDFN,"XQA",DATE,0))
+    . . SET RETARRAY(TMGDFN,DATE)=$P(ZN,"^",3)
     . . ;"WRITE $$EXTDATE^TMGDATE(DATE)," - ",$P(ZN,"^",3),!
     IF '$D(RETARRAY) GOTO ARDN
     WRITE !
@@ -129,12 +129,12 @@ ALERTRPT  ;"This is a report to display all alerts that are over 5 days
     WRITE "           Please deliver this report to the OFFICE MANAGER",!
     WRITE "************************************************************",!
     WRITE "                                            (From TMGXQAL.m)",!!
-    SET DFN=0
-    FOR  SET DFN=$O(RETARRAY(DFN)) QUIT:DFN'>0  DO
-    . WRITE "==== USER: ",$P($G(^VA(200,DFN,0)),"^",1)," ========",!
+    SET TMGDFN=0
+    FOR  SET TMGDFN=$O(RETARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+    . WRITE "==== USER: ",$P($G(^VA(200,TMGDFN,0)),"^",1)," ========",!
     . SET DATE=0
-    . FOR  SET DATE=$O(RETARRAY(DFN,DATE)) QUIT:DATE'>0  DO
-    . . WRITE $$EXTDATE^TMGDATE(DATE)," - ",$G(RETARRAY(DFN,DATE)),!
+    . FOR  SET DATE=$O(RETARRAY(TMGDFN,DATE)) QUIT:DATE'>0  DO
+    . . WRITE $$EXTDATE^TMGDATE(DATE)," - ",$G(RETARRAY(TMGDFN,DATE)),!
     . WRITE !!
 ARDN
     QUIT

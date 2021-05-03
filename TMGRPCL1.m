@@ -1,4 +1,4 @@
-TMGRPCL1 ;TMG/kst/Lab RPC Call Routines ; 3/21/15
+TMGRPCL1 ;TMG/kst/Lab RPC Call Routines ; 3/21/15, 3/24/21
          ;;1.0;TMG-LIB;**1**;3/21/15
  ;
  ;"TMG LAB RPC ROUTINES
@@ -26,11 +26,11 @@ TMGRPCL1 ;TMG/kst/Lab RPC Call Routines ; 3/21/15
  ;"=======================================================================
  ;
 TEST ;
-  NEW DIR,DIC,X,Y,DFN,SDT,EDT,ARR
+  NEW DIR,DIC,X,Y,TMGDFN,SDT,EDT,ARR
   SET DIC=2,DIC(0)="MAEQ"
   DO ^DIC WRITE !
   IF Y'>0 QUIT
-  SET DFN=+Y
+  SET TMGDFN=+Y
   SET DIR(0)="D"
   SET DIR("A")="Enter starting date"
   DO ^DIR IF Y'>0 QUIT
@@ -39,19 +39,19 @@ TEST ;
   DO ^DIR WRITE !
   IF Y'>0 QUIT
   SET EDT=+Y\1+0.999999
-  DO GETLABS(.ARR,DFN,SDT,EDT)
+  DO GETLABS(.ARR,TMGDFN,SDT,EDT)
   IF $DATA(ARR) ZWR ARR
   ELSE  WRITE !,"None found.",!
   QUIT
   ;   
-GETLDATS(OUT,DFN,FMDT) ;"
+GETLDATS(OUT,TMGDFN,FMDT) ;"
   ;"Purpose: Get an array of all dates a patient has lab results for
   ;"OUT(IDX)=DATE 
   SET FMDT=+$G(FMDT)   ;"RETURN FM DATE 
   NEW LABS,LDATE,CURDATE,IDX
   SET LDATE=0,CURDATE=9999999,IDX=0
   NEW OPTION SET OPTION("ADD SUMMARY")=1
-  DO GETLABS^TMGLRR02(.LABS,.DFN,.SDT,.EDT,.OPTION)
+  DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)
   FOR  SET CURDATE=$O(LABS("DT",CURDATE),-1) QUIT:CURDATE'>0  DO
   . NEW THISDATE SET THISDATE=$P(CURDATE,".",1)
   . IF THISDATE=CURDATE QUIT
@@ -83,13 +83,13 @@ FRMTDTS(INPUT,OUTPUT)
   . . SET OUTPUT($$INTDATE^TMGDATE($P($G(INPUT(IDX)),"-",1)))=""
   QUIT
   ;"
-GETREPRT(OUT,DFN,ARRAY) ;"
+GETREPRT(OUT,TMGDFN,ARRAY) ;"
   ;"Purpose: take an array of dates (ARRAY) and format the data in HTML for
   ;"         printing or viewing
   NEW RESULTS,LABS
   NEW DATEARR
   DO FRMTDTS(.ARRAY,.DATEARR)
-  DO GETLABS^TMGLRR02(.LABS,.DFN,.SDT,.EDT,.OPTION)
+  DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)
   NEW IDX SET IDX=2
   
   SET OUT(0)="<!DOCTYPE html>"
@@ -112,7 +112,7 @@ GETREPRT(OUT,DFN,ARRAY) ;"
   . . . IF SETHEAD=0 DO
   . . . . IF IDX>2 DO
   . . . . . SET OUT(IDX)="<p style=""page-break-before: always"">",IDX=IDX+1
-  . . . . DO CAPTION(.OUT,.IDX,DT,DFN)
+  . . . . DO CAPTION(.OUT,.IDX,DT,TMGDFN)
   . . . . SET SETHEAD=1
   . . . ;"SET STR="LAB^"_DT_"^"_NODE_"^"_$GET(LABS("DT",DT,NODE))
   . . . NEW ROWHEAD 
@@ -137,12 +137,12 @@ GETREPRT(OUT,DFN,ARRAY) ;"
   SET OUT(IDX)="</font></body></html>" 
   QUIT
   ;"
-CAPTION(OUT,IDX,LABDATE,DFN)
+CAPTION(OUT,IDX,LABDATE,TMGDFN)
   NEW NAME,DOB,AGE,DT
   SET LABDATE=$P(LABDATE,".",1)
-  SET NAME=$P($G(^DPT(DFN,0)),"^",1)
-  SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(DFN,0)),"^",3))
-  K VADM SET AGE=$$AGE^TIULO(DFN)
+  SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+  SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3))
+  K VADM SET AGE=$$AGE^TIULO(TMGDFN)
   SET OUT(IDX)="<DIV align left>",IDX=IDX+1
   SET OUT(IDX)="<TABLE width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
   SET OUT(IDX)="cellpadding=""1"" style=""background-color:gray"">",IDX=IDX+1
@@ -166,7 +166,7 @@ U2CELL(LINE) ;"CONVERT STRING WITH CAROT TO HTML TABLE CELL
   SET LINE=$$REPLSTR^TMGSTUT3(LINE,"<TD></TD>","<TD>&nbsp;</TD>")  
   QUIT LINE
   ;"
-GETLABS(OUT,DFN,SDT,EDT,NCM,NTNX,NTFX,NNMX,NDT,NPNL) ;
+GETLABS(OUT,TMGDFN,SDT,EDT,NCM,NTNX,NTFX,NNMX,NDT,NPNL) ;
   ;"Purpose: return formatted array containing patient's labs for specified date range. 
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;"          OUT(0)="1^Success"
@@ -180,7 +180,7 @@ GETLABS(OUT,DFN,SDT,EDT,NCM,NTNX,NTFX,NNMX,NDT,NPNL) ;
   ;          old-> OUT(#)="TEST^NAME^<TEST_NAME>^<FMDT>"
   ;          old-> OUT(#)="NAMES^<TEST_FLD#>^<test name>"
   ;"          NOTE: the order shown above is the order result will return in.
-  ;"       1 DFN -- Patient IEN
+  ;"       1 TMGDFN -- Patient IEN
   ;"       2 SDT -- Optional.  Start date FMDT format.  Default is 0 (earliest)
   ;"       3 EDT -- Optional.  End date FMDT format.  Default is 9999999 (last possible)
   ;"       4 NCM  -- Optional.  if 1 then don't return comment
@@ -198,7 +198,7 @@ GETLABS(OUT,DFN,SDT,EDT,NCM,NTNX,NTFX,NNMX,NDT,NPNL) ;
   IF $GET(NNMX)=1 SET OPTION("NO NAMES INDEX")=1      ;"obsolete
   IF $GET(NDT)=1 SET OPTION("NO DATES")=1
   IF $GET(NPNL)=1 SET OPTION("NO PANELS")=1
-  DO GETLABS^TMGLRR02(.LABS,.DFN,.SDT,.EDT,.OPTION)
+  DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)
   NEW IDX SET IDX=1
   NEW DT SET DT=0
   FOR  SET DT=$ORDER(LABS("DT",DT)) QUIT:(DT="")  DO
@@ -266,17 +266,17 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   . NEW RDT SET RDT=RSDT-0.000001 IF RDT<0 SET RDT=0
   . FOR  SET RDT=$ORDER(^LR(LRDFN,"CH",RDT)) QUIT:(+RDT'>0)!(RDT>REDT)  DO
   . . ;"WRITE LRDFN,"-",RDT,!
-  . . NEW DFN SET DFN=$O(^DPT("ATMGLR",LRDFN,0))
-  . . ;"WRITE "    PATIENT:",$P($G(^DPT(DFN,0)),"^",1),"-",DFN,!
+  . . NEW TMGDFN SET TMGDFN=$O(^DPT("ATMGLR",LRDFN,0))
+  . . ;"WRITE "    PATIENT:",$P($G(^DPT(TMGDFN,0)),"^",1),"-",TMGDFN,!
   . . NEW DATE SET DATE=$$RDT2FMDT^TMGLRWU1(RDT)
   . . ;"WRITE "    DATE:",DATE,!
-  . . NEW IDX SET IDX=+$O(^TMG(22732,"B",DFN,0))
+  . . NEW IDX SET IDX=+$O(^TMG(22732,"B",TMGDFN,0))
   . . IF IDX'>0 WRITE "NOT FOUND",! QUIT
   . . NEW TMGIDX SET TMGIDX=+$O(^TMG(22732,IDX,1,"B",DATE,0))
   . . IF TMGIDX'>0 DO  QUIT
-  . . . ;"SET ERRARRAY(DFN,DATE)=""
-  . . . SET ERRARRAY($P($G(^DPT(DFN,0)),"^",1),DATE)=""
-  . . . ;"WRITE "PATIENT:",$P($G(^DPT(DFN,0)),"^",1),"-",DFN,!
+  . . . ;"SET ERRARRAY(TMGDFN,DATE)=""
+  . . . SET ERRARRAY($P($G(^DPT(TMGDFN,0)),"^",1),DATE)=""
+  . . . ;"WRITE "PATIENT:",$P($G(^DPT(TMGDFN,0)),"^",1),"-",TMGDFN,!
   . . . ;"WRITE "    DATE:",DATE,!
   . . . ;"WRITE "!!!!!! NOT REVIEWED  !!!!!!!",!
   . . NEW TMGDUZ SET TMGDUZ=0
@@ -289,9 +289,9 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   . . . . ;"WRITE "   ---->>>>REVIEWED BY DR KEVIN",!
   . . . . SET REVIEWED=1
   . . IF REVIEWED=0 DO
-  . . . ;"SET ERRARRAY(DFN,DATE)=""
-  . . . SET ERRARRAY($P($G(^DPT(DFN,0)),"^",1),DATE)=""
-  . . . ;"WRITE "PATIENT:",$P($G(^DPT(DFN,0)),"^",1),"-",DFN,!
+  . . . ;"SET ERRARRAY(TMGDFN,DATE)=""
+  . . . SET ERRARRAY($P($G(^DPT(TMGDFN,0)),"^",1),DATE)=""
+  . . . ;"WRITE "PATIENT:",$P($G(^DPT(TMGDFN,0)),"^",1),"-",TMGDFN,!
   . . . ;"WRITE "    DATE:",DATE,!
   . . . ;"WRITE "!!!!!! NOT REVIEWED  !!!!!!!",!
   . . ;NEW PROVIDER SET PROVIDER=$P($G(^LR(LRDFN,"CH",RDT,0)),"^",4)
@@ -308,9 +308,9 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   . WRITE "UNREVIEWED LABS FOR DATES:  ",$$EXTDATE^TMGDATE(SDT),"-",$$EXTDATE^TMGDATE(EDT),!
   . WRITE "----------------------------------------------------",!,!
   . NEW COUNT SET COUNT=0
-  . NEW DFN SET DFN=0
+  . NEW TMGDFN SET TMGDFN=0
   . NEW NAME SET NAME=""
-  . ;"FOR  SET DFN=$O(ERRARRAY(DFN)) QUIT:DFN'>0  DO
+  . ;"FOR  SET TMGDFN=$O(ERRARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
   . FOR  SET NAME=$O(ERRARRAY(NAME)) QUIT:NAME=""  DO
   . . SET COUNT=COUNT+1
   . . WRITE "PATIENT:",NAME,!
@@ -329,7 +329,7 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   DO PRESS2GO^TMGUSRI2
   QUIT
   ;"
-HASPDF(OUT,DFN,SDT,EDT)  ;"RPC FOR HAS LAB PDF for given date range?
-  DO RPCHASPDF^TMGLRPD1(.OUT,.DFN,.SDT,.EDT)
+HASPDF(OUT,TMGDFN,SDT,EDT)  ;"RPC FOR HAS LAB PDF for given date range?
+  DO RPCHASPDF^TMGLRPD1(.OUT,.TMGDFN,.SDT,.EDT)
   QUIT
   ;

@@ -1,4 +1,4 @@
-TMGSDAC ;TMG/kst/API FOR CANCELLING APPTS;2/23/09, 2/2/14
+TMGSDAC ;TMG/kst/API FOR CANCELLING APPTS;2/23/09, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;2/23/09
  ;
  ;"Called into from TMGRPC5
@@ -15,16 +15,16 @@ TMGSDAC ;TMG/kst/API FOR CANCELLING APPTS;2/23/09, 2/2/14
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"CANCAPPT(DFN,APPTDATE,CLINIC,INFO) -- CANCEL AN APPOINTMENT
+ ;"CANCAPPT(TMGDFN,APPTDATE,CLINIC,INFO) -- CANCEL AN APPOINTMENT
  ;
  ;"=======================================================================
  ;"Dependancies
  ;"=======================================================================
  ;"=======================================================================
  ;
-CANCAPPT(DFN,APPTDATE,CLINIC,INFO)     ;
+CANCAPPT(TMGDFN,APPTDATE,CLINIC,INFO)     ;
         ;"Purpose: CANCEL AN APPOINTMENT
-        ;"INPUT: DFN -- The IEN of the patient for appt to cancel
+        ;"INPUT: TMGDFN -- The IEN of the patient for appt to cancel
         ;"       APPTDATE -- Appointment Date & Time to be cancelled -- FM format
         ;"       CLINIC -- IEN of Clinic for appt (file 44)
         ;"       INFO -- PASS BY REFERENCE.
@@ -46,17 +46,17 @@ CANCAPPT(DFN,APPTDATE,CLINIC,INFO)     ;
         NEW IEN SET IEN=0
         FOR  SET IEN=$ORDER(^SC(CLINIC,"S",APPTDATE,1,IEN)) QUIT:(+IEN'>0)  DO
         . NEW S SET S=$GET(^SC(CLINIC,"S",APPTDATE,1,IEN,0))
-        . IF +S'=DFN QUIT  ;"Ignore appt IF patient doesn't match.
+        . IF +S'=TMGDFN QUIT  ;"Ignore appt IF patient doesn't match.
         . SET DATEMADE=+$PIECE(S,"^",7)  ;"Store for later
         . KILL ^SC(CLINIC,"S",APPTDATE,1,IEN) ;"<-- DELETION OF APPT (Part 1)
         ;
         IF DATEMADE=0 GOTO CANCDONE  ;"Apparently no matching appt found above
-        IF $DATA(^DPT(DFN,"S",APPTDATE))=0 GOTO CANCDONE
+        IF $DATA(^DPT(TMGDFN,"S",APPTDATE))=0 GOTO CANCDONE
         ;
         NEW TMGFDA,IENS,%,REASNSTR
         SET REASNSTR=$EXTRACT($GET(INFO("REASON IEN")),1,160)
         DO NOW^%DTC ;"Returns NOW in %
-        SET IENS=APPTDATE_","_DFN_","
+        SET IENS=APPTDATE_","_TMGDFN_","
         SET TMGFDA(2.98,IENS,3)="C"         ;"STATUS
         SET TMGFDA(2.98,IENS,14)=DUZ        ;"NO-SHOW/CANCELLED BY
         SET TMGFDA(2.98,IENS,15)=%          ;"NO-SHOW/CANCEL DATE/TIME
@@ -116,7 +116,7 @@ GETERSTR(TMGEARRAY) ;
  ;"  the XREF
  ;"
  ;
- ;"Input: DA(1) = DFN -- patient IEN
+ ;"Input: DA(1) = TMGDFN -- patient IEN
  ;"       DA -- appt time
  ;
  ;"K Q8 F Q7=0:0 S Q7=$N(^SC($P(^DPT(DA(1),"S",DA,0),"^"),"S",DA,1,Q7)) Q:Q7'>0  I $P(^(Q7,0),"^")=DA(1),$P(^(0),"^",9)="C" S Q8="" Q
@@ -128,12 +128,12 @@ GETERSTR(TMGEARRAY) ;
  ;
  K Q8
  SET Q7=0
- SET SC=$P(^DPT(DFN,"S",APTTIME,0),"^",1)
+ SET SC=$P(^DPT(TMGDFN,"S",APTTIME,0),"^",1)
  F  S Q7=$ORDER(^SC(SC,"S",APTTIME,1,Q7)) Q:Q7'>0  DO  QUIT:$DATA(Q8)
- . IF $P(^SC(SC,"S",APTTIME,1,Q7,0),"^",1)'=DFN QUIT  ;"0;1 = Patient IEN
+ . IF $P(^SC(SC,"S",APTTIME,1,Q7,0),"^",1)'=TMGDFN QUIT  ;"0;1 = Patient IEN
  . IF $P(^SC(SC,"S",APTTIME,1,Q7,0),"^",9)="C" S Q8=""  ;"0;9 = APPOINTMENT CANCELLED?
  I '$D(Q8) DO  ;"i.e. DO this IF APPOINTMENT CANCELLED <> 'C'
- . NEW status SET status=$P(^DPT(DFN,"S",APTTIME,0),"^",2)  ;"0;2 = STATUS
- . SET ^DPT("ASDCN",SC,APTTIME,DFN)=$S(status["P":1,1:"")   ;"P --> cancelled by patient
+ . NEW status SET status=$P(^DPT(TMGDFN,"S",APTTIME,0),"^",2)  ;"0;2 = STATUS
+ . SET ^DPT("ASDCN",SC,APTTIME,TMGDFN)=$S(status["P":1,1:"")   ;"P --> cancelled by patient
  K Q7,Q8
  Q

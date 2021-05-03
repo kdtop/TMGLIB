@@ -1,4 +1,4 @@
-TMGSEQL1B ;TMG/kst/Interface with a generic PMS ;03/25/06, 2/2/14
+TMGSEQL1B ;TMG/kst/Interface with a generic PMS ;03/25/06, 2/2/14, 3/24/21
           ;;1.0;TMG-LIB;**1**;01/09/06
 
  ;"TMG DEMOGRAPHICS IMPORT FUNCTIONS
@@ -654,19 +654,19 @@ GETDFN(PtInfo)
         ;"Input: PtInfo, Array of PtInfo, as defined in UpdateDB, and created by ParseLine
         ;"Result: the IEN in file 2 (i.e. DFN) IF found, otherwise 0 IF not found.
 
-        NEW Entry,DFN
+        NEW Entry,TMGDFN
 
         SET Entry(.01)=$$FormatName^TMGMISC($GET(Array("FULL NAME3")))
         SET Entry(.03)=$GET(PtInfo("DOB"))
         SET Entry(.02)=$GET(PtInfo("SEX"))
         SET Entry(.09)=$GET(PtInfo("SSNUM"))
-        SET DFN=+$$LOOKUPPAT^TMGGDFN(.Entry)  ;"get IEN in file 2 of patient
+        SET TMGDFN=+$$LOOKUPPAT^TMGGDFN(.Entry)  ;"get IEN in file 2 of patient
         ;"do an extended search with increasing intensity.
-        IF +DFN=0 SET DFN=$$EXTRLKUP^TMGGDFN(.Entry,1)
-        IF +DFN=0 SET DFN=$$EXTRLKUP^TMGGDFN(.Entry,2)
-        IF +DFN=0 SET DFN=$$EXTRLKUP^TMGGDFN(.Entry,3)
+        IF +TMGDFN=0 SET TMGDFN=$$EXTRLKUP^TMGGDFN(.Entry,1)
+        IF +TMGDFN=0 SET TMGDFN=$$EXTRLKUP^TMGGDFN(.Entry,2)
+        IF +TMGDFN=0 SET TMGDFN=$$EXTRLKUP^TMGGDFN(.Entry,3)
 
-        QUIT DFN
+        QUIT TMGDFN
 
 
 UpdateDB(PtInfo,AutoRegister,ErrArray,ChgLog)
@@ -691,7 +691,7 @@ UpdateDB(PtInfo,AutoRegister,ErrArray,ChgLog)
 
         NEW Entry
         NEW result SET result=1
-        NEW Name,TMGDOB,DFN
+        NEW Name,TMGDOB,TMGDFN
         NEW TMGARRAY,TMGMSG
         NEW PriorErrorFound
         NEW NewInfo
@@ -729,10 +729,10 @@ UpdateDB(PtInfo,AutoRegister,ErrArray,ChgLog)
         IF $GET(PtInfo("SEX"))'="" SET Entry(.02)=$GET(PtInfo("SEX"))
         SET Entry(.09)=$GET(PtInfo("SSNUM"))
 
-        SET DFN=$$GETDFN(.PtInfo)
+        SET TMGDFN=$$GETDFN(.PtInfo)
 
         ;"Add patient to database (register) IF appropriate
-        IF (DFN=0)&($GET(AutoRegister)=1) do
+        IF (TMGDFN=0)&($GET(AutoRegister)=1) do
         . SET ErrArray=-1  ;"extra quiet mode.
         . IF $GET(Entry(.02))="" DO  ;"autopick gender IF missing
         . . NEW AutoPick
@@ -740,17 +740,17 @@ UpdateDB(PtInfo,AutoRegister,ErrArray,ChgLog)
         . . IF AutoPick'=1 QUIT
         . . SET Entry(.02)=$$GETSEX^TMGSEQL2($GET(PtInfo("FIRST NAME")))
         . ;"OK, can't find, so will add NEW patient.
-        . ;"SET DFN=+$$ADDNEWPAT^TMGGDFN(.Entry,.ErrArray)
-        . SET DFN=+$$ADDNEWPAT^TMGGDFN(.Entry)
-        . IF DFN'=0 SET ChLog(Name_" "_TMGDOB,0)="ADDED PATIENT: "_Name_" "_TMGDOB
-        IF DFN=0 DO  GOTO UDBDone  ;"failure
+        . ;"SET TMGDFN=+$$ADDNEWPAT^TMGGDFN(.Entry,.ErrArray)
+        . SET TMGDFN=+$$ADDNEWPAT^TMGGDFN(.Entry)
+        . IF TMGDFN'=0 SET ChLog(Name_" "_TMGDOB,0)="ADDED PATIENT: "_Name_" "_TMGDOB
+        IF TMGDFN=0 DO  GOTO UDBDone  ;"failure
         . SET result=0
         . SET ErrArray(0)=$$NAMEERR^TMGSEQL2(.ErrArray)  ;"get name IF DIERR encountered.
         . IF ErrArray(0)["DOB" do
         . . ;"WRITE !,"DOB error found for: ",PtInfo("FULL NAME"),!
         . IF ErrArray(0)="" do
         . . SET ErrArray(0)="PATIENT NOT IN DATABASE:"  ;"if changed, also change in TMGSEQL2.m
-        SET IENS=DFN_","
+        SET IENS=TMGDFN_","
 
         ;"use DFN(IEN in file 2) to get data from database for comparison
         DO GETS^DIQ(2,IENS,Fields,"","TMGARRAY","TMGMSG")

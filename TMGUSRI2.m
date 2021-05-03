@@ -56,7 +56,7 @@ SPINTEST ;
   QUIT
   ; 
 TESTMENU ;
-  NEW MENU,IDX
+  NEW MENU,IDX,USRPICK
 TML1 ;                    
   SET IDX=0  
   KILL MENU SET MENU(IDX)="Select Option For Testing Menu"

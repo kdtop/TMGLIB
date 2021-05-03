@@ -1,4 +1,4 @@
-TMGHL7E2 ;TMG/kst-HL7 Processing Error/Alert handling; 11/18/16
+TMGHL7E2 ;TMG/kst-HL7 Processing Error/Alert handling; 11/18/16, 3/24/21
               ;;1.0;TMG-LIB;**1**; 11/18/16
   ;
   ;"TMG HL7 Error/Alert handling for lab messages
@@ -236,9 +236,9 @@ M3
         . D ^DIC
         . WRITE !
         . IF +Y>0 DO
-        . . NEW DFN SET DFN=$P(Y,"^",1)
-        . . SET OUT("SSN")=$P($G(^DPT(DFN,0)),"^",9)
-        . . SET OUT("DFN")=DFN
+        . . NEW TMGDFN SET TMGDFN=$P(Y,"^",1)
+        . . SET OUT("SSN")=$P($G(^DPT(TMGDFN,0)),"^",9)
+        . . SET OUT("DFN")=TMGDFN
         . . ;"ZWR OUT
         ELSE  IF TMGPTINPUT'="^" DO
         . SET OUT("SSN")=$P(PTARRAY(TMGPTINPUT),"^",3)
@@ -257,18 +257,18 @@ GETPTLST(PTINFO,PTARRAY)
         NEW LNAME SET LNAME=$P($G(PTINFO(5)),"^",1)
         NEW DOB SET DOB=$G(PTINFO("FMDT"))
         NEW NAME SET NAME=LNAME
-        NEW DFN
+        NEW TMGDFN
         ;"Current match criteria is DOB and last name
         FOR  SET NAME=$O(^DPT("B",NAME)) QUIT:(NAME'[LNAME)!(NAME="")  DO
-        . SET DFN=0
-        . FOR  SET DFN=$O(^DPT("B",NAME,DFN)) QUIT:DFN'>0  DO
-        . . NEW THISDOB SET THISDOB=$P($G(^DPT(DFN,0)),"^",3)
+        . SET TMGDFN=0
+        . FOR  SET TMGDFN=$O(^DPT("B",NAME,TMGDFN)) QUIT:TMGDFN'>0  DO
+        . . NEW THISDOB SET THISDOB=$P($G(^DPT(TMGDFN,0)),"^",3)
         . . IF THISDOB=DOB DO
-        . . . SET PTMATCHARRAY(DFN)=""
-        SET DFN=0
-        FOR  SET DFN=$O(PTMATCHARRAY(DFN)) QUIT:DFN'>0  DO
-        . NEW ZN SET ZN=$G(^DPT(DFN,0))
-        . SET PTARRAY(IDX)=$P(ZN,"^",1)_"^"_$$EXTDATE^TMGDATE($P(ZN,"^",3))_"^"_$P(ZN,"^",9)_"^"_$P(ZN,"^",2)_"^"_DFN
+        . . . SET PTMATCHARRAY(TMGDFN)=""
+        SET TMGDFN=0
+        FOR  SET TMGDFN=$O(PTMATCHARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+        . NEW ZN SET ZN=$G(^DPT(TMGDFN,0))
+        . SET PTARRAY(IDX)=$P(ZN,"^",1)_"^"_$$EXTDATE^TMGDATE($P(ZN,"^",3))_"^"_$P(ZN,"^",9)_"^"_$P(ZN,"^",2)_"^"_TMGDFN
         . SET IDX=IDX+1
         QUIT
         ;"

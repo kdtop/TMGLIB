@@ -72,11 +72,11 @@ ASKEXP1  ;"Pick 1 patient and export data for 1 patient
 ASKDN ;
   QUIT
   ;
-EXP1PT2F(DFN,DESTDIR)  ;"Export data for 1 given patient
-  ;"Input: DFN -- patient record number
+EXP1PT2F(TMGDFN,DESTDIR)  ;"Export data for 1 given patient
+  ;"Input: TMGDFN -- patient record number
   SET DESTDIR=$GET(DESTDIR) 
   IF DESTDIR="" SET DESTDIR="C:\USERS\DANIEL.SCHNEIDER\DESKTOP\exportedData\"
-  NEW PTNAME SET PTNAME=$$GET1^DIQ(2,DFN,.01)
+  NEW PTNAME SET PTNAME=$$GET1^DIQ(2,TMGDFN,.01)
   SET FNAME="exported patient ["_$TRANSLATE(PTNAME," ","_")_"].txt"
   NEW HANDLE SET HANDLE="TMG_EXPORT_HANDLE_"_$JOB
    
@@ -84,7 +84,7 @@ EXP1PT2F(DFN,DESTDIR)  ;"Export data for 1 given patient
   IF POP DO  GOTO EARDN
   . SET TMGRESULT="-1^Error opening output file: "_FNAME
 
-  DO EXP1PT(.DFN)
+  DO EXP1PT(.TMGDFN)
   
   DO CLOSE^%ZISH(HANDLE)  ;" Close the output device
   
@@ -92,9 +92,9 @@ EXP1PT2F(DFN,DESTDIR)  ;"Export data for 1 given patient
   
   QUIT RESULT       
 
-EXP1PT(DFN,SHOWEMPTY,OPTION)  ;"Export data for 1 given patient
-  ;"Input: DFN -- patient record number
-  NEW PTNAME SET PTNAME=$$GET1^DIQ(2,DFN,.01)
+EXP1PT(TMGDFN,SHOWEMPTY,OPTION)  ;"Export data for 1 given patient
+  ;"Input: TMGDFN -- patient record number
+  NEW PTNAME SET PTNAME=$$GET1^DIQ(2,TMGDFN,.01)
   WRITE !,!,"DUMPING INFORMATION FOR PATIENT: ",PTNAME,!,!
   NEW RESULT SET RESULT="1^OK"
   NEW IEN SET IEN=0
@@ -108,13 +108,13 @@ EXP1PT(DFN,SHOWEMPTY,OPTION)  ;"Export data for 1 given patient
   . NEW LNKFLD SET LNKFLD=$PIECE(INFO,"^",3)                      
   . IF +LNKFLD=0 DO
   . . IF LNKFLD="LRDFN" DO
-  . . . SET IEN=$PIECE($GET(^DPT(DFN,"LR")),"^",1)
+  . . . SET IEN=$PIECE($GET(^DPT(TMGDFN,"LR")),"^",1)
   . . ELSE  DO
-  . . . SET IEN=DFN
+  . . . SET IEN=TMGDFN
   . . DO DUMPREC^TMGDEBU3(FMNUM,IEN,.SHOWEMPTY,,.OPTION)
   . ELSE  DO
   . . NEW IDX SET IDX=$PIECE(INFO,"^",4)
-  . . NEW RECS SET RESULT=$$GETRECS(.RECS,FMNUM,LNKFLD,IDX,DFN)
+  . . NEW RECS SET RESULT=$$GETRECS(.RECS,FMNUM,LNKFLD,IDX,TMGDFN)
   . . IF RESULT'>0 DO  QUIT
   . . . WRITE !,"ERROR: ",$PIECE(RESULT,"^",2),!  
   . . NEW IEN SET IEN=0
@@ -125,7 +125,7 @@ EXP1PT(DFN,SHOWEMPTY,OPTION)  ;"Export data for 1 given patient
   WRITE !,"Leaving Chart Exporter.  Goodbye.",!
   QUIT RESULT
   ;  
-GETRECS(OUT,FILE,FLD,IDX,DFN) ;"Search records for matching DFN in field
+GETRECS(OUT,FILE,FLD,IDX,TMGDFN) ;"Search records for matching TMGDFN in field
   NEW RESULT SET RESULT="1^OK"
   NEW OREF SET OREF=$$GETGL^TMGFMUT2(FILE,1)
   IF OREF="" DO  GOTO GRDN
@@ -140,10 +140,10 @@ GETRECS(OUT,FILE,FLD,IDX,DFN) ;"Search records for matching DFN in field
   . . SET RESULT="-1^Unable to get node or piece for storage location."
   . FOR  SET IEN=$ORDER(@CREF@(IEN)) QUIT:IEN'>0  DO
   . . NEW VAL SET VAL=$PIECE($GET(@CREF@(IEN,NODE)),"^",PCE)
-  . . IF VAL'=DFN QUIT
+  . . IF VAL'=TMGDFN QUIT
   . . SET OUT(FILE,IEN)=""
   ELSE  IF IDX'="" DO  ;"use index
-  . FOR  SET IEN=$ORDER(@CREF@(IDX,DFN,IEN)) QUIT:IEN'>0  DO
+  . FOR  SET IEN=$ORDER(@CREF@(IDX,TMGDFN,IEN)) QUIT:IEN'>0  DO
   . . SET OUT(FILE,IEN)=""
 GRDN  ;  
   QUIT RESULT
@@ -152,14 +152,16 @@ GRDN  ;
  
 CHARTEXP(DESTDIR)  ;"CHART EXPORTER
   SET DESTDIR=$GET(DESTDIR) 
-  IF DESTDIR="" SET DESTDIR="C:\USERS\DANIEL.SCHNEIDER\DESKTOP\exportedData\"
+  ;"IF DESTDIR="" SET DESTDIR="C:\USERS\DANIEL.SCHNEIDER\DESKTOP\exportedData\"
+  IF DESTDIR="" SET DESTDIR="/tmp/"
   NEW RESULT SET RESULT="1^OK"
   NEW LIST DO GETLIST(.LIST)
-  NEW INFO SET INFO=""
-  FOR  SET INFO=$ORDER(LIST(INFO)) QUIT:(INFO="")!(RESULT'>0)  DO
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(LIST(IDX)) QUIT:(IDX="")!(RESULT'>0)  DO
+  . SET INFO=$GET(LIST(IDX)) QUIT:INFO=""
   . NEW FNAME SET FNAME=$PIECE(INFO,"^",1)
   . NEW FMNUM SET FMNUM=$PIECE(INFO,"^",2)
-  . SET FNAME="exported_"_$TRANSLATE(FNAME," ","_")_"["_FMNUM_"].txt"
+  . SET FNAME="exported_"_$TRANSLATE(FNAME," ","_")_"_"_FMNUM_".txt"
   . SET RESULT=$$EXPORTALLRECS(FMNUM,DESTDIR,FNAME)
   . IF RESULT'>0 DO  QUIT
   . . WRITE !,"ERROR: ",$PIECE(RESULT,"^",2),!

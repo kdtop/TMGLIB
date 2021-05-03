@@ -1,4 +1,4 @@
-TMGHRPC1 ;TMG/elh/Support Functions for GUI_Config ;2/2/14, 5/7/18  
+TMGHRPC1 ;TMG/elh/Support Functions for GUI_Config ;2/2/14, 5/7/18, 3/24/21  
          ;;1.0;TMG-LIB;**1**;10/20/09                              
  ;
  ;"TMG Function to change Access/Verify Code
@@ -106,7 +106,7 @@ TESTPI   ;
    ;
 PAINMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
    ;"Purpose: Determine IF patient is on pain medication
-   ;"Input: DFN -- the patient IEN
+   ;"Input: TMGDFN -- the patient IEN
    ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
    ;"          1=true, 0=false
    ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -160,13 +160,13 @@ DATPAINK(TMGDFN)   ;
    ;"DNPC ;
    ;"QUIT TMGRESULT
    ;
-PAINDONE(DFN,TEST,DATE,DATA,TEXT) ;
-   DO PAINDONE^TMGPXR01(.DFN,.TEST,.DATE,.DATA,.TEXT)
+PAINDONE(TMGDFN,TEST,DATE,DATA,TEXT) ;
+   DO PAINDONE^TMGPXR01(.TMGDFN,.TEST,.DATE,.DATA,.TEXT)
    QUIT
    ;"Code below was redundant. Can be deleted later if no problems arise.  ELH 5/8/18
    ;"Purpose: Return information about the date of birth for the
    ; patient
-   ;"Input: DFN -- the patient IEN
+   ;"Input: TMGDFN -- the patient IEN
    ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
    ;1=true, 0=false
    ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -177,7 +177,7 @@ PAINDONE(DFN,TEST,DATE,DATA,TEXT) ;
    ;"       TEXT -- Text to be display in the Clinical Maintenance
    ;output.  Optional.
    ;"Results: none
-   ;"NEW CONTRACTDATE SET CONTRACTDATE=$$DATPAINK(.DFN)
+   ;"NEW CONTRACTDATE SET CONTRACTDATE=$$DATPAINK(.TMGDFN)
    ;"IF CONTRACTDATE="DUE" DO
    ;". SET TEST=0
    ;". SET DATE=0

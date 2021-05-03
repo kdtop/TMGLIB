@@ -1,4 +1,4 @@
-TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15
+TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;03/25/06
  ;
  ;"Kevin Toppenberg MD
@@ -33,9 +33,9 @@ TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15
  ;"                TIUL01 XLFDT TIULO XLFSTR
  ;"=======================================================================
  ;
-ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
+ONEVITAL(TMGDFN,TIU,TYPE,HTMLWRAP)    ;
         ;"Purpose: From GETVITALS, except only returns a single vital specified by TYPE
-        ;"Input: DFN -- the patient's unique ID (record#)
+        ;"Input: TMGDFN -- the patient's unique ID (record#)
         ;"       TIU -- this is an array created by TIU system that
         ;"              contains information about the document being
         ;"              edited/created.  I believe it has this structure:
@@ -69,17 +69,17 @@ ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
         NEW DEBUG SET DEBUG=0
         IF DEBUG=1 DO
         . MERGE TIU=^TMG("TMP","RPC","VITALS^TMGTIUOJ","TIU")
-        . MERGE DFN=^TMG("TMP","RPC","VITALS^TMGTIUOJ","DFN")
+        . MERGE TMGDFN=^TMG("TMP","RPC","VITALS^TMGTIUOJ","DFN")
         KILL ^TMG("TMP","RPC","VITALS^TMGTIUOJ")
         MERGE ^TMG("TMP","RPC","VITALS^TMGTIUOJ","TIU")=TIU
-        MERGE ^TMG("TMP","RPC","VITALS^TMGTIUOJ","DFN")=DFN
+        MERGE ^TMG("TMP","RPC","VITALS^TMGTIUOJ","DFN")=TMGDFN
         SET TYPE=$GET(TYPE,"ALL")
         NEW RESULT SET RESULT=""
         NEW CURDT SET CURDT=""
         NEW NOTEDT SET NOTEDT=""
         NEW INDENTSTR SET INDENTSTR="          "
-        SET DFN=+$GET(DFN)
-        NEW GENDER SET GENDER=$PIECE($GET(^DPT(DFN,0)),"^",2)
+        SET TMGDFN=+$GET(TMGDFN)
+        NEW GENDER SET GENDER=$PIECE($GET(^DPT(TMGDFN,0)),"^",2)
         IF $DATA(TIU) DO
         . SET NOTEDT=$$VISDATE^TIULO1(.TIU) ;"Get date of current note (in MM/DD/YY HR:MIN)
         . SET NOTEDT=$PIECE(NOTEDT," ",1)   ;"Drop time
@@ -91,33 +91,33 @@ ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
         . ;"SET RESULT=RESULT_"("_CURDT_") "
         ELSE  SET CURDT=NOTEDT
         ;
-        NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(DFN,NOTEDT) ;
-        NEW WT SET WT=$$WEIGHT^TIULO(DFN)
-        NEW HT SET HT=$$HEIGHT^TIULO(DFN)
+        NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(TMGDFN,NOTEDT) ;
+        NEW WT SET WT=$$WEIGHT^TIULO(TMGDFN)
+        NEW HT SET HT=$$HEIGHT^TIULO(TMGDFN)
         ;
         NEW FORCESHOW SET FORCESHOW=$SELECT(TYPE="ALL":0,(1=1):1)
         NEW OLDEXCLD
         ;
         ;"note: Maybe I will later change the calls below to use GETVITLS^TMGGMRV1
         IF (TYPE["TEMP")!(TYPE="ALL") DO
-        . NEW TEMP SET TEMP=$$TEMP^TIULO(DFN)
+        . NEW TEMP SET TEMP=$$TEMP^TIULO(TMGDFN)
         . IF HTMLWRAP=1 DO
         . . SET TEMP=$$WRPVITAL(TEMP,"T",PTAGE)
         . DO ADDVITAL^TMGTIUO3(.RESULT,TEMP,"T",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["BP")!(TYPE="ALL") DO
-        . NEW BP SET BP=$$BP^TIULO(DFN)
+        . NEW BP SET BP=$$BP^TIULO(TMGDFN)
         . IF HTMLWRAP=1 DO
         . . SET BP=$$WRPVITAL(BP,"BP",PTAGE)
         . DO ADDVITAL^TMGTIUO3(.RESULT,BP,"BP",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["RESP")!(TYPE="ALL") DO
-        . DO ADDVITAL^TMGTIUO3(.RESULT,$$RESP^TIULO(DFN),"R",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
+        . DO ADDVITAL^TMGTIUO3(.RESULT,$$RESP^TIULO(TMGDFN),"R",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["Pulse")!(TYPE="ALL") DO
-        . NEW PULSE SET PULSE=$$PULSE^TIULO(DFN)
+        . NEW PULSE SET PULSE=$$PULSE^TIULO(TMGDFN)
         . IF HTMLWRAP=1 DO
         . . SET PULSE=$$WRPVITAL(PULSE,"Pulse",PTAGE)
         . DO ADDVITAL^TMGTIUO3(.RESULT,PULSE,"P",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
         IF (TYPE["POX")!(TYPE="ALL") DO
-        . NEW POX SET POX=$$DOVITALS^TIULO(DFN,"PO2")
+        . NEW POX SET POX=$$DOVITALS^TIULO(TMGDFN,"PO2")
         . IF HTMLWRAP=1 DO
         . . SET POX=$$WRPVITAL(POX,"POX",PTAGE)
         . DO ADDVITAL^TMGTIUO3(.RESULT,POX,"POx",.CURDT,.NOTEDT,FORCESHOW,,.OLDEXCLD)
@@ -129,7 +129,7 @@ ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
         . DO ADDVITAL^TMGTIUO3(.RESULT,INCHHT,"Ht",.CURDT,.NOTEDT,1,PTAGE,.OLDEXCLD)
         . IF (PTAGE<18)&($GET(OLDEXCLD("Ht"))=0) DO ADDPCTLE^TMGTIUO3(.RESULT,"Ht",HT,PTAGE,GENDER)
         IF TYPE["HC" DO
-        . NEW HC,HCSTR SET HCSTR=$$HC^TMGTIUO3(DFN,.HC)
+        . NEW HC,HCSTR SET HCSTR=$$HC^TMGTIUO3(TMGDFN,.HC)
         . DO ADDVITAL^TMGTIUO3(.RESULT,HC,"HC",.CURDT,.NOTEDT,1,PTAGE,.OLDEXCLD)
         . IF PTAGE<18 DO ADDPCTLE^TMGTIUO3(.RESULT,"HC",HC,PTAGE,GENDER)
         . IF RESULT="" SET RESULT="N/A"
@@ -144,7 +144,7 @@ ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
         . IF (PTAGE>17)&((TYPE="ALL")!(TYPE["CMT")) SET RESULT=RESULT_$$BMICOMNT^TMGTIUO4(BMI,PTAGE,IDEALWTS) ;"BMI COMMENT
         IF (TYPE["WT")!(TYPE="ALL") DO  ;"Wt done in two parts
         . IF $GET(OLDEXCLD("Wt"))=1 QUIT
-        . NEW WTDELTA SET WTDELTA=$$WTDELTA^TMGTIUO4(DFN,.TIU,0,HTMLWRAP)
+        . NEW WTDELTA SET WTDELTA=$$WTDELTA^TMGTIUO4(TMGDFN,.TIU,0,HTMLWRAP)
         . IF WTDELTA="" QUIT
         . SET RESULT=RESULT_"; "_WTDELTA
         ;
@@ -204,15 +204,15 @@ WRPVITAL(VALUE,VITAL,PTAGE)  ;"This function will take a vital and wrap in color
         . SET TMGRESULT=RESULT
         QUIT TMGRESULT
         ;"
-GETLMAMO(DFN) ;"Return date of last mammogram
-        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","Mammogram")
+GETLMAMO(TMGDFN) ;"Return date of last mammogram
+        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","Mammogram")
         IF TMGRESULT="" SET TMGRESULT="NONE REPORTED" GOTO GMAMDN
         NEW DATES SET DATES=$PIECE(TMGRESULT,"Mammogram =",2)_" [HF]"
         IF DATES=" [HF]" SET DATES=$PIECE(TMGRESULT,"Mammogram :",2)_" [T]"
         IF DATES=" [T]" SET DATES="DATES NOT FOUND. DATA IS: "_TMGRESULT
         SET TMGRESULT=DATES        
         NEW GRPARR,NEWARR
-        DO GETHFGRP(DFN,802,.GRPARR)
+        DO GETHFGRP(TMGDFN,802,.GRPARR)
         IF $DATA(GRPARR) DO
         . NEW NAME,DATE
         . SET NAME=""
@@ -229,7 +229,7 @@ GETLMAMO(DFN) ;"Return date of last mammogram
         ;"GET NOTE TITLES
         NEW MAMMOARRAY,NOTEDATE,COUNT
         SET NOTEDATE=9999999,COUNT=0
-        DO TIUDATES^TMGPXR01(DFN,"MAMMOGRAM REPORT",.MAMMOARRAY)
+        DO TIUDATES^TMGPXR01(TMGDFN,"MAMMOGRAM REPORT",.MAMMOARRAY)
         IF $DATA(MAMMOARRAY) SET TMGRESULT=TMGRESULT_$C(13,10)_"MAMMOGRAM NOTE DATES : "
         FOR  SET NOTEDATE=$ORDER(MAMMOARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
         . NEW Y
@@ -239,7 +239,7 @@ GETLMAMO(DFN) ;"Return date of last mammogram
         ;"GET RAD PROCEDURE DATES
         ;"CHECK ^RADPT( FOR IENs 708 AND 792
         ;"Pull data from bone density radiology studies
-        NEW RADFN SET RADFN=+$$ENSRADFN^TMGRAU01(.DFN)
+        NEW RADFN SET RADFN=+$$ENSRADFN^TMGRAU01(.TMGDFN)
         NEW TESTDATES SET TESTDATES=""
         NEW TESTCOUNT SET TESTCOUNT=0
         IF RADFN>0 DO
@@ -259,8 +259,8 @@ GETLMAMO(DFN) ;"Return date of last mammogram
         IF TESTDATES'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"  Mammogram done on: "_TESTDATES_" [RAD]"
 GMAMDN  QUIT TMGRESULT
         ;
-GETLCOLN(DFN) ;"Return date of last colonoscopy
-        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","Colonoscopy")
+GETLCOLN(TMGDFN) ;"Return date of last colonoscopy
+        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","Colonoscopy")
         IF TMGRESULT="" SET TMGRESULT="Last Colonoscopy: NONE REPORTED" GOTO GCOLDN
         NEW DATES SET DATES=$PIECE(TMGRESULT,"Colonoscopy =",2)_" [HF]"
         IF DATES=" [HF]" SET DATES=$PIECE(TMGRESULT,"Colonoscopy :",2)_" [T]"
@@ -269,7 +269,7 @@ GETLCOLN(DFN) ;"Return date of last colonoscopy
         ;"Get FU dates
 GCOLDN  
         NEW GRPARR,NEWARR
-        DO GETHFGRP(DFN,803,.GRPARR)
+        DO GETHFGRP(TMGDFN,803,.GRPARR)
         IF $DATA(GRPARR) DO
         . NEW NAME,DATE
         . SET NAME=""
@@ -283,12 +283,12 @@ GCOLDN
         . SET Y=DATE X ^DD("DD")
         . SET TMGRESULT=TMGRESULT_$C(13,10)_"F/U HF DATA: "_NAME_" (Relative to most recent colonoscopy)"
         ;"Get FOBT dates
-        DO GETOCCLT(.TMGRESULT,DFN)        
-        DO FOBTNOTE(.TMGRESULT,DFN)
+        DO GETOCCLT(.TMGRESULT,TMGDFN)        
+        DO FOBTNOTE(.TMGRESULT,TMGDFN)
         ;"Get cologuard note
         NEW COLOARRAY,NOTEDATE,COUNT
         SET NOTEDATE=9999999,COUNT=0
-        DO TIUDATES^TMGPXR01(DFN,"COLOGUARD RESULT (IMAGE)",.COLOARRAY)
+        DO TIUDATES^TMGPXR01(TMGDFN,"COLOGUARD RESULT (IMAGE)",.COLOARRAY)
         IF $DATA(COLOARRAY) SET TMGRESULT=TMGRESULT_$C(13,10)_"COLOGUARD NOTE DATES : "
         FOR  SET NOTEDATE=$ORDER(COLOARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
         . NEW Y
@@ -297,28 +297,28 @@ GCOLDN
         . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
         ;"
         ;"If over 75, include message
-        NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(DFN,"")  ;"
+        NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(TMGDFN,"")  ;"
         IF PTAGE>75 DO
         . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)
         . SET TMGRESULT=TMGRESULT_"** NOTE: THIS PATIENT IS OVER 75. CONSIDER DISCONTINUING. .**"
         QUIT TMGRESULT
         ;
-GETOCCLT(TMGRESULT,DFN) ;"Return dates of last iFOBTs and FOBT
-        ;"NEW RESULT SET RESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","FOBT Negative HF")
+GETOCCLT(TMGRESULT,TMGDFN) ;"Return dates of last iFOBTs and FOBT
+        ;"NEW RESULT SET RESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","FOBT Negative HF")
         ;"IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_RESULT        
-        ;"SET RESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","FOBT Positive HF")
+        ;"SET RESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","FOBT Positive HF")
         ;"IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_RESULT
-        ;"SET RESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","iFOBT Negative HF")
+        ;"SET RESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","iFOBT Negative HF")
         ;"IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_RESULT
-        ;"SET RESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","iFOBT Positive HF")
+        ;"SET RESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","iFOBT Positive HF")
         ;"IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_RESULT
         NEW RESULT,RESULTARR
-        SET RESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
+        SET RESULT=$$GETTABL1^TMGTIUO6(TMGDFN,"[STUDIES]",.RESULTARR)
         SET RESULT=$GET(RESULTARR("KEY-VALUE","IFOBT"))   ;"_" [T]"
         IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"iFOBT= "_RESULT_" [T]"_$C(13,10)_"NOTE: iFOBT satisfies on a calendar year basis only."
         QUIT
         ;"
-FOBTNOTE(TMGRESULT,DFN)  ;"Return a note if FOBT was done this year w/ result
+FOBTNOTE(TMGRESULT,TMGDFN)  ;"Return a note if FOBT was done this year w/ result
         NEW THISRESULT SET THISRESULT=""
         NEW HFARRAY,HFIEN SET HFIEN=0
         SET HFARRAY(784)="iFOBT was Negative on:"
@@ -331,14 +331,14 @@ FOBTNOTE(TMGRESULT,DFN)  ;"Return a note if FOBT was done this year w/ result
         FOR  SET HFIEN=$O(HFARRAY(HFIEN)) QUIT:HFIEN'>0  DO        
         . NEW DATE SET DATE=9999999
         . NEW DONE SET DONE=0
-        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",DFN,HFIEN,DATE),-1) QUIT:(DATE'>0)!(DONE=1)  DO        
+        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE),-1) QUIT:(DATE'>0)!(DONE=1)  DO        
         . . NEW FMDATE SET FMDATE=9999999-DATE
         . . IF FMDATE<CUTOFFDT DO  QUIT
         . . . SET DONE=1
         . . IF THISRESULT'="" SET THISRESULT=THISRESULT_","
         . . SET THISRESULT=THISRESULT_$G(HFARRAY(HFIEN))_$$EXTDATE^TMGDATE(FMDATE,1)_" [HF]"
         ;"
-        NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
+        NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
         IF LRDFN'>0 QUIT TMGRESULT
         NEW LABNUM1,LABNUM2
         SET LABNUM1=69489,LABNUM2=5602
@@ -359,11 +359,11 @@ FOBTNOTE(TMGRESULT,DFN)  ;"Return a note if FOBT was done this year w/ result
         IF THISRESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"****NOTE: "_THISRESULT       
         QUIT
         ;"
-GETLADIR(DFN) ;"Return date of last advance directives        
+GETLADIR(TMGDFN) ;"Return date of last advance directives        
         NEW TMGRESULT,RESULTARR
-        SET TMGRESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","Advance Directives")
+        SET TMGRESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","Advance Directives")
         IF TMGRESULT="" DO  GOTO GADDN
-        . SET TMGRESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
+        . SET TMGRESULT=$$GETTABL1^TMGTIUO6(TMGDFN,"[STUDIES]",.RESULTARR)
         . SET TMGRESULT=$GET(RESULTARR("KEY-VALUE","ADVANCE DIRECTIVES"))_" [T]"
         . IF TMGRESULT=" [T]" SET TMGRESULT="NO DATA FOUND"      
         NEW DATES SET DATES=$PIECE(TMGRESULT,"Advance Directives =",2)_" [HF]"
@@ -373,12 +373,12 @@ GETLADIR(DFN) ;"Return date of last advance directives
         SET TMGRESULT=DATES
 GADDN   QUIT TMGRESULT
         ;
-GETLBONE(DFN) ;"Return date of bone density
+GETLBONE(TMGDFN) ;"Return date of bone density
         NEW PREFIX SET PREFIX=""
-        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","Bone Density")
+        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","Bone Density")
         IF TMGRESULT="" DO  GOTO GBDDN
         . NEW RESULTARR 
-        . SET TMGRESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
+        . SET TMGRESULT=$$GETTABL1^TMGTIUO6(TMGDFN,"[STUDIES]",.RESULTARR)
         . SET TMGRESULT=$GET(RESULTARR("KEY-VALUE","BONE DENSITY"))_" [T]"
         . SET PREFIX="STUDIES: "
         . IF TMGRESULT="" SET TMGRESULT="NONE REPORTED"
@@ -389,7 +389,7 @@ GETLBONE(DFN) ;"Return date of bone density
         SET TMGRESULT=DATES        
 GBDDN   
         ;"Pull data from bone density radiology studies
-        NEW RADFN SET RADFN=+$$ENSRADFN^TMGRAU01(.DFN)
+        NEW RADFN SET RADFN=+$$ENSRADFN^TMGRAU01(.TMGDFN)
         NEW TESTDATES SET TESTDATES=""
         IF RADFN>0 DO
         . NEW RADDT SET RADDT=0
@@ -405,26 +405,26 @@ GBDDN
         IF TESTDATES'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"  Bone Density studies done on: "_TESTDATES
         QUIT TMGRESULT
         ;
-GETLTSH(DFN)  ;"Return last lab data for TSH
+GETLTSH(TMGDFN)  ;"Return last lab data for TSH
         NEW TMGRESULT,RESULTARR
-        SET TMGRESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
+        SET TMGRESULT=$$GETTABL1^TMGTIUO6(TMGDFN,"[STUDIES]",.RESULTARR)
         SET TMGRESULT=$GET(RESULTARR("KEY-VALUE","TSH"))_" [T]"
         IF TMGRESULT=" [T]" SET TMGRESULT="NO DATA FOUND"
         QUIT TMGRESULT
         ;"
-GETLB12(DFN)  ;"Return last lab data for Vitamin B-12
+GETLB12(TMGDFN)  ;"Return last lab data for Vitamin B-12
         NEW TMGRESULT,RESULTARR
-        SET TMGRESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
+        SET TMGRESULT=$$GETTABL1^TMGTIUO6(TMGDFN,"[STUDIES]",.RESULTARR)
         SET TMGRESULT=$GET(RESULTARR("KEY-VALUE","VIT-B12"))_" [T]"
         IF TMGRESULT=" [T]" SET TMGRESULT="NO DATA FOUND"
         QUIT TMGRESULT
         ;"
-GETLTOBA(DFN)  ;"Return last tobacco status
+GETLTOBA(TMGDFN)  ;"Return last tobacco status
         NEW RESULTS,RESULTARR,TMGRESULT
-        SET RESULTS=$$GETTABL1^TMGTIUO6(DFN,"[SOCIAL HX]",.RESULTARR)
+        SET RESULTS=$$GETTABL1^TMGTIUO6(TMGDFN,"[SOCIAL HX]",.RESULTARR)
         SET TMGRESULT="Social Hx: "_$GET(RESULTARR("KEY-VALUE","TOBACCO"))_"<br>"
         KILL RESULTARR
-        DO GETHFGRP(DFN,765,.RESULTARR)
+        DO GETHFGRP(TMGDFN,765,.RESULTARR)
         NEW NAME,DATE,COUNTER,EDATE,Y
         SET COUNTER=0
         SET NAME=""
@@ -472,12 +472,12 @@ GETLFTEX(TMGDFN) ;"Return last diabetic foot exam
         SET TMGRESULT="<br>"_TMGRESULT_"<br>"
         QUIT TMGRESULT
         ;"
-GETLGLAS(DFN)  ;"Return last glaucoma screening
+GETLGLAS(TMGDFN)  ;"Return last glaucoma screening
         NEW PREFIX SET PREFIX=""
-        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(DFN,"HEALTH FACTORS","Glaucoma Screening")
+        NEW TMGRESULT SET TMGRESULT=$$GETTABLN^TMGPXR02(TMGDFN,"HEALTH FACTORS","Glaucoma Screening")
         IF TMGRESULT="" DO  GOTO GGSDN
         . NEW RESULTARR
-        . SET TMGRESULT=$$GETTABL1^TMGTIUO6(DFN,"[STUDIES]",.RESULTARR)
+        . SET TMGRESULT=$$GETTABL1^TMGTIUO6(TMGDFN,"[STUDIES]",.RESULTARR)
         . SET TMGRESULT=$GET(RESULTARR("KEY-VALUE","Glaucoma Eye Exam"))_" [T]"
         . SET PREFIX="STUDIES: "
         . IF TMGRESULT=" [T]" SET TMGRESULT="NONE REPORTED"
@@ -488,7 +488,7 @@ GETLGLAS(DFN)  ;"Return last glaucoma screening
         SET TMGRESULT=DATES
         NEW EYEEARRAY,NOTEDATE,COUNT
         SET NOTEDATE=9999999,COUNT=0
-        DO TIUDATES^TMGPXR01(DFN,"OPHTHO / OPTO / EYE CONSULTANT NOTE (IMAGE)",.EYEEARRAY)
+        DO TIUDATES^TMGPXR01(TMGDFN,"OPHTHO / OPTO / EYE CONSULTANT NOTE (IMAGE)",.EYEEARRAY)
         IF $DATA(EYEEARRAY) SET TMGRESULT=TMGRESULT_"<br>CONSULT NOTE DATES : "
         FOR  SET NOTEDATE=$ORDER(EYEEARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
         . NEW Y
@@ -497,13 +497,13 @@ GETLGLAS(DFN)  ;"Return last glaucoma screening
         . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
 GGSDN   QUIT TMGRESULT
         ;"        
-GETLPAP(DFN)  ;"Return
+GETLPAP(TMGDFN)  ;"Return
         NEW TMGRESULT SET TMGRESULT="TEST STUFF HERE"
         QUIT TMGRESULT
         ;"
-ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were given/declined
+ADGIVEN(TMGDFN)  ;"Return the health factor date for when the last CP papers were given/declined
         NEW TMGRESULT SET TMGRESULT=""
-        SET DFN=$GET(DFN) IF DFN'>0 QUIT TMGRESULT
+        SET TMGDFN=$GET(TMGDFN) IF TMGDFN'>0 QUIT TMGRESULT
         NEW HFARRAY
         SET HFARRAY("TMG ADV CP PAPERS GIVEN")=""
         SET HFARRAY("TMG ADV CP DISCUSSED - NOT DESIRED")=""
@@ -517,9 +517,9 @@ ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were g
         . NEW VHFIEN,COMMENT
         . SET COMMENT=""
         . NEW LATEST SET LATEST=0
-        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",DFN,HFIEN,DATE),-1) QUIT:DATE'>0  DO
+        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE),-1) QUIT:DATE'>0  DO
         . . SET LATEST=DATE
-        . . SET COMMENT=$$GETHFCOM(+$ORDER(^AUPNVHF("AA",DFN,HFIEN,DATE,0)))
+        . . SET COMMENT=$$GETHFCOM(+$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE,0)))
         . . IF COMMENT'="" SET COMMENT=$C(13,10)_"         ("_COMMENT_")"
         . IF LATEST'=0 DO
         . . SET LATEST=9999999-LATEST
@@ -532,12 +532,12 @@ ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were g
         IF TMGRESULT="" SET TMGRESULT="ADV DIR, PAPERS GIVEN: NO HF FOUND."
         QUIT TMGRESULT
         ;"
-GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
+GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         ;"ADDING DTONLY, IF 1 WILL ONLY RETURN THE DATE ONLY
         SET DTONLY=+$G(DTONLY)
         NEW TMGRESULT SET TMGRESULT=""
-        SET DFN=$GET(DFN) IF DFN'>0 QUIT TMGRESULT
-        NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
+        SET TMGDFN=$GET(TMGDFN) IF TMGDFN'>0 QUIT TMGRESULT
+        NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
         IF LRDFN'>0 QUIT TMGRESULT
         SET LABNUM=+$GET(LABNUM)
         IF LABNUM'>0 QUIT TMGRESULT
@@ -574,11 +574,11 @@ GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         ;"write TMGRESULT
         QUIT TMGRESULT
         ;"
-GETPTICK(DFN)  ;"Return
+GETPTICK(TMGDFN)  ;"Return
         NEW TMGRESULT SET TMGRESULT=""
         NEW TICKLIEN,ARRAY SET TICKLIEN=0
 	    NEW DATA,TEMPARR,TIU,STATUS,USER,DUE,IDX,TIUDATE,TIUNAME
-	    FOR  SET TICKLIEN=$O(^TMG(22705.5,"B",DFN,TICKLIEN)) QUIT:TICKLIEN'>0  DO
+	    FOR  SET TICKLIEN=$O(^TMG(22705.5,"B",TMGDFN,TICKLIEN)) QUIT:TICKLIEN'>0  DO
 	    . NEW ZN SET ZN=$G(^TMG(22705.5,TICKLIEN,0))
 	    . SET TIU=$P(ZN,"^",4),STATUS=$P(ZN,"^",3),USER=$P(ZN,"^",5),DUE=$P(ZN,"^",2)
 	    . IF +$G(TIU)'>0 QUIT
@@ -640,16 +640,16 @@ LARR2TBL(OUT,ARR)   ;"Take lab results in an array and convert to HTML table
         SET OUT=OUT_"</td></tr></table></font></head></html>"
         QUIT
         ;"
-ALLHFTBL(DFN)  ;"Return an HTML table containing all health factors
+ALLHFTBL(TMGDFN)  ;"Return an HTML table containing all health factors
         NEW ARR
-        DO TMGHFACT^TMGRPT2("ARR",DFN,0,0,0)
+        DO TMGHFACT^TMGRPT2("ARR",TMGDFN,0,0,0)
         NEW TMGRESULT SET TMGRESULT=""
         NEW IDX SET IDX=0
         FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
         . SET TMGRESULT=TMGRESULT_$GET(ARR(IDX))
         QUIT TMGRESULT
         ;"  
-GETHFGRP(DFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by a given hf group
+GETHFGRP(TMGDFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by a given hf group
         ;"Purpose:
         ;"Input:
         ;"Output: 
@@ -658,7 +658,7 @@ GETHFGRP(DFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by 
         FOR  SET HFIEN=$ORDER(^AUTTHF("AC",HFGROUPIEN,HFIEN)) QUIT:HFIEN'>0  DO
         . SET DATE=0
         . SET HFNAME=$PIECE($GET(^AUTTHF(HFIEN,0)),"^",1)
-        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",DFN,HFIEN,DATE)) QUIT:DATE'>0  DO
+        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE)) QUIT:DATE'>0  DO
         . . SET TMGRESULTARR(HFNAME,9999999-DATE)=""
         QUIT
         ;"

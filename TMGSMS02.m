@@ -1,4 +1,4 @@
-TMGSMS02 ;TMG/kst/OS SMS Message -- utilities ;12/23/14
+TMGSMS02 ;TMG/kst/OS SMS Message -- utilities ;12/23/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;12/23/14
  ;
  ;"TMG FUNCTIONS
@@ -18,7 +18,7 @@ TMGSMS02 ;TMG/kst/OS SMS Message -- utilities ;12/23/14
  ;"VIEWPHON -- For a given patient, display phone numbers
  ;"OPTOUT(MODE) -- interact with user to opt-out (exclude) a phone number
  ;"ASKOPTOT  ;"ASK OPT OUT
- ;"OPTOTDFN(TMGDFN) ;"OPT-OUT one patient (DFN)
+ ;"OPTOTDFN(TMGDFN) ;"OPT-OUT one patient (TMGDFN)
  ; 
  ;"=======================================================================
  ;" API -- Private Functions.
@@ -48,7 +48,7 @@ VIEWPHON ;
   NEW TMGDFN SET TMGDFN=+Y
   IF TMGDFN'>0 WRITE "ABORTING." QUIT
   NEW PHONENUMS,ERRARRAY
-  DO GETPHONS^TMGSMS01(.DFN,.PHONENUMS,.ERRARRAY)
+  DO GETPHONS^TMGSMS01(.TMGDFN,.PHONENUMS,.ERRARRAY)
   IF $DATA(ERRARRAY) WRITE "ERRORS:",! DO ZWRITE^TMGZWR("ERRARRAY")
   IF $DATA(PHONENUMS) WRITE "PHONE NUMBERS:",!
   NEW ONENUM SET ONENUM=""

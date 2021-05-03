@@ -1,4 +1,4 @@
-TMGGMRV1 ;TMG/kst-Get Vitals ; 03/30/15,1/12/17
+TMGGMRV1 ;TMG/kst-Get Vitals ; 03/30/15,1/12/17, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;03/30/15
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -16,7 +16,7 @@ TMGGMRV1 ;TMG/kst-Get Vitals ; 03/30/15,1/12/17
  ;"BP(ADFN,FMDT,MAXDTVARIANCE) -- get BP near given date
  ;"RESP(ADFN,FMDT,MAXDTVARIANCE)  -- get Resp near given date
  ;"PULSE(ADFN,FMDT,MAXDTVARIANCE) -- get Pulse near given date
- ;"ONEVITAL(DFN,FMDT,TYPE,MAXDTVARIANCE)  GET ONE VITAL near given date
+ ;"ONEVITAL(TMGDFN,FMDT,TYPE,MAXDTVARIANCE)  GET ONE VITAL near given date
  ;"TREND(ADFN,FMDT,VITAL,NUM,DELIMITER) ;
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
@@ -104,7 +104,7 @@ GETVITLS(ADFN,SDT,EDT,OUT,OPTION) ;
   SET GMRVSTR(0)=SDT_"^"_EDT_"^999^"_0
   IF $DATA(OPTION) SET GMRVSTR=$GET(OPTION)
   IF GMRVSTR="" SET GMRVSTR="HT;WT;T;P;R;BP;PN,PO2"  ;"GET ALL
-  NEW DFN SET DFN=ADFN
+  NEW TMGDFN SET TMGDFN=ADFN
   NEW X,Y DO EN1^GMRVUT0
   IF '$D(^UTILITY($J,"GMRVD")) QUIT RESULT
   SET RESULT=1
@@ -165,7 +165,7 @@ PULSE(ADFN,FMDT,MAXDTVARIANCE) ;
   ;"Result: VitalValue^FMDT^Units
   QUIT $$ONEVITAL(ADFN,FMDT,"PN",.MAXDTVARIANCE) 
   ;
-ONEVITAL(DFN,FMDT,TYPE,MAXDTVARIANCE)  ;"GET ONE VITAL
+ONEVITAL(ADFN,FMDT,TYPE,MAXDTVARIANCE)  ;"GET ONE VITAL
   ;"Input: ADFN -- Patient IEN
   ;"       FMDT -- the as of date for vitals.  NOTE: If no data on given date, the
   ;"             will next get return closer of PRIOR vs FOLLOWING data point.

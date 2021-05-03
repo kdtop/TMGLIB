@@ -1,4 +1,4 @@
-TMGC0QT1 ;TMG/kst/TMG C0Q Data-test code ;10/28/12, 2/2/14
+TMGC0QT1 ;TMG/kst/TMG C0Q Data-test code ;10/28/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;10/24/12
  ;
  ;"TMG C0Q FUNCTIONS
@@ -14,27 +14,27 @@ TMGC0QT1 ;TMG/kst/TMG C0Q Data-test code ;10/28/12, 2/2/14
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"DEMO(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ; patient demographics
+ ;"DEMO(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ; patient demographics
  ;"     Creates C0Q PATIENT LIST's"
  ;"       ZYR_"HasDemographics"
  ;"       ZYR_"FailedDemographics"
- ;"PROBLEM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;PATIENT PROBLEMS
+ ;"PROBLEM(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;PATIENT PROBLEMS
  ;"     Creates C0Q PATIENT LIST's"
  ;"       ZYR_"NoProblem"
  ;"       ZYR_"HasProblem"
- ;"ALLERGY(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;ALLERGY LIST
+ ;"ALLERGY(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;ALLERGY LIST
  ;"     Creates C0Q PATIENT LIST's"
  ;"       ZYR_"NoAllergy"
  ;"       ZYR_"HasAllergy"
- ;"VITALS(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;
+ ;"VITALS(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;
  ;"     Creates C0Q PATIENT LIST's"
  ;"       ZYR_"HasVitalSigns"
  ;"       ZYR_"NoVitalSigns"
- ;"CLINSUM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;
+ ;"CLINSUM(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;
  ;"     Creates C0Q PATIENT LIST's"
  ;"       ZYR_"OfficeVisitEvent"
  ;"       ZYR_"SummaryGivenFor_OfficeVisitEvent"
- ;"PTREM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;REMINDERS SENT TO PATIENT
+ ;"PTREM(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;REMINDERS SENT TO PATIENT
  ;"     Creates C0Q PATIENT LIST's"
  ;"       ZYR_"Reminder_WasSentToPatient"
  ;"       ZYR_"Reminder_NotSentToPatient"
@@ -50,7 +50,7 @@ TMGC0QT1 ;TMG/kst/TMG C0Q Data-test code ;10/28/12, 2/2/14
  ;"   XLFDT, DIC, DIQ, ORQQPL, ORQQAL, ORQQVI, TMGTIUOJ
  ;"=======================================================================
  ;"NOTE: The following routines used the following parameters
-         ;"Input: DFN -- the patient IEN (in PATIENT file)
+         ;"Input: TMGDFN -- the patient IEN (in PATIENT file)
         ;"       PROV -- the provider IEN (in NEW PERSON file)
         ;"       SDTE -- Starting date (FM format) of range to test patient in
         ;"       EDTE -- Ending date (FM format) of range to test patient in
@@ -62,29 +62,29 @@ TMGC0QT1 ;TMG/kst/TMG C0Q Data-test code ;10/28/12, 2/2/14
         ;"               Returns string explaining internal logic
         ;"       ZYR -- prefix for C0QLIST
   ;
-DEMO(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR)  ; patient demographics
+DEMO(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR)  ; patient demographics
         SET RESULT=0 ;"default of failure
         SET WHY="{Demographics test}: "
         K PTDOB
         N PTNAME,PTSEX,PTHRN,PTRLANG,PTLANG,RACE,RACEDSC,ETHN,ETHNDSC,RB
-        S PTNAME=$P(^DPT(DFN,0),U) ;patient name
-        S PTDOB=$$FMTE^XLFDT($P($G(^DPT(DFN,0)),U,3)) ;date of birth
-        S PTSEX=$P($G(^DPT(DFN,0)),U,2) ;patient sex
+        S PTNAME=$P(^DPT(TMGDFN,0),U) ;patient name
+        S PTDOB=$$FMTE^XLFDT($P($G(^DPT(TMGDFN,0)),U,3)) ;date of birth
+        S PTSEX=$P($G(^DPT(TMGDFN,0)),U,2) ;patient sex
         D PID^VADPT ;VADPT call to grab PISD based on PT Eligibility
         S PTHRN=$P($G(VA("PID")),U) ;health record number
-        S PTRLANG=$P($G(^DPT(DFN,256000)),U) ;ptr to language file
+        S PTRLANG=$P($G(^DPT(TMGDFN,256000)),U) ;ptr to language file
         I $G(PTRLANG)'="" S PTLANG=$P(^DI(.85,PTRLANG,0),U) ;PLS extrnl
         S RACE=""
         F  D  Q:RACE=""  ;"field #2 (RACE INFORMATION)
-        . S RACE=$O(^DPT(DFN,.02,"B",RACE)) ;race code IEN
+        . S RACE=$O(^DPT(TMGDFN,.02,"B",RACE)) ;race code IEN
         . Q:'RACE
         . S RACEDSC=$P($G(^DIC(10,RACE,0)),U) ;race description
         S ETHN=""
         F  D  Q:ETHN=""  ;"field #6 (ETHNICITY INFORMATION)
-        . S ETHN=$O(^DPT(DFN,.06,"B",ETHN)) ;ethnicity IEN
+        . S ETHN=$O(^DPT(TMGDFN,.06,"B",ETHN)) ;ethnicity IEN
         . Q:'ETHN
         . S ETHNDSC=$P($G(^DIC(10.2,ETHN,0)),U) ;ethnincity description
-        S RB=$P($G(^DPT(DFN,.101)),U) ;room and bed
+        S RB=$P($G(^DPT(TMGDFN,.101)),U) ;room and bed
         N DEMOYN S DEMOYN=1
         I $G(PTSEX)="" DO
         . S DEMOYN=0
@@ -105,68 +105,68 @@ DEMO(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR)  ; patient demographics
         . S DEMOYN=0
         . SET WHY=WHY_"Ethnicity missing. "
         I DEMOYN DO
-        . S C0QLIST(PROV,ZYR_"HasDemographics",DFN)=""
+        . S C0QLIST(PROV,ZYR_"HasDemographics",TMGDFN)=""
         . SET RESULT=1
         . SET WHY=WHY_"OK. "
         E  DO
-        . S C0QLIST(PROV,ZYR_"FailedDemographics",DFN)=""
+        . S C0QLIST(PROV,ZYR_"FailedDemographics",TMGDFN)=""
         Q
         ; 
-PROBLEM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;" PATIENT PROBLEMS
+PROBLEM(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;" PATIENT PROBLEMS
         SET RESULT=0 ;"default of failure
         SET WHY="{Problem list test}: "
-        D LIST^ORQQPL(.PROBL,DFN,"A")
+        D LIST^ORQQPL(.PROBL,TMGDFN,"A")
         NEW PBCNT,PBDESC  ;"//kt added
         S PBCNT=""
         F  S PBCNT=$O(PROBL(PBCNT)) Q:PBCNT=""  D
         . S PBDESC=$P(PROBL(PBCNT),U,2) ;problem description
         I PBDESC["No problems found" DO  ;"//kt added block.  Check for Text Table 'PROBLEM LIST'
-        . NEW S SET S=$$GETTABLX^TMGTIUO6(DFN,"PROBLEM LIST")
+        . NEW S SET S=$$GETTABLX^TMGTIUO6(TMGDFN,"PROBLEM LIST")
         . IF S'="" SET PBDESC=S
         I PBDESC["No problems found" DO
-        . S C0QLIST(PROV,ZYR_"NoProblem",DFN)=""
+        . S C0QLIST(PROV,ZYR_"NoProblem",TMGDFN)=""
         . SET WHY=WHY_"No problems found in Problem List. "
         E  DO
-        . S C0QLIST(PROV,ZYR_"HasProblem",DFN)=""
+        . S C0QLIST(PROV,ZYR_"HasProblem",TMGDFN)=""
         . SET WHY=WHY_"OK. "
         . SET RESULT=1
         K PROBL
         Q
         ;
-ALLERGY(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ; ALLERGY LIST
+ALLERGY(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ; ALLERGY LIST
         SET RESULT=0 ;"default of failure
         SET WHY="{Patient Allergies test}: "
         N ALRGYL,ALDESC,ALCNT
-        D LIST^ORQQAL(.ALRGYL,DFN)
+        D LIST^ORQQAL(.ALRGYL,TMGDFN)
         S ALCNT=""
         F  S ALCNT=$O(ALRGYL(ALCNT)) Q:ALCNT=""  D
         . S ALDESC=$P(ALRGYL(ALCNT),U,2) ;allergy description
         ;"FYI: 'No Allergy Assessment' IF never asked
         ;"FYI: 'No Know Allergies' IF HAS been assessed
         I ALDESC["No Allergy" DO
-        . S C0QLIST(PROV,ZYR_"NoAllergy",DFN)=""
+        . S C0QLIST(PROV,ZYR_"NoAllergy",TMGDFN)=""
         . SET WHY=WHY_$$NURSEPRE^TMGC0QT1()_"NEEDS ALLERGY ASSESSMENT] "
         E  DO
-        . S C0QLIST(PROV,ZYR_"HasAllergy",DFN)=""
+        . S C0QLIST(PROV,ZYR_"HasAllergy",TMGDFN)=""
         . SET WHY=WHY_"OK. "
         . SET RESULT=1
         Q
         ;
-VITALS(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR)   ;
+VITALS(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR)   ;
         ;"note: Consider using $$GETVITLS^TMGGMRV1 in the future...
         SET RESULT=0 ;"default of failure
         SET WHY="{Vitals test}: "
-        D VITALS^ORQQVI(.VITRSLT,DFN,SDTE,EDTE) ;" CALL FAST VITALS
+        D VITALS^ORQQVI(.VITRSLT,TMGDFN,SDTE,EDTE) ;" CALL FAST VITALS
         I $D(VITRSLT),$GET(VITRSLT(1))'["No vitals found." SET RESULT=1
         IF RESULT DO
-        . S C0QLIST(PROV,ZYR_"HasVitalSigns",DFN)=""
+        . S C0QLIST(PROV,ZYR_"HasVitalSigns",TMGDFN)=""
         . SET WHY=WHY_"Vitals were found. "
         ELSE  DO
-        . S C0QLIST(PROV,ZYR_"NoVitalSigns",DFN)=""
+        . S C0QLIST(PROV,ZYR_"NoVitalSigns",TMGDFN)=""
         . SET WHY=WHY_"No vitals found during date range. "
         Q
         ;
-CLINSUM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;
+CLINSUM(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;
         ;"Note: C0QLIST(PROV,ZYR_"OfficeVisitEvent",IEN8925)=""  <-- NOTE: not a DFN
         ;"      C0QLIST(PROV,ZYR_"SummaryGivenFor_OfficeVisitEvent",IEN8925)=""  <-- NOTE: not a DFN
         ;"      C0QLIST("FILE","OfficeVisitEvent")=8925 <-- Indicates that IENs are from file 8925
@@ -184,7 +184,7 @@ CLINSUM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR) ;
         SET C0QLIST("FILE",PROVINIT_"-"_ZYR_"OfficeVisitEvent")=8925 ;"<-- Indicates that IENs are from file 8925
         SET C0QLIST("FILE",PROVINIT_"-"_ZYR_"SummaryGivenFor_OfficeVisitEvent")=8925 ;"<-- Indicates that IENs are from file 8925
         NEW IEN SET IEN=""
-        FOR  SET IEN=$ORDER(^TIU(8925,"C",DFN,IEN),-1) QUIT:(IEN="")  DO
+        FOR  SET IEN=$ORDER(^TIU(8925,"C",TMGDFN,IEN),-1) QUIT:(IEN="")  DO
         . NEW AUTHOR SET AUTHOR=+$PIECE($GET(^TIU(8925,IEN,12)),"^",2)
         . IF AUTHOR'=PROV QUIT
         . NEW DT SET DT=+$PIECE($GET(^TIU(8925,IEN,0)),"^",7)
@@ -228,33 +228,37 @@ ISOFFVST(IEN8925)  ;
         IF NAME["COMPLETE PHYSICAL EXAM" SET RESULT=1 GOTO IOVSV
         IF NAME["ACUTE MEDICAL ISSUE VISIT" SET RESULT=1 GOTO IOVSV
         IF NAME["SICK VISIT" SET RESULT=1 GOTO IOVSV
+        IF NAME["NOTE CLEANUP" SET RESULT=1 GOTO IOVSV
+        IF NAME["ANNUAL WELLNESS VISIT" SET RESULT=1 GOTO IOVSV
+        NEW HILITE SET HILITE=$P($G(^TIU(8925.1,PTITLE,"TMGH")),"^",1)
+        IF HILITE="Y" SET RESULT=1 GOTO IOVSV
         SET RESULT=0
 IOVSV   SET TMGOVTITLES(PTITLE)=RESULT
 IOVDN   QUIT RESULT
         ;
-PTREM(DFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR)  ;"REMINDERS SENT TO PATIENT 
+PTREM(TMGDFN,PROV,SDTE,EDTE,VISITS,C0QLIST,RESULT,WHY,ZYR)  ;"REMINDERS SENT TO PATIENT 
         SET RESULT=0 ;"default of failure
         SET WHY="{Reminders sent to patient test}: "
-        NEW AGE SET AGE=$$GET1^DIQ(2,DFN,"AGE")
+        NEW AGE SET AGE=$$GET1^DIQ(2,TMGDFN,"AGE")
         IF (AGE>64.99)!(AGE<6) DO
-        . SET C0QLIST(PROV,ZYR_"Reminder_WasNeededForPatient",DFN)=""
+        . SET C0QLIST(PROV,ZYR_"Reminder_WasNeededForPatient",TMGDFN)=""
         ELSE  DO  GOTO PTRDN
-        . SET C0QLIST(PROV,ZYR_"Reminder_WasNOTNeededForPatient",DFN)=""  
+        . SET C0QLIST(PROV,ZYR_"Reminder_WasNOTNeededForPatient",TMGDFN)=""  
         . SET WHY=WHY_"OK"
         . SET RESULT=1
         NEW FOUND SET FOUND=0
-        IF $DATA(^TMG(22716,DFN))'>0 GOTO PTR2
+        IF $DATA(^TMG(22716,TMGDFN))'>0 GOTO PTR2
         NEW DT SET DT=SDTE\1
-        FOR  SET DT=+$ORDER(^TMG(22716,DFN,.01,"B",DT)) QUIT:(DT'>0)!(DT>EDTE)!FOUND  DO
-        . NEW IEN SET IEN=+$ORDER(^TMG(22716,DFN,.01,"B",DT,0))
-        . NEW ZN SET ZN=$GET(^TMG(22716,DFN,.01,IEN,0))
+        FOR  SET DT=+$ORDER(^TMG(22716,TMGDFN,.01,"B",DT)) QUIT:(DT'>0)!(DT>EDTE)!FOUND  DO
+        . NEW IEN SET IEN=+$ORDER(^TMG(22716,TMGDFN,.01,"B",DT,0))
+        . NEW ZN SET ZN=$GET(^TMG(22716,TMGDFN,.01,IEN,0))
         . IF $PIECE(ZN,"^",2)="Y" SET FOUND=1
         SET RESULT=FOUND                
 PTR2    IF FOUND DO
-        . S C0QLIST(PROV,ZYR_"Reminder_WasSentToPatient",DFN)=""
+        . S C0QLIST(PROV,ZYR_"Reminder_WasSentToPatient",TMGDFN)=""
         . SET WHY=WHY_"Evidence was found of a reminder sent to patient. "
         ELSE  DO
-        . S C0QLIST(PROV,ZYR_"Reminder_NotSentToPatient",DFN)=""
+        . S C0QLIST(PROV,ZYR_"Reminder_NotSentToPatient",TMGDFN)=""
         . SET WHY=WHY_"No evidence was found of a reminder sent to patient. "
 PTRDN   QUIT
         ;

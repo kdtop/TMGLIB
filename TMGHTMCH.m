@@ -1,4 +1,4 @@
-TMGHTMCH ;TMG/kst/HTML Mini-chart creator ;03/25/06, 2/2/14
+TMGHTMCH ;TMG/kst/HTML Mini-chart creator ;03/25/06, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;01/10/06
 
  ;"TMG HTML EXPORT FUNCTION
@@ -163,10 +163,10 @@ WriteList(List,FPath,OutArray,PrgCallback)
         . . DO Write1Note(ien)
         . . DO ^%ZISC ;" Close the output device
         . . SET OutArray(ien)=FNAME
-        . . NEW PtName,DOB,DFN
-        . . SET DFN=$$GET1^DIQ(8925,ien_",",.02,"I")
-        . . SET PtName=$$GET1^DIQ(2,DFN_",",.01)
-        . . SET DOB=$$GET1^DIQ(2,DFN_",",.03)
+        . . NEW PtName,DOB,TMGDFN
+        . . SET TMGDFN=$$GET1^DIQ(8925,ien_",",.02,"I")
+        . . SET PtName=$$GET1^DIQ(2,TMGDFN_",",.01)
+        . . SET DOB=$$GET1^DIQ(2,TMGDFN_",",.03)
         . . SET PtName=PtName_" "_DOB
         . . SET OutArray(ien,PtName)=""
         . . SET OutArray("B",PtName,ien)=""

@@ -1,4 +1,4 @@
-;(Scratch code to fix various specific problems over time.), 2/2/14
+;(Scratch code to fix various specific problems over time.), 2/2/14, 3/24/21
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
@@ -319,17 +319,17 @@ MAKEVS ;"Make fake vitals for a test patient.
         ;"SET X="ZZTEST,BABY"
         DO ^DIC WRITE !
         IF +Y'>0 QUIT
-        SET DFN=+Y
-        DO GETPAT^TMGGRC2(DFN,.AGE,.GENDER,.TMGERR)
-        NEW DOB SET DOB=+$PIECE($GET(^DPT(DFN,0)),"^",3)
-        IF $DATA(^GMR(120.5,"C",DFN)) DO  QUIT:(%=-1)
+        NEW TMGDFN SET TMGDFN=+Y
+        DO GETPAT^TMGGRC2(TMGDFN,.AGE,.GENDER,.TMGERR)
+        NEW DOB SET DOB=+$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
+        IF $DATA(^GMR(120.5,"C",TMGDFN)) DO  QUIT:(%=-1)
         . SET %=2
         . WRITE "Patient has other vitals already defined.  DELETE them all"
         . DO YN^DICN WRITE !
         . IF %'=1 QUIT
         . NEW DIK SET DIK="^GMR(120.5,"
         . NEW DA SET DA=0
-        . FOR  SET DA=$ORDER(^GMR(120.5,"C",DFN,DA)) QUIT:(+DA'>0)  DO
+        . FOR  SET DA=$ORDER(^GMR(120.5,"C",TMGDFN,DA)) QUIT:(+DA'>0)  DO
         . . DO ^DIK
         . . WRITE "!"
         . WRITE !
@@ -342,10 +342,10 @@ MAKEVS ;"Make fake vitals for a test patient.
         . ;"IF +Y'>0 QUIT
         . SET Y=IEN_"^"_$PIECE($GET(^GMRD(120.51,IEN,0)),"^",1)
         . WRITE !,$p(Y,"^",2)
-        . DO MAKE1VS(DFN,GENDER,Y,PCTL) ;
+        . DO MAKE1VS(TMGDFN,GENDER,Y,PCTL) ;
         QUIT
 
-MAKE1VS(DFN,GENDER,TYPE,PCTL) ;
+MAKE1VS(TMGDFN,GENDER,TYPE,PCTL) ;
         ;"TYPE -- IEN^Name from 120.51
 
         NEW GRAPH,UNIT,MULT,AGE
@@ -391,10 +391,10 @@ MAKE1VS(DFN,GENDER,TYPE,PCTL) ;
         . . DO C^%DTC  ;"OUTPUT IN X
         . . SET Y=X DO DD^%DT  ;"OUPUT IN Y
         . . ;"WRITE "on DOB +",DELTA,": (",Y,")  ",VAL," ",UNIT,!
-        . . SET ABORT=$$Add1VS(DFN,TYPE,VAL,Y,UNIT)
+        . . SET ABORT=$$Add1VS(TMGDFN,TYPE,VAL,Y,UNIT)
         QUIT
 
-Add1VS(DFN,TYPE,VALUE,DATE,UNIT)
+Add1VS(TMGDFN,TYPE,VALUE,DATE,UNIT)
         ;"TYPE -- IEN^Name from 120.51
         ;"Result: 0 IF OK, 1 IF error
         SET VALUE=$JUSTIFY(VALUE,0,1)
@@ -405,7 +405,7 @@ Add1VS(DFN,TYPE,VALUE,DATE,UNIT)
         NEW RESULT SET RESULT=0
         NEW TMGFDA,TMGIEN,TMGMSG,AGE
         SET TMGFDA(120.5,"+1,",.01)=DATE_"@08:00"
-        SET TMGFDA(120.5,"+1,",.02)="`"_DFN
+        SET TMGFDA(120.5,"+1,",.02)="`"_TMGDFN
         SET TMGFDA(120.5,"+1,",.03)="`"_+TYPE
         SET TMGFDA(120.5,"+1,",.04)="NOW"
         SET TMGFDA(120.5,"+1,",.05)="lo"
@@ -469,11 +469,11 @@ HASFACTOR(SOURCEREF,FACTOR) ;"RETURN IF PATIENT HAS FACTOR
         . SET TMGRESULT="-1^Unable to find factor '"_FNAME_" in file "_P2FILE 
         SET XREF="^AUPNV"_XREF_"(""AA"",DFN,"_+P2IEN_")"  ;"all the V * have the same AA reference.
         SET TMGRESULT="1^Success"
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(@SOURCEREF@(DFN)) QUIT:(+DFN'>0)  DO
-        . SET VISITMSG(5)="VST^PT^"_DFN
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(@SOURCEREF@(TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . SET VISITMSG(5)="VST^PT^"_TMGDFN
         . NEW FMDT SET FMDT=0
-        . FOR  SET FMDT=$ORDER(@SOURCEREF@(DFN,FMDT)) QUIT:(+FMDT'>0)  DO
+        . FOR  SET FMDT=$ORDER(@SOURCEREF@(TMGDFN,FMDT)) QUIT:(+FMDT'>0)  DO
         . . SET VISITMSG(1)="HDR^0^^0;"_FMDT_";E"
         . . IF PREFIX="IM" SET VISITMSG(6)="IMM+^"_P2IEN_"^^"_FNAME_"^@^^@^0^^1"
         . . IF PREFIX="HF" SET VISITMSG(6)="HF+^"_P2IEN_"^^^^"_DUZ_"^^^^^"_FMDT_"^"
@@ -765,12 +765,12 @@ TESTPARSE ;
   QUIT
   ;
 TESTHFTABLE
-  NEW DFN,ARR,STR,OUIT SET DFN=36735  ;"W.K.JEN."
+  NEW TMGDFN,ARR,STR,OUIT SET TMGDFN=36735  ;"W.K.JEN."
   NEW TABLIEN SET TABLIEN=2
   NEW LNIEN SET LNIEN=17
-  ;"WRITE $$GETTABLX^TMGTIUO6(DFN,"HEALTH FACTORS",.ARR)
-  WRITE $$GETITEM^TMGPXR02(DFN,TABLIEN,LNIEN,9999,.OUT),!
-  WRITE $$GETITEM^TMGTIUO8(DFN,TABLIEN,LNIEN,9999,.OUT),!  
+  ;"WRITE $$GETTABLX^TMGTIUO6(TMGDFN,"HEALTH FACTORS",.ARR)
+  WRITE $$GETITEM^TMGPXR02(TMGDFN,TABLIEN,LNIEN,9999,.OUT),!
+  WRITE $$GETITEM^TMGTIUO8(TMGDFN,TABLIEN,LNIEN,9999,.OUT),!  
   QUIT
   
 ;"CHECK FOR DUPLICATE LAB TESTS BEING STORED IN SAME STORAGE FIELD
@@ -846,16 +846,16 @@ SHRDTESTPTS
  NEW PATNAME
  SET PATNAME="ZZ"
  FOR  SET PATNAME=$O(^DPT("B",PATNAME)) QUIT:PATNAME=""  DO
- . NEW DFN SET DFN=0
- . FOR  SET DFN=$O(^DPT("B",PATNAME,DFN)) QUIT:DFN'>0  DO
+ . NEW TMGDFN SET TMGDFN=0
+ . FOR  SET TMGDFN=$O(^DPT("B",PATNAME,TMGDFN)) QUIT:TMGDFN'>0  DO
  . . WRITE "SHREDDING ",PATNAME,!
  . . NEW DOB,SSN
- . . SET DOB=$P($G(^DPT(DFN,0)),"^",3) W "->",DOB
- . . SET $P(^DPT(DFN,0),"^",3)=DOB+10000 W "-",$P($G(^DPT(DFN,0)),"^",3),!
- . . SET SSN=$P($G(^DPT(DFN,0)),"^",9) W "->",SSN
+ . . SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3) W "->",DOB
+ . . SET $P(^DPT(TMGDFN,0),"^",3)=DOB+10000 W "-",$P($G(^DPT(TMGDFN,0)),"^",3),!
+ . . SET SSN=$P($G(^DPT(TMGDFN,0)),"^",9) W "->",SSN
  . . IF $$UP^XLFSTR(SSN)'["P" DO
- . . . SET $P(^DPT(DFN,0),"^",9)=SSN+132097 
- . . W "-",$P($G(^DPT(DFN,0)),"^",9),!
+ . . . SET $P(^DPT(TMGDFN,0),"^",9)=SSN+132097 
+ . . W "-",$P($G(^DPT(TMGDFN,0)),"^",9),!
  QUIT
  ;" 
 FIXMAG ;

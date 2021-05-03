@@ -1,4 +1,4 @@
-TMGRPT5  ;TMG/kst TMG REPORTS  ;04/30/20
+TMGRPT5  ;TMG/kst TMG REPORTS  ;04/30/20, 3/24/21
          ;;1.0;TMG-LIB;**1**;04/30/20
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -25,7 +25,7 @@ TMGRPT5  ;TMG/kst TMG REPORTS  ;04/30/20
  ;
  ;"NOTE: 7/20/20, changed table width from 900 to 700 because the note font
  ;"      size was being decreased to accomodate the wide tables
-HRAFORM(DFN,MODE)
+HRAFORM(TMGDFN,MODE)
  ;"Purpose: This creates an HTML table for the Health Risk Assessment
  ;"         If MODE=0, then the table contains all questions with the patient's answers
  ;"         If MODE=1, then the table contains only those questions with answers that need
@@ -41,7 +41,7 @@ HRAFORM(DFN,MODE)
  ;"
  ;"Get last date's health factors
  NEW DATE
- DO GETPTHFS(.HFARRAY,DFN,.DATE)
+ DO GETPTHFS(.HFARRAY,TMGDFN,.DATE)
  ;"
  ;"Cycle through the topics
  IF MODE=0 DO
@@ -114,7 +114,7 @@ SET1ROW(TMGRESULT,QUESTION,ANSWER,COLORTYPE)
  SET TMGRESULT=TMGRESULT_LINE
  QUIT 
  ;"
-GETPTHFS(HFARRAY,DFN,LDATE)
+GETPTHFS(HFARRAY,TMGDFN,LDATE)
  ;"Purpose: Return all health factors with the "TMG AWV" prefix
  ;"Format: HFARRAY(HFIEN)=HF Name^HF Comment^HF Date
  ;"
@@ -123,7 +123,7 @@ GETPTHFS(HFARRAY,DFN,LDATE)
  SET LDATE=0
  ;"
  ;"Loop through all the patient's Health Factors, Gathering all AWV HFs in a temp array, indexed by date
- FOR  SET IEN=$ORDER(^AUPNVHF("C",DFN,IEN)) QUIT:IEN'>0  DO
+ FOR  SET IEN=$ORDER(^AUPNVHF("C",TMGDFN,IEN)) QUIT:IEN'>0  DO
  . SET HFIEN=$PIECE($GET(^AUPNVHF(IEN,0)),"^",1)
  . IF HFIEN'>0 QUIT
  . NEW DATEIEN SET DATEIEN=$PIECE($GET(^AUPNVHF(IEN,0)),"^",3)
@@ -363,10 +363,15 @@ COLOR(COLORWORD)  ;"
  IF COLORWORD="TOPIC" QUIT "#CCDDFF"
  QUIT ""
  ;"
+HFFORREM(HFLIST)  ;"HF TO USE FOR COMPLETED REMINDERS
+ SET HFLIST(223)="TMG COLONOSCOPY COMPLETED"
+ ;"SET HFLIST(0)="NOT USED CURRENTLY"
+ QUIT
+ ;"
 HELHRPT(TMGDFN) 
    ;"Purpose: Entry point, as called from CPRS REPORT system
   ;"Input: ROOT -- Pass by NAME.  This is where output goes
-  ;"       DFN -- Patient DFN ; ICN for foriegn sites
+  ;"       TMGDFN -- Patient DFN ; ICN for foriegn sites
   ;"       ID --
   ;"       ALPHA -- Start date (lieu of DTRANGE)
   ;"       OMEGA -- End date (lieu of DTRANGE)
@@ -381,7 +386,10 @@ HELHRPT(TMGDFN)
   ;"SET HD=HD_"<TH>STATUS</TH></TR>"
   NEW REMIEN,REMLIST SET REMIEN=0
   DO AWVREMS^TMGRPT2(.REMLIST)
+  NEW HFFORREMS DO HFFORREM(.HFFORREMS)
   FOR  SET REMIEN=$O(REMLIST(REMIEN)) QUIT:REMIEN'>0  DO
+  . NEW AGE SET AGE=$$AGE^TIULO(TMGDFN)
+  . IF (REMIEN=223)&(AGE>75) QUIT  ;"SPECIAL RULE FOR COLONOSCOPY ONLY    4/13/21
   . NEW REMRESULT
   . SET REMRESULT=$$DOREM^TMGPXR03(TMGDFN,REMIEN,5,$$TODAY^TMGDATE,1)
   . NEW STATUS,DUE,DONE,FREQ,REMNAME
@@ -390,6 +398,17 @@ HELHRPT(TMGDFN)
   . NEW STATUSTOKEEP SET STATUSTOKEEP="DUE NOW^DUE SOON^RESOLVED"
   . IF STATUSTOKEEP'[STATUS QUIT
   . IF STATUS="RESOLVED" SET STATUS="Up To Date"
+  . IF $D(HFFORREMS(REMIEN)) DO   
+  . . NEW HFNAME SET HFNAME=$GET(HFFORREMS(REMIEN))
+  . . IF HFNAME="" QUIT
+  . . NEW HFDONE,HF,OPTION SET HFDONE=$$GETHFDT^TMGPXRU1(TMGDFN,HFNAME,.HFARRAY,.OPTION)
+  . . IF +HFDONE>0 DO
+  . . . SET DONE=HFDONE
+  . . ELSE  DO
+  . . . IF DONE'="" DO
+  . . . . SET DONE="NO RECORD OF BEING DONE<BR>REMINDER COMPLETED ON "_DONE
+  . . . ELSE  DO
+  . . . . SET DONE="NO RECORD OF BEING DONE"
   . IF DONE="" SET DONE="NO RECORD OF BEING DONE"
   . IF DUE="" SET DUE="NO DUE DATE CALCULATED"
   . IF FREQ="" SET FREQ="NO FREQUENCY DEFINED"
@@ -425,9 +444,9 @@ BIOTBL(TMGDFN)  ;"
   DO SETHTML(.TMGOUT,.TMGRESULT,HD,3)
   QUIT TMGOUT
   ;"
-GETLLAB(DFN,LABNUM)  ;"RETURN LAST VALUE AND DATE
+GETLLAB(TMGDFN,LABNUM)  ;"RETURN LAST VALUE AND DATE
   NEW TMGRESULT,OUT SET TMGRESULT="-1^NO RESULT"
-  DO GETVALS^TMGLRR01(DFN_"^2",LABNUM,.OUT)
+  DO GETVALS^TMGLRR01(TMGDFN_"^2",LABNUM,.OUT)
   NEW LABSTR SET LABSTR=LABNUM
   SET LABSTR=$O(OUT(LABSTR))
   NEW DATE SET DATE=$O(OUT(LABSTR,9999999),-1)

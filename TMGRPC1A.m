@@ -1,4 +1,4 @@
-TMGRPC1A ;TMG/kst-RPC Functions ;2/11/10, 6/19/10, 7/11/12, 2/2/14
+TMGRPC1A ;TMG/kst-RPC Functions ;2/11/10, 6/19/10, 7/11/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;2/11/10
  ;
  ;"TMG RPC FUNCTIONS related to CPRS
@@ -16,8 +16,8 @@ TMGRPC1A ;TMG/kst-RPC Functions ;2/11/10, 6/19/10, 7/11/12, 2/2/14
  ;"=======================================================================
  ;"SETINIVL(RESULT,SECTION,KEY,VALUE) ;Entry point for TMG INIFILE SET
  ;"GETINIVL(RESULT,SECTION,KEY,DEFAULT) ;Entry point for TMG INIFILE GET
- ;"SETLOG(RESULT,DFN,DUZ,TYPE,IEN,TIME) ;Store a CPRS access log entry
- ;"GETLOG(RESULT,DUZ,SDATE,EDATE,DFN,TYPE) ;Retrieve access log entries
+ ;"SETLOG(RESULT,TMGDFN,DUZ,TYPE,IEN,TIME) ;Store a CPRS access log entry
+ ;"GETLOG(RESULT,DUZ,SDATE,EDATE,TMGDFN,TYPE) ;Retrieve access log entries
  ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -171,10 +171,10 @@ INSTALL ;
         . WRITE !
         QUIT
  ;
-SETLOG(RESULT,DFN,DUZ,TYPE,IEN,DTIME) ;
+SETLOG(RESULT,TMGDFN,DUZ,TYPE,IEN,DTIME) ;
         ;"Purpose: Store an access log entry, from action in CPRS, stored in file 22715
         ;"Input: RESULT -- the output of the function (single value)
-        ;"       DFN --the patient IEN (file 2)
+        ;"       TMGDFN --the patient IEN (file 2)
         ;"       DUZ -- the user IEN (file 200)
         ;"       TYPE: this is the type of action, and should be acceptible for
         ;"              input into the EVENT TYPE field in file TMG CPRS PATIENT ACCESS LOG.
@@ -187,8 +187,8 @@ SETLOG(RESULT,DFN,DUZ,TYPE,IEN,DTIME) ;
         ;"Output: RESULT variable will be 1^OK, or -1^Error Message
         NEW TMGDFA,TMGIEN,TMGIENS,TMGMSG
         SET RESULT="1^OK"
-        SET DFN=+$GET(DFN)
-        IF DFN'>0 DO  GOTO SLDN
+        SET TMGDFN=+$GET(TMGDFN)
+        IF TMGDFN'>0 DO  GOTO SLDN
         . SET RESULT="-1^Value for DFN no provided"
         SET DUZ=+$GET(DUZ)
         IF DUZ'>0 DO  GOTO SLDN
@@ -205,9 +205,9 @@ SETLOG(RESULT,DFN,DUZ,TYPE,IEN,DTIME) ;
         . IF Y>0 SET DTIME=Y
         IF DTIME'>0 DO  GOTO SLDN
         . SET RESULT="-1^Invalid date-time for event.  Got: "_DTIME
-        IF $DATA(^TMG(22715,DFN))>0 GOTO SL2
-        SET TMGIEN(1)=DFN
-        SET TMGFDA(22715,"+1,",.01)=DFN
+        IF $DATA(^TMG(22715,TMGDFN))>0 GOTO SL2
+        SET TMGIEN(1)=TMGDFN
+        SET TMGFDA(22715,"+1,",.01)=TMGDFN
         DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO  GOTO SLDN
         . SET RESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
@@ -221,7 +221,7 @@ SL2     SET TMGIENS="+1,"_DFN_","
         . SET RESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
 SLDN    QUIT
         ;
-GETLOG(RESULT,DUZ,SDATE,EDATE,DFN,TYPE) ;
+GETLOG(RESULT,DUZ,SDATE,EDATE,TMGDFN,TYPE) ;
         ;"Purpose: Retrieve access log entries
         ;"Input: RESULT -- the output of the function (and array)
         ;"       DUZ -- the user IEN (file 200) that created event entries
@@ -230,7 +230,7 @@ GETLOG(RESULT,DUZ,SDATE,EDATE,DFN,TYPE) ;
         ;"       EDATE -- Optional (Default=NOW). The end date-time of log range.
         ;"                Should be a Fileman numeric date, or word such as "NOW"
         ;"                or "T-1" etc.
-        ;"       DFN --Optional.  A patient IEN (file 2) to filter log entries by
+        ;"       TMGDFN --Optional.  A patient IEN (file 2) to filter log entries by
         ;"       TYPE: Optional.  A Type to filter log entries by.
         ;"              Must be INTERNAL form of an entry in the EVENT TYPE
         ;"              field in file TMG CPRS PATIENT ACCESS LOG.
@@ -259,14 +259,14 @@ GETLOG(RESULT,DUZ,SDATE,EDATE,DFN,TYPE) ;
         . SET EDATE=%
         IF EDATE'>0 DO  GOTO GLDN
         . SET RESULT(0)="-1^Valid end date-time not provided"
-        SET DFN=+$GET(DFN)
+        SET TMGDFN=+$GET(TMGDFN)
         SET TYPE=$GET(TYPE)
         NEW DT SET DT=SDATE-0.000001 ;"backup 1 second to ensure none missed
         FOR  SET DT=$ORDER(^TMG(22715,"AD",DUZ,DT)) QUIT:(DT="")!(DT>EDATE)  DO
         . NEW IEN SET IEN=0
         . FOR  SET IEN=$ORDER(^TMG(22715,"AD",DUZ,DT,IEN)) QUIT:(IEN="")  DO
         . . NEW PAT SET PAT=$PIECE($GET(^TMG(22715,IEN,0)),"^",1)
-        . . IF (DFN>0),(PAT'=DFN) QUIT  ;"wrong patient
+        . . IF (TMGDFN>0),(PAT'=TMGDFN) QUIT  ;"wrong patient
         . . NEW SUBIEN SET SUBIEN=0
         . . FOR  SET SUBIEN=$ORDER(^TMG(22715,"AD",DUZ,DT,IEN,SUBIEN)) QUIT:(SUBIEN="")  DO
         . . . NEW ZN SET ZN=$GET(^TMG(22715,IEN,"LOG",SUBIEN,0))

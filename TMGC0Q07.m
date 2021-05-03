@@ -1,4 +1,4 @@
-TMGC0Q07 ;TMG/kst/REPORTS from C0Q-based code  10/2/12, 2/2/14
+TMGC0Q07 ;TMG/kst/REPORTS from C0Q-based code  10/2/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;8/17/12
  ;
  ;"TMG C0Q FUNCTIONS
@@ -314,30 +314,30 @@ TEST1(PROVIEN)  ;
         SET DIC=2,DIC(0)="MAEQ"
         DO ^DIC WRITE !
         IF +Y'>0 GOTO T1DN
-        NEW DFN SET DFN=+Y
+        NEW TMGDFN SET TMGDFN=+Y
         DO GETDTS(.SDATE,.EDATE) WRITE !
         IF (+SDATE'>0)!(+EDATE'>0) GOTO T1DN
         NEW RESULT,WHY
         NEW VISITS  ;"leave empty for now. --> no
-        DO GET1VSTS(DFN,SDATE,EDATE,.VISITS)
-        DO TESTPT^TMGC0Q02(DFN,PROVIEN,SDATE,EDATE,.C0QLIST,.VISITS,.RESULT,.WHY)  ;"Run various tests on one patient.
+        DO GET1VSTS(TMGDFN,SDATE,EDATE,.VISITS)
+        DO TESTPT^TMGC0Q02(TMGDFN,PROVIEN,SDATE,EDATE,.C0QLIST,.VISITS,.RESULT,.WHY)  ;"Run various tests on one patient.
         WRITE "RESULT=",RESULT,!
         WRITE "WHY=",WHY,!
         DO PRESS2GO^TMGUSRI2
 T1DN    QUIT       
         ;"
-GET1VSTS(DFN,SDATE,EDATE,VISITS) ;"Get list of visits for 1 patient, in date range
+GET1VSTS(TMGDFN,SDATE,EDATE,VISITS) ;"Get list of visits for 1 patient, in date range
         NEW DOC SET DOC=""
-        FOR  SET DOC=$ORDER(^TIU(8925,"AA",DFN,DOC)) QUIT:DOC=""  DO
+        FOR  SET DOC=$ORDER(^TIU(8925,"AA",TMGDFN,DOC)) QUIT:DOC=""  DO
         . NEW RDT SET RDT=0
-        . FOR  SET RDT=$ORDER(^TIU(8925,"AA",DFN,DOC,RDT)) QUIT:RDT=""  DO
+        . FOR  SET RDT=$ORDER(^TIU(8925,"AA",TMGDFN,DOC,RDT)) QUIT:RDT=""  DO
         . . NEW DT SET DT=9999999-RDT
         . . IF (DT<SDATE)!(DT>EDATE) QUIT
         . . SET VISITS(DT)=""
         QUIT
 HTNRPT ;
         ;"Purpose:  Printout list of patients with HTN
-        NEW DFN SET DFN=0
+        NEW TMGDFN SET TMGDFN=0
         NEW HASHTN,SDATE,EDATE
         DO GETDTS^TMGC0Q07(.SDATE,.EDATE)
         NEW NAME,HTNARRAY,DOB
@@ -348,10 +348,10 @@ HTNRPT ;
         NEW TOHOME SET TOHOME=(IO=INITIO)
         IF POP GOTO DNHTN
         USE IO
-        FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:DFN'>0  DO
-        . IF $$INLSTHTN^TMGC0Q05(DFN,SDATE,EDATE) DO
-        . . SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-        . . SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+        FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
+        . IF $$INLSTHTN^TMGC0Q05(TMGDFN,SDATE,EDATE) DO
+        . . SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        . . SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
         . . SET HTNARRAY(NAME,DOB)=""
         WRITE "MEANINGFUL USE - PATIENT LIST  (HTN)",!,!
         SET NAME=""

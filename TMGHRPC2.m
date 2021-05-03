@@ -1,4 +1,4 @@
-TMGHRPC2        ;TMG/elh/Support Functions for TMG_CPRS ;10/20/09; 11/6/10, 9/4/13, 2/2/14
+TMGHRPC2        ;TMG/elh/Support Functions for TMG_CPRS ;10/20/09; 11/6/10, 9/4/13, 2/2/14, 3/24/21
                 ;;1.0;TMG-LIB;**1**;10/20/09;Build 3
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -119,7 +119,7 @@ ISFNAME(S) ;"
           ;"
 HNDLFNAME(OUT,FROM,DIR)  ;"
            NEW TMGRESULT SET TMGRESULT=1
-          NEW TMPNAME,FNAME,DFN,I
+          NEW TMPNAME,FNAME,TMGDFN,I
           SET I=0
           SET TMPNAME=$$UP^XLFSTR($PIECE(FROM,",",2))
           SET TMPNAME=$TRANSLATE(TMPNAME,"~","")
@@ -128,19 +128,19 @@ HNDLFNAME(OUT,FROM,DIR)  ;"
           . SET TMGCH=$CHAR($ASCII(TMGCH)+DIR)
           . SET TMPNAME=$EXTRACT(TMPNAME,1,$LENGTH(TMPNAME)-1)_TMGCH
           SET FNAME=TMPNAME
-          SET DFN=0
+          SET TMGDFN=0
           ;"GET ALL PATIENTS WITH FIRST NAME LISTED
-          FOR  SET DFN=$ORDER(^DPT("TMGFN",FNAME,DFN)) QUIT:DFN'>0  DO
-          . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+          FOR  SET TMGDFN=$ORDER(^DPT("TMGFN",FNAME,TMGDFN)) QUIT:TMGDFN'>0  DO
+          . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
           . SET I=I+1
-          . SET OUT(I)=DFN_U_NAME_U_U_U_U_NAME
+          . SET OUT(I)=TMGDFN_U_NAME_U_U_U_U_NAME
           ;"GET ALL OTHER PATIENTS WHO HAVE ADDITIONAL CHARS SUCH AS MIDDLE INITIALS
           FOR  SET FNAME=$ORDER(^DPT("TMGFN",FNAME)) QUIT:(FNAME'[TMPNAME)!(FNAME="")  DO
-          . SET DFN=0
-          . FOR  SET DFN=$ORDER(^DPT("TMGFN",FNAME,DFN)) QUIT:DFN'>0  DO
-          . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+          . SET TMGDFN=0
+          . FOR  SET TMGDFN=$ORDER(^DPT("TMGFN",FNAME,TMGDFN)) QUIT:TMGDFN'>0  DO
+          . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
           . . SET I=I+1
-          . . SET OUT(I)=DFN_U_NAME_U_U_U_U_NAME
+          . . SET OUT(I)=TMGDFN_U_NAME_U_U_U_U_NAME
           QUIT TMGRESULT
           ;
 ISMONTH(S)        
@@ -233,22 +233,22 @@ INEXACT(OUT,FROM,DIR)
           . . . SET OUT(I)=ENTRY
           QUIT
         ;
-LSTHIPAA(TMGOUT,DFN,FORMAT)   ;
+LSTHIPAA(TMGOUT,TMGDFN,FORMAT)   ;
          ;"PURPOSE: To return date of last HIPAA scanned into CPRS
-         ;"INPUT: DFN - Patient's DFN
+         ;"INPUT: TMGDFN - Patient's DFN
          ;"       FORMAT (OPTIONAL I or E) Return format of date (Internal(Default)/External)
          ;"RETURN - TMGOUT - Date in either internal or external format as defined by FORMAT OR -1^ERROR
          ;"RESULT - NONE
          NEW HIPAAIEN,TIUIEN,DATE
          SET HIPAAIEN=34    ;"IEN OF HIPAA IN TIU DOCUMENT
          SET TIUIEN=0,DATE=0
-         SET DFN=+$GET(DFN)
-         IF DFN'>0 DO  GOTO LHDN
+         SET TMGDFN=+$GET(TMGDFN)
+         IF TMGDFN'>0 DO  GOTO LHDN
          . SET TMGOUT="-1^NO DFN RECEIVED"
          SET TMGOUT="-1^NO HIPAA AGREEMENT FOUND"
          SET FORMAT=$GET(FORMAT)
          IF (FORMAT'="E")&(FORMAT'="I") SET FORMAT="I"
-         FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",DFN,TIUIEN)) QUIT:TIUIEN'>0  DO
+         FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:TIUIEN'>0  DO
          . NEW DOCIEN SET DOCIEN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",1)
          . IF DOCIEN'=HIPAAIEN QUIT
          . NEW THISDATE SET THISDATE=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",7)
@@ -261,15 +261,15 @@ LSTHIPAA(TMGOUT,DFN,FORMAT)   ;
          . . SET TMGOUT=Y
 LHDN     QUIT
          ;"
-NEWHIPAA(TMGOUT,DFN)    ;
+NEWHIPAA(TMGOUT,TMGDFN)    ;
           ;"PURPOSE: TO DETERMINE IF A NEW HIPAA IS NEEDED. 
-          ;"INPUT: DFN - PATIENT'S DFN
+          ;"INPUT: TMGDFN - PATIENT'S DFN
           ;"OUTPUT: TMGOUT - "1^DUE"      IF NEW HIPAA IS NEEDED
           ;"                 "0^NOT DUE"  IF NEW HIPAA IS NOT NEEDED
           ;"                 -1^ERROR MESSAGE
           NEW MAXDAYSALLOW SET MAXDAYSALLOW=365
-          SET DFN=+$GET(DFN)
-          IF DFN'>0 DO  GOTO NHDN
+          SET TMGDFN=+$GET(TMGDFN)
+          IF TMGDFN'>0 DO  GOTO NHDN
           . SET TMGOUT="-1^NO DFN"
           SET TMGOUT="1^DUE"   ;"DEFAULT TO NEEDED
           ;
@@ -278,7 +278,7 @@ NEWHIPAA(TMGOUT,DFN)    ;
           SET TODAYSDATE=X
           ;
           NEW NOTEDATE
-          DO LSTHIPAA(.NOTEDATE,DFN,"I")
+          DO LSTHIPAA(.NOTEDATE,TMGDFN,"I")
           IF $PIECE(NOTEDATE,"^",1)="-1" GOTO NHDN
           NEW DAYSDIFF ;"SET DAYSDIFF=TODAYSDATE-NOTEDATE
           ;"
@@ -370,7 +370,7 @@ DELWEDG        ;
           QUIT
           ;"
 HTNRPT ;
-          NEW DFN SET DFN=0
+          NEW TMGDFN SET TMGDFN=0
           NEW HASHTN,SDATE,EDATE
           DO GETDTS^TMGC0Q07(.SDATE,.EDATE)
           NEW NAME,HTNARRAY,DOB
@@ -381,10 +381,10 @@ HTNRPT ;
           NEW TOHOME SET TOHOME=(IO=INITIO)
           IF POP GOTO POM
           USE IO
-          FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:DFN'>0  DO
-          . IF $$INLSTHTN^TMGC0Q05(DFN,SDATE,EDATE) DO
-          . . SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-          . . SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+          FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
+          . IF $$INLSTHTN^TMGC0Q05(TMGDFN,SDATE,EDATE) DO
+          . . SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+          . . SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
           . . SET HTNARRAY(NAME,DOB)=""
           WRITE "MEANINGFUL USE - PATIENT LIST  (HTN)",!,!
           SET NAME=""
@@ -395,7 +395,7 @@ HTNRPT ;
           DO ^%ZISC  ;" Close the output device
 POM       QUIT
           ;"
-GETRACE(TMGRESULT,DFN)  ;
+GETRACE(TMGRESULT,TMGDFN)  ;
           ;"Purpose: Return patients race (Single letter: W, B, etc...)
               
           QUIT        

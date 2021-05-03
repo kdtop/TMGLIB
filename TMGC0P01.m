@@ -1,4 +1,4 @@
-TMGC0P01   ; TMG - Web Service main entry points;  1/21/17 
+TMGC0P01   ; TMG - Web Service main entry points;  1/21/17, 3/24/21 
         ;;1.0;TMG E LAB ORDERG;;1/21/17
 	;
 	; Modifications/Additions copyright 1/21/17 Kevin Toppenberg.	
@@ -147,40 +147,40 @@ ELABRPC(RTN,IDUZ,IDFN) ; RPC CALL TO RETURN HTTPS POST ARRAY FOR LAB ORDERING [T
         D WRAP^TMGC0P02(.RTN,.C0PXML,0,SUBTYPE) ; WRAP IN HTML FOR PROCESSING IN CPRS
         Q
         ;
-ELABRPC2(RTN,DFN,SDT,EDT)  ; RPC CALL TO RETURN LIST IF IMAGE FILE ENTRIES. [TMG CPRS GET LABIMAGE INFO]
+ELABRPC2(RTN,TMGDFN,SDT,EDT)  ; RPC CALL TO RETURN LIST IF IMAGE FILE ENTRIES. [TMG CPRS GET LABIMAGE INFO]
         ;"INPUT:  RTN -- an OUT PARAMETER.  Format: 
         ;"               RTN(0)="1^OK"
         ;"               RTN(#)=1^IEN2005^image FMDT^filename^FMDTInExternalFormat  <-- DT is as found in IMAGE file
         ;"               RTN(#)=1B^IEN2005^image FMDT^filename^FMDTInExternalFormat  <-- 1B means more images for same message as prev "1" node
         ;"               RTN(#)=2^labDT^IEN2005^filename^FMDTInExternalFormat       <-- DT is as found in LAB DATA file
-        ;"        DFN -- patient IEN in PATIENT file
+        ;"        TMGDFN -- patient IEN in PATIENT file
         ;"        SDT -- OPTIONAL.  default is 0, start date of range to return
         ;"        EDT -- OPTIONAL.  dfault is 9999999, end date of range to return
         ;"Results: none
         SET SDT=+$GET(SDT) NEW RSDT SET RSDT=9999999.9999-SDT
         SET EDT=+$GET(EDT,9999999) NEW REDT SET REDT=9999999.9999-EDT
-        SET DFN=+$GET(DFN)
+        SET TMGDFN=+$GET(TMGDFN)
         SET RTN(0)="1^OK"
         NEW IDX SET IDX=1
         NEW ARDT SET ARDT=REDT-0.000001
-        IF 1=0 FOR  SET ARDT=$ORDER(^MAG(2005,"APPXDT",DFN,"LAB IMAGE",ARDT)) QUIT:(+ARDT'>0)!(ARDT>RSDT)  DO
+        IF 1=0 FOR  SET ARDT=$ORDER(^MAG(2005,"APPXDT",TMGDFN,"LAB IMAGE",ARDT)) QUIT:(+ARDT'>0)!(ARDT>RSDT)  DO
         . NEW IEN2005 SET IEN2005=0
-        . FOR  SET IEN2005=$ORDER(^MAG(2005,"APPXDT",DFN,"LAB IMAGE",ARDT,IEN2005)) QUIT:+IEN2005'>0  DO
+        . FOR  SET IEN2005=$ORDER(^MAG(2005,"APPXDT",TMGDFN,"LAB IMAGE",ARDT,IEN2005)) QUIT:+IEN2005'>0  DO
         . . NEW FNAME SET FNAME=$PIECE($GET(^MAG(2005,IEN2005,0)),"^",2) ;"0;2=FILEREF
         . . NEW FMDT SET FMDT=$PIECE($GET(^MAG(2005,IEN2005,2)),"^",5)  ;"2;5=PROCEDURE/EXAM DATE/TIME
         . . SET RTN(IDX)="1^"_IEN2005_"^"_FMDT_"^"_FNAME_"^"_$$FMTE^XLFDT(FMDT),IDX=IDX+1
         NEW MSGIDX SET MSGIDX=0
-        FOR  SET MSGIDX=$ORDER(^TMG(22735,DFN,"MSG",MSGIDX)) QUIT:+MSGIDX'>0  DO
+        FOR  SET MSGIDX=$ORDER(^TMG(22735,TMGDFN,"MSG",MSGIDX)) QUIT:+MSGIDX'>0  DO
         . NEW FIRST SET FIRST=1
         . NEW IEN2005 SET IEN2005=0
-        . FOR  SET IEN2005=$ORDER(^TMG(22735,DFN,"MSG",MSGIDX,1,"B",IEN2005)) QUIT:+IEN2005'>0  DO
+        . FOR  SET IEN2005=$ORDER(^TMG(22735,TMGDFN,"MSG",MSGIDX,1,"B",IEN2005)) QUIT:+IEN2005'>0  DO
         . . NEW FNAME SET FNAME=$PIECE($GET(^MAG(2005,IEN2005,0)),"^",2) ;"0;2=FILEREF
         . . NEW FMDT SET FMDT=$PIECE($GET(^MAG(2005,IEN2005,2)),"^",5)  ;"2;5=PROCEDURE/EXAM DATE/TIME
         . . IF (FMDT<SDT)!(FMDT>EDT) QUIT
         . . NEW NODEID SET NODEID=$SELECT(FIRST:"1",1:"1B") 
         . . SET RTN(IDX)=NODEID_"^"_IEN2005_"^"_FMDT_"^"_FNAME_"^"_$$FMTE^XLFDT(FMDT),IDX=IDX+1
         . . SET FIRST=0
-        NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
+        NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
         SET ARDT=RSDT-0.000001
         FOR  SET ARDT=$ORDER(^LR(LRDFN,"CH",ARDT)) QUIT:(+ARDT'>0)!(ARDT>RSDT)  DO
         . NEW LABDT SET LABDT=9999999-ARDT

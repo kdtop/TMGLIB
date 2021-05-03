@@ -1,4 +1,4 @@
-TMGTICK2 ;TMG/kst-Tickler Text Object Support Files;09/04/08, 2/2/14
+TMGTICK2 ;TMG/kst-Tickler Text Object Support Files;09/04/08, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;09/05/08
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -411,8 +411,8 @@ FL2     IF $DATA(^TMG("TMP","TICKLER","LOST")) DO
         . IF %'=1 QUIT
         . SET TIUIEN=0
         . FOR  SET TIUIEN=$ORDER(^TMG("TMP","TICKLER","LOST",TIUIEN)) QUIT:(+TIUIEN'>0)  DO
-        . . NEW DFN SET DFN=+$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
-        . . IF DFN=0 DO  QUIT
+        . . NEW TMGDFN SET TMGDFN=+$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
+        . . IF TMGDFN=0 DO  QUIT
         . . . WRITE !,"Unable to find a patient for TIU DOCUMENT #",TIUIEN,!
         . . NEW INFO SET INFO=$GET(^TMG("TMP","TICKLER","LOST",TIUIEN))
         . . NEW DUEDATE,DATESTR SET DATESTR=$PIECE(INFO,"^",1)
@@ -427,7 +427,7 @@ FL2     IF $DATA(^TMG("TMP","TICKLER","LOST")) DO
         . . NEW USERIEN SET USERIEN=+$PIECE(INFO,"^",2)
         . . IF USERIEN'>0 SET USERIEN=DUZ
         . . NEW TMGFDA,TMGMSG,TMGIEN
-        . . SET TMGFDA(22705.5,"+1,",.01)=DFN
+        . . SET TMGFDA(22705.5,"+1,",.01)=TMGDFN
         . . SET TMGFDA(22705.5,"+1,",.05)=TIUIEN
         . . SET TMGFDA(22705.5,"+1,",2)="S"      ;"S=SIGNED
         . . SET TMGFDA(22705.5,"+1,",3)=USERIEN

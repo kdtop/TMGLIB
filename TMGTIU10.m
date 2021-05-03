@@ -1,4 +1,4 @@
-TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14
+TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;10/21/14
  ;
  ;"Kevin Toppenberg MD
@@ -14,9 +14,9 @@ TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14
  ;"=======================================================================
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
- ;"RPCCKDUE(TMGRESULT,TMGDFN)-- RPC Entry point to check if patient is overdue for appt
- ;"$$SCANNOTE(DFN,TIUIEN,REFOUT) - To scan one note and get back info about followup
- ;"$$SCANPT(DFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan one patient during specified date range, and compile followup info
+ ;"RPCCKDUE(TMGRESULT,TMGTMGDFN)-- RPC Entry point to check if patient is overdue for appt
+ ;"$$SCANNOTE(TMGDFN,TIUIEN,REFOUT) - To scan one note and get back info about followup
+ ;"$$SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan one patient during specified date range, and compile followup info
  ;"SCANTIU  -- scan all TIU documents, to pre-parse them for faster access later 
  ;"$$SCANALL(REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan all patients during specified date range, and compile followup info
  ;"SELSHOW  -- scan all patients, and then allow inspection of details.
@@ -41,7 +41,7 @@ TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14
  ;"GETFMDT(S) ;TURN S INTO FILEMAN DATE IF POSSIBLE
  ;"ASMBLEDT(YR,MONTH,DAY) ;"ASSEMBLE DATE.  Input YR must be 4 digits.
  ;"GETDT(BASEDT,NUM,TYPE) -- Return a date, based on basedate + offset 
- ;"DISPINFO(DFN,INFO) -- display info from scanned array
+ ;"DISPINFO(TMGDFN,INFO) -- display info from scanned array
  ;"PTCOLOR(STATUS,MONTHS) ;"Get color for patient status
  ;"=======================================================================
  ;"Dependancies : TMGHTM1, XLFSTR, TMGSTUTL, XLFDT, TMGPXR03
@@ -51,27 +51,27 @@ TST1NOTE ;
   NEW TIUIEN,OUT
   READ "Enter TIU IEN: ",TIUIEN:$GET(DTIME,3600),!
   NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
-  NEW DFN SET DFN=+$PIECE(ZN,"^",2)  
-  NEW TMGRESULT SET TMGRESULT=$$SCANNOTE(DFN,TIUIEN,"OUT",1)
+  NEW TMGDFN SET TMGDFN=+$PIECE(ZN,"^",2)  
+  NEW TMGRESULT SET TMGRESULT=$$SCANNOTE(TMGDFN,TIUIEN,"OUT",1)
   IF $DATA(OUT) DO 
   . DO ZWRITE^TMGZWR("OUT")
   ELSE  WRITE "NOTHING FOUND",!
   QUIT
   ;
-SCANNOTE(DFN,TIUIEN,REFOUT,NOPRIOR) ;
+SCANNOTE(TMGDFN,TIUIEN,REFOUT,NOPRIOR) ;
   ;"Purpose: To scan one note and get back info about followup
-  ;"Input: DFN -- PATIENT IEN
+  ;"Input: TMGDFN -- PATIENT IEN
   ;"       TIUIEN-- IEN in 8925
   ;"       REFOUT -- PASS BY NAME.  An OUT PARAMETER  (prior contents not deleted)
   ;"       NOPRIOR -- OPTIONAL.  If 1 then prior stored results will be ignored. 
   ;"Result: 1^OK, or 0^None or -1^Message
   ;"Output:  @REFOUT@ is filled as follows
-  ;"         @REFOUT@(DFN,TIUIEN)=F/U_FMDATE"  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
-  ;"         @REFOUT@(DFN,TIUIEN,F/U_TEXT)=""
-  ;"         @REFOUT@("B",DFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
-  ;"         @REFOUT@("C",DFN,NOTE_DATE)=FOLLOWUP_DATE
-  ;"         @REFOUT@("D",DFN)=GREATEST_FOLLOWUP_DATE
-  ;"         @REFOUT@("E",DFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
+  ;"         @REFOUT@(TMGDFN,TIUIEN)=F/U_FMDATE"  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
+  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_TEXT)=""
+  ;"         @REFOUT@("B",TMGDFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
+  ;"         @REFOUT@("C",TMGDFN,NOTE_DATE)=FOLLOWUP_DATE
+  ;"         @REFOUT@("D",TMGDFN)=GREATEST_FOLLOWUP_DATE
+  ;"         @REFOUT@("E",TMGDFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
   ;"     ALSO, fields 22712,22713 in file 8925 may be filled with findings 
   NEW TMGRESULT SET TMGRESULT="0^None"
   NEW LINETEXT SET LINETEXT=""
@@ -81,7 +81,7 @@ SCANNOTE(DFN,TIUIEN,REFOUT,NOPRIOR) ;
   NEW TEMP,FOUND SET FOUND=0  
   SET NOPRIOR=$GET(NOPRIOR)   
   IF NOPRIOR'=1 DO
-  . SET TEMP=$$READINFO(DFN,TIUIEN,.FUDATE,.LINETEXT,.TIUDATE) 
+  . SET TEMP=$$READINFO(TMGDFN,TIUIEN,.FUDATE,.LINETEXT,.TIUDATE) 
   . IF TEMP>0 SET FOUND=2
   IF FOUND=0 DO
   . SET TEMP=$$GETINFO(TIUIEN,.FUDATE,.LINETEXT,.TIUDATE) 
@@ -90,16 +90,16 @@ SCANNOTE(DFN,TIUIEN,REFOUT,NOPRIOR) ;
   IF FOUND=0 SET LINETEXT=""
   IF FOUND>0 DO
   . SET TMGRESULT="1^OK"
-  . SET @REFOUT@(DFN,TIUIEN)=TIUDATE_"^"_FUDATE
-  . SET @REFOUT@("C",DFN,+TIUDATE)=FUDATE
-  . NEW PRIORFU SET PRIORFU=+$GET(@REFOUT@("D",DFN))
+  . SET @REFOUT@(TMGDFN,TIUIEN)=TIUDATE_"^"_FUDATE
+  . SET @REFOUT@("C",TMGDFN,+TIUDATE)=FUDATE
+  . NEW PRIORFU SET PRIORFU=+$GET(@REFOUT@("D",TMGDFN))
   . IF FUDATE>PRIORFU DO
-  . . SET @REFOUT@("D",DFN)=FUDATE
-  . . KILL @REFOUT@("B",DFN) SET @REFOUT@("B",DFN,+FUDATE)=TIUDATE  
-  . IF LINETEXT'="" SET @REFOUT@(DFN,TIUIEN,LINETEXT)=""
-  . IF FUDATE'=-1 SET @REFOUT@("E",DFN,TIUDATE,FUDATE)=LINETEXT
+  . . SET @REFOUT@("D",TMGDFN)=FUDATE
+  . . KILL @REFOUT@("B",TMGDFN) SET @REFOUT@("B",TMGDFN,+FUDATE)=TIUDATE  
+  . IF LINETEXT'="" SET @REFOUT@(TMGDFN,TIUIEN,LINETEXT)=""
+  . IF FUDATE'=-1 SET @REFOUT@("E",TMGDFN,TIUDATE,FUDATE)=LINETEXT
   . IF FOUND'=2 DO    ;"Store data for faster access next time. 
-  . . SET TMGRESULT=$$SAVEINFO(DFN,TIUIEN,FUDATE,LINETEXT,TIUDATE) 
+  . . SET TMGRESULT=$$SAVEINFO(TMGDFN,TIUIEN,FUDATE,LINETEXT,TIUDATE) 
   QUIT TMGRESULT
   ;"
 GETINFO(TIUIEN,FUDATE,LINETEXT,TIUDATE) ;
@@ -199,19 +199,19 @@ GTARINFO(TEXTREF,TIUDATE,FUDATE,LINETEXT,WPZN) ;
   ;"  ;"       NOPRIOR -- OPTIONAL.  If 1 then prior stored results will be ignored. 
   ;"  ;"Result: 1^OK, or 0^None or -1^Message
   ;"  ;"Output:  @REFOUT@ is filled as follows
-  ;"  ;"         @REFOUT@(DFN,TIUIEN,F/U_TEXT)=""
-  ;"  ;"         @REFOUT@(DFN,TIUIEN,F/U_FMDATE)=""  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
-  ;"  ;"         @REFOUT@("A",DFN,NOTE_TITLE_IEN,MOST_RECENT_REQUESTED_FOLLOWUP_FM_DATE)=""
-  ;"  ;"         @REFOUT@("B",DFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
-  ;"  ;"         @REFOUT@("C",DFN,NOTE_DATE)=FOLLOWUP_DATE
-  ;"  ;"         @REFOUT@("D",DFN)=GREATEST_FOLLOWUP_DATE
-  ;"  ;"         @REFOUT@("E",DFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
+  ;"  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_TEXT)=""
+  ;"  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_FMDATE)=""  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
+  ;"  ;"         @REFOUT@("A",TMGDFN,NOTE_TITLE_IEN,MOST_RECENT_REQUESTED_FOLLOWUP_FM_DATE)=""
+  ;"  ;"         @REFOUT@("B",TMGDFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
+  ;"  ;"         @REFOUT@("C",TMGDFN,NOTE_DATE)=FOLLOWUP_DATE
+  ;"  ;"         @REFOUT@("D",TMGDFN)=GREATEST_FOLLOWUP_DATE
+  ;"  ;"         @REFOUT@("E",TMGDFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
   ;"  ;"     ALSO, fields 22712,22713 in file 8925 may be filled with findings 
   ;"  NEW TMGRESULT SET TMGRESULT="0^None"
   ;"  NEW LINETEXT SET LINETEXT=""
   ;"  NEW FUDATE SET FUDATE=-1
   ;"  NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
-  ;"  NEW DFN SET DFN=+$PIECE(ZN,"^",2)
+  ;"  NEW TMGDFN SET TMGDFN=+$PIECE(ZN,"^",2)
   ;"  NEW TIUDATE SET TIUDATE=$PIECE(ZN,"^",7)
   ;"  NEW DOCIEN SET DOCIEN=$PIECE(ZN,"^",1)
   ;"  SET NOPRIOR=$GET(NOPRIOR)   
@@ -243,15 +243,15 @@ GTARINFO(TEXTREF,TIUDATE,FUDATE,LINETEXT,WPZN) ;
   ;"  ;"IF LINETEXT="" SET LINETEXT="?"
   ;"  IF FOUND>0 DO
   ;"  . SET TMGRESULT="1^OK"
-  ;"  . SET @REFOUT@(DFN,TIUIEN)=TIUDATE_"^"_FUDATE
-  ;"  . SET @REFOUT@("A",DFN,DOCIEN,FUDATE)=""
-  ;"  . SET @REFOUT@("C",DFN,TIUDATE)=FUDATE
-  ;"  . NEW PRIORFU SET PRIORFU=+$GET(@REFOUT@("D",DFN))
+  ;"  . SET @REFOUT@(TMGDFN,TIUIEN)=TIUDATE_"^"_FUDATE
+  ;"  . SET @REFOUT@("A",TMGDFN,DOCIEN,FUDATE)=""
+  ;"  . SET @REFOUT@("C",TMGDFN,TIUDATE)=FUDATE
+  ;"  . NEW PRIORFU SET PRIORFU=+$GET(@REFOUT@("D",TMGDFN))
   ;"  . IF FUDATE>PRIORFU DO
-  ;"  . . SET @REFOUT@("D",DFN)=FUDATE
-  ;"  . . KILL @REFOUT@("B",DFN) SET @REFOUT@("B",DFN,FUDATE)=TIUDATE  
-  ;"  . IF LINETEXT'="" SET @REFOUT@(DFN,TIUIEN,LINETEXT)=""
-  ;"  . IF FUDATE'=-1 SET @REFOUT@("E",DFN,TIUDATE,FUDATE)=LINETEXT
+  ;"  . . SET @REFOUT@("D",TMGDFN)=FUDATE
+  ;"  . . KILL @REFOUT@("B",TMGDFN) SET @REFOUT@("B",TMGDFN,FUDATE)=TIUDATE  
+  ;"  . IF LINETEXT'="" SET @REFOUT@(TMGDFN,TIUIEN,LINETEXT)=""
+  ;"  . IF FUDATE'=-1 SET @REFOUT@("E",TMGDFN,TIUDATE,FUDATE)=LINETEXT
   ;"  IF FOUND'=2 DO    ;"STORE VALUES IN FIELD 22712,22713   
   ;"  . NEW TMGFDA,TMGMSG,IENS SET IENS=TIUIEN_","
   ;"  . SET TMGFDA(8925,IENS,22712)=FUDATE
@@ -261,7 +261,7 @@ GTARINFO(TEXTREF,TIUDATE,FUDATE,LINETEXT,WPZN) ;
   ;"  . IF $DATA(TMGMSG("DIERR")) SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)  
   ;"  IF 1=0,(FOUND'=0),(FUDATE=-1),(LINETEXT'="") DO  ;"DEBUG BLOCK, DISABLED...
   ;"  . IF LINETEXT="in  months for a recheck, sooner if any problems." QUIT
-  ;"  . WRITE !,DFN," ",TIUIEN," NOTE: ",$$FMTE^XLFDT(TIUDATE,"5D")," --> "
+  ;"  . WRITE !,TMGDFN," ",TIUIEN," NOTE: ",$$FMTE^XLFDT(TIUDATE,"5D")," --> "
   ;"  . ;"IF FOUND=0 WRITE "(no ",FUTEXT," tag found)",! QUIT
   ;"  . IF FUDATE=-1 WRITE "??/??/????"
   ;"  . ELSE  WRITE $$FMTE^XLFDT(FUDATE,"5D")
@@ -269,9 +269,9 @@ GTARINFO(TEXTREF,TIUDATE,FUDATE,LINETEXT,WPZN) ;
   ;"  QUIT TMGRESULT
   ;"  ;"
   ;"-----------------------------------------------------  
-SAVEINFO(DFN,IEN8925,FUDT,FUTEXT,TIUDATE) ;
+SAVEINFO(TMGDFN,IEN8925,FUDT,FUTEXT,TIUDATE) ;
   ;"Purpose: Store gathered information for faster access in future
-  ;"Input: DFN -- patient IEN 
+  ;"Input: TMGDFN -- patient IEN 
   ;"       IEN8925 -- IEN in 8925
   ;"       FUDT -- the follow up date found in narrative, to be stored, in FM format
   ;"       FUTEXT -- the raw follow up narrative found in text, to be stored.  
@@ -282,21 +282,21 @@ SAVEINFO(DFN,IEN8925,FUDT,FUTEXT,TIUDATE) ;
   SET FUDT=+$GET(FUDT) IF (FUDT'>0)&(FUDT'=-1) DO  GOTO SIDN
   . SET TMGRESULT="-1^Follow up date not provided to SAVEINFO^TMGTIU10"
   SET FUTEXT=$GET(FUTEXT) 
-  SET DFN=+$GET(DFN) IF DFN'>0 DO  GOTO SIDN
+  SET TMGDFN=+$GET(TMGDFN) IF TMGDFN'>0 DO  GOTO SIDN
   . SET TMGRESULT="-1^DFN not provided to SAVEINFO^TMGTIU10"
   NEW TMGFDA,TMGIEN,TMGIENS,TMGMSG  
-  IF $DATA(^TMG(22731,DFN))>0 GOTO SI2   ;"Skip if Pt already has entry
-  SET TMGIEN(1)=DFN
-  SET TMGFDA(22731,"+1,",.01)=DFN
+  IF $DATA(^TMG(22731,TMGDFN))>0 GOTO SI2   ;"Skip if Pt already has entry
+  SET TMGIEN(1)=TMGDFN
+  SET TMGFDA(22731,"+1,",.01)=TMGDFN
   DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO  GOTO SIDN
   . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG) 
-  IF $DATA(^TMG(22731,DFN))=0 DO  GOTO SIDN
-  . SET TMGRESULT="-1^Unable to find record in 22731 for DFN="_DFN 
+  IF $DATA(^TMG(22731,TMGDFN))=0 DO  GOTO SIDN
+  . SET TMGRESULT="-1^Unable to find record in 22731 for DFN="_TMGDFN 
 SI2 ;  
   KILL TMGFDA,TMGMSG,TMGIEN
-  IF $DATA(^TMG(22731,DFN,"DOC",IEN8925))>0 SET TMGIENS=IEN8925_","_DFN_","
-  ELSE  SET TMGIENS="+1,"_DFN_","
+  IF $DATA(^TMG(22731,TMGDFN,"DOC",IEN8925))>0 SET TMGIENS=IEN8925_","_TMGDFN_","
+  ELSE  SET TMGIENS="+1,"_TMGDFN_","
   SET TMGFDA(22731.01,TMGIENS,.01)=IEN8925
   SET TMGFDA(22731.01,TMGIENS,.02)=FUDT
   SET TMGFDA(22731.01,TMGIENS,.03)=FUTEXT
@@ -311,14 +311,14 @@ SI2 ;
 SIDN ;  
   QUIT TMGRESULT
   ;
-READINFO(DFN,IEN8925,FUDT,FUTEXT,TIUDATE) ;"Gather stored information from prior scan
-  ;"Input: DFN -- patient IEN 
+READINFO(TMGDFN,IEN8925,FUDT,FUTEXT,TIUDATE) ;"Gather stored information from prior scan
+  ;"Input: TMGDFN -- patient IEN 
   ;"       IEN8925 -- IEN in 8925
   ;"       FUDT -- PASS BY REFERENCE.  AN OUT PARAMETER. 
   ;"       FUTEXT -- PASS BY REFERENCE.  AN OUT PARAMETER.  
   ;"       TIUDATE -- PASS BY REFERENCE.  AN OUT PARAMETER.  
   ;"Result: 1 if date found, or 0 if not found. 
-  NEW ZN SET ZN=$GET(^TMG(22731,DFN,"DOC",IEN8925,0))
+  NEW ZN SET ZN=$GET(^TMG(22731,TMGDFN,"DOC",IEN8925,0))
   SET FUDT=$PIECE(ZN,"^",2),FUTEXT=$PIECE(ZN,"^",3),TIUDATE=$PIECE(ZN,"^",4)
   QUIT (FUDT>0)
   ;
@@ -602,22 +602,22 @@ GETDT(BASEDT,NUM,TYPE) ;
   NEW DY SET DY=$SELECT(TYPE="Y":(NUM*365),TYPE="M":(NUM*30),TYPE="W":(NUM*7),TYPE="D":NUM,1:0)
   QUIT $$FMADD^XLFDT(BASEDT,DY,0,0,0)
   ;
-SCANPT(DFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
+SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   ;"Purpose: Scan one patient during specified date range, and compile followup info
-  ;"Input: DFN -- IEN of the patient
+  ;"Input: TMGDFN -- IEN of the patient
   ;"       REFOUT -- PASS BY NAME.  An OUT PARAMETER -- Format:
-  ;"         @REFOUT@("INACTIVE",DFN)=<PATIENT NAME> <-- if inactive patient
-  ;"         @REFOUT@(DFN,TIUIEN,F/U_TEXT)=""
-  ;"         @REFOUT@(DFN,TIUIEN,F/U_FMDATE)=""  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
-  ;"         old --> @REFOUT@("A",DFN,NOTE_TITLE_IEN,MOST_RECENT_REQUESTED_FOLLOWUP_FM_DATE)=""
-  ;"         @REFOUT@("B",DFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
-  ;"         @REFOUT@("C",DFN,NOTE_DATE)=FOLLOWUP_DATE
-  ;"         @REFOUT@("D",DFN)=GREATEST_FOLLOWUP_DATE
-  ;"         @REFOUT@("E",DFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
-  ;"         @REFOUT@("OK",DFN)=NAME^Upcoming FMDate^NumMonthsTillAppt      
-  ;"         @REFOUT@("DUE",DFN)=NAME^FOLLOW_UP_DATE^NumMonthsOverdue
-  ;"         @REFOUT@("GDT",GREATEST_FOLLOWUP_DATE,DFN)=""
-  ;"         @REFOUT@("NAME",DFN")=PatientName
+  ;"         @REFOUT@("INACTIVE",TMGDFN)=<PATIENT NAME> <-- if inactive patient
+  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_TEXT)=""
+  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_FMDATE)=""  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
+  ;"         old --> @REFOUT@("A",TMGDFN,NOTE_TITLE_IEN,MOST_RECENT_REQUESTED_FOLLOWUP_FM_DATE)=""
+  ;"         @REFOUT@("B",TMGDFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
+  ;"         @REFOUT@("C",TMGDFN,NOTE_DATE)=FOLLOWUP_DATE
+  ;"         @REFOUT@("D",TMGDFN)=GREATEST_FOLLOWUP_DATE
+  ;"         @REFOUT@("E",TMGDFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
+  ;"         @REFOUT@("OK",TMGDFN)=NAME^Upcoming FMDate^NumMonthsTillAppt      
+  ;"         @REFOUT@("DUE",TMGDFN)=NAME^FOLLOW_UP_DATE^NumMonthsOverdue
+  ;"         @REFOUT@("GDT",GREATEST_FOLLOWUP_DATE,TMGDFN)=""
+  ;"         @REFOUT@("NAME",TMGDFN")=PatientName
   ;"       SDT -- START DATE (FM FORMAT).  OPTIONAL.  If not provided, then earliest date is default
   ;"       EDT -- END DATE (FM FORMAT).  OPTIONAL.  If not provided, then latest possible date is default
   ;"       SCREEN -- MUMPS CODE.  See description in SCANALL()
@@ -627,22 +627,22 @@ SCANPT(DFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   ;"Result: 1^OK, or -1^Message
   NEW TMGRESULT SET TMGRESULT="1^OK"
   NEW TIUIEN,TIUDATE,TIUDOCIEN,ZN,SKIP
-  NEW NAME SET NAME=$$LJ^XLFSTR($PIECE($GET(^DPT(DFN,0)),"^",1),20," ")
-  SET @REFOUT@("NAME",DFN)=NAME
+  NEW NAME SET NAME=$$LJ^XLFSTR($PIECE($GET(^DPT(TMGDFN,0)),"^",1),20," ")
+  SET @REFOUT@("NAME",TMGDFN)=NAME
   SET SDT=+$GET(SDT),EDT=+$GET(EDT)
   IF EDT=0 SET EDT=9999999
   SET SCREEN=$GET(SCREEN)
-  IF SCREEN="" SET SCREEN="IF $$ACTIVEPT^TMGPXR03(DFN,3)<1 SET Y=-1"
+  IF SCREEN="" SET SCREEN="IF $$ACTIVEPT^TMGPXR03(TMGDFN,3)<1 SET Y=-1"
   NEW Y SET Y=1
   IF SCREEN'="" XECUTE SCREEN
   IF Y=-1 DO  GOTO SCPTDN
-  . SET @REFOUT@("INACTIVE",DFN)=NAME
+  . SET @REFOUT@("INACTIVE",TMGDFN)=NAME
   ;"NEW COMPIEN SET COMPIEN=+$ORDER(^TIU(8925.6,"B","COMPLETED",0))
   ;"IF COMPIEN'>0 DO  GOTO SCPTDN
   ;". SET TMGRESULT="-1^Unable to find IEN for 'COMPLETED' in file 8925.6"
   SET TIUIEN=0
-  FOR  SET TIUIEN=$ORDER(^TMG(22731,DFN,"DOC",TIUIEN)) QUIT:(TIUIEN'>0)!(+TMGRESULT'>0)  DO
-  . SET ZN=$GET(^TMG(22731,DFN,"DOC",TIUIEN,0))
+  FOR  SET TIUIEN=$ORDER(^TMG(22731,TMGDFN,"DOC",TIUIEN)) QUIT:(TIUIEN'>0)!(+TMGRESULT'>0)  DO
+  . SET ZN=$GET(^TMG(22731,TMGDFN,"DOC",TIUIEN,0))
   . SET TIUDATE=$PIECE(ZN,"^",4)
   . SET SKIP=0
   . IF (TIUDATE<SDT)!(TIUDATE>EDT) QUIT
@@ -650,10 +650,10 @@ SCANPT(DFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   . . IF $DATA(TITLEARR(TIUDOCIEN)) SET SKIP=0
   . . ELSE  SET SKIP=1
   . IF SKIP=1 QUIT  
-  . SET TMGRESULT=$$SCANNOTE(DFN,TIUIEN,REFOUT)
+  . SET TMGRESULT=$$SCANNOTE(TMGDFN,TIUIEN,REFOUT)
   . IF +TMGRESULT=0 SET TMGRESULT="1^OK"  ;"0 means nothing found.  That is not an error
   ;"SET TIUIEN=0
-  ;"FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",DFN,TIUIEN)) QUIT:(TIUIEN'>0)!(+TMGRESULT'>0)  DO
+  ;"FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:(TIUIEN'>0)!(+TMGRESULT'>0)  DO
   ;". SET ZN=$GET(^TIU(8925,TIUIEN,0))
   ;". SET TIUDATE=$PIECE(ZN,"^",7),TIUDOCIEN=$PIECE(ZN,"^",1)
   ;". SET SKIP=0
@@ -667,15 +667,15 @@ SCANPT(DFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   ;". IF +TMGRESULT=0 SET TMGRESULT="1^OK"  ;"0 means nothing found.  That is not an error
   IF +TMGRESULT'>0 GOTO SCPTDN
   NEW NOW SET NOW=$$NOW^XLFDT
-  NEW FUDATE SET FUDATE=+$GET(@REFOUT@("D",DFN))
+  NEW FUDATE SET FUDATE=+$GET(@REFOUT@("D",TMGDFN))
   IF FUDATE=0 GOTO SCPTDN
   IF FUDATE>NOW DO  
   . NEW DIFF SET DIFF=$J($$FMDIFF^XLFDT(FUDATE,NOW)/30,0,1) ;"round to 1 digit
-  . SET @REFOUT@("OK",DFN)=NAME_"^"_FUDATE_"^"_DIFF      
+  . SET @REFOUT@("OK",TMGDFN)=NAME_"^"_FUDATE_"^"_DIFF      
   ELSE  DO
   . NEW DIFF SET DIFF=$J($$FMDIFF^XLFDT(NOW,FUDATE)/30,0,1) ;"round to 1 digit
-  . SET @REFOUT@("DUE",DFN)=NAME_"^"_FUDATE_"^"_DIFF
-  SET @REFOUT@("GDT",FUDATE,DFN)=""  
+  . SET @REFOUT@("DUE",TMGDFN)=NAME_"^"_FUDATE_"^"_DIFF
+  SET @REFOUT@("GDT",FUDATE,TMGDFN)=""  
 SCPTDN ;  
   QUIT TMGRESULT
   ;"
@@ -709,18 +709,18 @@ SCTDN ;
 SCANALL(REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   ;"Purpose: Scan all patients during specified date range, and compile followup info
   ;"       REFOUT -- PASS BY NAME.  An OUT PARAMETER -- Format: 
-  ;"         @REFOUT@("INACTIVE",DFN)=<PATIENT NAME> <-- if inactive patient
-  ;"         @REFOUT@(DFN,TIUIEN,F/U_TEXT)=""
-  ;"         @REFOUT@(DFN,TIUIEN,F/U_FMDATE)=""  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
-  ;"     old-->   @REFOUT@("A",DFN,NOTE_TITLE_IEN,MOST_RECENT_REQUESTED_FOLLOWUP_FM_DATE)=""
-  ;"         @REFOUT@("B",DFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
-  ;"         @REFOUT@("C",DFN,NOTE_DATE)=FOLLOWUP_DATE
-  ;"         @REFOUT@("D",DFN)=GREATEST_FOLLOWUP_DATE
-  ;"         @REFOUT@("E",DFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
-  ;"         @REFOUT@("OK",DFN)=NAME^Upcoming FMDate^NumMonthsTillAppt      
-  ;"         @REFOUT@("DUE",DFN)=NAME^FOLLOW_UP_DATE^NumMonthsOverdue
-  ;"         @REFOUT@("GDT",GREATEST_FOLLOWUP_DATE,DFN)=""
-  ;"         @REFOUT@("NAME",DFN")=PatientName
+  ;"         @REFOUT@("INACTIVE",TMGDFN)=<PATIENT NAME> <-- if inactive patient
+  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_TEXT)=""
+  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_FMDATE)=""  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
+  ;"     old-->   @REFOUT@("A",TMGDFN,NOTE_TITLE_IEN,MOST_RECENT_REQUESTED_FOLLOWUP_FM_DATE)=""
+  ;"         @REFOUT@("B",TMGDFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
+  ;"         @REFOUT@("C",TMGDFN,NOTE_DATE)=FOLLOWUP_DATE
+  ;"         @REFOUT@("D",TMGDFN)=GREATEST_FOLLOWUP_DATE
+  ;"         @REFOUT@("E",TMGDFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
+  ;"         @REFOUT@("OK",TMGDFN)=NAME^Upcoming FMDate^NumMonthsTillAppt      
+  ;"         @REFOUT@("DUE",TMGDFN)=NAME^FOLLOW_UP_DATE^NumMonthsOverdue
+  ;"         @REFOUT@("GDT",GREATEST_FOLLOWUP_DATE,TMGDFN)=""
+  ;"         @REFOUT@("NAME",TMGDFN")=PatientName
   ;"       SDT -- START DATE (FM FORMAT).  OPTIONAL.  If not provided, then earliest date is default
   ;"       EDT -- END DATE (FM FORMAT).  OPTIONAL.  If not provided, then latest possible date is default
   ;"       SCREEN -- OPTIONAL.  Mumps code that can be used to screen each patient. Default is screen for active patients
@@ -749,12 +749,12 @@ SCANALL(REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   . SET TMGRESULT=$$SCANPT(TMGDFN,REFOUT,.SDT,.EDT,.SCREEN,.TITLEARR)
   QUIT TMGRESULT
   ;"
-DISPINFO(DFN,INFO) ;
+DISPINFO(TMGDFN,INFO) ;
   NEW NOTEDT,FUDT
-  WRITE $$LJ^XLFSTR($PIECE($GET(^DPT(DFN,0)),"^",1),20," ")," (",DFN,")",!
-  SET NOTEDT=0 FOR  SET NOTEDT=$ORDER(INFO("E",DFN,NOTEDT)) QUIT:+NOTEDT'>0  DO
-  . NEW FUDATE SET FUDATE=$ORDER(INFO("E",DFN,NOTEDT,"")) QUIT:FUDATE'>0
-  . NEW LINETEXT SET LINETEXT=$GET(INFO("E",DFN,NOTEDT,FUDATE))
+  WRITE $$LJ^XLFSTR($PIECE($GET(^DPT(TMGDFN,0)),"^",1),20," ")," (",TMGDFN,")",!
+  SET NOTEDT=0 FOR  SET NOTEDT=$ORDER(INFO("E",TMGDFN,NOTEDT)) QUIT:+NOTEDT'>0  DO
+  . NEW FUDATE SET FUDATE=$ORDER(INFO("E",TMGDFN,NOTEDT,"")) QUIT:FUDATE'>0
+  . NEW LINETEXT SET LINETEXT=$GET(INFO("E",TMGDFN,NOTEDT,FUDATE))
   . IF $LENGTH(LINETEXT)>60 SET LINETEXT=$EXTRACT(LINETEXT,1,60)_"..."
   . WRITE " Note on date: ",$$FMTE^XLFDT(NOTEDT,"1D")
   . WRITE " --> f/u due: ",$$FMTE^XLFDT(FUDATE,"1D"),!

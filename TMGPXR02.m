@@ -1,4 +1,4 @@
-TMGPXR02 ;TMG/kst/TMG Reminder Text Table stuff ;3/24/14, 10/10,17
+TMGPXR02 ;TMG/kst/TMG Reminder Text Table stuff ;3/24/14, 10/10/17, 3/24/21
          ;;1.0;TMG-LIB;**1**;3/24/13
  ;
  ;"TMG REMINDER FUNCTIONS
@@ -14,25 +14,25 @@ TMGPXR02 ;TMG/kst/TMG Reminder Text Table stuff ;3/24/14, 10/10,17
  ;"=======================================================================
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
- ;"RMDGTABL(DFN,LABEL) -- Get Reminder dialog type TIU Text Table
- ;"DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) -- Get Table, with options
- ;"GETTABLN(DFN,TABLENAME,ITEMNAME) -- GET ONE REMINDER TABLE LINE ENTRY
+ ;"RMDGTABL(TMGDFN,LABEL) -- Get Reminder dialog type TIU Text Table
+ ;"DOTABL(TMGDFN,LABEL,GICODE,OUTARR,OPTION) -- Get Table, with options
+ ;"GETTABLN(TMGDFN,TABLENAME,ITEMNAME) -- GET ONE REMINDER TABLE LINE ENTRY
  ;
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
  ;"=======================================================================
- ;"GETITEM(DFN,IEN,SUBIEN,SPACES,RESULT) -- Get a table item.(one line entry)
+ ;"GETITEM(TMGDFN,IEN,SUBIEN,SPACES,RESULT) -- Get a table item.(one line entry)
  ;
  ;"=======================================================================
  ;"Dependancies :
  ;"=======================================================================
  ;
-RMDGTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Reminder dialog type TIU Text Table
-        ;"Input: DFN -- IEN in PATIENT file
+RMDGTABL(TMGDFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Reminder dialog type TIU Text Table
+        ;"Input: TMGDFN -- IEN in PATIENT file
         ;"       LABEL -- This is the .01 field of the table (File# 22708) to create
         ;"       GICODE -- 'GET ITEM CODE'. OPTIONALS.  Default is "GETITEM"
         ;"                 This is mumps code to get an individual item.
-        ;"                 Must take following parametsrs FN(DFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR))
+        ;"                 Must take following parametsrs FN(TMGDFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR))
         ;"       OUTARR -- OPTIONAL.  PASS BY REFERENCE to get back array of data.  Format
         ;"                   OUTARR("KEY-VALUE",<LABEL>)=<VALUE>
         ;"                   OUTARR("KEY-VALUE",<LABEL>,"LINE")=<full text of line, with leading spaces>
@@ -41,14 +41,14 @@ RMDGTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Reminder dialog type TIU Text Tab
         ;"Result: returns string with embedded line-feeds to create text table.
         ;"//NOTE: This table is different from a reminder dialog in CPRS.  I can't recall now
         ;"        the thinking behind why this was called a reminder dialog type table. 10/2017
-        QUIT $$DOTABL(.DFN,.LABEL,.GICODE,.OUTARR,.OPTION)  ;"could send OPTION later if needed.
+        QUIT $$DOTABL(.TMGDFN,.LABEL,.GICODE,.OUTARR,.OPTION)  ;"could send OPTION later if needed.
         ; 
-DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
-        ;"Input: DFN -- IEN in PATIENT file
+DOTABL(TMGDFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
+        ;"Input: TMGDFN -- IEN in PATIENT file
         ;"       LABEL -- This is the .01 field of the table (File# 22708) to create
         ;"       GICODE -- 'GET ITEM CODE'. OPTIONALS.  Default is "GETITEM"
         ;"                 This is mumps code to get an individual item.
-        ;"                 Must take following parametsrs FN(DFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR))
+        ;"                 Must take following parametsrs FN(TMGDFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR))
         ;"       OUTARR -- OPTIONAL.  PASS BY REFERENCE to get back array of data.  Format
         ;"                   OUTARR("KEY-VALUE",<LABEL>)=<VALUE>
         ;"                   OUTARR("KEY-VALUE",<LABEL>,"LINE")=<full text of line, with leading spaces>
@@ -61,18 +61,18 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         NEW LINEDATA
         NEW DEBUG SET DEBUG=0 ;"Change at runtime IF needed.
         IF DEBUG=1 DO
-        . SET DFN=$GET(^TMG("TMP","REM DLG TABLE","DFN"))
+        . SET TMGDFN=$GET(^TMG("TMP","REM DLG TABLE","DFN"))
         . SET GICODE=$GET(^TMG("TMP","REM DLG TABLE","GICODE"))
         . SET LABEL=$GET(^TMG("TMP","REM DLG TABLE","LABEL"))
         . KILL OPTION MERGE OPTION=^TMG("TMP","REM DLG TABLE","OPTION")        
         ELSE  DO
         . KILL ^TMG("TMP","REM DLG TABLE")
-        . SET ^TMG("TMP","REM DLG TABLE","DFN")=$GET(DFN)
+        . SET ^TMG("TMP","REM DLG TABLE","DFN")=$GET(TMGDFN)
         . SET ^TMG("TMP","REM DLG TABLE","GICODE")=$GET(GICODE)
         . SET ^TMG("TMP","REM DLG TABLE","LABEL")=$GET(LABEL)
         . MERGE ^TMG("TMP","REM DLG TABLE","OPTION")=OPTION
         NEW RESULT SET RESULT=""
-        NEW AGE K VADM SET AGE=$$AGE^TIULO(DFN)
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
         SET GICODE=$GET(GICODE,"GETITEM")
         SET LABEL=$GET(LABEL,"<UNKNOWN>")
         NEW HEADERLN SET HEADERLN=$GET(OPTION("NO HEADER LINE"))'=1
@@ -115,7 +115,7 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         NEW KILLARR DO LOADKILL^TMGTIUO6(.KILLARR,LABEL)  ;"Get list of items to REMOVE from table. 
         SET IDX=0 FOR  SET IDX=$ORDER(ORDER(IDX)) QUIT:IDX=""  DO
         . NEW SUBIEN SET SUBIEN=ORDER(IDX)
-        . NEW TEMP,STR SET TEMP="S STR=$$"_GICODE_"(DFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR,.OPTION)"
+        . NEW TEMP,STR SET TEMP="S STR=$$"_GICODE_"(TMGDFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR,.OPTION)"
         . ;"NOTE: It is very complicated to figure out exactly when and where to ensure that 
         . ;"      items destined to be show in an HTML page are properly encoded.
         . ;"      So I am going to arbitrarily draw the line here.  
@@ -123,7 +123,7 @@ DOTABL(DFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         . ;"      HTML symbol encoded, AND have a trailing <BR>
         . ;"      This will likely break other things.  But at this point, I have a broken system,
         . ;"      and am doing this to get it back going again.
-        . XECUTE TEMP  ;"E.g. $$GETITEM(DFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR)
+        . XECUTE TEMP  ;"E.g. $$GETITEM(TMGDFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR)
         . FOR  QUIT:(STR="")  DO
         . . SET LINEDATA=$PIECE(STR,$CHAR(13),1)
         . . SET STR=$PIECE(STR,$CHAR(13),2,999)
@@ -149,8 +149,8 @@ DISABLED(TABLEIEN,SUBIEN)  ;"Is line item disabled?
         NEW ZN SET ZN=$GET(^TMG(22708,TABLEIEN,1,SUBIEN,0))
         QUIT ($PIECE(ZN,"^",11)="Y")
         ;
-GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
-        ;"Input: DFN -- IEN in PATIENT file
+GETITEM(TMGDFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
+        ;"Input: TMGDFN -- IEN in PATIENT file
         ;"       IEN -- IEN IN 22708
         ;"       SUBIEN -- IEN IN 22708.01 (ITEM multiple)
         ;"       MAXLEN -- Number indicating max allowed length of line. 
@@ -164,7 +164,7 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         ;"      lines can be separated by CR (#13)
         NEW ZZDEBUG SET ZZDEBUG=0 ;"Change at runtime IF needed.
         IF ZZDEBUG=1 DO
-        . SET DFN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","DFN"))
+        . SET TMGDFN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","DFN"))
         . SET IEN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","IEN"))
         . SET SUBIEN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","SUBIEN"))
         . SET MAXLEN=$GET(^TMG("TMP","REM DLG TABLE GET ITEM","MAXLEN"))
@@ -172,7 +172,7 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         . KILL OPTION MERGE OPTION=^TMG("TMP","REM DLG TABLE GET ITEM","OPTION")        
         ELSE  DO
         . KILL ^TMG("TMP","REM DLG TABLE GET ITEM")
-        . SET ^TMG("TMP","REM DLG TABLE GET ITEM","DFN")=$GET(DFN)
+        . SET ^TMG("TMP","REM DLG TABLE GET ITEM","DFN")=$GET(TMGDFN)
         . SET ^TMG("TMP","REM DLG TABLE GET ITEM","IEN")=$GET(IEN)
         . SET ^TMG("TMP","REM DLG TABLE GET ITEM","SUBIEN")=$GET(SUBIEN)
         . SET ^TMG("TMP","REM DLG TABLE GET ITEM","MAXLEN")=$GET(MAXLEN)
@@ -183,25 +183,25 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         NEW LIMITNUM SET LIMITNUM=+$PIECE(ZN,"^",4) IF LIMITNUM=0 SET LIMITNUM=1
         NEW SHOWNUL SET SHOWNUL=($PIECE(ZN,"^",5)="Y") ;"boolean
         NEW GENDER SET GENDER=$PIECE(ZN,"^",6)  ;"  0;6=GENDER SPECIFIC
-        IF GENDER'="" IF $PIECE($GET(^DPT(DFN,0)),"^",2)'=GENDER GOTO GIDN  ;"Skip IF wrong gender. 
+        IF GENDER'="" IF $PIECE($GET(^DPT(TMGDFN,0)),"^",2)'=GENDER GOTO GIDN  ;"Skip IF wrong gender. 
         NEW FOUNDARRAY,REFUSEDARRAY,FOLLOWUPARRAY,NETARRAY
         NEW ITEMIEN SET ITEMIEN=0  ;"--- Gather array of dates of findings        
         FOR  SET ITEMIEN=+$ORDER(^TMG(22708,IEN,1,SUBIEN,1,ITEMIEN)) QUIT:(ITEMIEN'>0)  DO
         . SET ZN=$GET(^TMG(22708,IEN,1,SUBIEN,1,ITEMIEN,0))
         . NEW VPTR SET VPTR=$PIECE(ZN,"^",1)
-        . DO GETVFIND(DFN,VPTR,LIMITNUM,.FOUNDARRAY)
+        . DO GETVFIND(TMGDFN,VPTR,LIMITNUM,.FOUNDARRAY)
         SET ITEMIEN=0  ;"--- Gather array of dates of refusal items.        
         FOR  SET ITEMIEN=+$ORDER(^TMG(22708,IEN,1,SUBIEN,2,ITEMIEN)) QUIT:(ITEMIEN'>0)  DO
         . SET ZN=$GET(^TMG(22708,IEN,1,SUBIEN,2,ITEMIEN,0))
         . NEW VPTR SET VPTR=$PIECE(ZN,"^",1)
-        . DO GETVFIND(DFN,VPTR,LIMITNUM,.REFUSEDARRAY)
+        . DO GETVFIND(TMGDFN,VPTR,LIMITNUM,.REFUSEDARRAY)
         SET ITEMIEN=0  ;"--- Gather array of dates of followup items.        
         FOR  SET ITEMIEN=+$ORDER(^TMG(22708,IEN,1,SUBIEN,3,ITEMIEN)) QUIT:(ITEMIEN'>0)  DO
         . SET ZN=$GET(^TMG(22708,IEN,1,SUBIEN,3,ITEMIEN,0))
         . NEW VPTR SET VPTR=$PIECE(ZN,"^",1)_";AUTTHF("
         . NEW TRIMPREFX SET TRIMPREFX=$PIECE(ZN,"^",2)
         . NEW TRIMLEN SET TRIMLEN=$LENGTH(TRIMPREFX)
-        . NEW TEMPARR DO GETVFIND(DFN,VPTR,LIMITNUM,.TEMPARR)
+        . NEW TEMPARR DO GETVFIND(TMGDFN,VPTR,LIMITNUM,.TEMPARR)
         . NEW IDX SET IDX=0 FOR  SET IDX=$ORDER(TEMPARR(IDX)) QUIT:IDX=""  DO
         . . NEW NAME SET NAME=$PIECE($GET(TEMPARR(IDX)),"^",1) QUIT:NAME=""
         . . IF $EXTRACT(NAME,1,TRIMLEN)=TRIMPREFX DO
@@ -261,9 +261,9 @@ GETITEM(DFN,IEN,SUBIEN,MAXLEN,OUTARR,OPTION) ;"Get a table item.
         . SET OUTARR("KEY-VALUE",NAME,"LINE")=RESULT
 GIDN    QUIT RESULT
         ;
-GETVFIND(DFN,VPTR,LIMITNUM,OUT) ;"Gather findings
+GETVFIND(TMGDFN,VPTR,LIMITNUM,OUT) ;"Gather findings
         ;"Purpose: For patient, gather dates when patient has finding matching VPTR
-        ;"Input: DFN -- IEN in PATIENT file
+        ;"Input: TMGDFN -- IEN in PATIENT file
         ;"       VPTR -- Text of variable ptr, e.g. '715;AUTTHF('
         ;"       LIMITNUM -- The max number of entries to return. 
         ;"       OUT -- PASS BY REFERENCE, an OUT PARAMETER.
@@ -281,7 +281,7 @@ GETVFIND(DFN,VPTR,LIMITNUM,OUT) ;"Gather findings
         ELSE  IF P2FILE="ICD9(" SET REF="POV",P2FILENUM=9000010.07 ;"POV Diagnosis
         IF REF="" GOTO GVFDN
         NEW REF0 SET REF0="^AUPNV"_REF
-        SET REF=REF0_"(""AA"","_DFN_","_P2IEN_")"  ;"all the V * have the same AA reference.
+        SET REF=REF0_"(""AA"","_TMGDFN_","_P2IEN_")"  ;"all the V * have the same AA reference.
         NEW IDT SET IDT=0
         FOR  SET IDT=$ORDER(@REF@(IDT)) QUIT:(+IDT'>0)!(LIMITNUM'>0)  DO
         . NEW SUBIEN SET SUBIEN=$ORDER(@REF@(IDT,0))
@@ -296,8 +296,8 @@ GETVFIND(DFN,VPTR,LIMITNUM,OUT) ;"Gather findings
         . SET LIMITNUM=LIMITNUM-1        
 GVFDN   QUIT
         ;
-GETTABLN(DFN,TABLENAME,ITEMNAME) ;"GET 1 TABLE LINE ENTRY
-        ;"Input: DFN -- IEN in PATIENT file
+GETTABLN(TMGDFN,TABLENAME,ITEMNAME) ;"GET 1 TABLE LINE ENTRY
+        ;"Input: TMGDFN -- IEN in PATIENT file
         ;"       TABLENAME -- NAME of table to pull from (TMG TIU PXRM TABLE, #22708)
         ;"       ITEMNAME -- ITEM name in table
         ;"Results: Returns text of line, or "" IF none, or problem.
@@ -309,7 +309,7 @@ GETTABLN(DFN,TABLENAME,ITEMNAME) ;"GET 1 TABLE LINE ENTRY
         IF MAXLEN'>0 SET MAXLEN=9999
         NEW SUBIEN SET SUBIEN=+$ORDER(^TMG(22708,IEN,1,"B",ITEMNAME,0))
         IF SUBIEN'>0 GOTO G1TLDN
-        SET DFN=+$GET(DFN) IF DFN'>0 DO G1TLDN
-        SET TMGRESULT=$$GETITEM(DFN,IEN,SUBIEN,MAXLEN) ;"Get a table item.                
+        SET TMGDFN=+$GET(TMGDFN) IF TMGDFN'>0 DO G1TLDN
+        SET TMGRESULT=$$GETITEM(TMGDFN,IEN,SUBIEN,MAXLEN) ;"Get a table item.                
 G1TLDN  QUIT TMGRESULT                
 

@@ -1,4 +1,4 @@
-TMGFIX4 ;TMG/kst/Fixes for converting old labs ; 9/16/13, 2/2/14
+TMGFIX4 ;TMG/kst/Fixes for converting old labs ; 9/16/13, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;9/16/13
  ;
  ;"FIXES related to TMG TIU PXRM TABLES
@@ -28,21 +28,21 @@ TMGFIX4 ;TMG/kst/Fixes for converting old labs ; 9/16/13, 2/2/14
  ;
 SCANALL(LABEL) ;"SCAN ALL PATIENTS (AND ALL NOTES FOR EACH PATIENT
         NEW STARTTIME SET STARTTIME=$H
-        NEW DFN SET DFN=1
+        NEW TMGDFN SET TMGDFN=1
         NEW MAXDFN SET MAXDFN=$ORDER(^DPT("@"),-1)
-        FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:+DFN'>0  DO
-        . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:+TMGDFN'>0  DO
+        . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         . IF $LENGTH(PTNAME)>20 SET PTNAME=$EXTRACT(PTNAME,1,20)
         . ELSE  SET PTNAME=$$LJ^XLFSTR(PTNAME,20," ")
-        . DO PROGBAR^TMGUSRI2(DFN,PTNAME_"("_DFN_")",0,MAXDFN,70,STARTTIME)
-        . NEW RESULT SET RESULT=$$SCANPT(DFN,LABEL,.ARRAY)
+        . DO PROGBAR^TMGUSRI2(TMGDFN,PTNAME_"("_TMGDFN_")",0,MAXDFN,70,STARTTIME)
+        . NEW RESULT SET RESULT=$$SCANPT(TMGDFN,LABEL,.ARRAY)
         . IF +RESULT'>0 DO  QUIT
         . . WRITE "PATIENT=",PTNAME,!
         . . WRITE "ERROR: ",$PIECE(RESULT,"^",2),!
         . IF $DATA(ARRAY)=0 QUIT
-        . SET RESULT=$$ARR2LABS(DFN,.ARRAY) ;"SAVE LABS.INTO FILE 63.04 IN 63
+        . SET RESULT=$$ARR2LABS(TMGDFN,.ARRAY) ;"SAVE LABS.INTO FILE 63.04 IN 63
         . IF +RESULT'>0 DO  QUIT
-        . . WRITE "PATIENT=",$PIECE($GET(^DPT(DFN,0)),"^",1),!
+        . . WRITE "PATIENT=",$PIECE($GET(^DPT(TMGDFN,0)),"^",1),!
         . . WRITE "ERROR: ",$PIECE(RESULT,"^",2),!
         QUIT
         ;
@@ -52,39 +52,39 @@ ASKSCAN(LABEL) ;"JUST SCAN IN 1 PROGRESS NOTE, THAT USER SELECTS.
 ASK1    SET DIC=8925,DIC(0)="MAEQ"
         DO ^DIC WRITE !
         SET IEN8925=+Y IF IEN8925'>0 GOTO ASKNDN
-        SET DFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
-        SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        SET TMGDFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
+        SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         IF $LENGTH(PTNAME)>20 SET PTNAME=$EXTRACT(PTNAME,1,20)
         ELSE  SET PTNAME=$$LJ^XLFSTR(PTNAME,20," ")
-        SET RESULT=$$SCNPTDOC(DFN,IEN8925,.LABEL,.ARRAY)
+        SET RESULT=$$SCNPTDOC(TMGDFN,IEN8925,.LABEL,.ARRAY)
         IF +RESULT'>0 DO  GOTO ASKNDN
         . WRITE "PATIENT=",PTNAME,!
         . WRITE "ERROR: ",$PIECE(RESULT,"^",2),!
         IF $DATA(ARRAY)=0 GOTO ASKNDN
-        SET RESULT=$$ARR2LABS(DFN,.ARRAY) ;"SAVE LABS.INTO FILE 63.04 IN 63
+        SET RESULT=$$ARR2LABS(TMGDFN,.ARRAY) ;"SAVE LABS.INTO FILE 63.04 IN 63
         IF +RESULT'>0 DO  GOTO ASKNDN
-        . WRITE "PATIENT=",$PIECE($GET(^DPT(DFN,0)),"^",1),!
+        . WRITE "PATIENT=",$PIECE($GET(^DPT(TMGDFN,0)),"^",1),!
         . WRITE "ERROR: ",$PIECE(RESULT,"^",2),!
         GOTO ASK1
 ASKNDN  QUIT
         ;
-SCANPT(DFN,LABEL,OUT) ;
+SCANPT(TMGDFN,LABEL,OUT) ;
         ;"Purpose: To scan all docucuments for a patient to retrieve all entries of a table.
-        ;"Input: DFN -- IEN 2 (patient)
+        ;"Input: TMGDFN -- IEN 2 (patient)
         ;"       LABEL -- the name of the table.  e.g. 'LIPIDS', or '[LIPIDS]'
         ;"       OUT -- PASS BY REFERENCE.  Filled with table(s).  Format
         ;"          Output is determined by PROCESS1() and MERGELIPD()
         ;"Result: 1^OK, or -1^Message
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW IEN8925 SET IEN8925=0
-        FOR  SET IEN8925=$ORDER(^TIU(8925,"C",DFN,IEN8925)) QUIT:(IEN8925'>0)!(+TMGRESULT'>0)  DO
-        . SET TMGRESULT=$$SCNPTDOC(.DFN,IEN8925,.LABEL,.OUT) ;
+        FOR  SET IEN8925=$ORDER(^TIU(8925,"C",TMGDFN,IEN8925)) QUIT:(IEN8925'>0)!(+TMGRESULT'>0)  DO
+        . SET TMGRESULT=$$SCNPTDOC(.TMGDFN,IEN8925,.LABEL,.OUT) ;
         DO MERGLBS(.OUT)
 SCPTDN  QUIT TMGRESULT
         ;
-SCNPTDOC(DFN,IEN8925,LABEL,OUT) ;
+SCNPTDOC(TMGDFN,IEN8925,LABEL,OUT) ;
         ;"Purpose: To scan specified docucument and patient to retrieve all entries of a table.
-        ;"Input: DFN -- IEN 2 (patient)
+        ;"Input: TMGDFN -- IEN 2 (patient)
         ;"       IEN8925 -- the document to scan
         ;"       LABEL -- the name of the table.  e.g. 'LIPIDS', or '[LIPIDS]'
         ;"       OUT -- PASS BY REFERENCE.  Filled with table(s).  Format
@@ -92,7 +92,7 @@ SCNPTDOC(DFN,IEN8925,LABEL,OUT) ;
         ;"Result: 1^OK, or -1^Message
         NEW TMGRESULT SET TMGRESULT="1^OK"
         SET IEN8925=+$GET(IEN8925)
-        SET DFN=+$GET(DFN) IF DFN'>0 DO  GOTO SCPTDDN
+        SET TMGDFN=+$GET(TMGDFN) IF TMGDFN'>0 DO  GOTO SCPTDDN
         . SET TMGRESULT="-1^No patient IEN provided"
         SET LABEL=$GET(LABEL) IF LABEL="" DO  GOTO SCPTDDN
         . SET TMGRESULT="-1^No table label provided"
@@ -209,7 +209,7 @@ PROCSTHY(ARRAY) ;"PROCESS ARRAY FOR THYROID
         IF DATEFOUND MERGE ARRAY=OUTARR
         IF $DATA(ARRAY)=0 DO
         . WRITE !,"Couldn't extract TSH information from the following array.   Why??",!
-        . WRITE "DFN=",$GET(DFN),!
+        . WRITE "DFN=",$GET(TMGDFN),!
         . WRITE "IEN8925=",$GET(IEN8925),!,!
         . IF $DATA(TEMPSAV) DO ZWRITE^TMGZWR("TEMPSAV")
         . DO PRESS2GO^TMGUSRI2
@@ -261,7 +261,7 @@ PROCSDM2(ARRAY) ;"PROCESS ARRAY FOR DIABETIC STUDIES
         IF DATEFOUND MERGE ARRAY=OUTARR
         IF $DATA(ARRAY)=0 DO
         . WRITE !,"Couldn't extract HgbA1c information from the following array.   Why??",!
-        . WRITE "DFN=",$GET(DFN),!
+        . WRITE "DFN=",$GET(TMGDFN),!
         . WRITE "IEN8925=",$GET(IEN8925),!,!
         . IF $DATA(TEMPSAV) DO ZWRITE^TMGZWR("TEMPSAV")
         . DO PRESS2GO^TMGUSRI2
@@ -280,25 +280,25 @@ MERGLBS(ARRAY) ;
         KILL ARRAY MERGE ARRAY=OUTARR
         QUIT
         ;
-CHGIMAGE(MAGIEN,DFN)  ;
+CHGIMAGE(MAGIEN,TMGDFN)  ;
         ;"Purpose: To redirect an image to a new patient
         ;"         This changes the name and the patient
         ;"Input: MAGIEN -- IEN of image
-        ;"       DFN -- IEN of patient
+        ;"       TMGDFN -- IEN of patient
         ;"Output: TMGRESULT="1^SUCCESS" or "-1^"Error Message
         SET TMGRESULT="1^SUCCESS"
         NEW PTNAME,PTSSN,ZN
-        SET ZN=$GET(^DPT(DFN,0))
+        SET ZN=$GET(^DPT(TMGDFN,0))
         SET PTNAME=$PIECE(ZN,"^",1)
         SET PTSSN=$PIECE(ZN,"^",9)
         SET $PIECE(^MAG(2005,MAGIEN,0),"^",1)=PTNAME_"    "_PTSSN
-        SET $PIECE(^MAG(2005,MAGIEN,0),"^",7)=DFN
+        SET $PIECE(^MAG(2005,MAGIEN,0),"^",7)=TMGDFN
 CIDN    QUIT TMGRESULT
  ;"==================================================================
  ;"==================================================================
         ;
-ARR2LABS(DFN,ARRAY) ;"SAVE LABS.INTO FILE 63.04 IN 63
-        ;"INPUT: DFN -- PATIENT IEN
+ARR2LABS(TMGDFN,ARRAY) ;"SAVE LABS.INTO FILE 63.04 IN 63
+        ;"INPUT: TMGDFN -- PATIENT IEN
         ;"       ARRAY -- PASS BY REFERENCE.  Format:
         ;"          ARRAY(FMDT,LAB)=VALUE
         ;"              LAB format:  'IEN60^Name', or
@@ -316,10 +316,10 @@ ARR2LABS(DFN,ARRAY) ;"SAVE LABS.INTO FILE 63.04 IN 63
         FOR  SET LAB=$ORDER(ARRAY(FMDT,LAB)) QUIT:LAB=""  DO
         . IF LAB="<IEN8925>" SET IEN8925=+$GET(ARRAY(FMDT,LAB)) QUIT
         . NEW IEN60 SET IEN60=+LAB
-        . DO GETVALS^TMGLRR01(DFN_"^2",IEN60,.PRIORLABS)
+        . DO GETVALS^TMGLRR01(TMGDFN_"^2",IEN60,.PRIORLABS)
         SET FMDT=0
         FOR  SET FMDT=+$ORDER(ARRAY(FMDT)) QUIT:(FMDT'>0)!(+TMGRESULT<1)  DO
-        . SET TMGRESULT=$$STOR1LAB(DFN,FMDT,.ARRAY,.PRIORLABS)
+        . SET TMGRESULT=$$STOR1LAB(TMGDFN,FMDT,.ARRAY,.PRIORLABS)
 A2LDN   QUIT TMGRESULT
         ;
 LABALRDY(FMDT,LAB,PRIORLABS) ;
@@ -338,7 +338,7 @@ LABALRDY(FMDT,LAB,PRIORLABS) ;
         . IF FMDT=ADT SET TMGRESULT=0 ;"If exactly same, allow rewriting of data.  TEMPORARY.
         QUIT TMGRESULT
         ;
-STOR1LAB(DFN,FMDT,ARRAY,PRIORLABS)  ;"STORE 1 LAB SET (ALL FROM 1 DATE)
+STOR1LAB(TMGDFN,FMDT,ARRAY,PRIORLABS)  ;"STORE 1 LAB SET (ALL FROM 1 DATE)
         ;"INPUT -- FMDT - DT in array to store
         ;"         ARRAY -- contains data to store
         ;"         ARRAY(FMDT,LAB)=VALUE
@@ -359,7 +359,7 @@ STOR1LAB(DFN,FMDT,ARRAY,PRIORLABS)  ;"STORE 1 LAB SET (ALL FROM 1 DATE)
         . SET TMGRESULT="-1^Unable to determine DIVISON for user #"_PROVIEN_" in file 200."
         NEW LABOUT,IDX SET IDX=0
         SET IDX=IDX+1,LABOUT(IDX)="<METADATA>"
-        SET IDX=IDX+1,LABOUT(IDX)="PATIENT = "_DFN
+        SET IDX=IDX+1,LABOUT(IDX)="PATIENT = "_TMGDFN
         SET IDX=IDX+1,LABOUT(IDX)="DT_TAKEN = "_FMDT
         SET IDX=IDX+1,LABOUT(IDX)="PROVIDER = "_PROVIEN
         SET IDX=IDX+1,LABOUT(IDX)="LOCATION = "_LOCIEN4

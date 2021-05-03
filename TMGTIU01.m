@@ -1,4 +1,4 @@
-TMGTIU01 ;TMG/kst-Misc TIU Related Fns;11/08/08, 2/2/14
+TMGTIU01 ;TMG/kst-Misc TIU Related Fns;11/08/08, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;11/08/08
  ;
  ;"Kevin Toppenberg MD
@@ -15,7 +15,7 @@ TMGTIU01 ;TMG/kst-Misc TIU Related Fns;11/08/08, 2/2/14
  ;"PUBLIC FUNCTIONS
  ;"---------------------------------------------------------------------------
  ;"ENSURVST(PATIENT,VISIT,CLINIC,DOCTOR) -- Ensure that patient has an entry in the VISIT file.
- ;"GETPCEI(.ARRAY,DFN,DT,LocIEN) -- Get Patient Care Event info for patient on given date.
+ ;"GETPCEI(.ARRAY,TMGDFN,DT,LocIEN) -- Get Patient Care Event info for patient on given date.
  ;
  ;"---------------------------------------------------------------------------
  ;"PRIVATE FUNCTIONS
@@ -24,11 +24,11 @@ TMGTIU01 ;TMG/kst-Misc TIU Related Fns;11/08/08, 2/2/14
  ;"---------------------------------------------------------------------------
  ;
 T1  ;
-        NEW DFN,IEN,Y,X,DIC
+        NEW TMGDFN,IEN,Y,X,DIC
         SET DIC=2,DIC(0)="MAEQ"
         DO ^DIC WRITE !
         IF +Y'>0 GOTO TDONE
-        SET DFN=+Y
+        SET TMGDFN=+Y
         ;
         NEW LOCIEN
         SET DIC=44 ;"hospital location
@@ -43,7 +43,7 @@ T1  ;
         SET SETDT=Y
         ;
         NEW ARRAY
-        DO GETPCEI(.ARRAY,DFN,SETDT,LOCIEN)
+        DO GETPCEI(.ARRAY,TMGDFN,SETDT,LOCIEN)
         IF $DATA(ARRAY) DO ZWRITE^TMGZWR("ARRAY")
         ;
 TDONE   QUIT
@@ -88,10 +88,10 @@ ENSURVST(PATIENT,VISIT,CLINIC,DOCTOR) ;
         ;
 EVDONE  QUIT RESULT
         ;
-GETPCEI(ARRAY,DFN,DT,LocIEN)  ;"GET PCE INFO
+GETPCEI(ARRAY,TMGDFN,DT,LocIEN)  ;"GET PCE INFO
         ;"Purpose: to get Patient Care Event info for patient on given date.
         ;"Input: ARRAY -- PASS BY REFERENCE, an OUT PARAMETER.  Prior data killed.
-        ;"       DFN -- the patient IEN
+        ;"       TMGDFN -- the patient IEN
         ;"       DT -- the Date of the visit in FM format.
         ;"       LocIEN -- the IEN in the HOSPITAL LOCATION file for the clinic.
         ;"Output: ARRAY is filled, format:
@@ -103,14 +103,14 @@ GETPCEI(ARRAY,DFN,DT,LocIEN)  ;"GET PCE INFO
         ;
         KILL ARRAY
         NEW VIEN SET VIEN=0
-        FOR  SET VIEN=$ORDER(^AUPNVSIT("C",DFN,VIEN)) QUIT:(+VIEN'>0)  DO
+        FOR  SET VIEN=$ORDER(^AUPNVSIT("C",TMGDFN,VIEN)) QUIT:(+VIEN'>0)  DO
         . NEW VDT SET VDT=$PIECE($GET(^AUPNVSIT(VIEN,0)),"^",1)
         . IF VDT'>0 QUIT
         . NEW %Y,X,X1,X2 SET X1=SETDT,X2=VDT
         . DO ^%DTC
         . IF (X'=0)!(%Y=0) QUIT
         . NEW TEMPARRAY
-        . DO PCE4NOTE^ORWPCE3(.TEMPARRAY,,DFN,LocIEN_";"_VDT)
+        . DO PCE4NOTE^ORWPCE3(.TEMPARRAY,,TMGDFN,LocIEN_";"_VDT)
         . MERGE ARRAY(VDT)=TEMPARRAY
         QUIT
         ;
@@ -184,20 +184,20 @@ POSTCODE(TMGRESULT,TMGIEN8925) ;
         SET TMGRESULT=$GET(^TIU(8925.1,TMGIEN8925D1,"TMGPSC"))
         QUIT
         ;"      
-GOODBP(DFN)  ;"
+GOODBP(TMGDFN)  ;"
         ;"Purpose: To determine if today's blood pressure is a good value
-        ;"Input: DFN - patient's IEN
+        ;"Input: TMGDFN - patient's IEN
         ;"Output: none
         ;"Result: empty if not found or statement to be dropped into note
         NEW TMGRESULT SET TMGRESULT=""        
         NEW TODAY DO NOW^%DTC SET TODAY=X
-        SET DFN=+$GET(DFN) IF DFN'>0 QUIT TMGRESULT
-        NEW AGE SET AGE=$$AGE^TIULO(DFN)
+        SET TMGDFN=+$GET(TMGDFN) IF TMGDFN'>0 QUIT TMGRESULT
+        NEW AGE SET AGE=$$AGE^TIULO(TMGDFN)
         IF AGE<65 QUIT TMGRESULT
         NEW BPIEN,ZN,BP,SYS,DIA
         SET BPIEN=$ORDER(^GMRD(120.51,"C","BP",0))
         NEW VITIEN SET VITIEN=0
-        FOR  SET VITIEN=$ORDER(^GMR(120.5,"C",DFN,VITIEN)) QUIT:VITIEN'>0  DO
+        FOR  SET VITIEN=$ORDER(^GMR(120.5,"C",TMGDFN,VITIEN)) QUIT:VITIEN'>0  DO
         . SET ZN=$GET(^GMR(120.5,VITIEN,0))
         . IF $PIECE(ZN,"^",3)=BPIEN DO
         . . IF $PIECE($PIECE(ZN,"^",1),".",1)=TODAY DO
@@ -223,11 +223,11 @@ UNLOCK(TIUIEN)  ;"
         LOCK ^TIU(8925,TIUIEN)
 UNLDN   QUIT
         ;"
-CANSIGN(TMGRESULT,DFN,TIUIEN) ;"
+CANSIGN(TMGRESULT,TMGDFN,TIUIEN) ;"
   ;"Purpose: Determine if a note can be signed.
   ;"Input: TMGRESULT(Output) - Either "1^CAN SIGN" if okay to sign
   ;"                                    "-1^"_'Message to be displayed' if not
-  ;"       DFN - Patient IEN
+  ;"       TMGDFN - Patient IEN
   ;"       TIUIEN - IEN of note to be checked
   SET TMGRESULT="1^CAN SIGN"
   NEW TMGERROR SET TMGERROR=""

@@ -1,4 +1,4 @@
-TMGKERN5 ;TMG/kst/OS Specific functions -- SMS Message ;12/8/14
+TMGKERN5 ;TMG/kst/OS Specific functions -- SMS Message ;12/8/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;12/5/14
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -16,7 +16,7 @@ TMGKERN5 ;TMG/kst/OS Specific functions -- SMS Message ;12/8/14
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"SMSSEND(ARRAY,STORE,LIVE) -- SEND SMS MESSAGE via FTP batch
- ;"SMSSEND1(NUMBER,MSG,DFN) -- SEND SMS MESSAGE via HTTP request
+ ;"SMSSEND1(NUMBER,MSG,TMGDFN) -- SEND SMS MESSAGE via HTTP request
  ;"SMSGTALL() -- Get all SMS messages
  ;"GETSMSID(DELFILE) -- GET SMS MESSAGEID OF MESSAGES BY FTP BATCH
  ;
@@ -117,11 +117,11 @@ SMSSDN ;
   . DO ALERTERR^TMGKERN5($PIECE(RESULT,"^",2))  
   QUIT
   ;
-SMSSEND1(NUMBER,MSG,DFN) ;"SEND SMS MESSAGE VIA HTTP REQUEST
+SMSSEND1(NUMBER,MSG,TMGDFN) ;"SEND SMS MESSAGE VIA HTTP REQUEST
   ;"Purpose: to send out SMS message via shell command
   ;"Input: NUMBER -- the phone number.  Must be FULL number, e.g. 14234445555
   ;"       MSG -- the message to send.  Must be < 160 characters.
-  ;"       DFN -- OPTIONAL.  If provided, used to track who message was sent to
+  ;"       TMGDFN -- OPTIONAL.  If provided, used to track who message was sent to
   ;"NOTICE: This sends out SMS messages one by one, via HTTP call achieved in 
   ;"       script 'sms_send_msg'. This method doesn't allow tracking of success of 
   ;"       message, so will change to alternative method (FTP upload).  
@@ -154,7 +154,7 @@ SMSSEND1(NUMBER,MSG,DFN) ;"SEND SMS MESSAGE VIA HTTP REQUEST
   SET STORE(ID,"DT")=$$NOW^XLFDT
   SET STORE(ID,"NUMBER")=NUMBER
   SET STORE(ID,"MSG")=MSG
-  DO NSURSSMS(.STORE,ID,"S",.DFN)
+  DO NSURSSMS(.STORE,ID,"S",.TMGDFN)
 SMSSDN0 ;
   QUIT
   ;
@@ -437,7 +437,7 @@ SMSRPT    ;" Print report for received SMS messages
   WRITE "                     " SET Y=X DO DD^%DT WRITE Y,!
   WRITE "************************************************************",!
   WRITE "                                            (From TMGKERN5.m)",!!
-  NEW PTNAME,DFN,IEN,SUBIEN,SENTDATE
+  NEW PTNAME,TMGDFN,IEN,SUBIEN,SENTDATE
   NEW DATE SET DATE=0
   FOR  SET DATE=$ORDER(^TMG("TMP","SMS",DATE)) QUIT:DATE'>0  DO
   . NEW ID SET ID=0
@@ -448,9 +448,9 @@ SMSRPT    ;" Print report for received SMS messages
   . . . SET SUBIEN=+$ORDER(^TMG(22724,"C",ID,IEN,0))
   . . . SET SENTDATE=$PIECE($GET(^TMG(22724,IEN,1,SUBIEN,0)),"^",1)
   . . . SET SUBIEN=SUBIEN-1
-  . . . SET DFN=+$PIECE($GET(^TMG(22724,IEN,1,SUBIEN,0)),"^",4)
-  . . . IF DFN>0 DO
-  . . . . SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)_" ("_PHONE_")"
+  . . . SET TMGDFN=+$PIECE($GET(^TMG(22724,IEN,1,SUBIEN,0)),"^",4)
+  . . . IF TMGDFN>0 DO
+  . . . . SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)_" ("_PHONE_")"
   . . . ELSE  DO
   . . . . SET PTNAME="** NAME NOT FOUND **  MOBILE NUMBER = "_PHONE
   . . . NEW MESSAGE SET MESSAGE=$ORDER(^TMG("TMP","SMS",DATE,ID,PHONE,""))

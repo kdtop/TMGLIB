@@ -1,4 +1,4 @@
-TMGHRPC3        ;TMG/elh/Support Functions for TMG_CPRS ;11/17/10; 11/17/10, 2/2/14
+TMGHRPC3        ;TMG/elh/Support Functions for TMG_CPRS ;11/17/10; 11/17/10, 2/2/14, 3/24/21
                 ;;1.0;TMG-LIB;**1**;10/17/10;Build 3
         ;
  ;
@@ -15,9 +15,9 @@ TMGHRPC3        ;TMG/elh/Support Functions for TMG_CPRS ;11/17/10; 11/17/10, 2/2
         ;"=======================================================================
         ;" RPC -- Public Functions.
         ;"=======================================================================
-        ;" GETKEENE(OUT,DFN)
-        ;" SETPERKN(OUT,DFN,ACCOUNT)
-        ;" SETADMKN(OUT,DFN,ACCOUNT,DATE)
+        ;" GETKEENE(OUT,TMGDFN)
+        ;" SETPERKN(OUT,TMGDFN,ACCOUNT)
+        ;" SETADMKN(OUT,TMGDFN,ACCOUNT,DATE)
         ;" EXISTFS(OUT)
         ;"=======================================================================
         ;"PRIVATE API FUNCTIONS
@@ -28,37 +28,37 @@ TMGHRPC3        ;TMG/elh/Support Functions for TMG_CPRS ;11/17/10; 11/17/10, 2/2
         ;" ;
         ;"=======================================================================
         ;
-GETKEENE(OUT,DFN)     ;
+GETKEENE(OUT,TMGDFN)     ;
         ;"
         ;"Purpose: To return the Intracare Keene Account Numbers, based on DFN
-        ;"Input: DFN - Patient's DFN number
+        ;"Input: TMGDFN - Patient's DFN number
         ;"Output: OUT - KEENE PERSONAL ACCT #^KEENE ADMISSION ACCT #^DATE OF ADMISSION^ICN Checksum
         ;"Results: none
         NEW IEN,ADMDATA,Y
         SET OUT=0
-        SET OUT=$GET(^DPT(DFN,"TMGZ"))  ;"GET PERSONAL ACCT NUMBER
-        SET IEN=$ORDER(^DPT(DFN,"TMGZ2","TMGKDT","Z"),-1) ;"GET LAST ADMISSION ENTRY DATE
+        SET OUT=$GET(^DPT(TMGDFN,"TMGZ"))  ;"GET PERSONAL ACCT NUMBER
+        SET IEN=$ORDER(^DPT(TMGDFN,"TMGZ2","TMGKDT","Z"),-1) ;"GET LAST ADMISSION ENTRY DATE
         IF IEN'="" DO
-        . SET IEN=$ORDER(^DPT(DFN,"TMGZ2","TMGKDT",IEN,0)) ;" GET IEN
-        . SET ADMDATA=$GET(^DPT(DFN,"TMGZ2",IEN,0))  ;"GET DATA
+        . SET IEN=$ORDER(^DPT(TMGDFN,"TMGZ2","TMGKDT",IEN,0)) ;" GET IEN
+        . SET ADMDATA=$GET(^DPT(TMGDFN,"TMGZ2",IEN,0))  ;"GET DATA
         . SET Y=$PIECE(ADMDATA,"^",2)
         . ;"X ^DD("DD")
         . SET OUT=OUT_"^"_$PIECE(ADMDATA,"^",1)_"^"_Y
         QUIT
        ;"
-GETICNCK(OUT,DFN)   ;
+GETICNCK(OUT,TMGDFN)   ;
         ;"
         ;"Purpose: To return the ICN ChecksuM, based on DFN
-        ;"Input: DFN - Patient's DFN number
+        ;"Input: TMGDFN - Patient's DFN number
         ;"Output: OUT - ICN Checksum or 0
         ;"Results: none
         NEW ICNCKSUM
-        SET OUT=+$PIECE($GET(^DPT(DFN,"MPI")),"^",2)
+        SET OUT=+$PIECE($GET(^DPT(TMGDFN,"MPI")),"^",2)
         QUIT
-SETPERKN(OUT,DFN,ACCOUNT)    ;
+SETPERKN(OUT,TMGDFN,ACCOUNT)    ;
         ;"
         ;"Purpose: To SET the Intracare Personal Static Keene Number
-        ;"Input: DFN - Patient's DFN
+        ;"Input: TMGDFN - Patient's DFN
         ;"       ACCOUNT - Keene account number
         ;"               - The account number is to be static, but the server assumes the client has
         ;"               - verified the change with the user.
@@ -66,22 +66,22 @@ SETPERKN(OUT,DFN,ACCOUNT)    ;
         ;"Results: OUT - 1^Successful or -1^Error Message
         SET OUT="1^SUCCESSFUL"
         NEW TMGFDA,TMGMSG
-        SET TMGFDA(2,DFN_",",19005.1)=ACCOUNT
+        SET TMGFDA(2,TMGDFN_",",19005.1)=ACCOUNT
         DO FILE^DIE("","TMGFDA","TMGMSG")
         QUIT
         ;"
-SETADMKN(OUT,DFN,ACCOUNT,DATE)    ;
+SETADMKN(OUT,TMGDFN,ACCOUNT,DATE)    ;
         ;"
         ;"Purpose: To SET the Intracare Admission Keene Number
-        ;"Input: DFN - Patient's DFN
+        ;"Input: TMGDFN - Patient's DFN
         ;"       ACCOUNT - Keene account number
         ;"       DATE - The Date of the Admission
         ;"Output: N/A
         ;"Results: OUT - 1^Successful or -1^Error Message
         SET OUT="1^SUCCESSFUL"
         NEW TMGFDA,TMGMSG,TMGIEN
-        SET TMGFDA(2.190052,"+1,"_DFN_",",.01)=ACCOUNT
-        SET TMGFDA(2.190052,"+1,"_DFN_",",1)=DATE
+        SET TMGFDA(2.190052,"+1,"_TMGDFN_",",.01)=ACCOUNT
+        SET TMGFDA(2.190052,"+1,"_TMGDFN_",",1)=DATE
         DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO  QUIT
         . SET OUT="-1^"_$$FMERRSTR(.TMGMSG)
@@ -101,4 +101,3 @@ HTMLFACE(TMGRESULT,PATIENTDFN) ;"
         SET TMGRESULT(1)="TEST<br>LINE 2"
         QUIT  
         ;"
-

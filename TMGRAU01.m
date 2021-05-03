@@ -1,4 +1,4 @@
-TMGRAU01 ;TMG/kst/Radiology report utilities; 11/1/16, 4/25/19
+TMGRAU01 ;TMG/kst/Radiology report utilities; 11/1/16, 4/25/19, 3/25/21
          ;;1.0;TMG-LIB;**1**;11/1/16
  ;
  ;"TMG RADIOLOGY REPORT FILING UTILITIES. 
@@ -14,15 +14,15 @@ TMGRAU01 ;TMG/kst/Radiology report utilities; 11/1/16, 4/25/19
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"REGEXAM(DFN,DATA)  -Register exam in RAD/NUC MED PATIENT file, #70, REGISTERED EXAMS subfile
- ;"ENSRADFN(DFN) --Ensure patient registered in RAD/NUC MED PATIENT file, #70
+ ;"REGEXAM(TMGDFN,DATA)  -Register exam in RAD/NUC MED PATIENT file, #70, REGISTERED EXAMS subfile
+ ;"ENSRADFN(TMGDFN) --Ensure patient registered in RAD/NUC MED PATIENT file, #70
  ;"STOREXAM(DATA) --Store exam report in file RAD/NUC MED REPORTS file, #74
  ;"GETPROC(CPT) --RETURN IEN IN 71 CORRESPONDING TO CPT
  ;"SNDALRTS(DATA) --Send one or more alerts, base on DATA array
  ;"SENDALRT(RADFN,IDT,IEN70D03) --Fire off OE/RR notifications, version 3.0+
  ;"SNDALRT2(RADFN,IDT,IEN70D03,RECIPS,OPTION)  ;
- ;"RPCALERT(OUT,RECIP,DFN,IDT,CASENUM,LEVEL,ADDEND)  -entry point for RPC: TMG CPRS IMAGING ALERT
- ;"GETRADFN(DFN)  
+ ;"RPCALERT(OUT,RECIP,TMGDFN,IDT,CASENUM,LEVEL,ADDEND)  -entry point for RPC: TMG CPRS IMAGING ALERT
+ ;"GETRADFN(TMGDFN)  
  ;"ASKDELRAD 
  ;"DELRAD(IENS)  
  ;"=======================================================================
@@ -31,8 +31,8 @@ TMGRAU01 ;TMG/kst/Radiology report utilities; 11/1/16, 4/25/19
  ;
  ;"=======================================================================
  ;
-REGEXAM(DFN,DATA)  ;"Register exam in RAD/NUC MED PATIENT file, #70, REGISTERED EXAMS subfile
-  ;"INPUT: DFN -- IEN in PATIENT file #2
+REGEXAM(TMGDFN,DATA)  ;"Register exam in RAD/NUC MED PATIENT file, #70, REGISTERED EXAMS subfile
+  ;"INPUT: TMGDFN -- IEN in PATIENT file #2
   ;"       DATA -- PASS BY REFERENCE.  FORMAT:
   ;"          DATA("DT")=FM format of date-time of study
   ;"          DATA("RDT")=Inverse of DT <-- an OUT PARAMETER
@@ -52,7 +52,7 @@ REGEXAM(DFN,DATA)  ;"Register exam in RAD/NUC MED PATIENT file, #70, REGISTERED 
   NEW TMGRESULT SET TMGRESULT=1
   NEW TMGRAQUIET SET TMGRAQUIET=1  ;"Use to shut down some console code in the RA* namespace (TMG modified)
   NEW TMGFDA,TMGIEN,TMGMSG,DIC,X,Y
-  NEW RADFN SET RADFN=$$ENSRADFN(.DFN)  ;"Ensure patient registered in RAD/NUC MED PATIENT file, #70
+  NEW RADFN SET RADFN=$$ENSRADFN(.TMGDFN)  ;"Ensure patient registered in RAD/NUC MED PATIENT file, #70
   IF RADFN'>0 SET TMGRESULT=RADFN GOTO REGDN
   SET DATA("RADFN")=RADFN
   NEW DIVIEN SET DIVIEN=$GET(DATA("DIV"))
@@ -125,28 +125,28 @@ REG2 ;"
 REGDN ;  
   QUIT TMGRESULT
   ;
-ENSRADFN(DFN)  ;"Ensure patient registered in RAD/NUC MED PATIENT file, #70
-  ;"Input: DFN -- pointer in PATIENT file, #2
+ENSRADFN(TMGDFN)  ;"Ensure patient registered in RAD/NUC MED PATIENT file, #70
+  ;"Input: TMGDFN -- pointer in PATIENT file, #2
   ;"Result: RADFN or -1^message if error
   NEW TMGRESULT 
-  SET DFN=+$GET(DFN)
-  IF DFN'>0 DO  GOTO ENSDN
-  . SET TMGRESULT="-1^No DFN provided, got ;"_$GET(DFN)_"]"
-  SET TMGRESULT=DFN
-  IF $DATA(^RADPT(DFN))>0 GOTO ENSDN  ;"ALREADY REGISTERED
+  SET TMGDFN=+$GET(TMGDFN)
+  IF TMGDFN'>0 DO  GOTO ENSDN
+  . SET TMGRESULT="-1^No DFN provided, got ;"_$GET(TMGDFN)_"]"
+  SET TMGRESULT=TMGDFN
+  IF $DATA(^RADPT(TMGDFN))>0 GOTO ENSDN  ;"ALREADY REGISTERED
   NEW TMGFDA,TMGMSG,TMGIEN
-  SET TMGFDA(70,"+1,",.01)=DFN
+  SET TMGFDA(70,"+1,",.01)=TMGDFN
   SET TMGFDA(70,"+1,",.04)="O"  ;"O=OUTPATIENT
   IF $GET(DUZ)>0 SET TMGFDA(70,"+1,",.06)=DUZ
-  SET TMGIEN(1)=DFN
+  SET TMGIEN(1)=TMGDFN
   DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO  GOTO ENSDN
   . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
 ENSDN ;  
   QUIT TMGRESULT
   ;
-STOREXAM(DFN,DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
-  ;"INPUT: DFN - PATIENT IEN
+STOREXAM(TMGDFN,DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
+  ;"INPUT: TMGDFN - PATIENT IEN
   ;"       DATA -- PASS BY REFERENCE.  FORMAT:
   ;"          DATA("DT")=FM format of date-time of study
   ;"          DATA("IEN70.02")=IEN of registered exams in 70.02. 
@@ -191,7 +191,7 @@ STOREXAM(DFN,DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
   . IF IEN74'>0 DO  QUIT:$DATA(DATA(IDX,"ERR"))
   . . KILL TMGFDA,TMGIEN,TMGMSG
   . . SET TMGFDA(74,"+1,",.01)=DTS
-  . . SET TMGFDA(74,"+1,",2)=DFN   ;"`"_DFN
+  . . SET TMGFDA(74,"+1,",2)=TMGDFN   ;"`"_TMGDFN
   . . SET TMGFDA(74,"+1,",3)=DATA("DT")  ;"EXAM DATE/TIME
   . . SET TMGFDA(74,"+1,",4)=DATA(IDX,"CASE#")
   . . SET TMGFDA(74,"+1,",5)="EF"  ;"ELECTRONICALLY FILED"  <--REPORT STATUS
@@ -279,7 +279,7 @@ SALTSDN ;
   QUIT TMGRESULT
   ;
 SENDALRT(RADFN,IDT,IEN70D03)  ;" Fire off OE/RR notifications, version 3.0+
-  ;" Input: RADFN:    Patient DFN (IEN IN RAD/NUC MED PATIENT)
+  ;" Input: RADFN:    Patient IEN (IEN IN RAD/NUC MED PATIENT)
   ;"        IDT:      Exam timestamp (inverse)  (IEN IN REGISTERED EXAMS 70.02)   
   ;"        IEN70D03: Exam IEN70.03 (EXMINATION SUBFILE)
   SET TMGRESULT="1^OK"
@@ -300,7 +300,7 @@ SADN ;
   QUIT TMGRESULT
   ;
 SNDALRT2(RADFN,IDT,IEN70D03,RECIPS,OPTION)  ;
-  ;" Input: RADFN:    Patient DFN (IEN IN RAD/NUC MED PATIENT)
+  ;" Input: RADFN:    Patient IEN (IEN IN RAD/NUC MED PATIENT)
   ;"        IDT:      Exam timestamp (inverse)  (IEN IN REGISTERED EXAMS 70.02)   
   ;"        IEN70D03: Exam IEN70.03 (EXMINATION SUBFILE)
   ;"        RECIPS:   PASS BY REFERENCE.  List of recipients of alert.  Format:
@@ -336,27 +336,27 @@ SNDALRT2(RADFN,IDT,IEN70D03,RECIPS,OPTION)  ;
 SA2DN ;  
   QUIT TMGRESULT
   ;
-RPCALERT(OUT,RECIP,DFN,IDT,CASENUM,LEVEL,ADDEND)  ;"entry point for RPC: TMG CPRS IMAGING ALERT
+RPCALERT(OUT,RECIP,TMGDFN,IDT,CASENUM,LEVEL,ADDEND)  ;"entry point for RPC: TMG CPRS IMAGING ALERT
   SET TMGRESULT="1^OK"
   NEW TMGZZDEBUG SET TMGZZDEBUG=0
   IF TMGZZDEBUG=1 DO
   . KILL RECIP MERGE RECIP=^TMP("RPCALERT","RECIP")
-  . SET DFN=$GET(^TMP("RPCALERT","DFN"))
+  . SET TMGDFN=$GET(^TMP("RPCALERT","DFN"))
   . SET IDT=$GET(^TMP("RPCALERT","IDT"))
   . SET CASENUM=$GET(^TMP("RPCALERT","CASENUM"))
   . SET LEVEL=$GET(^TMP("RPCALERT","LEVEL"))
   . SET ADDEND=$GET(^TMP("RPCALERT","ADDEND"))
   ELSE  DO
   . MERGE ^TMP("RPCALERT","RECIP")=RECIP
-  . SET ^TMP("RPCALERT","DFN")=DFN
+  . SET ^TMP("RPCALERT","DFN")=TMGDFN
   . SET ^TMP("RPCALERT","IDT")=IDT
   . SET ^TMP("RPCALERT","CASENUM")=CASENUM
   . SET ^TMP("RPCALERT","LEVEL")=LEVEL
   . SET ^TMP("RPCALERT","ADDEND")=ADDEND
   ;"
-  NEW RADFN SET RADFN=$$GETRADFN(.DFN)
+  NEW RADFN SET RADFN=$$GETRADFN(.TMGDFN)
   IF RADFN'>0 DO  GOTO RPADN
-  . SET TMGRESULT="-1^Unable to find RADFN from patient DFN ["_$GET(DFN)_"] in RPCALERT^TMGRAU01"
+  . SET TMGRESULT="-1^Unable to find RADFN from patient DFN ["_$GET(TMGDFN)_"] in RPCALERT^TMGRAU01"
   NEW IEN70D03 SET IEN70D03=$ORDER(^RADPT(RADFN,"DT",IDT,"P","B",+$GET(CASENUM),0))
   IF IEN70D03'>0 DO  GOTO RPADN
   . SET TMGRESULT="-1^Unable to to find study from case# ["_$GET(CASENUM)_"] in RPCALERT^TMGRAU01"
@@ -366,11 +366,11 @@ RPADN ;
   SET OUT(0)=TMGRESULT
   QUIT TMGRESULT
   ;
-GETRADFN(DFN)  ;"
+GETRADFN(TMGDFN)  ;"
   ;"Result: RADFN, or -1^Message
   ;"//use "B" index of ^RADPT  (file 70)
   ;"//e.g. 36378 --> RADFN = 36378
-  NEW TMGRESULT SET TMGRESULT=+$ORDER(^RADPT("B",+$GET(DFN),0))
+  NEW TMGRESULT SET TMGRESULT=+$ORDER(^RADPT("B",+$GET(TMGDFN),0))
   QUIT TMGRESULT
   ;
 ASKDELRAD ; "SEE ALSO ASKDELRAD^TMGLRWU3 (duplicate function)
@@ -379,6 +379,52 @@ ASKDELRAD ; "SEE ALSO ASKDELRAD^TMGLRWU3 (duplicate function)
   NEW TMGRESULT SET TMGRESULT=$$DELRAD(IENS)
   QUIT
   ;
+ASKDELRAD2 ;
+  NEW X,Y,DIC
+TML0 ;
+  SET DIC=2 ;' 2 is the patient file
+  SET DIC(0)="MAEQ" ;' Set flags
+  DO ^DIC ;' ^DIC is not the same as the file DIC
+  WRITE !
+  IF +Y'>0 QUIT ; Drop non-numeric part of return var Y
+  NEW TMGRADFN SET TMGRADFN=$$GETRADFN(+Y)
+  IF TMGRADFN'>0 QUIT
+  ;
+  NEW PNAME SET PNAME=$PIECE(Y,"^",2)
+  ;
+  NEW MENU,IDX,USRPICK,%
+TML1 ;
+  SET IDX=0
+  KILL MENU SET MENU(IDX)="Select study to delete for patient "_PNAME
+  ;
+  NEW RDT SET RDT=0
+  FOR  SET RDT=$ORDER(^RADPT(TMGRADFN,"DT",RDT)) QUIT:+RDT'>0  DO
+  . NEW IENS SET IENS=RDT_","_TMGRADFN_","
+  . NEW DATESTR SET DATESTR=$$GET1^DIQ(70.02,IENS,".01")
+  . ;
+  . NEW EXAMIEN SET EXAMIEN=0
+  . FOR  SET EXAMIEN=$ORDER(^RADPT(TMGRADFN,"DT",RDT,"P",EXAMIEN)) QUIT:EXAMIEN'>0  DO
+  . . NEW IENS2 SET IENS2=EXAMIEN_","_IENS
+  . . NEW CASESTR SET CASESTR=$$GET1^DIQ(70.03,IENS2,".01")
+  . . NEW DESCSTR SET DESCSTR=$$GET1^DIQ(70.03,IENS2,"2")
+  . . ;
+  . . NEW FULLSTR
+  . . SET FULLSTR=$$LJ^XLFSTR(DATESTR,22)_"CASE: "_$$LJ^XLFSTR(CASESTR,5)_"EXAM:"_DESCSTR
+  . . SET IDX=IDX+1,MENU(IDX)=FULLSTR_$CHAR(9)_IENS2
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  ;
+  IF USRPICK="^" GOTO TML0
+  WRITE "Are you sure you want to delete this entry"
+  DO YN^DICN WRITE !
+  IF %=-1 GOTO ADR2DONE
+  IF %'=1 GOTO TML1
+  DO DELRAD(USRPICK)
+  GOTO TML1
+  ;
+ADR2DONE ;
+  QUIT
+  ;
+
 DELRAD(IENS)  ;"Delete a radiology study.  
   ;"PURPOSE: Remove from REGISTERED EXAMS in file 70, and also remove linked report file 74
   ;"Input: IENS -- an IENS for 70.03 (inside, 70.02, inside 70)
@@ -428,16 +474,16 @@ TEST  ;
   SET DATA(1,"HX",1)="Patient is very sick"  
   SET DATA(1,"HX",2)="Recent back pain."  
   SET DATA(1,"STATUS")="2^COMPLETE"  
-  NEW DFN SET DFN=75282  ;"zztest,strange
-  NEW TMGRESULT SET TMGRESULT=$$REGEXAM(DFN,.DATA)
+  NEW TMGDFN SET TMGDFN=75282  ;"zztest,strange
+  NEW TMGRESULT SET TMGRESULT=$$REGEXAM(TMGDFN,.DATA)
   IF TMGRESULT<0 WRITE !,TMGRESULT,! GOTO TESTDN
   SET TMGRESULT=$$STOREXAM(.DATA)
 TESTDN ;  
   QUIT
   ;
 TEST2 ;Test RPC getting back results of a LIST OF TESTS.
-  NEW ROOT,TMGOUT,DFN SET DFN=75282  ;"zztest,strange
-  DO EXAMS^ORWRA(.ROOT,DFN)
+  NEW ROOT,TMGOUT,TMGDFN SET TMGDFN=75282  ;"zztest,strange
+  DO EXAMS^ORWRA(.ROOT,TMGDFN)
   MERGE TMGOUT=@ROOT
   KILL @ROOT
   IF $DATA(TMGOUT) ZWR TMGOUT(*)
@@ -448,7 +494,7 @@ TEST2 ;Test RPC getting back results of a LIST OF TESTS.
   NEW EXAMID SET EXAMID=$PIECE(STR,"^",1)_"#"_$PIECE(STR,"^",4)
   NEW ALPHA SET ALPHA=0
   NEW OMEGA SET OMEGA=0
-  DO RPT^ORWRP(.ROOT,DFN,RPTID,HSTYPE,DTRANGE,EXAMID,ALPHA,OMEGA)
+  DO RPT^ORWRP(.ROOT,TMGDFN,RPTID,HSTYPE,DTRANGE,EXAMID,ALPHA,OMEGA)
   KILL TMGOUT
   MERGE TMGOUT=@ROOT
   KILL @ROOT

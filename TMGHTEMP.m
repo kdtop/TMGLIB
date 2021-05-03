@@ -1,4 +1,4 @@
-TMGHTEMP ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14
+TMGHTEMP ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;7/20/12
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -19,7 +19,7 @@ PULLTIU()    ;
         DO ^%ZIS
         IF POP DO  GOTO PTIUDN
         USE IO
-        NEW DFN SET DFN=1
+        NEW TMGDFN SET TMGDFN=1
         NEW DFNARRAY
         NEW NOTEIEN SET NOTEIEN=1
         NEW ARRAY,NAME
@@ -28,11 +28,11 @@ PULLTIU()    ;
         FOR  SET NOTEIEN=$ORDER(^TIU(8925,NOTEIEN)) QUIT:(NOTEIEN="")  DO
         . IF $PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",7)>3130101  DO
         . . SET DFNARRAY($PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",2))=""
-        FOR  SET DFN=$ORDER(DFNARRAY(DFN)) QUIT:(DFN="")  DO
-        . DO GETSPECL^TMGTIUO4(DFN,"STUDIES","BLANK_LINE",99,.ARRAY,1,"")
+        FOR  SET TMGDFN=$ORDER(DFNARRAY(TMGDFN)) QUIT:(TMGDFN="")  DO
+        . DO GETSPECL^TMGTIUO4(TMGDFN,"STUDIES","BLANK_LINE",99,.ARRAY,1,"")
         . IF $DATA(ARRAY) DO
-        . . SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-        . . ;WRITE "***********",$PIECE($GET(^DPT(DFN,0)),"^",1),"************",!
+        . . SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        . . ;WRITE "***********",$PIECE($GET(^DPT(TMGDFN,0)),"^",1),"************",!
         . . ;IF $DATA(ARRAY("KEY-VALUE","TDAP / TD","LINE")) DO
         . . ;. IF $GET(ARRAY("KEY-VALUE","TDAP / TD","LINE"))["13" DO
         . . ;. . WRITE NAME," HAS HAD TDAP.",!
@@ -57,32 +57,32 @@ PULLPED()     ;
         DO ^%ZIS
         IF POP DO  GOTO PPDN
         USE IO
-        NEW DFN SET DFN=1
+        NEW TMGDFN SET TMGDFN=1
         NEW DFNARRAY
         NEW NOTEIEN SET NOTEIEN=1
         NEW ARRAY,NAME
         NEW LINE SET LINE=0
         ;GET LIST OF PATIENTS SEEN THIS YEAR
-        NEW DOB,DFN
+        NEW DOB,TMGDFN
         FOR  SET NOTEIEN=$ORDER(^TIU(8925,NOTEIEN)) QUIT:(NOTEIEN="")  DO
         . IF $PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",7)>3110101  DO
-        . . SET DFN=$PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",2)
-        . . IF DFN'="" DO
-        . . . SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+        . . SET TMGDFN=$PIECE($GET(^TIU(8925,NOTEIEN,0)),"^",2)
+        . . IF TMGDFN'="" DO
+        . . . SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
         . . . IF DOB>(DT-0180000)  DO  ;IF THE DOB IS LESS THAN TODAY - 18 YEARS
-        . . . . SET DFNARRAY(DFN)=""
+        . . . . SET DFNARRAY(TMGDFN)=""
         ;QUIT
-        SET DFN=0
+        SET TMGDFN=0
         NEW PTDATA,AGE,Y,RESULT
         WRITE "                      Report: Pediatric Studies Table",!
         WRITE "                                From PULLPED^TMGHTEMP",!
-        FOR  SET DFN=$ORDER(DFNARRAY(DFN)) QUIT:(DFN="")  DO
-        . SET RESULT=$$GETTABLX^TMGTIUO6(DFN,"STUDIES",.ARRAY)
-        . SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        FOR  SET TMGDFN=$ORDER(DFNARRAY(TMGDFN)) QUIT:(TMGDFN="")  DO
+        . SET RESULT=$$GETTABLX^TMGTIUO6(TMGDFN,"STUDIES",.ARRAY)
+        . SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         . IF NAME["ZZ" QUIT
-        . DO SELECT^ORWPT(.PTDATA,DFN)
+        . DO SELECT^ORWPT(.PTDATA,TMGDFN)
         . SET AGE=$PIECE(PTDATA,"^",15)
-        . SET Y=$PIECE($GET(^DPT(DFN,0)),"^",3)
+        . SET Y=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
         . DO DD^%DT
         . WRITE "------------------ "_NAME_" ("_Y_" - "_AGE_"y)-------------------",!
         . IF $DATA(RESULT) DO
@@ -111,9 +111,9 @@ REMPTRPT()  ;Prints report of all patients due for a given reminder
 GETPTLST(OUTARRAY)   ;
         ;Purpose: Gather list of patients to run report on
         ;MERGE OUTARRAY=^DPT("B")
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:(+DFN'>0)  DO
-        . SET OUTARRAY(DFN)=""
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . SET OUTARRAY(TMGDFN)=""
         QUIT
 RUNRPT(RESULTARR,PTARRAY,IEN,DATE)  ;Prints reminder report to specified device
         ;Purpose: Runs TESTREM^TMGRPC3G for all patients with given criteria
@@ -122,17 +122,17 @@ RUNRPT(RESULTARR,PTARRAY,IEN,DATE)  ;Prints reminder report to specified device
         ;        DATE - Test date (internal format)
         ;Output: Prints to device
         ;Result: Array containing RESULT^LastGiven(External Format)  
-        ;        (e.g. Result(DFN)="N/A^^") 
-        ;        (e.g. Result(DFN)="DONE^04/03/2017^04/02/2013")
-        ;        (e.g. Result(DFN)="DUE NOW^DUE NOW^unknown")
-        NEW DFN SET DFN=0
+        ;        (e.g. Result(TMGDFN)="N/A^^") 
+        ;        (e.g. Result(TMGDFN)="DONE^04/03/2017^04/02/2013")
+        ;        (e.g. Result(TMGDFN)="DUE NOW^DUE NOW^unknown")
+        NEW TMGDFN SET TMGDFN=0
         NEW PXRHM SET PXRHM=5
         NEW PATLIST,TMGRESULT
-        FOR  SET DFN=$ORDER(PTARRAY(DFN)) QUIT:DFN=""  DO
-        . ;WRITE DFN
-        . SET TMGRESULT=$$DOREM(DFN,IEN,PXRHM,DATE)
+        FOR  SET TMGDFN=$ORDER(PTARRAY(TMGDFN)) QUIT:TMGDFN=""  DO
+        . ;WRITE TMGDFN
+        . SET TMGRESULT=$$DOREM(TMGDFN,IEN,PXRHM,DATE)
         . ;WRITE " - ",TMGRESULT,!
-        . SET RESULTARR(DFN)=TMGRESULT
+        . SET RESULTARR(TMGDFN)=TMGRESULT
         QUIT
         ;
 CMOUT()        ;Do formatted Clinical Maintenance output.
@@ -145,14 +145,14 @@ CMOUT()        ;Do formatted Clinical Maintenance output.
         S LAST=$$EDATE^PXRMDATE($P(TEMP,U,3))
         Q STATUS_"^"_DUE_"^"_LAST
         ;
-DOREM(DFN,PXRMITEM,PXRMHM,DATE)        ;Do the reminder
+DOREM(TMGDFN,PXRMITEM,PXRMHM,DATE)        ;Do the reminder
         N DEFARR,FIEVAL,FINDING,PXRMDEBG,PXRMID,REF,TFIEVAL
         NEW TMGRESULT
         ;This is a debugging run so SET PXRMDEBG.
         S PXRMDEBG=1
         D DEF^PXRMLDR(PXRMITEM,.DEFARR)
-        I +$G(DATE)=0 D EVAL^PXRM(DFN,.DEFARR,PXRHM,1,.FIEVAL)
-        I +$G(DATE)>0 D EVAL^PXRM(DFN,.DEFARR,PXRHM,1,.FIEVAL,DATE)
+        I +$G(DATE)=0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL)
+        I +$G(DATE)>0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL,DATE)
         ;
         I $D(^TMP("PXRMFFDEB",$J)) M FIEVAL=^TMP("PXRMFFDEB",$J) K ^TMP("PXRMFFDEB",$J)
         ;

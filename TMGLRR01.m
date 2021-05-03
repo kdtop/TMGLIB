@@ -1,4 +1,4 @@
-TMGLRR01 ;TMG/kst-Entry point for reading from LAB DATA file ;12/28/14, 4/1/18
+TMGLRR01 ;TMG/kst-Entry point for reading from LAB DATA file ;12/28/14, 4/1/18, 3/24/21
               ;;1.0;TMG-LIB;**1**;8/14/13
  ;
  ;"TMG LAB RESULTS STORAGE API
@@ -22,7 +22,7 @@ TMGLRR01 ;TMG/kst-Entry point for reading from LAB DATA file ;12/28/14, 4/1/18
  ;"=======================================================================
  ;" API - Private Functions
  ;"=======================================================================
- ;"GETLRDFN(DFN) -- CONVERT DFN (IEN IN 2)--> LRRDFN (IEN IN 63)
+ ;"GETLRDFN(TMGDFN) -- CONVERT DFN (IEN IN 2)--> LRRDFN (IEN IN 63)
  ;"GETDFN(LRDFN) -- CONVERT LRRDFN (IEN IN 63) --> DFN (IEN IN 2) 
  ;"GETSTORE(IEN60) ;"Get storage field in subfile 63.04 in 63
  ;"
@@ -37,7 +37,7 @@ TESTGVLS ;
         DO ^DIC WRITE !
         ;"SET Y=164
         IF +Y'>0 GOTO TGVLDN
-        NEW DFN SET DFN=+Y_"^2"
+        NEW TMGDFN SET TMGDFN=+Y_"^2"
         SET DIC=60
         ;"DO ^DIC WRITE !
         ;"IF +Y'>0 GOTO TGVLDN
@@ -46,7 +46,7 @@ TESTGVLS ;
         NEW OPTION 
         SET OPTION("SHOW DATE")=1
         SET OPTION("MAX CT")=3
-        DO GFRMTLAB(DFN,IEN60,.OUT,.OPTION)
+        DO GFRMTLAB(TMGDFN,IEN60,.OUT,.OPTION)
         IF $DATA(OUT) DO ZWRITE^TMGZWR("OUT")
 TGVLDN  QUIT
         ;
@@ -237,10 +237,10 @@ GETDFN(LRDFN) ;"CONVERT LRRDFN (IEN IN 63) --> DFN (IEN IN 2)
         NEW TMGRESULT SET TMGRESULT=+$ORDER(^DPT("ATMGLR",LRDFN,0))
         QUIT TMGRESULT
         ;
-GETLRDFN(DFN) ;"CONVERT DFN (IEN IN 2)--> LRRDFN (IEN IN 63)
+GETLRDFN(TMGDFN) ;"CONVERT DFN (IEN IN 2)--> LRRDFN (IEN IN 63)
         ;"Result: IEN in file 63, or 0 IF not found
-        SET DFN=+$GET(DFN)
-        NEW TMGRESULT SET TMGRESULT=+$GET(^DPT(DFN,"LR"))
+        SET TMGDFN=+$GET(TMGDFN)
+        NEW TMGRESULT SET TMGRESULT=+$GET(^DPT(TMGDFN,"LR"))
         QUIT TMGRESULT
         ;
 GETSTORE(IEN60) ;"Get storage field in subfile 63.04 in 63

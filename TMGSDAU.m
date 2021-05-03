@@ -1,4 +1,4 @@
-TMGSDAU  ;TMG/kst/Schedule Availability Utilities ;1/06/09, 2/2/14
+TMGSDAU  ;TMG/kst/Schedule Availability Utilities ;1/06/09, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;12/08/08
  ;
  ;"TMG SCHEDULING AVAILIBILITY UTILITIES
@@ -331,9 +331,9 @@ NONAPPT(TMGIEN,APPT)
         ;"       APPT -- FMDateTime of appointment
         ;"Result: 0 IF appt is active, 1 IF cancelled etc.
         NEW TMGRESULT SET TMGRESULT=1  ;"Default to cancelled.
-        NEW DFN SET DFN=+$PIECE($GET(^SC(TMGIEN,"S",APPT,1,1,0)),"^",1) ;"Patient IEN
-        IF DFN'>0 SET TMGRESULT=-1 GOTO NADONE
-        NEW STATUS SET STATUS=$PIECE($GET(^DPT(DFN,"S",APPT,0)),"^",2)  ;"Status field
+        NEW TMGDFN SET TMGDFN=+$PIECE($GET(^SC(TMGIEN,"S",APPT,1,1,0)),"^",1) ;"Patient IEN
+        IF TMGDFN'>0 SET TMGRESULT=-1 GOTO NADONE
+        NEW STATUS SET STATUS=$PIECE($GET(^DPT(TMGDFN,"S",APPT,0)),"^",2)  ;"Status field
         IF STATUS="" SET TMGRESULT=0
 NADONE  QUIT TMGRESULT
         ;

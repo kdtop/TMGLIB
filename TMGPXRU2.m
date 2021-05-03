@@ -1,4 +1,4 @@
-TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;3/8/16
+TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;3/8/16, 3/24/21
          ;;1.0;TMG-LIB;**1**;3/8/16
  ;
  ;"TMG REMINDER FUNCTIONS
@@ -14,7 +14,7 @@ TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;3/8/16
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"DOREM(OUTPUT,DFN,PXRMITEM,PXRHM,DATE)-- Evaluate a reminder
+ ;"DOREM(OUTPUT,TMGDFN,PXRMITEM,PXRHM,DATE)-- Evaluate a reminder
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
@@ -24,7 +24,7 @@ TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;3/8/16
  ;"
  ;"=======================================================================
  ;
-DOREM(OUTPUT,DFN,PXRMITEM,PXRHM,DATE)	;"Evaluate a reminder
+DOREM(OUTPUT,TMGDFN,PXRMITEM,PXRHM,DATE)	;"Evaluate a reminder
   ;"NOTE: This was copied from DOREM^PXRMDEV, so it could be modified.  
 	N BOP,DEFARR,FIEVAL,FINDING,IND,JND,NL,NOUT,PNAME
 	N PXRMDEBG,PXRMDEFS,PXRMID
@@ -34,8 +34,8 @@ DOREM(OUTPUT,DFN,PXRMITEM,PXRHM,DATE)	;"Evaluate a reminder
 	S NL=$ORDER(OUTPUT(""))+1
 	S PXRMDEBG=1
 	D DEF^PXRMLDR(PXRMITEM,.DEFARR)
-	I +$G(DATE)=0 D EVAL^PXRM(DFN,.DEFARR,PXRHM,1,.FIEVAL)
-	I +$G(DATE)>0 D EVAL^PXRM(DFN,.DEFARR,PXRHM,1,.FIEVAL,DATE)
+	I +$G(DATE)=0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL)
+	I +$G(DATE)>0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL,DATE)
 	;
 	I $D(^TMP(PXRMID,$J,"FFDEB")) M FIEVAL=^TMP(PXRMID,$J,"FFDEB") K ^TMP(PXRMID,$J,"FFDEB")
 	;
@@ -43,7 +43,7 @@ DOREM(OUTPUT,DFN,PXRMITEM,PXRHM,DATE)	;"Evaluate a reminder
 	S PNAME=$P(TTEXT,U,2)
 	I PNAME="" S PNAME=$P(TTEXT,U,1)
 	S NL=NL+1,OUTPUT(NL)="Reminder: "_PNAME
-	S NL=NL+1,OUTPUT(NL)="Patient: "_$$GET1^DIQ(2,DFN,.01)
+	S NL=NL+1,OUTPUT(NL)="Patient: "_$$GET1^DIQ(2,TMGDFN,.01)
 	S NL=NL+1,OUTPUT(NL)=" "
 	S NL=NL+1,OUTPUT(NL)="The elements of the FIEVAL array are:"
 	S REF="FIEVAL"

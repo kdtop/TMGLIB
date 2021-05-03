@@ -1,4 +1,4 @@
-TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18
+TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;4/11/17
  ;
  ;"Eddie Hagood
@@ -15,8 +15,8 @@ TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18
  ;"=======================================================================
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
- ;"LASTTIU(DFN,SRCHTEXT)  -- FIND LAST NOTE WITH HPI SECTION
- ;"LASTHPI(DFN) -- Return the last HPI section, with processing, formatting etc.
+ ;"LASTTIU(TMGDFN,SRCHTEXT)  -- FIND LAST NOTE WITH HPI SECTION
+ ;"LASTHPI(TMGDFN) -- Return the last HPI section, with processing, formatting etc.
  ;"GETHPI(IEN8925) -- Get HPI section as one long string, with processing, formatting etc.              
  ;"
  ;"=======================================================================
@@ -41,7 +41,10 @@ TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18
 TESTLHPI ;
         NEW X,Y,DIC SET DIC(0)="MAEQ",DIC=2
         DO ^DIC QUIT:+Y'>0
-        WRITE $$LASTHPI(+Y,1)
+        NEW % SET %=2
+        WRITE !,"CONSIDER AWV VISIT" DO YN^DICN WRITE !
+        IF %=-1 QUIT
+        WRITE $$LASTHPI(+Y,%=1)
         QUIT
         ;
 T2()    ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
@@ -50,10 +53,10 @@ T2()    ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
         NEW OPTION SET OPTION("FORCE PROCESS")=1
         QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.OPTION)
         ;       
-LASTHPI(DFN,AWV)  ;"Return the last HPI section, with processing, formatting etc.
+LASTHPI(TMGDFN,AWV)  ;"Return the last HPI section, with processing, formatting etc.
         ;"FIND LAST NOTE WITH HPI SECTION
         ;"ADDED AWV AS AN OPTION TO BE USED WHEN COMPILING THE HPI, TO REORDER DIFFERENTLY
-        NEW TIULASTOV SET TIULASTOV=$$LASTTIU(DFN,"HISTORY OF PRESENT ILLNESS (HPI):")
+        NEW TIULASTOV SET TIULASTOV=$$LASTTIU(TMGDFN,"HISTORY OF PRESENT ILLNESS (HPI):")
         IF TIULASTOV=0 QUIT ""           
         NEW ITEMARRAY,OUT  ;"<-- For now, these arrays are not being used.  
         ;"NOTE: The processing done in $$GETHPI below will probably be later
@@ -66,11 +69,11 @@ LASTHPI(DFN,AWV)  ;"Return the last HPI section, with processing, formatting etc
         SET OPTION("AWV")=+$G(AWV)
         QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.OPTION)
         ;                   
-LASTTIU(DFN,SRCHTEXT)  ;
+LASTTIU(TMGDFN,SRCHTEXT)  ;
         ;"FIND LAST NOTE WITH HPI SECTION
         NEW TIUIEN SET TIUIEN=9999999
         NEW TIULASTOV SET TIULASTOV=0
-        FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",DFN,TIUIEN),-1) QUIT:(TIUIEN'>0)!(TIULASTOV'=0)  DO
+        FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",TMGDFN,TIUIEN),-1) QUIT:(TIUIEN'>0)!(TIULASTOV'=0)  DO
         . NEW IDX SET IDX=0
         . IF $P($G(^TIU(8925,TIUIEN,0)),"^",5)'=7 QUIT ;"ONLY USE SIGNED DOCS
         . NEW TEXT SET TEXT=""
@@ -91,9 +94,9 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
         NEW TMGHPI SET TMGHPI=""
         NEW TIUARRAY,PROCESSEDARR,IDX SET IDX=0
-        NEW DFN SET DFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
-        SET TIUARRAY("DFN")=DFN
-        SET ITEMARRAY("DFN")=DFN  ;"5/30/19
+        NEW TMGDFN SET TMGDFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
+        SET TIUARRAY("DFN")=TMGDFN
+        SET ITEMARRAY("DFN")=TMGDFN  ;"5/30/19
         FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
         . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
         DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
@@ -118,20 +121,20 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"          ITEMARRAY(Ref#,#)=different parts of section
         ;"          ITEMARRAY("TEXT",Ref#)=Title of section  
         ;"          ITEMARRAY("TEXT",Ref#,#)=sequential parts of section  
-        ;"             ITEMARRAY("TEXT",3)="Dyspepsia"  
-        ;"             ITEMARRAY("TEXT",3,1)=part 1, e.g. text, e.g. [GROUP A&B]
-        ;"                ITEMARRAY("TEXT",3,1)="[GROUP]"
-        ;"                ITEMARRAY("TEXT",3,1,"GROUP")="A&B"
-        ;"                ITEMARRAY("TEXT",3,1,"GROUP","LIST","A&B")=""
-        ;"             ITEMARRAY("TEXT",3,2)=part 2, e.g. name of inline table
-        ;"                ITEMARRAY("TEXT",3,2)="[TABLE]"  <-- signal this part is a table. 
-        ;"                ITEMARRAY("TEXT",3,2,"TABLE")=WT   <-- WT is name of table
-        ;"                ITEMARRAY("TEXT",3,2,"TEXT")=<TEXT OF TABLE>
-        ;"                ITEMARRAY("TEXT",3,2,"INLINE")=0 or 1        
-        ;"            ITEMARRAY("TEXT",Ref#,3)=part 3, e.g. more text
-        ;"            ITEMARRAY("TEXT",Ref#,4)=part 4, e.g. name of table  
-        ;"            ITEMARRAY("TEXT",Ref#,"GROUPX",#)=""  <-- index of GROUP nodes
-        ;"            ITEMARRAY("TEXT",Ref#,"TABLEX",#)=""  <-- index of TABLE nodes        
+        ;"          ITEMARRAY("TEXT",3)="Dyspepsia"  
+        ;"          ITEMARRAY("TEXT",3,1)=part 1, e.g. text, e.g. [GROUP A&B]
+        ;"          ITEMARRAY("TEXT",3,1)="[GROUP]"
+        ;"          ITEMARRAY("TEXT",3,1,"GROUP")="A&B"
+        ;"          ITEMARRAY("TEXT",3,1,"GROUP","LIST","A&B")=""
+        ;"          ITEMARRAY("TEXT",3,2)=part 2, e.g. name of inline table
+        ;"          ITEMARRAY("TEXT",3,2)="[TABLE]"  <-- signal this part is a table. 
+        ;"          ITEMARRAY("TEXT",3,2,"TABLE")=WT   <-- WT is name of table
+        ;"          ITEMARRAY("TEXT",3,2,"TEXT")=<TEXT OF TABLE>
+        ;"          ITEMARRAY("TEXT",3,2,"INLINE")=0 or 1        
+        ;"          ITEMARRAY("TEXT",Ref#,3)=part 3, e.g. more text
+        ;"          ITEMARRAY("TEXT",Ref#,4)=part 4, e.g. name of table  
+        ;"          ITEMARRAY("TEXT",Ref#,"GROUPX",#)=""  <-- index of GROUP nodes
+        ;"          ITEMARRAY("TEXT",Ref#,"TABLEX",#)=""  <-- index of TABLE nodes        
         ;"       OPTION -PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
         ;"          OPTION("AUTOGROUPING") = 0 OR 1
         ;"          OPTION("NUMOFGROUPS") =
@@ -289,9 +292,9 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
         . SET IDX=IDX+1
         IF CONTRAFOUND=0 DO
-        . NEW DFN SET DFN=+$G(ITEMARRAY("DFN"))
-        . NEW AGE K VADM SET AGE=+$$AGE^TIULO(DFN)
-        . NEW GENDER SET GENDER=$P($G(^DPT(DFN,0)),"^",2)
+        . NEW TMGDFN SET TMGDFN=+$G(ITEMARRAY("DFN"))
+        . NEW AGE K VADM SET AGE=+$$AGE^TIULO(TMGDFN)
+        . NEW GENDER SET GENDER=$P($G(^DPT(TMGDFN,0)),"^",2)
         . IF (GENDER="F")&(AGE>14)&(AGE<56) DO  ;"if contraception section not found for females between 15-55
         . . SET ITEMARRAY(IDX)="<U>Contraception</U>: (data needed)"
         . . SET ITEMARRAY("TEXT",IDX)="Contraception"
@@ -613,6 +616,20 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
         . . . SET SEQARR(3)=IDX
         . . ELSE  DO
         . . . SET CT=CT+1,SEQARR(CT)=IDX
+        . ;
+        . ;" Move Prevention bullet to last position //kt 3/31/21
+        . ;" This is already done in GTSQ1AR for notes with groups
+        . NEW IDX SET IDX=0
+        . NEW DONE SET DONE=0
+        . FOR  SET IDX=$ORDER(SEQARR(IDX)) QUIT:(IDX'>0)!(AWV=1)!(DONE=1)  DO
+        . . NEW JDX SET JDX=$GET(SEQARR(IDX)) QUIT:JDX'>0
+        . . NEW TOPIC SET TOPIC=$GET(ITEMARRAY("TEXT",JDX))
+        . . SET TOPIC=$$UP^XLFSTR(TOPIC)
+        . . IF TOPIC'="PREVENTION" QUIT
+        . . KILL SEQARR(IDX)
+        . . NEW LAST SET LAST=$ORDER(SEQARR(""),-1)
+        . . SET SEQARR(LAST+1)=JDX
+        . . SET DONE=1 ;"This lets us quit the for loop without looping back to Prevention at the SEQARR's end
         QUIT
         ;
 GETFIRST(ITEMARRAY)  ;"This function is used when no group is listed in the

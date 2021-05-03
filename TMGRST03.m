@@ -1,4 +1,4 @@
-TMGRST03 ;TMG/kst/REST web service; 3/3/15
+TMGRST03 ;TMG/kst/REST web service; 3/3/15, 3/24/21
        ;;1.0;TMG-LIB;**1**;3/3/15
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -12,7 +12,7 @@ TMGRST03 ;TMG/kst/REST web service; 3/3/15
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"MAKEURL(DFN)  -- Assemble URL to return to CPRS to get page generated here. 
+ ;"MAKEURL(TMGDFN)  -- Assemble URL to return to CPRS to get page generated here. 
  ;"DATA(RESULT,ARGS) -- assemble web page
  ; 
  ;"=======================================================================
@@ -20,13 +20,13 @@ TMGRST03 ;TMG/kst/REST web service; 3/3/15
  ;"=======================================================================
  ;"HFSROOT() --Get the hard coded root in the HFS to the folder holding 'data'
  ;"GETHDR(OUT,RTN)  
- ;"GETBODY(OUT,DFN)
+ ;"GETBODY(OUT,TMGDFN)
  ;"GETFTR(OUT)
- ;"PREPRCLK(OUTARR,DFN) --Prep listing of record links 
- ;"ADDTABLE(OUT,DFN)  
+ ;"PREPRCLK(OUTARR,TMGDFN) --Prep listing of record links 
+ ;"ADDTABLE(OUT,TMGDFN)  
  ;"ADDROW(OUT,DATA1,DATA2,ISROWEVEN,INDENT)  ;
- ;"PATH4DFN(OUT,DFN) -- Get one or more filepaths for patient name, including aliases
- ;"GETNAMES(OUT,DFN) --Get prepped names, including aliases
+ ;"PATH4DFN(OUT,TMGDFN) -- Get one or more filepaths for patient name, including aliases
+ ;"GETNAMES(OUT,TMGDFN) --Get prepped names, including aliases
  ;"PREPNAME(NAME,OUTLNAME,OUTFNAME) 
  ;"PATH4NAM(OUT,LNAME,FNAME,FMDOB) -- Get one or more filepaths for patient name
  ;"GRPNAME(LNAME) -- Get group directory name
@@ -41,8 +41,8 @@ TMGRST03 ;TMG/kst/REST web service; 3/3/15
  ;"Uses: XLFSTR, TMGKERNL 
  ;"=======================================================================
  ;
-MAKEURL(DFN)  ;"
-  QUIT "Old Recs^http://192.168.3.99:9080/data/"_DFN
+MAKEURL(TMGDFN)  ;"
+  QUIT "Old Recs^http://192.168.3.99:9080/data/"_TMGDFN
   ;"
 HFSROOT(DIR)  ;"Get the hard coded root in the HFS to the folder holding 'data'
   IF DIR="" SET DIR="oldrecs"
@@ -65,13 +65,13 @@ DATA(RESULT,ARGS) ; GET Mumps Routine   ;"Modified from R^%W0
   . MERGE ^TMG("TMP","TMGRST03","HTTPREQ")=HTTPREQ
   ;
   NEW TMGINDENTLEN SET TMGINDENTLEN=2  ;"Will be used in global scope by event handlers below
-  NEW DFN SET DFN=+$PIECE($GET(HTTPREQ("path")),"/data/",2)
-  IF DFN'>0 QUIT  
+  NEW TMGDFN SET TMGDFN=+$PIECE($GET(HTTPREQ("path")),"/data/",2)
+  IF TMGDFN'>0 QUIT  
   NEW OUT 
   KILL RESULT SET RESULT=$NAME(^TMP($J))
   KILL @RESULT
   DO GETHDR(.OUT,"SCANNED RECORDS")
-  DO GETBODY(.OUT,DFN) 
+  DO GETBODY(.OUT,TMGDFN) 
   DO GETFTR(.OUT) 
   SET RESULT("mime")="text/html; charset=utf-8"
   MERGE @RESULT=OUT
@@ -87,9 +87,9 @@ GETHDR(OUT,RTN)  ;
   DO ADDLN(.OUT,"<body>")
   QUIT
   ;
-GETBODY(OUT,DFN) ;
+GETBODY(OUT,TMGDFN) ;
   NEW NAMES
-  DO GETNAMES(.NAMES,DFN) ;"Get prepped names, including aliases
+  DO GETNAMES(.NAMES,TMGDFN) ;"Get prepped names, including aliases
   NEW FIRST SET FIRST=1
   NEW ANAME SET ANAME=""
   FOR  SET ANAME=$ORDER(NAMES(ANAME)) QUIT:ANAME=""  DO
@@ -99,12 +99,12 @@ GETBODY(OUT,DFN) ;
   . DO ADDLN(.OUT,LINE_"<BR>")
   . SET FIRST=0
   DO ADDLN(.OUT,"<P>")
-  DO ADDTABLE(.OUT,DFN)  
+  DO ADDTABLE(.OUT,TMGDFN)  
   DO ADDLN(.OUT,"<P>")
   QUIT
   ;
-ADDTABLE(OUT,DFN)  ;
-  NEW ARR DO PREPRCLK(.ARR,DFN)  ;"Prep listing of links to records...
+ADDTABLE(OUT,TMGDFN)  ;
+  NEW ARR DO PREPRCLK(.ARR,TMGDFN)  ;"Prep listing of links to records...
   DO ADDLN(.OUT,"<table>")
   DO ADDLN(.OUT,"  <caption>Old Scanned Records to View</caption>")
   DO ADDLN(.OUT,"  <tr>")
@@ -133,13 +133,13 @@ GETFTR(OUT)
   DO ADDLN(.OUT,"</html>")
   QUIT                    
   ;
-PREPRCLK(OUTARR,DFN)  ;"Prep listing of record links 
+PREPRCLK(OUTARR,TMGDFN)  ;"Prep listing of record links 
   ;"Input: OUTARR -- AN OUT PARAMETER.  PASS BY REFERENCE.  Format:
   ;"            OUTARR(FMDT,URLPATH^FILENAME)=""
-  ;"       DFN -- PATIENT IEN
+  ;"       TMGDFN -- PATIENT IEN
   ;"       DIR -- DIRECTORY TO CHECK
   ;"RESULTS: NONE
-  NEW PATHS DO PATH4DFN(.PATHS,DFN)   ;"Get one or more filepaths for patient name, including aliases
+  NEW PATHS DO PATH4DFN(.PATHS,TMGDFN)   ;"Get one or more filepaths for patient name, including aliases
   NEW APATH SET APATH=""
   FOR  SET APATH=$ORDER(PATHS(APATH)) QUIT:APATH=""  DO
   . NEW HFSPATH SET HFSPATH=$$HFSROOT()_APATH
@@ -173,26 +173,26 @@ ADDROW(OUT,DATA1,DATA2,ISROWEVEN,INDENT)  ;
   DO ADDLN(.OUT,INDENT_"</tr>")
   QUIT
   ;
-PATH4DFN(OUT,DFN,DIR)   ;"Get one or more filepaths for patient name, including aliases
+PATH4DFN(OUT,TMGDFN,DIR)   ;"Get one or more filepaths for patient name, including aliases
   ;"Input: OUT -- PASS BY REFERENCE, an OUT PARAMETER.  Format:
   ;"        OUT(<full filepath>)=""
-  ;"       DFN -- PATIENT IEN
-  NEW FMDOB SET FMDOB=$PIECE($GET(^DPT(DFN,0)),"^",3)\1
-  NEW NAMES DO GETNAMES(.NAMES,DFN)
+  ;"       TMGDFN -- PATIENT IEN
+  NEW FMDOB SET FMDOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)\1
+  NEW NAMES DO GETNAMES(.NAMES,TMGDFN)
   NEW ANAME SET ANAME=""
   FOR  SET ANAME=$ORDER(NAMES(ANAME)) QUIT:ANAME=""  DO
   . NEW FNAME,LNAME DO PREPNAME(ANAME,.LNAME,.FNAME)
   . DO PATH4NAM(.OUT,LNAME,FNAME,FMDOB,DIR)  ;"Get one or more filepaths for patient name  
   QUIT
   ;
-GETNAMES(OUT,DFN) ;"Get prepped names, including aliases
+GETNAMES(OUT,TMGDFN) ;"Get prepped names, including aliases
   ;"Input: OUT -- AN OUT PARAMETER.  Format:
   ;"         OUT(FullPatientName)=""  <-- not prepped. 
-  NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+  NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
   SET OUT(NAME)=""
   NEW IDX SET IDX=0
-  FOR  SET IDX=$ORDER(^DPT(DFN,.01,IDX)) QUIT:+IDX'>0  DO
-  . NEW ALIAS SET ALIAS=$PIECE($GET(^DPT(DFN,.01,IDX,0)),"^",1)
+  FOR  SET IDX=$ORDER(^DPT(TMGDFN,.01,IDX)) QUIT:+IDX'>0  DO
+  . NEW ALIAS SET ALIAS=$PIECE($GET(^DPT(TMGDFN,.01,IDX,0)),"^",1)
   . SET OUT(ALIAS)=""
   QUIT
   ;

@@ -1,4 +1,4 @@
-TMGSRCH2 ;TMG/kst/Search API ; 6/19/10, 2/2/14, 2/15/15
+TMGSRCH2 ;TMG/kst/Search API ; 6/19/10, 2/2/14, 2/15/15, 3/24/21
         ;;1.0;TMG-LIB;**1**;06/19/10
         ;
  ;"TMG Search only in TIU documents for 1 patient
@@ -14,7 +14,7 @@ TMGSRCH2 ;TMG/kst/Search API ; 6/19/10, 2/2/14, 2/15/15
  ;"=======================================================================
  ;" RPC -- Public Functions.
  ;"=======================================================================
- ;"LAUNCHSR(DFN,TMGSRCH) --Launch background task to achieve search
+ ;"LAUNCHSR(TMGDFN,TMGSRCH) --Launch background task to achieve search
  ;"STATUS() -- Get status of background searching task
  ;"RESULTS(OUT) -- get result from background search
  ;"CLEAR -- Tell background task to stop, and clear data array
@@ -22,10 +22,10 @@ TMGSRCH2 ;TMG/kst/Search API ; 6/19/10, 2/2/14, 2/15/15
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
- ;"CHNGSRCH(BKJOB,DFN,TMGSRCH) -- tell background task to change search parameters
+ ;"CHNGSRCH(BKJOB,TMGDFN,TMGSRCH) -- tell background task to change search parameters
  ;"MSG(BKJOB,MSG) -- Purpose to message background task
- ;"SRCHTIU(DFN,TMGSRCH,PARENTJOB) -- search all of one patient's documents for requested words
- ;"PREPSRCH(PARENTJOB,DFN,TMGSRCH,WORDS,IENLIST) -- Parse search phrase, user prior runs IF possible.
+ ;"SRCHTIU(TMGDFN,TMGSRCH,PARENTJOB) -- search all of one patient's documents for requested words
+ ;"PREPSRCH(PARENTJOB,TMGDFN,TMGSRCH,WORDS,IENLIST) -- Parse search phrase, user prior runs IF possible.
  ;"PARSSRCH(TMGSRCH,WORDS) -- Separate search phrase out into array of words
  ;"SRCH1TIU(PARENTJOB,IEN,TERM) -- Search TIU DOCUMENT report text for TERM
  ;"=======================================================================
@@ -34,9 +34,9 @@ TMGSRCH2 ;TMG/kst/Search API ; 6/19/10, 2/2/14, 2/15/15
  ;"=======================================================================
  ;"=======================================================================
  ;
-LAUNCHSR(DFN,TMGSRCH) ;
+LAUNCHSR(TMGDFN,TMGSRCH) ;
         ;"Purpose: Launch background task to achieve search
-        ;"Input: DFN -- The patient IEN to look up.
+        ;"Input: TMGDFN -- The patient IEN to look up.
         ;"       TMGSRCH -- Search string.  Notes:
         ;"             Each word (or partial word) to look up is separated by spaces
         ;"             All words are combined in AND fashion
@@ -46,15 +46,15 @@ LAUNCHSR(DFN,TMGSRCH) ;
         NEW THISJOB SET THISJOB=$J
         NEW STATUS SET STATUS=$GET(^TMG("TMP","SEARCH","SRCHTIU",THISJOB,"MSG"))
         IF STATUS="BKGND RUNNING" DO
-        . DO CHNGSRCH(DFN,TMGSRCH)
+        . DO CHNGSRCH(TMGDFN,TMGSRCH)
         ELSE  DO
         . NEW DEBUG SET DEBUG=0
         . IF DEBUG=0 DO   ;"Can be changed when stepping through code.
         . . KILL ^TMG("TMP","SEARCH","SRCHTIU",THISJOB)
-        . . JOB SRCHTIU(DFN,TMGSRCH,THISJOB)
+        . . JOB SRCHTIU(TMGDFN,TMGSRCH,THISJOB)
         . . SET ^TMG("TMP","SEARCH","SRCHTIU",THISJOB,"BACKGROUND")=$ZJOB
         . ELSE  DO
-        . . DO SRCHTIU(DFN,TMGSRCH,THISJOB)
+        . . DO SRCHTIU(TMGDFN,TMGSRCH,THISJOB)
         QUIT
         ;
         ;
@@ -99,9 +99,9 @@ STOP    ;"Purpose: Tell background task to stop searching
         QUIT
         ;
         ;
-CHNGSRCH(DFN,TMGSRCH) ;CHANGE SEARCH
+CHNGSRCH(TMGDFN,TMGSRCH) ;CHANGE SEARCH
         ;"Purpose: to tell background task to change search parameters
-        DO MSG("RESTART^"_DFN_"^"_TMGSRCH)
+        DO MSG("RESTART^"_TMGDFN_"^"_TMGSRCH)
         QUIT
         ;
         ;
@@ -112,9 +112,9 @@ MSG(MSG) ;
         ;
         ;
  ;"==========================================================================
-SRCHTIU(DFN,TMGSRCH,PARENTJOB) ;
+SRCHTIU(TMGDFN,TMGSRCH,PARENTJOB) ;
         ;"Purpose: To search all of one patient's documents for requested words
-        ;"Input: DFN -- The patient IEN to look up.
+        ;"Input: TMGDFN -- The patient IEN to look up.
         ;"       TMGSRCH -- Search string.  Notes:
         ;"             Each word (or partial word) to look up is separated by spaces
         ;"             All words are combined in AND fashion
@@ -147,11 +147,11 @@ SRCHTIU(DFN,TMGSRCH,PARENTJOB) ;
         ;
         NEW ABORT,IEN,IENLIST
         NEW DEBUGI SET DEBUGI=0
-        SET DFN=+$GET(DFN)
+        SET TMGDFN=+$GET(TMGDFN)
         SET TMGSRCH=$GET(TMGSRCH)
         NEW REF SET REF=$NAME(^TMG("TMP","SEARCH","SRCHTIU",PARENTJOB))
 L1      SET @REF@("MSG")="BKGND RUNNING"
-        DO PREPSRCH(PARENTJOB,DFN,TMGSRCH,.WORDS,.IENLIST)
+        DO PREPSRCH(PARENTJOB,TMGDFN,TMGSRCH,.WORDS,.IENLIST)
         SET ABORT=0
         NEW TERMCT,TERM
         FOR TERMCT=1:1 SET TERM=$GET(WORDS(TERMCT)) QUIT:(TERM="")!ABORT  DO
@@ -185,11 +185,11 @@ L1      SET @REF@("MSG")="BKGND RUNNING"
         QUIT  ;"This will cause thie JOB'd task to exit and stop execution
         ;
         ;
-PREPSRCH(PARENTJOB,DFN,TMGSRCH,WORDS,IENLIST) ;
+PREPSRCH(PARENTJOB,TMGDFN,TMGSRCH,WORDS,IENLIST) ;
         ;"Purpose: To Parse the search phrase, and look for prior runs, and use
         ;"         that work IF possible.
         ;"Input: PARENTJOB -- the job of the RPCBroker task that called this.
-        ;"       DFN -- The patient IEN to look up.
+        ;"       TMGDFN -- The patient IEN to look up.
         ;"       TMGSRCH -- The Search Phrase.  See docs in SRCHTIU
         ;"            e.g: 'dog cat monkey "in a barrel"
         ;"       WORDS -- PASS BY REFERENCE.  An OUT PARAMETER.  Format:
@@ -205,7 +205,7 @@ PREPSRCH(PARENTJOB,DFN,TMGSRCH,WORDS,IENLIST) ;
         NEW REF SET REF=$NAME(^TMG("TMP","SEARCH","SRCHTIU",PARENTJOB))
         KILL IENLIST
         NEW NEWSRCH SET NEWSRCH=0  ;"Boolean for need to start over a NEW search
-        IF $GET(@REF@("DFN"))'=DFN SET NEWSRCH=1 GOTO NS
+        IF $GET(@REF@("DFN"))'=TMGDFN SET NEWSRCH=1 GOTO NS
         ;"Look through all prior filters and see IF any filters applied that
         ;"   are not in current search
         NEW FILTERS,CT
@@ -224,7 +224,7 @@ PREPSRCH(PARENTJOB,DFN,TMGSRCH,WORDS,IENLIST) ;
         . . KILL @REF@("FILTER",OFLTR) ;"Remove old partial term from history
         . IF FOUND=0 SET NEWSRCH=1 ;"A filter was put on old SET that is not in NEW set, so start over
 NS      IF NEWSRCH=1 DO
-        . MERGE IENLIST=^TIU(8925,"C",DFN)
+        . MERGE IENLIST=^TIU(8925,"C",TMGDFN)
         . KILL @REF@("IEN LIST")
         . KILL @REF@("FILTER")
         ELSE  DO
@@ -237,7 +237,7 @@ NS      IF NEWSRCH=1 DO
         . SET CT=0 FOR  SET CT=$ORDER(WORDS(CT)) QUIT:(CT="")  DO
         . . SET TEMP(I)=$GET(WORDS(CT)),I=I+1
         . KILL WORDS MERGE WORDS=TEMP
-        SET @REF@("DFN")=DFN
+        SET @REF@("DFN")=TMGDFN
         QUIT
         ;
         ;

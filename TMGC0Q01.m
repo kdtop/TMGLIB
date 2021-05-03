@@ -1,4 +1,4 @@
-TMGC0Q01 ;TMG/kst/TMG customization of C0Q code ;10/24/12, 2/2/14
+TMGC0Q01 ;TMG/kst/TMG customization of C0Q code ;10/24/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;7/15/12
  ;
  ;"TMG C0Q FUNCTIONS
@@ -21,8 +21,8 @@ TMGC0Q01 ;TMG/kst/TMG customization of C0Q code ;10/24/12, 2/2/14
  ;"=======================================================================
  ;"TMGPVFN() --RETURN FILE NUM FOR PROVIDERS SUB-SUBFILE
  ;"LOCPAT(C0QLIST,PREFIX,LOC,DTE,EDTE,PROVS) -- Retrieve active outpatients
- ;"PROV4VST(VSTIEN,DFN,ARRAY) --GET PROVIDER FOR VISIT
- ;"PROVOK(VSTIEN,PROVIEN,DFN) --CHECK IF PROVIDER IS OK (Is provider associated with visit?)
+ ;"PROV4VST(VSTIEN,TMGDFN,ARRAY) --GET PROVIDER FOR VISIT
+ ;"PROVOK(VSTIEN,PROVIEN,TMGDFN) --CHECK IF PROVIDER IS OK (Is provider associated with visit?)
  ;"NOTEOK(IEN8925) -- Determine IF note type is OK, or should be ignored.
  ;"INIT(ZMU,ZARY,ZTYP)-- INITIALIZE THE PARAMETERS FOR BUILDING PATIENT LISTS
  ;"GETKEY()  --Get the MEASUREMENT PERIOD KEY (field .02) in file C0Q PARAMETER to use for updating.
@@ -72,7 +72,7 @@ L1      ;"Alternative entry point
         . FOR  SET PROV=$ORDER(C0QLIST(PROV)) QUIT:PROV=""  DO
         . . MERGE C0QLIST(PROV,ZYR_"EP-ALL-PATIENTS")=C0QLIST(PROV,PRE_"Patient")
         . ;"//kt original --> M C0QLIST(ZYR_"EP-ALL-PATIENTS")=C0QLIST(PRE_"Patient")
-        S DFN=""
+        NEW TMGDFN S TMGDFN=""
         S ZYR=ZYR_"EP-"
         NEW TMGC0QDEBUG SET TMGC0QDEBUG=0  ;"can change during step through.
         IF TMGC0QDEBUG=1 DO  GOTO D2
@@ -86,16 +86,16 @@ L1      ;"Alternative entry point
         . IF $GET(TMGVERBOSE)'=0 WRITE !,"Processing ",NUMPAT," patients for provider: ",PROVNAME,! ;"//kt added
         . NEW STIME S STIME=$H
         . NEW PATCT SET PATCT=0
-        . FOR  S DFN=$O(C0QLIST(PROV,ZYR_"ALL-PATIENTS",DFN)) Q:DFN=""  D  ; EACH PATIENT
+        . FOR  S TMGDFN=$O(C0QLIST(PROV,ZYR_"ALL-PATIENTS",TMGDFN)) Q:TMGDFN=""  D  ; EACH PATIENT
         . . SET PATCT=PATCT+1
         . . IF (PATCT#10=1),($GET(TMGVERBOSE)'=0)  DO
-        . . . NEW PATNAME SET PATNAME=$$LJ^XLFSTR($PIECE($GET(^DPT(DFN,0)),"^",1),22)
+        . . . NEW PATNAME SET PATNAME=$$LJ^XLFSTR($PIECE($GET(^DPT(TMGDFN,0)),"^",1),22)
         . . . DO PROGBAR^TMGUSRI2(PATCT,"Checking "_PATNAME,1,NUMPAT,60,STIME)
         . . ;"NOTE: If more than one measurement period is specified in C0QPARAM array above,
         . . ;"      then the DTE and EDTE will NOT BE CORRECT.  Would have to
         . . ;"      somehow separate the lists by date period.
-        . . NEW VISITS MERGE VISITS=C0QLIST(PROV,PRE_"Patient;Date",DFN)
-        . . D TESTPT^TMGC0Q02(DFN,PROV,DTE,EDTE,.C0QLIST,.VISITS)
+        . . NEW VISITS MERGE VISITS=C0QLIST(PROV,PRE_"Patient;Date",TMGDFN)
+        . . D TESTPT^TMGC0Q02(TMGDFN,PROV,DTE,EDTE,.C0QLIST,.VISITS)
         . IF $GET(TMGVERBOSE)'=0 DO PROGBAR^TMGUSRI2(100,"Done",1,100,60,STIME)
 D2      KILL TMGNOTELIST
         KILL ^TMG("TMP","TMGC0Q01","C0QLIST")
@@ -150,8 +150,8 @@ LOCPAT(C0QLIST,PREFIX,LOC,DTE,EDTE,PROVS)          ;"retrieve active outpatients
         . N ZJ S ZJ=""
         . F  S ZJ=$O(^AUPNVSIT("AHL",ULOC,ZI,ZJ)) Q:ZJ=""  D  ;" FOR EACH VISIT
         . . ;"NOTE: ZJ=IEN in VISIT file.
-        . . S DFN=$$GET1^DIQ(9000010,ZJ,.05,"I") ; PATIENT
-        . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        . . NEW TMGDFN S TMGDFN=$$GET1^DIQ(9000010,ZJ,.05,"I") ; PATIENT
+        . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         . . IF $EXTRACT(PTNAME,1,2)="ZZ" DO  QUIT
         . . . SET PTNAME=""
         . . IF $GET(TMGVERBOSE)'=0 WRITE " ",PTNAME                                                     ;"//kt added
@@ -161,25 +161,25 @@ LOCPAT(C0QLIST,PREFIX,LOC,DTE,EDTE,PROVS)          ;"retrieve active outpatients
         . . . IF $DATA(TMGLIMITPROV),($GET(TMGLIMITPROV(PROVIEN))'=1) DO  QUIT     ;"//kt added
         . . . . NEW PROVINIT SET PROVINIT=$PIECE($GET(^VA(200,PROVIEN,0)),"^",2)   ;"//kt added
         . . . . IF $GET(VERBOSE) WRITE " (provider "_PROVINIT_" excluded.) "       ;"//kt added
-        . . . SET PROVOK=$$PROVOK(ZJ,PROVIEN,DFN)                                  ;"//kt added
+        . . . SET PROVOK=$$PROVOK(ZJ,PROVIEN,TMGDFN)                                  ;"//kt added
         . . . IF 'PROVOK QUIT                                                      ;"//kt added
-        . . . SET C0QLIST(PROVIEN,PREFIX_"Patient",DFN)=""                         ;"//kt added
-        . . . SET C0QLIST(PROVIEN,PREFIX_"Patient;Date",DFN,EVENTDT)=""            ;"//kt added
+        . . . SET C0QLIST(PROVIEN,PREFIX_"Patient",TMGDFN)=""                         ;"//kt added
+        . . . SET C0QLIST(PROVIEN,PREFIX_"Patient;Date",TMGDFN,EVENTDT)=""            ;"//kt added
         . . IF $EXTRACT(PTNAME,1,2)="ZZ" SET PROVOK=0  ;"Provider may be OK, but patient is not.if last name starts with ZZ...
         . . IF 'PROVOK,($GET(TMGVERBOSE)'=0) WRITE " <-- this event skipped"
-        . . ;"S C0QLIST(PREFIX_"Patient",DFN)=""   //kt <---- original
+        . . ;"S C0QLIST(PREFIX_"Patient",TMGDFN)=""   //kt <---- original
         . . ;"NEW PROVIDERS   ;"//kt added
-        . . ;"DO PROV4VST(ZJ,DFN,.PROVIDERS)  ;"//kt added
+        . . ;"DO PROV4VST(ZJ,TMGDFN,.PROVIDERS)  ;"//kt added
         . . ;"NEW PROV SET PROV=""  ;"//kt added
         . . ;"FOR  SET PROV=$ORDER(PROVIDERS(PROV)) QUIT:+PROV'>0  DO  ;"//kt added
-        . . ;". SET C0QLIST(PROV,PREFIX_"Patient",DFN)=""              ;"//kt added
+        . . ;". SET C0QLIST(PROV,PREFIX_"Patient",TMGDFN)=""              ;"//kt added
         Q
         ;
-PROV4VST(VSTIEN,DFN,ARRAY) ;"PROVIDER FOR VISIT
+PROV4VST(VSTIEN,TMGDFN,ARRAY) ;"PROVIDER FOR VISIT
         ;"Return providers for a given VISIT ien
         ;"Input: VSTIEN -- IEN in VISIT file
         ;"       ARRAY -- PASS BY REFEERENCE.  AN OUT PARAMETER.
-        ;"       DFN -- PATIENT
+        ;"       TMGDFN -- PATIENT
         ;"Output: ARRAY(IEN200)=""  IEN200 is IEN of provider
         ;"Results: none
         KILL ARRAY
@@ -191,7 +191,7 @@ PROV4VST(VSTIEN,DFN,ARRAY) ;"PROVIDER FOR VISIT
         NEW TIUIEN SET TIUIEN=0  ;"Scan for TIU Documents with matching VISIT entry
         FOR  SET TIUIEN=$ORDER(^TIU(8925,"V",VSTIEN,TIUIEN)) QUIT:(+TIUIEN'>0)  DO
         . NEW N0 SET N0=$GET(^TIU(8925,TIUIEN,0))
-        . IF $PIECE(N0,"^",2)'=DFN SET RESULT=-1 QUIT  ;" 0;2 = PATIENT
+        . IF $PIECE(N0,"^",2)'=TMGDFN SET RESULT=-1 QUIT  ;" 0;2 = PATIENT
         . NEW N12 SET N12=$GET(^TIU(8925,TIUIEN,12))
         . IF +$PIECE(N12,"^",2)>0 SET ARRAY(+$PIECE(N12,"^",2))="" ;" 12;2 = AUTHOR/DICTATOR
         . IF +$PIECE(N12,"^",4)>0 SET ARRAY(+$PIECE(N12,"^",4))="" ;" 12;4 = EXPECTED SIGNER
@@ -210,17 +210,17 @@ PROV4VST(VSTIEN,DFN,ARRAY) ;"PROVIDER FOR VISIT
         . . IF +$PIECE(N0,"^",5)>0 SET ARRAY(+$PIECE(N0,"^",5))="" ;"0;5 = ACTUAL COSIGNER
 P4VDN   QUIT
         ;
-PROVOK(VSTIEN,PROVIEN,DFN) ;"CHECK IF PROVIDER IS OK (Is provider associated with visit?) ;//kt added
+PROVOK(VSTIEN,PROVIEN,TMGDFN) ;"CHECK IF PROVIDER IS OK (Is provider associated with visit?) ;//kt added
         ;"Purpose: to determine IF provider is associated with specified VISIT entry
         ;"Input: VSTIEN -- IEN in VISIT file.
         ;"       PROVIEN -- IEN in NEW PERSON file for provider
-        ;"       DFN -- Patient of the encounter
+        ;"       TMGDFN -- Patient of the encounter
         ;"Result: 1 IF provider is associated, 0 IF not; -1 IF visit doesn't match patient
         NEW RESULT SET RESULT=0
         NEW TIUIEN SET TIUIEN=0  ;"Scan for TIU Documents with matching VISIT entry
         FOR  SET TIUIEN=$ORDER(^TIU(8925,"V",VSTIEN,TIUIEN)) QUIT:(+TIUIEN'>0)!(RESULT'=0)  DO
         . NEW N0 SET N0=$GET(^TIU(8925,TIUIEN,0))
-        . IF $PIECE(N0,"^",2)'=DFN SET RESULT=-1 QUIT  ;" 0;2 = PATIENT
+        . IF $PIECE(N0,"^",2)'=TMGDFN SET RESULT=-1 QUIT  ;" 0;2 = PATIENT
         . IF $$NOTEOK(TIUIEN)=0 QUIT  ;"skip note IF not an office visit type note.
         . NEW N12 SET N12=$GET(^TIU(8925,TIUIEN,12))
         . IF $PIECE(N12,"^",2)=PROVIEN SET RESULT=1 QUIT  ;" 12;2 = AUTHOR/DICTATOR

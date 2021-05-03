@@ -1,4 +1,4 @@
-TMGMISC ;TMG/kst/Misc utility library ;03/25/06; 7/31/15
+TMGMISC ;TMG/kst/Misc utility library ;03/25/06; 7/31/15, 3/24/21
          ;;1.0;TMG-LIB;**1**;07/12/05
 
  ;"TMG MISCELLANEOUS FUNCTIONS
@@ -125,7 +125,8 @@ EDITPT(TMGADDOK)
         . SET %ZIS="N",IOP="HOME"
         . DO ^%ZIS
         ;
-A       DO ENDREG^DGREG($GET(DFN))
+A       NEW TMGDFN SET TMGDFN=$GET(DFN)
+        DO ENDREG^DGREG(TMGDFN)
         DO  IF (Y<0) GOTO EDITDONE
         . WRITE !!
         . IF $GET(TMGADDOK)=1 DO
@@ -138,36 +139,36 @@ A       DO ENDREG^DGREG($GET(DFN))
         . DO ^DIC
         . KILL DLAYGO
         . IF Y<0 QUIT
-        . SET (DFN,DA)=+Y
+        . SET (TMGDFN,DA)=+Y
         . SET DGNEW=$P(Y,"^",3)
         . NEW Y
         . DO PAUSE^DG10
-        . DO BEGINREG^DGREG(DFN)
+        . DO BEGINREG^DGREG(TMGDFN)
         . IF DGNEW DO NEW^DGRP
         ;
         IF +$GET(DGNEW) DO
         . ;" query CMOR for Patient Record Flag Assignments IF NEW patient and
         . ;" display results.
-        . IF $$PRFQRY^DGPFAPI(DFN) DO DISPPRF^DGPFAPI(DFN)
+        . IF $$PRFQRY^DGPFAPI(TMGDFN) DO DISPPRF^DGPFAPI(TMGDFN)
         ;
         SET (DGFC,CURR)=0
-        SET DA=DFN
+        SET DA=TMGDFN
         SET DGFC="^1"
-        SET VET=$SELECT($DATA(^DPT(DFN,"VET")):^("VET")'="Y",1:0)
+        SET VET=$SELECT($DATA(^DPT(TMGDFN,"VET")):^("VET")'="Y",1:0)
         ;
         SET %ZIS="N",IOP="HOME"
         DO ^%ZIS
         SET DGELVER=0
         ;"DO EN^DGRPD
         ;"IF $DATA(DGRPOUT) DO  GOTO A
-        ;". DO ENDREG^DGREG($G(DFN))
+        ;". DO ENDREG^DGREG($G(TMGDFN))
         ;". DO HL7A08^VAFCDD01
-        ;". KILL DFN,DGRPOUT
+        ;". KILL TMGDFN,DGRPOUT
         ;
         ;"DO HINQ^DG10
         IF $D(^DIC(195.4,1,"UP")) IF ^("UP") DO ADM^RTQ3
         ;
-        DO REG^IVMCQ($G(DFN))  ;" send financial query
+        DO REG^IVMCQ($G(TMGDFN))  ;" send financial query
         ;
         SET DGRPV=0
         DO EN1^DGRP

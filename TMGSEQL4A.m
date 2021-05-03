@@ -1,4 +1,4 @@
-TMGSEQL4 ;TMG/kst/Interface with SequelSystems PMS for ICD codes ;8/1/12, 2/2/14
+TMGSEQL4 ;TMG/kst/Interface with SequelSystems PMS for ICD codes ;8/1/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;8/1/12
 
  ;"TMG SEQUEL ICD DIAGNOSIS CODES IMPORT FUNCTIONS
@@ -416,10 +416,10 @@ PARSELN(ONELINE,ARRAY,BADICDLIST)
         NEW ACCTNUM SET ACCTNUM=+$PIECE(ONELINE,",",16)
         IF ACCTNUM'>0 DO  GOTO PLDN
         . SET RESULT="-1^Patient PMS account number not provided."
-        NEW DFN SET DFN=$ORDER(^DPT("TMGS",ACCTNUM,0))
-        IF DFN'>0 DO  GOTO PLDN
+        NEW TMGDFN SET TMGDFN=$ORDER(^DPT("TMGS",ACCTNUM,0))
+        IF TMGDFN'>0 DO  GOTO PLDN
         . SET RESULT="-1^Unable to convert PMS account number '"_ACCTNUM_"' into VistA patient number (DFN)"
-        SET ARRAY("PATIENT")=DFN_"^"_$PIECE($GET(^DPT(DFN,0)),"^",1)
+        SET ARRAY("PATIENT")=TMGDFN_"^"_$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         ;"-----------------------------
         NEW ICDTEMP SET ICDTEMP=$PIECE(ONELINE,",",10)
         NEW I FOR I=1:1:$LENGTH(ICDTEMP," ") DO
@@ -467,11 +467,11 @@ UPDATEDB(PCEINFO,ERR1ARRY)
         ;"Result: 1 successful completion, -1=error
         ;
         SET RESULT=1
-        NEW DFN SET DFN=+PCEINFO("PATIENT")
+        NEW TMGDFN SET TMGDFN=+PCEINFO("PATIENT")
         NEW PROBEXISTS SET PROBEXISTS=0
         NEW ICDIEN SET ICDIEN=0
         FOR  SET ICDIEN=$ORDER(PCEINFO("ICD CODE",ICDIEN)) QUIT:ICDIEN=""  DO
-        . NEW STATUS SET STATUS=$$GETSTAT(DFN,ICDIEN)
+        . NEW STATUS SET STATUS=$$GETSTAT(TMGDFN,ICDIEN)
         . IF +STATUS=1 QUIT  ;"Already has ICD code in problem
         . IF +STATUS=0 SET RESULT=$$ADDPROB(ICDIEN,.PCEINFO,.ERR1ARRY)  ;"Add NEW problem
         . IF +STATUS=2 DO
@@ -483,7 +483,7 @@ UPDATEDB(PCEINFO,ERR1ARRY)
         QUIT RESULT
         ;
         ;
-GETSTAT(DFN,ICDIEN)  ;
+GETSTAT(TMGDFN,ICDIEN)  ;
         ;"Purpose: determine status on an ICD code in problems for a patient
         ;"Results: 0=No problem with this ICD code exists for patient
         ;"         1^PROBIEN=problem with this ICD code exists, and is active
@@ -493,7 +493,7 @@ GETSTAT(DFN,ICDIEN)  ;
         ;"
         NEW RESULT SET RESULT=0
         NEW PROBIEN SET PROBIEN=0
-        FOR  SET PROBIEN=$ORDER(^AUPNPROB("AC",DFN,PROBIEN)) QUIT:(+PROBIEN'>0)!(RESULT=1)  DO
+        FOR  SET PROBIEN=$ORDER(^AUPNPROB("AC",TMGDFN,PROBIEN)) QUIT:(+PROBIEN'>0)!(RESULT=1)  DO
         . NEW THISICD SET THISICD=$PIECE($GET(^AUPNPROB(PROBIEN,0)),"^",1)
         . IF THISICD'=ICDIEN QUIT
         . SET RESULT=1_"^"_PROBIEN
@@ -530,7 +530,7 @@ ADDPROB(PROBIEN,PCEINFO,ERR1ARRY)  ;"Add NEW problem
         ;"Results: 1 if OK, or -1 IF error
         ;
         NEW RESULT SET RESULT=-1
-        NEW DFN SET DFN=PCEINFO("PATIENT")
+        NEW TMGDFN SET TMGDFN=PCEINFO("PATIENT")
         NEW PROV SET PROV=PCEINFO("PROVIDER")
         NEW MSG SET MSG=PCEINFO("ICD CODE",PROBIEN)
         IF +$GET(DUZ(2))'>0 DO DUZ^XUP(DUZ)
@@ -571,7 +571,7 @@ ADDPROB(PROBIEN,PCEINFO,ERR1ARRY)  ;"Add NEW problem
         . SET CNT=CNT+1
         ;"SET ARR1(10,0)="0"
         SET TMGARR(CNT)="GMPFLD(10,0)=""0"""
-        DO ADDSAVE^ORQQPL1(.RESULT,DFN,PROV,FACILITY,.TMGARR)
+        DO ADDSAVE^ORQQPL1(.RESULT,TMGDFN,PROV,FACILITY,.TMGARR)
         IF RESULT<1 DO
         . SET ERR1ARRY(0)="Unable to add NEW problem via ORQQPL ADD SAVE functionality"
         QUIT RESULT

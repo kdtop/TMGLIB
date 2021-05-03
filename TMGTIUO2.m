@@ -1,4 +1,4 @@
-TMGTIUO2 ;TMG/TIU Text Object Expansion Fns;04/15/10, 2/2/14
+TMGTIUO2 ;TMG/TIU Text Object Expansion Fns;04/15/10, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;04/15/10
  ;
  ;"Kevin Toppenberg MD
@@ -21,12 +21,12 @@ TMGTIUO2 ;TMG/TIU Text Object Expansion Fns;04/15/10, 2/2/14
  ;
  ;"=======================================================================
  ;
-GETPTFLD(DFN,PARAM) ;
+GETPTFLD(TMGDFN,PARAM) ;
         ;"Purpose: This is the server-side code for the TIU TEXT OBJECT, which
         ;"      will allow the user to retrieve a field from the PATIENT file.
         ;"NOTE: This requires that patch TMG-CPRS-TEXTOBJ-PARAM*1.0*1 or later
         ;"      be installed, to allow passing in of parameters from the CPRS client.
-        ;"Input: DFN -- This should be the IEN of the currently open patient
+        ;"Input: TMGDFN -- This should be the IEN of the currently open patient
         ;"       Param -- Field(s)^Flags^FormatString.  Details below
         ;"            Field(s) -- required.  Options for input:
         ;"                -  A single field number or name
@@ -89,10 +89,10 @@ GETPTFLD(DFN,PARAM) ;
         SET TMGFLDS=$PIECE(PARAM,"^",1)
         IF TMGFLDS="" DO  GOTO GPDN
         . SET RESULT="ERROR: No input parameter.  Example of use: |TMG PATIENT FLD{AGE}|"
-        SET DFN=$GET(DFN)
-        IF +DFN'>0 DO  GOTO GPDN
+        SET TMGDFN=$GET(TMGDFN)
+        IF +TMGDFN'>0 DO  GOTO GPDN
         . SET RESULT="ERROR: Internal patient value DFN not defined.  Contact IRM"
-        NEW TMGIENS SET TMGIENS=DFN_","
+        NEW TMGIENS SET TMGIENS=TMGDFN_","
         SET TMGFLAGS=""
         NEW TMGTEMP SET TMGTEMP=$$UP^XLFSTR($PIECE(PARAM,"^",2))
         IF TMGTEMP["N" SET TMGFLAGS=TMGFLAGS_"N"

@@ -1,4 +1,4 @@
-TMGLRWU1 ;TMG/kst-Utility for entering data to LAB DATA file ;2/2/14, 4/1/18
+TMGLRWU1 ;TMG/kst-Utility for entering data to LAB DATA file ;2/2/14, 4/1/18, 3/24/21
               ;;1.0;TMG-LIB;**1**;9/13/13
  ;
  ;"TMG LAB ENTRY UTILITY
@@ -233,7 +233,7 @@ ORXX(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notificatio
          ;"           LRXQA  = recipient array, e.g. LRXQA(168)=""
          ;"           LRTST  = test IEN60 ^ Name of test being alerted ^ parent test ien60
          ;"Result: 1^Alert Sent, or -1^Error
-         NEW DFN,LRMSG,LRPREFIX,LRX,LRY         
+         NEW TMGDFN,LRMSG,LRPREFIX,LRX,LRY         
          NEW LRIENS   ;"a string to pass to EN^ORB3
          NEW LROIFN   ;"OK to be null "". OERR INTERNAL FILE #, an IEN100  
          NEW LROE     ;"OK to be null "". ORDER # (field 9.5) in 69.01
@@ -243,7 +243,7 @@ ORXX(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notificatio
          NEW TMGRESULT SET TMGRESULT="1^Alert Sent"
          IF LRSS'?1(1"CH",1"MI") DO  GOTO ORDN
          . SET TMGRESULT="-1^Lab Subscript not supported"
-         SET DFN=$PIECE(^LR(LRDFN,0),"^",3)
+         SET TMGDFN=$PIECE(^LR(LRDFN,0),"^",3)
          SET LRPREFIX=$SELECT(LRTYPE=3:"",LRTYPE=14:"Abnormal ",LRTYPE=57:"Critical ",1:"")
          ;
          SET LRX=$$CHECKUID^LRWU4(LRUID,LRSS)  ;"RETURNS: 1(accession exists)^area^date^number, i.e. 1^IEN68^IEN68.01^IEN68.02       
@@ -292,7 +292,7 @@ ORXX(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)    ;" Send OR (CPRS) notificatio
          ;"            |    |    |       |     ORBPMSG: message text
          ;"            |    |    |       |     |     ORBPDATA lab result reference
          ;"            |    |    |       |     |     |
-         DO EN^ORB3(LRTYPE,DFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+         DO EN^ORB3(LRTYPE,TMGDFN,LROIFN,.LRXQA,LRMSG,LRIENS)
          ;
          ;"FYI: In comparison, this is what is sent from RAUTL00, a radiology alert
          ;"------------------------------------------------

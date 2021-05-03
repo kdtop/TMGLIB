@@ -1,4 +1,4 @@
-TMGHL74R ;TMG/kst-HL7 transformation engine processing ;11/14/16
+TMGHL74R ;TMG/kst-HL7 transformation engine processing ;11/14/16, 3/24/21
               ;;1.0;TMG-LIB;**1**;11/14/16
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
@@ -93,8 +93,8 @@ MSH16  ;"Purpose: Process MSH segment, FLD 16
         ;
 PID     ;"Purpose: To transform the PID segment, esp SSN
         DO PID^TMGHL72        
-        NEW DFN SET DFN=$PIECE(TMGVALUE,TMGU(1),4)
-        SET TMGHL7MSG("RAD STUDY","DFN")=DFN
+        NEW TMGDFN SET TMGDFN=$PIECE(TMGVALUE,TMGU(1),4)
+        SET TMGHL7MSG("RAD STUDY","DFN")=+TMGDFN    ;"//kt added + 4/26/21
         QUIT
         ;
 PV18    ;"Purpose: Process entire PV18 segment
@@ -297,7 +297,9 @@ NSURDPER(RAPROV)  ;"Ensure radiologist record had proper permissions etc
         SET TMGIEN=+RAPROV
         NEW FMNAME SET FMNAME=$PIECE(RAPROV,"^",2)
         IF TMGIEN'>0 DO  GOTO NSURDN 
-        . SET TMGRESULT="-1^IN NSURDPER^TMGHL74R: TMGDFN invalid.  Got ["_TMGDFN_"]"
+        . SET TMGRESULT="-1^IN NSURDPER^TMGHL74R: TMGIEN invalid.  Got ["_TMGIEN_"]"
+        ;"IF TMGIEN'>0 DO  GOTO NSURDN 
+        ;". SET TMGRESULT="-1^IN NSURDPER^TMGHL74R: DFN invalid.  Got ["_TMGDFN_"]"
         SET TMGRESULT="1^OK"
         NEW ZN SET ZN=$GET(^VA(200,TMGIEN,0))
         SET TMGIENS=TMGIEN_","
@@ -396,14 +398,14 @@ FILERAD(TMGENV,TMGHL7MSG)  ;
         . MERGE DATA(EXAMIDX,"HX")=TMGHL7MSG("RAD STUDY",EXAMIDX,"HX")   
         . MERGE DATA(EXAMIDX,"IMP")=TMGHL7MSG("RAD STUDY",EXAMIDX,"IMP")
         . SET DATA(EXAMIDX,"STATUS")="2^COMPLETE"  ;"I don't think they send incomplete rad reports.   
-        NEW DFN SET DFN=+$GET(TMGHL7MSG("RAD STUDY","DFN"))
-        IF DFN'>0 DO  GOTO FLRDDN
-        . ;"SET TMGRESULT="-1^DFN not found in FILERAD^TMGHL74R.  Got ["_DFN_"]"
+        NEW TMGDFN SET TMGDFN=+$GET(TMGHL7MSG("RAD STUDY","DFN"))
+        IF TMGDFN'>0 DO  GOTO FLRDDN
+        . ;"SET TMGRESULT="-1^DFN not found in FILERAD^TMGHL74R.  Got ["_TMGDFN_"]"
         . NEW NAMEDOB SET NAMEDOB=$$GETNMDOB^TMGHL7U3(.TMGHL7MSG)
         . SET TMGRESULT="-1^Patient not found in system: "_NAMEDOB         
-        SET TMGRESULT=$$REGEXAM^TMGRAU01(DFN,.DATA)
+        SET TMGRESULT=$$REGEXAM^TMGRAU01(TMGDFN,.DATA)
         IF TMGRESULT<0 GOTO FLRDDN
-        SET TMGRESULT=$$STOREXAM^TMGRAU01(DFN,.DATA)
+        SET TMGRESULT=$$STOREXAM^TMGRAU01(TMGDFN,.DATA)
         IF TMGRESULT<0 GOTO FLRDDN
         SET TMGRESULT=$$SNDALRTS^TMGRAU01(.DATA)
 FLRDDN  QUIT TMGRESULT

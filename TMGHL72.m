@@ -1,4 +1,4 @@
-TMGHL72 ;TMG/kst-HL7 transformation engine processing ;5/9/17, 4/1/18, 4/11/19
+TMGHL72 ;TMG/kst-HL7 transformation engine processing ;4/11/19, 3/24/21, 4/26/21
               ;;1.0;TMG-LIB;**1**;03/26/11
  ;
  ;"TMG HL7 TRANSFORMATION CALL-BACK FUNCTIONS
@@ -100,6 +100,8 @@ TMGHL72 ;TMG/kst-HL7 transformation engine processing ;5/9/17, 4/1/18, 4/11/19
  ;
 XMSG    ;"Purpose: Process entire message before processing segments
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, HLREC
+        KILL TMGLASTOBR4,TMGLASTOBX3,TMGOBXCOUNT,TMGINFO ;"//kt 4/15/21
+        ;
         NEW X,Y
         IF $GET(IEN62D4)>0 GOTO XMSGB
         SET IEN62D4=$GET(TMGENV("IEN 62.4"))  ;"cleaned up in XMSG2
@@ -147,6 +149,7 @@ XMDN    QUIT
         ;
 XMSG2   ;"Purpose: Process entire message after processing segments
         KILL IEN62D4,TMGLASTOBX,TMGNTEADD
+        KILL TMGEXAMIDX,TMGINFO  ;"//kt 4/15/21
         QUIT
         ;
 XMSG2B  ;        
@@ -177,36 +180,36 @@ XMSH16  ;"Purpose: Process MSH segment, FLD 16
         ;
 PID     ;"Purpose: To transform the PID segment, esp SSN
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE
-        ;"       Also uses TMGHNDLERR:
+        ;"       Also uses TMGHNDLERR: -- Set up in TMGHL7E, TMGHL7E2, TMGHL76E
         ;"        TMGHNDLERR("DFN")=DFN
         ;"        TMGHNDLERR("SSN")=SSN
         ;"Will try to put DFN into PID-4 ("alternate PID") field
-        NEW SOURCE SET SOURCE=$PIECE(TMGVALUE,TMGU(1),19)
+        NEW HL7SSN SET HL7SSN=$PIECE(TMGVALUE,TMGU(1),19)  ;"Segment PID.19 = Patient SSN
+        IF $$VALIDSSN^TMGGDFNU(HL7SSN)'>0 SET HL7SSN=""  ;"Ignoring result details of why not valid...
         NEW NAME SET NAME=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",5)
         IF NAME["""" DO
         . SET NAME=$TRANSLATE(NAME,"""","")  ;"remove any quotes("") from names
         . SET $PIECE(TMGVALUE,TMGU(1),5)=NAME
         . DO SETPCE^TMGHL7X2(NAME,.TMGHL7MSG,.TMGU,TMGSEGN,5)
-        NEW DFN SET DFN=-1
-        ;"IF SOURCE="" DO  GOTO PIDDN
+        NEW TMGDFN SET TMGDFN=-1
+        ;"IF HL7SSN="" DO  GOTO PIDDN
         ;". SET TMGXERR="In PID.TMGHL72: No SSN provided in field 19 of 'PID' segment in HL7 message"
         IF $GET(TMGHNDLERR("DFN"))>0 DO
-        . SET DFN=TMGHNDLERR("DFN")
+        . SET TMGDFN=TMGHNDLERR("DFN")
         . IF $GET(TMGHNDLERR("SSN"))>0 DO        
         . . SET $PIECE(TMGVALUE,TMGU(1),19)=TMGHNDLERR("SSN")
-        . . SET $PIECE(SOURCE,TMGU(2),4)=170
-        . . SET $PIECE(SOURCE,TMGU(2),5)="SS"
+        . . SET $PIECE(HL7SSN,TMGU(2),4)=170
+        . . SET $PIECE(HL7SSN,TMGU(2),5)="SS"
         . . SET $PIECE(TMGVALUE,TMGU(1),3)=TMGHNDLERR("SSN")  ;"put SSN in as patient identifier.
-        IF (DFN=-1),SOURCE'="" DO  
-        . SET SOURCE=$TRANSLATE(SOURCE,"-","")
-        . IF SOURCE="999999999" SET SOURCE=""
-        . SET $PIECE(TMGVALUE,TMGU(1),19)=SOURCE
-        . SET DFN=$$GETDFN^LA7VHLU2(SOURCE,1)
-        . SET $PIECE(TMGVALUE,TMGU(1),19)=SOURCE
-        . SET $PIECE(SOURCE,TMGU(2),4)=170
-        . SET $PIECE(SOURCE,TMGU(2),5)="SS"
-        . SET $PIECE(TMGVALUE,TMGU(1),3)=SOURCE  ;"put SSN in as patient identifier.
-        IF +$GET(DFN)'>0 DO
+        IF (TMGDFN=-1),HL7SSN'="" DO  
+        . SET HL7SSN=$TRANSLATE(HL7SSN,"-","")
+        . SET $PIECE(TMGVALUE,TMGU(1),19)=HL7SSN
+        . SET TMGDFN=$$GETDFN^LA7VHLU2(HL7SSN,1)
+        . SET $PIECE(TMGVALUE,TMGU(1),19)=HL7SSN
+        . SET $PIECE(HL7SSN,TMGU(2),4)=170
+        . SET $PIECE(HL7SSN,TMGU(2),5)="SS"
+        . SET $PIECE(TMGVALUE,TMGU(1),3)=HL7SSN  ;"put SSN in as patient identifier.
+        IF +$GET(TMGDFN)'>0 DO
         . NEW INFO SET INFO=""
         . NEW NAME SET NAME=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",5)
         . NEW LNAME SET LNAME=$PIECE(NAME,TMGU(2),1)        
@@ -215,30 +218,30 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         . NEW HL7DOB SET HL7DOB=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",7)
         . NEW FMDT SET FMDT=$$HL72FMDT^TMGHL7U3(HL7DOB)
         . NEW SEX SET SEX=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PID",8)
-        . ;"SET INFO("SSNUM")=SOURCE
+        . ;"SET INFO("SSNUM")=HL7SSN
         . SET INFO("NAME")=NAME
         . SET INFO("DOB")=FMDT
         . SET INFO("SEX")=SEX
-        . SET DFN=$$GETDFN^TMGGDFN(.INFO,0)     
-        . IF DFN>0,(SOURCE'>0) DO   
-        . . SET $PIECE(TMGVALUE,TMGU(1),19)=$P($G(^DPT(DFN,0)),"^",9)
-        . . SET $PIECE(SOURCE,TMGU(2),4)=170
-        . . SET $PIECE(SOURCE,TMGU(2),5)="SS"
-        . . SET $PIECE(TMGVALUE,TMGU(1),3)=$P($G(^DPT(DFN,0)),"^",9)  ;"put SSN in as patient identifier.
-        . ELSE  IF DFN'>0 DO  ;"//kt 5/2/19, 5/15/19
+        . SET TMGDFN=$$GETDFN^TMGGDFN(.INFO,0)     
+        . IF TMGDFN>0,(HL7SSN'>0) DO   
+        . . SET $PIECE(TMGVALUE,TMGU(1),19)=$PIECE($GET(^DPT(TMGDFN,0)),"^",9)
+        . . SET $PIECE(HL7SSN,TMGU(2),4)=170
+        . . SET $PIECE(HL7SSN,TMGU(2),5)="SS"
+        . . SET $PIECE(TMGVALUE,TMGU(1),3)=$P($G(^DPT(TMGDFN,0)),"^",9)  ;"put SSN in as patient identifier.
+        . ELSE  IF TMGDFN'>0 DO  ;"//kt 5/2/19, 5/15/19
         . . NEW STR SET STR=NAME_" ("_$TRANSLATE($$FMTE^XLFDT(FMDT,"2DZ"),"/","-")_")"
         . . SET TMGXERR="Patient not found in system: "_STR
-        SET $PIECE(TMGVALUE,TMGU(1),4)=DFN
+        SET $PIECE(TMGVALUE,TMGU(1),4)=TMGDFN_TMGU(2)_"DFN"
         ;"The following IF block, autoregistered the patient somehow and DFN logic was incorrect. Created duplicate patients.
-        ;"IF (DFN'>0),(SOURCE?9N) DO  ;"If patient doesn't have SSN, then store now.
-        ;". NEW SSN SET SSN=$PIECE($GET(^DPT(DFN,0)),"^",9)
+        ;"IF (TMGDFN'>0),(HL7SSN?9N) DO  ;"If patient doesn't have SSN, then store now.
+        ;". NEW SSN SET SSN=$PIECE($GET(^DPT(TMGDFN,0)),"^",9)
         ;". IF SSN'="" QUIT  ;"If already has SSN, then QUIT
         ;". NEW TMGFDA,TMGMSG
-        ;". SET TMGFDA(2,DFN_",",.09)=SOURCE
+        ;". SET TMGFDA(2,TMGDFN_",",.09)=HL7SSN
         ;". DO FILE^DIE("K","TMGFDA","TMGMSG")
         ;". IF $DATA(TMGMSG("DIERR")) DO
         ;". . SET TMGXERR=$$GETERRST^TMGDEBU2(.TMGMSG)
-        ;"NEW DFN SET DFN=$$GETDFN^LA7VHLU2(SOURCE,1)
+        ;"NEW TMGDFN SET TMGDFN=$$GETDFN^LA7VHLU2(HL7SSN,1)
 PIDDN   QUIT
         ;
 XORC1   ;"Purpose: Process empty ORC message, field 1

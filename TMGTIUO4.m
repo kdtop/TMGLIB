@@ -1,4 +1,4 @@
-TMGTIUO4 ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14
+TMGTIUO4 ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;7/20/12
  ;
  ;"Kevin Toppenberg MD
@@ -22,11 +22,11 @@ TMGTIUO4 ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14
  ;"=======================================================================
  ;"BMI(HT,WT,BMI,IDEALWTS) -- Calculate Body Mass Index
  ;"BMICOMNT(BMI,PTAGE,IDEALWTS) -- provide comment on BMI
- ;"WTTREND(DFN,TIU) -- return text showing patient's trend in change of weight.
- ;"WTDELTA(DFN,TIU) -- return text showing patient's change in weight.
+ ;"WTTREND(TMGDFN,TIU) -- return text showing patient's trend in change of weight.
+ ;"WTDELTA(TMGDFN,TIU) -- return text showing patient's change in weight.
  ;"GETLAST2(ARRAY,NTLAST,LAST) -- Returns last 2 values in array (as created by PRIORVIT)
- ;"PRIORVIT(DFN,DATE,VITAL,ARRAY)  -- retrieve a list of prior vital entries for a patient
- ;"GETSPECL(DFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTION) -- return a block of text from notes for patient
+ ;"PRIORVIT(TMGDFN,DATE,VITAL,ARRAY)  -- retrieve a list of prior vital entries for a patient
+ ;"GETSPECL(TMGDFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTION) -- return a block of text from notes for patient
  ;"ARRAY2ST(ARRAY,SPACES) -- convert ARRAY (as created by GETSPECL) into one long string
  ;"=======================================================================
  ;"Dependancies :TMGTIUO3, TMGTIUO5, XLFSTR, %DT, %DTC
@@ -66,7 +66,7 @@ BMI(PTAGE,HT,WT,BMI,IDEALWTS,USEWTDT) ;
   QUIT RESULT
   ;
 PARSEWT(WTSTR,DT,DTSTR) ;
-  ;"Purpose: parse WTSTR, as returned from $$WEIGHT^TIULO(DFN)
+  ;"Purpose: parse WTSTR, as returned from $$WEIGHT^TIULO(TMGDFN)
   ;"Input: WTSTR -- the weight string
   ;"       DT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Returns FMDATE of measurement
   ;"       DTSTR -- PASS BY REFERENCE.  AN OUT PARAMETER.  Returns text of date of measurement
@@ -80,7 +80,7 @@ PARSEWT(WTSTR,DT,DTSTR) ;
   QUIT NWT
   ;
 PARSEHT(HTSTR,DT,DTSTR) ;
-  ;"Purpose: parse WTSTR, as returned from $$HEIGHT^TIULO(DFN)
+  ;"Purpose: parse WTSTR, as returned from $$HEIGHT^TIULO(TMGDFN)
   ;"Input: HTSTR -- the weight string
   ;"       DT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Returns FMDATE of measurement
   ;"       DTSTR -- PASS BY REFERENCE.  AN OUT PARAMETER.  Returns text of date of measurement
@@ -138,12 +138,12 @@ BMICOMNT(BMI,PTAGE,IDEALWTS) ;"BMI COMMENT
   . . SET RESULT=RESULT_"); "
   QUIT RESULT
   ;
-WTTREND(DFN,TIU) ;
+WTTREND(TMGDFN,TIU) ;
   ;"Purpose: return text showing patient's trend in change of weight.
   ;"         e.g. 215 <== 212 <== 256 <== 278
-  ;"Input: DFN=the Patient's IEN in file #2
+  ;"Input: TMGDFN=the Patient's IEN in file #2
   ;"       TIU=PASS BY REFERENCE.  Should be an Array of TIU note info
-  ;"                               See documentation in VITALS^TMGTIUOJ(DFN,TIU)
+  ;"                               See documentation in VITALS^TMGTIUOJ(TMGDFN,TIU)
   ;"Results: Returns string describing changes in weight.
   ;
   NEW RESULT SET RESULT=""
@@ -152,7 +152,7 @@ WTTREND(DFN,TIU) ;
   . SET RESULT="(No wts available)"
   ;
   NEW ARRAY
-  DO PRIORVIT(.DFN,DATE,"WEIGHT",.ARRAY)
+  DO PRIORVIT(.TMGDFN,DATE,"WEIGHT",.ARRAY)
   ;
   NEW DATE SET DATE=""
   FOR  SET DATE=$ORDER(ARRAY(DATE),-1) QUIT:(+DATE'>0)  DO
@@ -163,12 +163,44 @@ WTTREND(DFN,TIU) ;
   ;
 WTTRDONE QUIT RESULT
   ;
-  ;
-WTDELTA(DFN,TIU,NONULL,HTMLWRAP) ;
-  ;"Purpose: return text showing patient's change in weight.
-  ;"Input: DFN=the Patient's IEN in file #2
+BMITREND(TMGDFN,TIU) ;
+  ;"Purpose: return text showing patient's trend in change of BMI.
+  ;"         e.g. 215 (DOS) <== 212 (DOS) <== 256 (DOS) <== 278 (DOS)
+  ;"Input: TMGDFN=the Patient's IEN in file #2
   ;"       TIU=PASS BY REFERENCE.  Should be an Array of TIU note info
-  ;"                               See documentation in VITALS(DFN,TIU)
+  ;"                               See documentation in VITALS^TMGTIUOJ(TMGDFN,TIU)
+  ;"Results: Returns string describing changes in BMI
+  ;
+  NEW RESULT SET RESULT=""
+  NEW DATE SET DATE=$GET(TIU("EDT"))
+  SET DATE=3220101
+  IF +DATE'>0 DO  GOTO BMITRDONE
+  . SET RESULT="(No BMIs available)"
+  ;
+  NEW ARRAY
+  DO PRIORVIT(.TMGDFN,DATE,"WEIGHT",.ARRAY)
+  ;
+  NEW HT,HTDT,EHTDT SET HT=$$HEIGHT^TIULO(TMGDFN)
+  NEW NHT SET NHT=$$PARSEHT(HT,.HTDT,.EHTDT)
+  NEW DATE SET DATE=""
+  NEW COUNT SET COUNT=0
+  FOR  SET DATE=$ORDER(ARRAY(DATE),-1) QUIT:(+DATE'>0)!(COUNT>2)  DO
+  . IF RESULT'="" SET RESULT=RESULT_" <== "
+  . NEW MSQR SET MSQR=(NHT*NHT)
+  . NEW NWT SET NWT=+$JUSTIFY($ORDER(ARRAY(DATE,""))*0.45359237,0,1)
+  . SET BMI=+$JUSTIFY(NWT/MSQR,0,1) QUIT:BMI=0
+  . SET COUNT=COUNT+1
+  . SET RESULT=RESULT_BMI_" ("_$$EXTDATE^TMGDATE(DATE,1)_")"
+  ;
+  SET RESULT="BMI trend: "_RESULT
+  ;
+BMITRDONE QUIT RESULT
+  ;
+WTDELTA(TMGDFN,TIU,NONULL,HTMLWRAP) ;
+  ;"Purpose: return text showing patient's change in weight.
+  ;"Input: TMGDFN=the Patient's IEN in file #2
+  ;"       TIU=PASS BY REFERENCE.  Should be an Array of TIU note info
+  ;"                               See documentation in VITALS(TMGDFN,TIU)
   ;"       NONULL -- optional.  Default=1.  If 0, no "?" returned
   ;"Results: Returns string describing change in weight.
   ;
@@ -182,7 +214,7 @@ WTDELTA(DFN,TIU,NONULL,HTMLWRAP) ;
   . SET RESULT=RESULT_"change: ?"
   ;
   NEW ARRAY
-  DO PRIORVIT(.DFN,DATE,"WEIGHT",.ARRAY)
+  DO PRIORVIT(.TMGDFN,DATE,"WEIGHT",.ARRAY)
   ;
   NEW NTLAST,LAST
   DO GETLAST2(.ARRAY,.NTLAST,.LAST)
@@ -228,10 +260,10 @@ GETLAST2(ARRAY,NTLAST,LAST) ;
   QUIT
   ;
   ;
-PRIORVIT(DFN,DATE,VITAL,ARRAY)  ;
+PRIORVIT(TMGDFN,DATE,VITAL,ARRAY)  ;
   ;"Purpose: To retrieve a list of prior vital entries for a patient
   ;"         Note: entries up to *AND INCLUDING* the current day will be retrieved
-  ;"Input: DFN: the IEN of the patient, in file #2 (PATIENT)
+  ;"Input: TMGDFN: the IEN of the patient, in file #2 (PATIENT)
   ;"       DATE: Date (in FM format) of the current event.  Entries up to
   ;"             AND INCLUDING this date will be retrieved.
   ;"       VITAL: Vital to retrieve, GMRV VITAL TYPE file (#120.51)
@@ -243,8 +275,8 @@ PRIORVIT(DFN,DATE,VITAL,ARRAY)  ;
   ;"          ARRAY(FMDATE,VALUE)=""
   ;"        Or array will be empty IF no values found.
   ;"Result: None
-  SET DFN=+$GET(DFN)
-  IF DFN=0 GOTO GPVDONE
+  SET TMGDFN=+$GET(TMGDFN)
+  IF TMGDFN=0 GOTO GPVDONE
   IF +$GET(DATE)=0 GOTO GPVDONE
   IF $GET(VITAL)="" GOTO GPVDONE
   NEW VITALTIEN
@@ -254,7 +286,7 @@ PRIORVIT(DFN,DATE,VITAL,ARRAY)  ;
   ;
   NEW IEN SET IEN=""
   NEW X,X1,X2,%Y
-  FOR  SET IEN=$ORDER(^GMR(120.5,"C",DFN,IEN)) QUIT:(+IEN'>0)  DO
+  FOR  SET IEN=$ORDER(^GMR(120.5,"C",TMGDFN,IEN)) QUIT:(+IEN'>0)  DO
   . NEW STR SET STR=$GET(^GMR(120.5,IEN,0))
   . IF $DATA(^GMR(120.5,IEN,2)) QUIT  ;"DON'T INCLUDE EIE
   . IF +$PIECE(STR,"^",3)'=VITALTIEN QUIT
@@ -266,11 +298,11 @@ PRIORVIT(DFN,DATE,VITAL,ARRAY)  ;
   ;
 GPVDONE QUIT
         ;
-GETSPECL(DFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTIONS) ;"GET SPECIAL 
+GETSPECL(TMGDFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTIONS) ;"GET SPECIAL 
   ;"Purpose: to return a block of text from notes for patient, starting with
   ;"         STARTMARKERS, and ending with ENDMARKERS, searching backwards
   ;"         within time period of 'MONTHS'.
-  ;"Input: DFN -- IEN of patient in PATIENT file.
+  ;"Input: TMGDFN -- IEN of patient in PATIENT file.
   ;"       STARTMARKERS -- the string to search for that indicates start of block
   ;"       ENDMARKERS -- the string to search for that indicates the end of block.
   ;"              NOTE: IF ENDMARKERS="BLANK_LINE", then search is
@@ -324,13 +356,13 @@ GETSPECL(DFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTIONS) ;"GET SPE
   ;
   NEW NOTESLIST
   KILL ARRAY
-  SET DFN=+$GET(DFN)
-  IF DFN'>0 GOTO GSDONE
+  SET TMGDFN=+$GET(TMGDFN)
+  IF TMGDFN'>0 GOTO GSDONE
   ;
-  NEW FOUND22729 SET FOUND22729=$$LASTNOTE^TMGTIUO5(DFN,.NOTESLIST,STARTMARKERS,.OPTION)
+  NEW FOUND22729 SET FOUND22729=$$LASTNOTE^TMGTIUO5(TMGDFN,.NOTESLIST,STARTMARKERS,.OPTION)
   IF (FOUND22729=0)!($G(OPTION("ALL NOTES"))=1) DO   ;"ELH  added OR with ALL NOTES 
   . NEW INCDAYS SET INCDAYS=+$GET(MONTHS)*30
-  . DO GNOTELST^TMGTIUO5(DFN,.NOTESLIST,INCDAYS,.OPTIONS)
+  . DO GNOTELST^TMGTIUO5(TMGDFN,.NOTESLIST,INCDAYS,.OPTIONS)
   ;
   NEW DIRECTION SET DIRECTION=1
   IF MODE=1 SET DIRECTION=-1

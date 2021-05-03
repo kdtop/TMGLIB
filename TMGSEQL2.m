@@ -1,4 +1,4 @@
-TMGSEQL2 ;TMG/kst/Interface with SequelSystems PMS (Error Hndlng) ;2/2/14, 1/7/15
+TMGSEQL2 ;TMG/kst/Interface with SequelSystems PMS (Error Hndlng) ;2/2/14, 1/7/15, 3/24/21
          ;;1.0;TMG-LIB;**1**;01/09/06
  ;
  ;"TMG SEQUEL IMPORT ERROR-HANDLING FUNCTIONS
@@ -483,9 +483,9 @@ FIXSSN(PTINFO,ERRMSG,ONELINE,DELERROR)  ;
   . . SET DONE=1
   . . SET FIXED=1
   . . SET DELERROR=1
-  . . NEW DFN SET DFN=$$GETDFN^TMGSEQL1(.PTINFO)
+  . . NEW TMGDFN SET TMGDFN=$$GETDFN^TMGSEQL1(.PTINFO)
   . . NEW TMGFDA,TMGMSG,TEMPRESULT
-  . . SET TMGFDA(2,DFN_",",.09)="@"  ;"delete .09 field (SSN)
+  . . SET TMGFDA(2,TMGDFN_",",.09)="@"  ;"delete .09 field (SSN)
   . . SET TEMPRESULT=$$dbWrite^TMGDBAPI(.TMGFDA,1,,,.TMGMSG)
   . . IF TEMPRESULT=0 QUIT  ;"error found, so QUIT
   . . ;"Now try filing again.

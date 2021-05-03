@@ -1,4 +1,4 @@
-TMGTICKL ;TMG/kst-Tickler Text objects for use in CPRS ;08/09/12, 2/2/14
+TMGTICKL ;TMG/kst-Tickler Text objects for use in CPRS ;08/09/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;08/27/08
  ;
  ;
@@ -20,7 +20,7 @@ TMGTICKL ;TMG/kst-Tickler Text objects for use in CPRS ;08/09/12, 2/2/14
  ;"---------------------------------------------------------------------------
  ;"PUBLIC FUNCTIONS
  ;"---------------------------------------------------------------------------
- ;"$$TICKLER^TMGTICKL(DFN,.TIU) -- Entry point for TIU Text object caller
+ ;"$$TICKLER^TMGTICKL(TMGDFN,.TIU) -- Entry point for TIU Text object caller
  ;"HANDLE^TMGTICKL -- entry point for Task to handle tickler messages, called at scheduled intervals
  ;"ERRSHOW^TMGTICKL -- Handle Alerts, showing details about error.
  ;
@@ -37,14 +37,14 @@ TMGTICKL ;TMG/kst-Tickler Text objects for use in CPRS ;08/09/12, 2/2/14
  ;"---------------------------------------------------------------------------
  ;"---------------------------------------------------------------------------
  ;
-TICKLER(DFN) ;
+TICKLER(TMGDFN) ;
         ;"Purpose: A call point for TIU objects, to launch a tickler for the given note.
-        ;"Input: DFN -- the patient's unique ID (record#)
+        ;"Input: TMGDFN -- the patient's unique ID (record#)
         ;"Result: returns text that will be put into the note in CPRS
         ;
         NEW RESULT,X,Y
-        SET DFN=+$GET(DFN)
-        IF DFN=0 DO  GOTO TKDone
+        SET TMGDFN=+$GET(TMGDFN)
+        IF TMGDFN=0 DO  GOTO TKDone
         . SET RESULT="ERROR: DFN not defined.  Contact IT support (Source: TMGTICKL.m)"
         ;
         SET RESULT=""
@@ -61,7 +61,7 @@ TICKLER(DFN) ;
         ;"Processing will need to wait until after document is signed, so that due date is fixed.
         DO NOW^%DTC
         NEW TMGFDA,TMGMSG,TMGIEN
-        SET TMGFDA(22705.5,"+1,",.01)=DFN ;"IEN in PATIENT file
+        SET TMGFDA(22705.5,"+1,",.01)=TMGDFN ;"IEN in PATIENT file
         SET TMGFDA(22705.5,"+1,",2)="U"  ;"U=Unsigned
         SET TMGFDA(22705.5,"+1,",3)=DUZ  ;"Current user
         SET TMGFDA(22705.5,"+1,",1)=%    ;"'Due Date', actually holds date created, until matched with TIU Document
@@ -146,7 +146,7 @@ HAND2   NEW X,%,TMGFDA,TMGMSG
         ;"Send message 'Your message is now due' etc...
         ;"ADDENDUM: I changed the external text of status (S)/SIGNED to be 'PENDING' for user clarity
         SET TklIEN=0
-        NEW DFN
+        NEW TMGDFN
         FOR   SET TklIEN=$ORDER(^TMG(22705.5,"S","S",TklIEN)) QUIT:(+TklIEN'>0)  DO
         . NEW DocIEN SET DocIEN=+$PIECE($GET(^TMG(22705.5,TklIEN,0)),"^",4)
         . NEW AuthorIEN SET AuthorIEN=+$PIECE($GET(^TMG(22705.5,TklIEN,0)),"^",5)  ;"0;5 = USER
@@ -185,8 +185,8 @@ HAND2   NEW X,%,TMGFDA,TMGMSG
         . SET STR(6)="    Please note original tickler message."
         . SET STR(7)=" "
         . ;"ELH added below code to test patient. If inactive, add message    10/25/16
-        . SET DFN=+$PIECE($GET(^TMG(22705.5,TklIEN,0)),"^",1)
-        . IF $$ACTIVEPT^TMGPXR03(DFN,3)<1 DO
+        . SET TMGDFN=+$PIECE($GET(^TMG(22705.5,TklIEN,0)),"^",1)
+        . IF $$ACTIVEPT^TMGPXR03(TMGDFN,3)<1 DO
         . . SET STR(8)=" <strong>==== NOTE: INACTIVE PATIENT ==== "
         . . SET STR(9)=" PLEASE REVIEW CHART CAREFULLY BEFORE SCHEDULING"
         . . SET STR(10)=" IF A TRANSFERRED PATIENT, CONSIDER NOTIFYING PATIENT'S NEW PROVIDER"

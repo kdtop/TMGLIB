@@ -1,4 +1,4 @@
-TMGSRVP        ; SLC/JER - RPCs for CREATE & UPDATE ;11/01/03, 2/2/14
+TMGSRVP        ; SLC/JER - RPCs for CREATE & UPDATE ;11/01/03, 2/2/14, 3/24/21
         ;;1.0;TEXT INTEGRATION UTILITIES;**1,7,19,28,47,89,104,100,115,109,167,113,112,175**;Jun 20, 1997
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -12,10 +12,10 @@ TMGSRVP        ; SLC/JER - RPCs for CREATE & UPDATE ;11/01/03, 2/2/14
  ;
  ;"Note: Code copied from TIUSRVP for local modifications.
  ;
-MAKE(SUCCESS,DFN,TITLE,VDT,VLOC,VSIT,TIUX,VSTR,SUPPRESS,NOASF)        ;" New Document
+MAKE(SUCCESS,TMGDFN,TITLE,VDT,VLOC,VSIT,TIUX,VSTR,SUPPRESS,NOASF)        ;" New Document
         ;" SUCCESS = (by ref) TIU DOCUMENT # (PTR to 8925)
         ;"         = 0^Explanatory message IF no SUCCESS
-        ;" DFN     = Patient (#2)
+        ;" TMGDFN     = Patient (#2)
         ;" TITLE   = TIU Document Definition (#8925.1)
         ;" [VDT]   = Date(/Time) of Visit
         ;" [VLOC]  = Visit Location (HOSPITAL LOCATION)
@@ -33,26 +33,26 @@ MAKE(SUCCESS,DFN,TITLE,VDT,VLOC,VSIT,TIUX,VSTR,SUPPRESS,NOASF)        ;" New Doc
         . S VLOC=$S(+$G(VLOC):+$G(VLOC),1:$P(VSTR,";"))
         . ; If note is for Ward Location, call MAIN^TIUMOVE
         . I $P($G(^SC(+VLOC,0)),U,3)="W" D  Q
-   . . DO MAIN^TIUMOVE(.TIU,DFN,"",VDT,LDT,1,"LAST",0,+VLOC)
+   . . DO MAIN^TIUMOVE(.TIU,TMGDFN,"",VDT,LDT,1,"LAST",0,+VLOC)
         . ;" Otherwise, call PATVADPT^TIULV
-        . D PATVADPT^TIULV(.TIU,DFN,"",VSTR)
+        . D PATVADPT^TIULV(.TIU,TMGDFN,"",VSTR)
         I '+$G(VSIT),'$L($G(VSTR)),+$G(VDT),+$G(VLOC) D
         . S VDT=$G(VDT),LDT=$S(+$G(VDT):$$FMADD^XLFDT(VDT,"","",1),1:"")
         . ;" If note is for Ward Location, call MAIN^TIUMOVE
         . I $P($G(^SC(+VLOC,0)),U,3)="W" D  Q
-   . . DO MAIN^TIUMOVE(.TIU,DFN,"",VDT,LDT,1,"LAST",0,+VLOC)
+   . . DO MAIN^TIUMOVE(.TIU,TMGDFN,"",VDT,LDT,1,"LAST",0,+VLOC)
         . ;" Otherwise, call MAIN^TIUVSIT
-        . D MAIN^TIUVSIT(.TIU,DFN,"",VDT,LDT,"LAST",0,VLOC)
+        . D MAIN^TIUVSIT(.TIU,TMGDFN,"",VDT,LDT,"LAST",0,VLOC)
         I '+$G(TIU("VSTR")) D
-        . D EVENT^TIUSRVP1(.TIU,DFN)
+        . D EVENT^TIUSRVP1(.TIU,TMGDFN)
         S TIU("INST")=$$DIVISION^TIULC1(+TIU("LOC"))
-        I $S($D(TIU)'>9:1,+$G(DFN)'>0:1,1:0) S SUCCESS="0^"_$$EZBLD^DIALOG(89250001) Q
+        I $S($D(TIU)'>9:1,+$G(TMGDFN)'>0:1,1:0) S SUCCESS="0^"_$$EZBLD^DIALOG(89250001) Q
         ;
-        S TIUDA=$$GETREC(DFN,.TIU,TITLE,.NEWREC)
+        S TIUDA=$$GETREC(TMGDFN,.TIU,TITLE,.NEWREC)
         I +TIUDA'>0 S SUCCESS="0^"_$$EZBLD^DIALOG(89250002) Q
         S SUCCESS=+TIUDA
         ;
-        D STUFREC^TIUSRVP1(+TIUDA,.TIUX,DFN,,TITLE,.TIU)
+        D STUFREC^TIUSRVP1(+TIUDA,.TIUX,TMGDFN,,TITLE,.TIU)
         S:'+$G(NOASF) ^TIU(8925,"ASAVE",DUZ,TIUDA)=""
         K ^TIU(8925,+TIUDA,"TEMP")
         M ^TIU(8925,+TIUDA,"TEMP")=TIUX("TEXT") K TIUX("TEXT")
@@ -111,7 +111,7 @@ MAKEADD(TIUDADD,TIUDA,TIUX,SUPPRESS)        ;" Create addendum
         I +Y'>0 S TIUDADD=TIUDADD_"^Could not create addendum." Q
         D GETTIU^TIULD(.TIU,TIUDA)
         S TIU("DOCTYP")=TIUATYP_U_$$PNAME^TIULC1(TIUATYP)
-        D STUFREC^TIUSRVP1(+TIUDADD,.TIUX,DFN,+$G(TIUDA),TIUATYP,.TIU)
+        D STUFREC^TIUSRVP1(+TIUDADD,.TIUX,TMGDFN,+$G(TIUDA),TIUATYP,.TIU)
         K ^TIU(8925,+TIUDADD,"TEMP")
         M ^TIU(8925,+TIUDADD,"TEMP")=TIUX("TEXT") K TIUX("TEXT")
         D SETXT0(+TIUDADD)
@@ -187,7 +187,7 @@ UPDSTAT(DA,TITLE)        ; Update status on commit
         D ^DIE
         Q
  ;
-GETREC(DFN,TIU,TITLE,TIUNEW)        ; Get/create document record
+GETREC(TMGDFN,TIU,TITLE,TIUNEW)        ; Get/create document record
         N DA,DIC,DIE,DLAYGO,DR,X,Y,TIUDPRM,TIUFPRIV,TIUHIT,TIUSCAT
         S (TIUHIT,DA)=0,TIUFPRIV=1
         S (DIC,DLAYGO)=8925,DIC(0)="FL"

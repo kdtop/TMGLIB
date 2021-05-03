@@ -19,7 +19,7 @@ DelPt
         ;"        SO, only delete a patient IF you are sure that you what you are
         ;"        doing, and are sure that you are not causing perminant injury!
 
-        NEW DFN,DIC,X,Y,PtIEN
+        NEW TMGDFN,DIC,X,Y,PtIEN
 Loop1
         SET DIC=2,DIC(0)="MAEQ"
         DO ^DIC WRITE !

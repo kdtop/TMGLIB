@@ -18,7 +18,7 @@ TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18, 2/16/21
  ;"DELLAB(LRDFN,DT,FLD)  -- DELETE 1 LAB 
  ;"PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) -- PRIOR LAB DATES
  ;"ASKDELAB  -- Interact with user and delete stored LAB
- ;"ASKDELRAD(DFN) -- Interact with user and delete stored RAD STUDY
+ ;"ASKDELRAD(TMGDFN) -- Interact with user and delete stored RAD STUDY
  ;"
  ;"DUPSCAN  -- Scan for duplicate labs
  ;"=======================================================================
@@ -29,14 +29,14 @@ TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18, 2/16/21
  ;"Dependancies
  ;"=======================================================================
  ;
-ASKDELAB(DFN) ;
+ASKDELAB(TMGDFN) ;
         ;"INPUT: DFN-- optional
         WRITE !,!,"--------------------------------------------------------",!
         WRITE "This utility will cause PERMANENT DELETION of stored lab values. CAUTION!",!
         WRITE "--------------------------------------------------------",!
         NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
-        SET DFN=$GET(DFN) 
-        IF DFN>0 SET Y=DFN
+        SET TMGDFN=$GET(TMGDFN) 
+        IF TMGDFN>0 SET Y=TMGDFN
         ELSE  DO ^DIC WRITE !
 ADL1    IF Y'>0 DO  GOTO ADLDN
         . WRITE "No patient selected.  Aborting.",!
@@ -126,18 +126,18 @@ PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) ;"PRIOR LAB DATES
         . . . SET DATESUSED("B",ALAB,FMDT)=LABRDT
         QUIT
         ;
-ASKDELRAD(DFN) ;"ARRRGGG!!! I wrote this function twice!!  see ASKDELRAD^TMGRAU01
+ASKDELRAD(TMGDFN) ;"ARRRGGG!!! I wrote this function twice!!  see ASKDELRAD^TMGRAU01
         ;"INPUT: DFN-- optional
         WRITE !,!,"--------------------------------------------------------------------------------",!
         WRITE "This utility will cause PERMANENT DELETION of stored radiology studies. CAUTION!",!
         WRITE "--------------------------------------------------------------------------------",!
         NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
-        SET DFN=$GET(DFN) 
-        IF DFN>0 SET Y=DFN
+        SET TMGDFN=$GET(TMGDFN) 
+        IF TMGDFN>0 SET Y=TMGDFN
         ELSE  DO ^DIC WRITE !
 ADR1    IF Y'>0 DO  GOTO ADRDN
         . WRITE "No patient selected.  Aborting.",!
-        SET DFN=+Y        
+        SET TMGDFN=+Y        
         NEW %DT,X,Y SET %DT="AEP"
         SET %DT("A")="Enter date of radiographic studies to delete: "
         DO ^%DT WRITE !
@@ -149,11 +149,11 @@ ADRL0   KILL MENU SET MENUCT=0
         NEW SRDT SET SRDT=$$FMDT2RDT^TMGLRWU1(Y+1)  
         NEW ERDT SET ERDT=$$FMDT2RDT^TMGLRWU1(Y) 
         NEW RDT SET RDT=SRDT
-        FOR  SET RDT=+$ORDER(^RADPT(DFN,"DT",RDT)) QUIT:((RDT\1)>(ERDT\1))!(RDT=0)  DO
+        FOR  SET RDT=+$ORDER(^RADPT(TMGDFN,"DT",RDT)) QUIT:((RDT\1)>(ERDT\1))!(RDT=0)  DO
         . NEW SUBIEN SET SUBIEN=0
-        . FOR  SET SUBIEN=+$ORDER(^RADPT(DFN,"DT",RDT,"P",SUBIEN)) QUIT:SUBIEN'>0  DO
+        . FOR  SET SUBIEN=+$ORDER(^RADPT(TMGDFN,"DT",RDT,"P",SUBIEN)) QUIT:SUBIEN'>0  DO
         . . NEW DT SET DT=$$RDT2FMDT^TMGLRWU1(RDT)
-        . . NEW IENS SET IENS=SUBIEN_","_RDT_","_DFN_","
+        . . NEW IENS SET IENS=SUBIEN_","_RDT_","_TMGDFN_","
         . . NEW FLD SET FLD=".01;2"
         . . NEW TMGMSG,TMGERR
         . . DO GETS^DIQ(70.03,IENS,FLD,"E","TMGMSG","TMGERR")
@@ -194,21 +194,21 @@ DUPSCAN  ;"Scan for duplicate labs
   NEW BUILDUP SET BUILDUP=0
   NEW LRDFN SET LRDFN=3 ;"ignore 1-3
   FOR  SET LRDFN=$ORDER(^LR(LRDFN)) QUIT:LRDFN'>0  DO
-  . NEW DFN SET DFN=$ORDER(^DPT("ATMGLR",LRDFN,0))
+  . NEW TMGDFN SET TMGDFN=$ORDER(^DPT("ATMGLR",LRDFN,0))
   . IF 'BUILDUP KILL ARR
-  . DO SCAN1(.ARR,DFN)
-  . DO FILTR1(.ARR,DFN)
+  . DO SCAN1(.ARR,TMGDFN)
+  . DO FILTR1(.ARR,TMGDFN)
   . IF $DATA(ARR)=0 QUIT
-  . WRITE !,$GET(ARR(DFN,"NAME"))
+  . WRITE !,$GET(ARR(TMGDFN,"NAME"))
   . IF $GET(TMGKILL)'=1 QUIT   ;"<----- set TMGKILL prior to running to actually delete entries.  
-  . DO DEL1(.ARR,DFN,LRDFN)
+  . DO DEL1(.ARR,TMGDFN,LRDFN)
   WRITE !
   QUIT
   ;
-SCAN1(OUT,DFN)  ;
-  NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-  SET OUT(DFN,"NAME")=PTNAME
-  SET OUT(DFN,"LRDFN")=LRDFN
+SCAN1(OUT,TMGDFN)  ;
+  NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+  SET OUT(TMGDFN,"NAME")=PTNAME
+  SET OUT(TMGDFN,"LRDFN")=LRDFN
   NEW RDT SET RDT=0
   FOR  SET RDT=$ORDER(^LR(LRDFN,"CH",RDT)) QUIT:RDT'>0  DO
   . IF RDT\1=RDT QUIT  ;"ignore if no seconds
@@ -216,35 +216,35 @@ SCAN1(OUT,DFN)  ;
   . NEW LABFLD SET LABFLD=1  ;"1 IS THE COMMENT FOR LAB, START AFTER THAT...
   . FOR  SET LABFLD=$ORDER(^LR(LRDFN,"CH",RDT,LABFLD)) QUIT:LABFLD'>0  DO
   . . NEW LABNAME SET LABNAME=$PIECE($GET(^DD(63.04,LABFLD,0)),"^",1)
-  . . SET OUT(DFN,LABFLD,"NAME")=LABNAME
-  . . SET OUT(DFN,LABFLD,FMDT)=RDT  
+  . . SET OUT(TMGDFN,LABFLD,"NAME")=LABNAME
+  . . SET OUT(TMGDFN,LABFLD,FMDT)=RDT  
   QUIT
   ;
-FILTR1(ARR,DFN)  ;"FILTER 1 ARRAY, AS MADE BY SCAN1
+FILTR1(ARR,TMGDFN)  ;"FILTER 1 ARRAY, AS MADE BY SCAN1
   NEW LABFLD SET LABFLD=0
-  FOR  SET LABFLD=$ORDER(ARR(DFN,LABFLD)) QUIT:LABFLD'>0  DO
+  FOR  SET LABFLD=$ORDER(ARR(TMGDFN,LABFLD)) QUIT:LABFLD'>0  DO
   . NEW FIRSTDT SET FIRSTDT=0
   . NEW LASTDT SET LASTDT=0
   . NEW FMDT SET FMDT=0
-  . FOR  SET FMDT=$ORDER(ARR(DFN,LABFLD,FMDT)) QUIT:FMDT'>0  DO
+  . FOR  SET FMDT=$ORDER(ARR(TMGDFN,LABFLD,FMDT)) QUIT:FMDT'>0  DO
   . . IF FIRSTDT=0 SET FIRSTDT=FMDT
   . . IF LASTDT=0 SET LASTDT=FMDT QUIT
   . . IF $EXTRACT(FMDT,1,12)'=$EXTRACT(LASTDT,1,12) DO  QUIT
-  . . . KILL ARR(DFN,LABFLD,FMDT)
+  . . . KILL ARR(TMGDFN,LABFLD,FMDT)
   . . . SET LASTDT=DT
-  . IF $ORDER(ARR(DFN,LABFLD,FIRSTDT))="NAME" DO
-  . . KILL ARR(DFN,LABFLD,FIRSTDT)
-  . . KILL ARR(DFN,LABFLD,"NAME")
-  IF $ORDER(ARR(DFN,""))="LRDFN" KILL ARR(DFN)
+  . IF $ORDER(ARR(TMGDFN,LABFLD,FIRSTDT))="NAME" DO
+  . . KILL ARR(TMGDFN,LABFLD,FIRSTDT)
+  . . KILL ARR(TMGDFN,LABFLD,"NAME")
+  IF $ORDER(ARR(TMGDFN,""))="LRDFN" KILL ARR(TMGDFN)
   QUIT
   ;
-DEL1(ARR,DFN,LRDFN) ;"DELETE DUPLICATE LAB ENTRIES
+DEL1(ARR,TMGDFN,LRDFN) ;"DELETE DUPLICATE LAB ENTRIES
   NEW LABFLD SET LABFLD=0
-  FOR  SET LABFLD=$ORDER(ARR(DFN,LABFLD)) QUIT:LABFLD'>0  DO
+  FOR  SET LABFLD=$ORDER(ARR(TMGDFN,LABFLD)) QUIT:LABFLD'>0  DO
   . NEW FMDT SET FMDT=0
-  . FOR  SET FMDT=$ORDER(ARR(DFN,LABFLD,FMDT)) QUIT:FMDT'>0  DO
-  . . IF $ORDER(ARR(DFN,LABFLD,FMDT))="NAME" QUIT  ;"SAVE only entry just before "NAME"
+  . FOR  SET FMDT=$ORDER(ARR(TMGDFN,LABFLD,FMDT)) QUIT:FMDT'>0  DO
+  . . IF $ORDER(ARR(TMGDFN,LABFLD,FMDT))="NAME" QUIT  ;"SAVE only entry just before "NAME"
   . . DO DELLAB(LRDFN,FMDT,LABFLD)  ;"DELETE 1 LAB
-  . . KILL ARR(DFN,LABFLD,FMDT)
+  . . KILL ARR(TMGDFN,LABFLD,FMDT)
   QUIT
   ;

@@ -1,4 +1,4 @@
-TMGFIX3 ;TMG/kst/Fixes for meaningful use ;2/2/14, 5/18/18
+TMGFIX3 ;TMG/kst/Fixes for meaningful use ;2/2/14, 5/18/18, 3/24/21
          ;;1.0;TMG-LIB;**1**;8/17/12
  ;
  ;"FIXES related to TMG C0Q FUNCTIONS
@@ -25,11 +25,11 @@ TMGFIX3 ;TMG/kst/Fixes for meaningful use ;2/2/14, 5/18/18
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
  ;"GETHDR(TEXT) --LOAD UP HEADER ARRAY
- ;"MAKENOTE(VALUE,YN,DFN,TXTARRAY) -- compose a note with information for NEW table.
- ;"SAVENOTE(DFN,TEXT) -- save TEXT array as a NEW entry in file 8925
+ ;"MAKENOTE(VALUE,YN,TMGDFN,TXTARRAY) -- compose a note with information for NEW table.
+ ;"SAVENOTE(TMGDFN,TEXT) -- save TEXT array as a NEW entry in file 8925
  ;
  ;"DOASCAN(TABLE,ELEMENT,FOUNDVPT,REFUSEDVPT) -- cycle through patients, get a table entry and create corresponding reminder entry  
- ;"TAB2REM(DFN,TABLE,ELEMENT,DATAREF) -- Get table value for given patient. 
+ ;"TAB2REM(TMGDFN,TABLE,ELEMENT,DATAREF) -- Get table value for given patient. 
  ;"SEL2ARR(DATAREF,ELEMENT,MESSAGE,OUTREF) -- Allow user to select entries that match desired action    
  ;"STR2DATES(STR,OUT) -- Convert string containing dates and other text, into array of FM dates
  ;"ISDATE(WORD,OUTFMDT) -- IF word is a date, and IF so, turn into FM date
@@ -48,16 +48,16 @@ DOSCAN  ;
         NEW STIME SET STIME=$H
         NEW DONE SET DONE=0
         NEW DFNMAX SET DFNMAX=$ORDER(^DPT("!"),-1)
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:(+DFN'>0)  DO
-        . IF DFN#5=0 DO
-        . . DO PROGBAR^TMGUSRI2(DFN,"PROGRESS: "_DFN,0,DFNMAX,60,STIME)
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . IF TMGDFN#5=0 DO
+        . . DO PROGBAR^TMGUSRI2(TMGDFN,"PROGRESS: "_TMGDFN,0,DFNMAX,60,STIME)
         . . IF $$USRABORT^TMGUSRI2("scanning patients") SET DONE=1
         . NEW S
-        . ;"doesn't exist, fix later --> IF $$TMGSMOKING^TMGC0Q02(DFN,.S) ;"Ignore result.  Get back S
+        . ;"doesn't exist, fix later --> IF $$TMGSMOKING^TMGC0Q02(TMGDFN,.S) ;"Ignore result.  Get back S
         . IF S="" QUIT
         . IF S="<NO DATA>" QUIT
-        . SET ^TMG("TMP","TOBACCO",DFN)=S
+        . SET ^TMG("TMP","TOBACCO",TMGDFN)=S
         QUIT
         ;
 
@@ -85,7 +85,7 @@ GETHDR(TEXT,LABEL) ;"LOAD UP HEADER ARRAY
         ;
 PICKFIX ;
         ;"Purpose: pick all entries to SET to YES or NO, and fix them.
-        NEW TITLE,%,MENU,DFN,TMGPICK,TMGRESULT,REPLY,XREFDFN
+        NEW TITLE,%,MENU,TMGDFN,TMGPICK,TMGRESULT,REPLY,XREFDFN
         WRITE !,!,"TOBACCO USE FIXER.",!
 M1      KILL MENU
         SET MENU(0)="Pick type to browse for"
@@ -99,37 +99,37 @@ M1      KILL MENU
 PS1     WRITE !,"Prepairing...."
         ;"KILL XREFDFN
         KILL TMGPICK
-        SET DFN=0
-        FOR  SET DFN=$ORDER(^TMG("TMP","TOBACCO",DFN)) QUIT:(+DFN'>0)  DO
-        . SET REPLY=$GET(^TMG("TMP","TOBACCO",DFN))
+        SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(^TMG("TMP","TOBACCO",TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . SET REPLY=$GET(^TMG("TMP","TOBACCO",TMGDFN))
         . IF REPLY="" QUIT
         . IF REPLY="<NO DATA>" QUIT
         . IF $EXTRACT(REPLY,1,2)="NO" QUIT
         . IF $EXTRACT(REPLY,1,3)="YES" QUIT
-        . SET TMGPICK(REPLY_"^ "_$$GET1^DIQ(2,DFN,.01))=DFN
-        . ;"SET XREFDFN(DFN)=REPLY
+        . SET TMGPICK(REPLY_"^ "_$$GET1^DIQ(2,TMGDFN,.01))=TMGDFN
+        . ;"SET XREFDFN(TMGDFN)=REPLY
         KILL TMGRESULT
         DO SELECTR2^TMGUSRI3("TMGPICK","TMGRESULT","Pick replies that mean "_YN_" tobacco use. <Esc><Esc> when done.")
         SET REPLY=""
         FOR  SET REPLY=$ORDER(TMGRESULT(REPLY)) QUIT:REPLY=""  DO
-        . NEW DFN SET DFN=+$GET(TMGRESULT(REPLY))
-        . IF DFN'>0 QUIT
+        . NEW TMGDFN SET TMGDFN=+$GET(TMGRESULT(REPLY))
+        . IF TMGDFN'>0 QUIT
         . NEW TEXT,VALUE
         . SET VALUE=$PIECE(REPLY,"^",1)
-        . DO MAKENOTE(VALUE,YN,DFN,.TEXT)
-        . NEW DIDSAVE SET DIDSAVE=$$SAVENOTE(DFN,.TEXT)
+        . DO MAKENOTE(VALUE,YN,TMGDFN,.TEXT)
+        . NEW DIDSAVE SET DIDSAVE=$$SAVENOTE(TMGDFN,.TEXT)
         . IF DIDSAVE DO
-        . . KILL ^TMG("TMP","TOBACCO",DFN)
+        . . KILL ^TMG("TMP","TOBACCO",TMGDFN)
         GOTO M1
 PSDN    QUIT
         ;
-MAKENOTE(VALUE,YN,DFN,TXTARRAY)  ;
+MAKENOTE(VALUE,YN,TMGDFN,TXTARRAY)  ;
         ;"Purpose: to compose a note with information for NEW table.
         ;"Input: VALUE -- PASS BY REFERENCE, to get NEW value back out.
         KILL TXTARRAY
         DO GETHDR(.TXTARRAY,"HEADER")
         SET VALUE=YN_". "_VALUE
-        NEW S SET S=$$SETTABL(DFN,"SOCIAL HX","TOBACCO",VALUE)
+        NEW S SET S=$$SETTABL(TMGDFN,"SOCIAL HX","TOBACCO",VALUE)
         NEW CT SET CT=+$ORDER(TXTARRAY(""),-1)+1
         NEW ARR DO SPLIT2AR^TMGSTUT2(S,$CHAR(13)_$CHAR(10),.ARR,CT)
         SET CT=0 FOR  SET CT=$ORDER(ARR(CT)) QUIT:+CT'>0  DO
@@ -140,16 +140,16 @@ MAKENOTE(VALUE,YN,DFN,TXTARRAY)  ;
         . SET TXTARRAY(CT,0)=" "
 MNDN    QUIT
         ;
-SETTABL(DFN,LABEL,KEY,VALUE) ;
+SETTABL(TMGDFN,LABEL,KEY,VALUE) ;
     ;"Purpose: to get a table, just like GETTABL1, but then SET KEY=VALUE in the table
     ;"NOTE: not currently designed to handle MEDICATIONS table.
     NEW RESULT SET RESULT=""
     NEW ARRAY
     IF $GET(LABEL)="" GOTO STDN
     NEW SPACES SET SPACES=""
-    DO GETSPECL^TMGTIUO4(DFN,LABEL,"BLANK_LINE",48,.ARRAY,1,.SPACES)  ;"mode 1 = only last table; 2=compile
+    DO GETSPECL^TMGTIUO4(TMGDFN,LABEL,"BLANK_LINE",48,.ARRAY,1,.SPACES)  ;"mode 1 = only last table; 2=compile
     SET RESULT=SPACES_"-- "_LABEL_" ---------"_$CHAR(13)_$CHAR(10)
-    DO STUBRECS^TMGTIIUO6(.DFN,.ARRAY,LABEL)
+    DO STUBRECS^TMGTIIUO6(.TMGDFN,.ARRAY,LABEL)
     IF $DATA(ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY))) DO
     . NEW TS SET TS=$GET(ARRAY("KEY-VALUE",$$UP^XLFSTR(KEY),"LINE"))
     . SET $PIECE(TS,": ",2,99)=VALUE
@@ -160,12 +160,12 @@ SETTABL(DFN,LABEL,KEY,VALUE) ;
     SET RESULT=RESULT_$$ARRAY2ST^TMGTIUO4(.ARRAY,.SPACES)
 STDN    QUIT RESULT
     ;        
-SAVENOTE(DFN,TEXT,FORCE) ;
+SAVENOTE(TMGDFN,TEXT,FORCE) ;
         ;"Purpose: save TEXT array as a NEW entry in file 8925
         ;"Result: 1 IF note saved, 0 IF not, -1 IF aborted
         NEW RESULT SET RESULT=0
         WRITE #
-        WRITE !,$PIECE($GET(^DPT(DFN,0)),"^",1)," (",$$GET1^DIQ(2,DFN,.03,"E"),")",!
+        WRITE !,$PIECE($GET(^DPT(TMGDFN,0)),"^",1)," (",$$GET1^DIQ(2,TMGDFN,.03,"E"),")",!
         WRITE "----------------------------",!
         DO ZWRITE^TMGZWR("TEXT")
         NEW % SET %=2
@@ -177,7 +177,7 @@ SAVENOTE(DFN,TEXT,FORCE) ;
         NEW TMGFDA,TMGMSG,TMGIEN
         ;"*** FIX -- next time, note needs a HOSPITAL LOCATION value
         SET TMGFDA(8925,"+1,",.01)="`1411"  ;"Hard coded 'NOTE' title.
-        SET TMGFDA(8925,"+1,",.02)="`"_DFN
+        SET TMGFDA(8925,"+1,",.02)="`"_TMGDFN
         SET TMGFDA(8925,"+1,",.05)="COMPLETED"  ;`7"  ;"Hard coded COMPLETED status
         SET TMGFDA(8925,"+1,",.07)="NOW"
         SET TMGFDA(8925,"+1,",1202)="`"_DUZ
@@ -239,12 +239,12 @@ FIXPNEUM  ;"FIX AND STANDARDIZE PNEUMOVAX ENTRIES
         WRITE !,!,"PROPOSED CHANGES TO PNEUMOVAX ENTRY",!
         WRITE "PATIENT NAME",?COL2,"PROPOSED CHANGE",?COL3,"PRIOR DATA",!
         WRITE "------------",?COL2,"---------------",?COL3,"----------",!
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:(+DFN'>0)  DO
-        . SET PTNAME=$PIECE(^DPT(DFN,0),"^",1)
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . SET PTNAME=$PIECE(^DPT(TMGDFN,0),"^",1)
         . SET CT=CT+1
         . NEW ARRAY
-        . SET S=$$GETTABLX^TMGTIUO6(DFN,"STUDIES",.ARRAY)
+        . SET S=$$GETTABLX^TMGTIUO6(TMGDFN,"STUDIES",.ARRAY)
         . SET S=$GET(ARRAY("KEY-VALUE","PNEUMOVAX"))
         . SET S=$$UP^XLFSTR($$TRIM^XLFSTR(S))
         . IF S="<NO DATA>" SET S=""
@@ -253,7 +253,7 @@ FIXPNEUM  ;"FIX AND STANDARDIZE PNEUMOVAX ENTRIES
         . IF S'["ORDERED" QUIT
         . NEW ARR,MSG
         . DO PARSEPVX^TMGTIUO7(S,.ARR,.MSG)
-        . WRITE "#",DFN," ",PTNAME," ",?COL2
+        . WRITE "#",TMGDFN," ",PTNAME," ",?COL2
         . IF $DATA(MSG) WRITE !,MSG,!
         . ;IF $DATA(ARR) DO ZWRITE^TMGZWR("ARR")
         . NEW NEWSTR SET NEWSTR=""
@@ -295,7 +295,7 @@ FIXPNEUM  ;"FIX AND STANDARDIZE PNEUMOVAX ENTRIES
         . . . . SET DATESTR="~"_$PIECE(DATESTR,"/",$LENGTH(DATESTR,"/"))
         . . . SET NEWSTR=NEWSTR_DATESTR
         . . . IF MODE="Y",FIRST=1 DO
-        . . . . NEW PTAGE SET PTAGE=$$AGEONDAT^TMGTIUO3(DFN,FMDATE)
+        . . . . NEW PTAGE SET PTAGE=$$AGEONDAT^TMGTIUO3(TMGDFN,FMDATE)
         . . . . SET NEWSTR=NEWSTR_" ("_PTAGE_"y)"
         . . . . ;"SET FIRST=0  ;"remove comment to only add year to first entry
         . . . IF REACTION'="" SET NEWSTR=NEWSTR_" REACTION: "_REACTION
@@ -303,18 +303,18 @@ FIXPNEUM  ;"FIX AND STANDARDIZE PNEUMOVAX ENTRIES
         . IF $X>COL3 WRITE !,?COL3
         . WRITE S,!
         . NEW TXTARRAY
-        . DO MKNOTE2(NEWSTR,DFN,.TXTARRAY)  ;
-        . NEW DIDSAVE SET DIDSAVE=$$SAVENOTE(DFN,.TXTARRAY,1)
+        . DO MKNOTE2(NEWSTR,TMGDFN,.TXTARRAY)  ;
+        . NEW DIDSAVE SET DIDSAVE=$$SAVENOTE(TMGDFN,.TXTARRAY,1)
         ;" Close the output device
         DO ^%ZISC
         QUIT
         ;        
-MKNOTE2(VALUE,DFN,TXTARRAY)  ;
+MKNOTE2(VALUE,TMGDFN,TXTARRAY)  ;
         ;"Purpose: to compose a note with information for NEW table.
         ;"Input: VALUE -- PASS BY REFERENCE, to get NEW value back out.
         KILL TXTARRAY
         DO GETHDR(.TXTARRAY,"HDR3")
-        NEW S SET S=$$SETTABL(DFN,"[STUDIES]","Pneumovax",VALUE)
+        NEW S SET S=$$SETTABL(TMGDFN,"[STUDIES]","Pneumovax",VALUE)
         NEW CT SET CT=+$ORDER(TXTARRAY(""),-1)+1
         NEW ARR DO SPLIT2AR^TMGSTUT2(S,$CHAR(13)_$CHAR(10),.ARR,CT)
         SET CT=0 FOR  SET CT=$ORDER(ARR(CT)) QUIT:+CT'>0  DO
@@ -375,7 +375,7 @@ DOASCAN(TABLE,ELEMENT,KEYTERM,FOUNDVPT,REFUSEDVPT)  ;
         NEW TMGRESULT SET TMGRESULT="1^Success"
         SET ELEMENT=$$UP^XLFSTR(ELEMENT)
         SET KEYTERM=$GET(KEYTERM)
-        NEW DFN SET DFN=0
+        NEW TMGDFN SET TMGDFN=0
         WRITE !,"Text Tables --> Reminders Scanner.",!,!
         WRITE "Scanning table '",TABLE,"' for element '",ELEMENT,"'.",!
         NEW % SET %=2
@@ -388,23 +388,23 @@ DOASCAN(TABLE,ELEMENT,KEYTERM,FOUNDVPT,REFUSEDVPT)  ;
         . SET %=2
         . WRITE "Continue scanning" DO YN^DICN WRITE !
         . IF %=-1 QUIT
-        . IF %=1 SET DFN=+$GET(@ROOTREF@("LAST DFN")) QUIT
-        . SET DFN="DONE"
+        . IF %=1 SET TMGDFN=+$GET(@ROOTREF@("LAST DFN")) QUIT
+        . SET TMGDFN="DONE"
         IF %=-1 GOTO DS2DN
         NEW STIME SET STIME=$H
         NEW DONE SET DONE=0
         NEW FOUNDREF SET FOUNDREF=$NAME(@ROOTREF@("FOUND")) KILL @FOUNDREF
         NEW REFUSEDREF SET REFUSEDREF=$NAME(@ROOTREF@("REFUSED")) KILL @REFUSEDREF
         NEW DATAREF SET DATAREF=$NAME(@ROOTREF@("DATA"))
-        IF DFN'="DONE" DO
+        IF TMGDFN'="DONE" DO
         . NEW DFNMAX SET DFNMAX=$ORDER(^DPT("!"),-1)
-        . FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:(+DFN'>0)!DONE  DO
-        . . IF DFN#5=0 DO
-        . . . DO PROGBAR^TMGUSRI2(DFN,"PROGRESS: "_DFN,0,DFNMAX,60,STIME)
+        . FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:(+TMGDFN'>0)!DONE  DO
+        . . IF TMGDFN#5=0 DO
+        . . . DO PROGBAR^TMGUSRI2(TMGDFN,"PROGRESS: "_TMGDFN,0,DFNMAX,60,STIME)
         . . . IF $$USRABORT^TMGUSRI2("scanning patients") DO
         . . . . SET DONE=1,TMGRESULT="-1^Aborted"
-        . . DO TAB2REM(DFN,TABLE,ELEMENT,.KEYTERM,DATAREF)
-        . . SET @ROOTREF@("LAST DFN")=DFN
+        . . DO TAB2REM(TMGDFN,TABLE,ELEMENT,.KEYTERM,DATAREF)
+        . . SET @ROOTREF@("LAST DFN")=TMGDFN
         IF +TMGRESULT'>0 GOTO DS2DN
 DS2A    DO SEL2ARR(DATAREF,ELEMENT,KEYTERM,"GIVEN",FOUNDREF,FOUNDVPT)
         SET TMGRESULT=$$NSUREHAS^TMGPXRU1(FOUNDREF,FOUNDVPT)
@@ -414,20 +414,20 @@ DS2A    DO SEL2ARR(DATAREF,ELEMENT,KEYTERM,"GIVEN",FOUNDREF,FOUNDVPT)
         IF +TMGRESULT'>0 GOTO DS2DN
 DS2DN   QUIT TMGRESULT
         ;
-TAB2REM(DFN,TABLE,ELEMENT,KEYTERM,DATAREF) ;
-        ;"Input: DFN -- patient INE
+TAB2REM(TMGDFN,TABLE,ELEMENT,KEYTERM,DATAREF) ;
+        ;"Input: TMGDFN -- patient IEN
         ;"       TABLE -- Table name, e.g. 'STUDIES'
         ;"       ELEMENT -- Table element name, e.g. 'ZOSTAVAX'  (should be upper case)
         ;"       DATAREF -- REF of output
         ;"Result: none.
         NEW TABARRAY,VALUE
         SET KEYTERM=$GET(KEYTERM)
-        DO GETSPECL^TMGTIUO4(DFN,TABLE,"BLANK_LINE",99,.TABARRAY,0,"")  ;"mode 1 = only last table
+        DO GETSPECL^TMGTIUO4(TMGDFN,TABLE,"BLANK_LINE",99,.TABARRAY,0,"")  ;"mode 1 = only last table
         IF $DATA(TABARRAY)=0 GOTO T2RDN
         SET VALUE=$$TRIM^XLFSTR($GET(TABARRAY("KEY-VALUE",ELEMENT)))
         IF (VALUE="")!(VALUE=".")!($$UP^XLFSTR(VALUE)["NO DATA") GOTO T2RDN
         IF (KEYTERM'=""),(VALUE'[KEYTERM) GOTO T2RDN
-        SET @DATAREF@(DFN)=VALUE
+        SET @DATAREF@(TMGDFN)=VALUE
 T2RDN   QUIT
         ;
 SEL2ARR(DATAREF,ELEMENT,KEYTERM,MESSAGE,OUTREF,FACTOR) ;   
@@ -444,29 +444,29 @@ SEL2ARR(DATAREF,ELEMENT,KEYTERM,MESSAGE,OUTREF,FACTOR) ;
         DO PRESS2GO^TMGUSRI2
         NEW SELARR,OUTARR,STR
         NEW ABORT SET ABORT=0
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(@DATAREF@(DFN)) QUIT:(+DFN'>0)!ABORT  DO
-        . SET STR=$GET(@DATAREF@(DFN)) QUIT:STR=""
-        . NEW TEMP SET TEMP=$$IFHAS^TMGPXRU1(DFN,FACTOR)
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(@DATAREF@(TMGDFN)) QUIT:(+TMGDFN'>0)!ABORT  DO
+        . SET STR=$GET(@DATAREF@(TMGDFN)) QUIT:STR=""
+        . NEW TEMP SET TEMP=$$IFHAS^TMGPXRU1(TMGDFN,FACTOR)
         . IF +TEMP=1 QUIT  ;"Pt already has
         . IF +TEMP=-1 DO  QUIT
-        . . WRITE !,"Error with DFN=",DFN," MSG=",$PIECE(TEMP,"^",2),!
-        . IF $DATA(@OUTREF@(DFN)) QUIT  ;"already done.
-        . SET STR=$$GET1^DIQ(2,DFN,.01)_": "_STR
-        . SET SELARR(STR,DFN)="" 
+        . . WRITE !,"Error with DFN=",TMGDFN," MSG=",$PIECE(TEMP,"^",2),!
+        . IF $DATA(@OUTREF@(TMGDFN)) QUIT  ;"already done.
+        . SET STR=$$GET1^DIQ(2,TMGDFN,.01)_": "_STR
+        . SET SELARR(STR,TMGDFN)="" 
         IF $DATA(SELARR)=0 GOTO S2ADN
         DO SELECTR2^TMGUSRI3("SELARR","OUTARR",MSG_". <ESC><ESC> to exit")
         KILL SELARR
         SET STR="" 
         FOR  SET STR=$ORDER(OUTARR(STR)) QUIT:(STR="")  DO
         . NEW DATES DO STR2DATES(STR,.DATES)
-        . SET DFN="" FOR  SET DFN=$ORDER(OUTARR(STR,DFN)) QUIT:(DFN="")  DO
+        . SET TMGDFN="" FOR  SET TMGDFN=$ORDER(OUTARR(STR,TMGDFN)) QUIT:(TMGDFN="")  DO
         . . NEW FMDT SET FMDT="" 
         . . FOR  SET FMDT=$ORDER(DATES(FMDT)) QUIT:(FMDT="")  DO
         . . . NEW S1 SET S1=STR FOR  Q:$LENGTH(S1)>40  SET S1=S1_" "
         . . . ;"NEW S2 SET S2=$PIECE(S1,":",1)_": "_MESSAGE_" ["_$$FMTE^XLFDT(FMDT)_"]<--"_$PIECE(S1,":",2)
         . . . NEW S2 SET S2=$PIECE(S1,":",1)_": ["_$$FMTE^XLFDT(FMDT)_"]: "_$PIECE(S1,":",2)
-        . . . SET SELARR(S2,DFN_"^"_FMDT,"SEL")=""
+        . . . SET SELARR(S2,TMGDFN_"^"_FMDT,"SEL")=""
         IF $DATA(SELARR)=0 GOTO S2ADN
         KILL OUTARR
         DO SELECTR2^TMGUSRI3("SELARR","OUTARR","Deselect any erroneous entries for: "_MESSAGE_". <ESC><ESC> to exit")
@@ -474,9 +474,9 @@ SEL2ARR(DATAREF,ELEMENT,KEYTERM,MESSAGE,OUTREF,FACTOR) ;
         FOR  SET STR=$ORDER(OUTARR(STR)) QUIT:(STR="")  DO
         . NEW REPLY SET REPLY=""
         . FOR  SET REPLY=$ORDER(OUTARR(STR,REPLY)) QUIT:(REPLY="")  DO
-        . . SET DFN=$PIECE(REPLY,"^",1)
+        . . SET TMGDFN=$PIECE(REPLY,"^",1)
         . . NEW FMDT SET FMDT=$PIECE(REPLY,"^",2)
-        . . SET @OUTREF@(DFN,FMDT)=""
+        . . SET @OUTREF@(TMGDFN,FMDT)=""
 S2ADN   QUIT
         ;
 STR2DATES(STR,OUT) ;
@@ -544,22 +544,22 @@ SCAN4MAM ;" Cycle through all mammogram consults
         ;
         ;
         ;"WRITE "AND NOW FOR THE RESULTS. PLEASE SPOT CHECK THESE.",!
-        ;"NEW DFN SET DFN=1
+        ;"NEW TMGDFN SET TMGDFN=1
         ;"NEW DATE,NAME,Y,TEMPARRAY
-        ;"FOR  SET DFN=$ORDER(COMMATCHES(DFN)) QUIT:(DFN'>0)  DO
+        ;"FOR  SET TMGDFN=$ORDER(COMMATCHES(TMGDFN)) QUIT:(TMGDFN'>0)  DO
         ;". SET DATE=1
-        ;". SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-        ;". FOR  SET DATE=$ORDER(COMMATCHES(DFN,DATE)) QUIT:(DATE'>0)  DO
+        ;". SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        ;". FOR  SET DATE=$ORDER(COMMATCHES(TMGDFN,DATE)) QUIT:(DATE'>0)  DO
         ;". . SET Y=DATE
         ;". . DO DD^%DT
         ;". . ;WRITE "        DATE: ",Y,!
         ;". . SET TEMPARRAY(NAME,Y)="COMPLETED"
         ;". ;WRITE "SHOWS COMPLETED=======",!,!
-        ;"SET DFN=1
-        ;"FOR  SET DFN=$ORDER(PENDMATCHES(DFN)) QUIT:(DFN'>0)  DO
+        ;"SET TMGDFN=1
+        ;"FOR  SET TMGDFN=$ORDER(PENDMATCHES(TMGDFN)) QUIT:(TMGDFN'>0)  DO
         ;". SET DATE=1
-        ;". SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-        ;". FOR  SET DATE=$ORDER(PENDMATCHES(DFN,DATE)) QUIT:(DATE'>0)  DO
+        ;". SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        ;". FOR  SET DATE=$ORDER(PENDMATCHES(TMGDFN,DATE)) QUIT:(DATE'>0)  DO
         ;". . SET Y=DATE
         ;". . DO DD^%DT
         ;". . ;WRITE "        DATE: ",Y,!

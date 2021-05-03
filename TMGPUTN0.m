@@ -1,4 +1,4 @@
-TMGPUTN0 ;TMG/kst/TIU Document Upload look-up function ;03/25/06; 5/2/10, 2/2/14
+TMGPUTN0 ;TMG/kst/TIU Document Upload look-up function ;03/25/06; 5/2/10, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;04/25/04
 
  ;"TIU Document Upload look-up function
@@ -358,7 +358,7 @@ PrepDoc(Document,NewDoc) ;
         NEW cVisitIEN SET cVisitIEN="VISIT"
         NEW cStopCode SET cStopCode="STOP"
 
-        NEW TMG,DFN
+        NEW TMG,TMGDFN
         NEW TIUDAD,TIUEDIT
         NEW TIULDT,TIUXCRP,DocTIEN
         NEW LocIEN
@@ -381,7 +381,7 @@ PrepDoc(Document,NewDoc) ;
         SET Document(cDocTIEN)=DocTIEN
         SET Document(cDocType)=1_"^"_DocTIEN_"^"_$$PNAME^TIULC1(DocTIEN)
 
-        ;"do MAIN^TIUVSIT(.TIU,.DFN,TMGSSNUM,Document(cStartDate),Document(cEndDate),"LAST",0,Document("LOCATION"))
+        ;"do MAIN^TIUVSIT(.TIU,.TMGDFN,TMGSSNUM,Document(cStartDate),Document(cEndDate),"LAST",0,Document("LOCATION"))
 
         ;" setup LocIEN from HOSPITAL LOCATION file (#44)
         ;" This contains entries like 'Laughlin_Office'
@@ -1191,7 +1191,7 @@ FOLLOWUP(DocIEN) ;" Post-filing code for PROGRESS NOTES
         NEW fSignedBy SET fSignedBy=1502     ;"field 1502 = signed by
 
         NEW TMGFDA,TMGMSG
-        NEW DFN
+        NEW TMGDFN
         NEW Attending,ExpSigner,ExpCosign,Author
         NEW BailOut SET BailOut=0
         NEW Node12 SET Node12=$GET(^TIU(8925,DocIEN,12))
@@ -1223,24 +1223,24 @@ FOLLOWUP(DocIEN) ;" Post-filing code for PROGRESS NOTES
         . NEW VstLocIEN,HspLocIEN,StartDate,EndDate
         . IF $DATA(NodeZero)#10=0 DO  QUIT
         . . SET BailOut=1
-        . SET DFN=+$PIECE(NodeZero,"^",pPatient)
+        . SET TMGDFN=+$PIECE(NodeZero,"^",pPatient)
         . SET StartDate=+$PIECE(NodeZero,"^",pStrtDate)
         . SET EndDate=$$FMADD^XLFDT(StartDate,1)
         . SET Document(cHspLocIEN)=+$PIECE(Node12,"^",pHospLoc)
         . SET Document(cVstLocIEN)=+$PIECE(Node12,"^",pVstLoc)
         . SET VstLocIEN=Document(cVstLocIEN)
         . IF VstLocIEN'>0 SET VstLocIEN=Document(cHspLocIEN)
-        . IF (DFN>0)&(StartDate>0)&(EndDate>0)&(VstLocIEN>0) do
+        . IF (TMGDFN>0)&(StartDate>0)&(EndDate>0)&(VstLocIEN>0) do
         . . ;"This is an interactive visit         ....
-        . . DO MAIN^TIUVSIT(.Document,DFN,"",StartDate,EndDate,"LAST",0,VstLocIEN)
+        . . DO MAIN^TIUVSIT(.Document,TMGDFN,"",StartDate,EndDate,"LAST",0,VstLocIEN)
 
         IF $DATA(Document)=0 GOTO FUDone
         IF $DATA(Document(cVisitStr))#10=0 GOTO FUDone
-        IF $DATA(DFN)=0 SET DFN=$GET(Document("DFN")) IF DFN="" GOTO FUDone
+        IF $DATA(TMGDFN)=0 SET TMGDFN=$GET(Document("DFN")) IF TMGDFN="" GOTO FUDone
 
         ;"Note: reviewing the code for ENQ^TIUPXAP1, it appears the following is expected:
         ;"        .TIU array
-        ;"        DFN -- the patient IEN
+        ;"        TMGDFN -- the patient IEN
         ;"        DA -- the IEN of the document to work on.
         ;"        TIUDA -- the doc IEN that was passed to this function.
         ;"                Note, I'm not sure how DA and TIUDA are used differently.

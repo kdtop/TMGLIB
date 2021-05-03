@@ -1,4 +1,4 @@
-TMGC0Q06 ;TMG/kst/TMG customization of C0Q code ;8/17/12
+TMGC0Q06 ;TMG/kst/TMG customization of C0Q code ;8/17/12, 3/24/21
          ;;1.0;TMG-LIB;**1**;8/17/12
  ;
  ;"TMG C0Q FUNCTIONS
@@ -14,20 +14,20 @@ TMGC0Q06 ;TMG/kst/TMG customization of C0Q code ;8/17/12
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"MEANFLOJ(DFN) ;" MEANINGFUL USE TEXT OBJECT
+ ;"MEANFLOJ(TMGDFN) ;" MEANINGFUL USE TEXT OBJECT
  ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
- ;"MEANFLUS(DFN) -- Return text showing missing items for meaningful use.
- ;"GETVISTS(DFN,SDTE,EDTE,ARRAY) -- create a list of visit dates for patient, in date range
+ ;"MEANFLUS(TMGDFN) -- Return text showing missing items for meaningful use.
+ ;"GETVISTS(TMGDFN,SDTE,EDTE,ARRAY) -- create a list of visit dates for patient, in date range
  ;"=======================================================================
  ;"DEPENDENCIES
  ;"=======================================================================
  ;"=======================================================================
  ;
-MEANFLOJ(DFN) ;" MEANINGFUL USE TEXT OBJECT
-        NEW STR SET STR=$$MEANFLUS(DFN)
+MEANFLOJ(TMGDFN) ;" MEANINGFUL USE TEXT OBJECT
+        NEW STR SET STR=$$MEANFLUS(TMGDFN)
         IF STR="" GOTO MNOJDN
         NEW SPACES SET SPACES="     "
         NEW SPACES2 SET SPACES2=SPACES_"  "
@@ -52,9 +52,9 @@ MEANFLOJ(DFN) ;" MEANINGFUL USE TEXT OBJECT
         . SET STR=STR_$GET(ARRAY(I))_$CHAR(13,10)
 MNOJDN  QUIT STR
         ;
-MEANFLUS(DFN)  ;
+MEANFLUS(TMGDFN)  ;
         ;"Purpose: Return text showing missing items for meaningful use.
-        ;"Input: DFN -- Patient IEN
+        ;"Input: TMGDFN -- Patient IEN
         ;"Result: Returns string to display, describing problems with patient.
         NEW RESULT SET RESULT=""
         NEW PERIODKEY SET PERIODKEY="LAUGHLIN-MU13"  ;"Hard coded for now
@@ -68,10 +68,10 @@ MEANFLUS(DFN)  ;
         SET EDTE=$$NOW^XLFDT()
         SET SDTE=EDTE-10000
         NEW PROV SET PROV=DUZ
-        NEW VISITS DO GETVISTS(DFN,SDTE,EDTE,.VISITS)
+        NEW VISITS DO GETVISTS(TMGDFN,SDTE,EDTE,.VISITS)
         NEW SUCCESS,WHY
         NEW ZYR SET ZYR="XX" ;"some random value
-        DO TESTPT^TMGC0Q02(DFN,PROV,SDTE,EDTE,.C0QLIST,.VISITS,.SUCCESS,.WHY)
+        DO TESTPT^TMGC0Q02(TMGDFN,PROV,SDTE,EDTE,.C0QLIST,.VISITS,.SUCCESS,.WHY)
         IF SUCCESS=1 GOTO MUDN
         NEW POS SET POS=0
         FOR  DO  QUIT:POS=0
@@ -83,16 +83,16 @@ MEANFLUS(DFN)  ;
         . SET POS=POS+2
 MUDN    QUIT WHY
         ;
-GETVISTS(DFN,SDTE,EDTE,ARRAY) ;
+GETVISTS(TMGDFN,SDTE,EDTE,ARRAY) ;
         ;"Purpose: To create a list of visit dates for patient, in date range
-        ;"Input: DFN -- Patient IEN
+        ;"Input: TMGDFN -- Patient IEN
         ;"       SDTE -- Starting date, FM format
         ;"       EDTE -- Ending date, FM format
         ;"       ARRAY -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:
         ;"                    ARRAY(FMDATE)=""
         ;"Result: none
         NEW RECIEN SET RECIEN=""
-        FOR  SET RECIEN=$ORDER(^AUPNVSIT("C",DFN,RECIEN)) QUIT:(+RECIEN'>0)  DO
+        FOR  SET RECIEN=$ORDER(^AUPNVSIT("C",TMGDFN,RECIEN)) QUIT:(+RECIEN'>0)  DO
         . NEW ONEDT SET ONEDT=$PIECE($GET(^AUPNVSIT(RECIEN,0)),"^",1)
         . IF ONEDT<SDTE QUIT
         . IF ONEDT>EDTE QUIT

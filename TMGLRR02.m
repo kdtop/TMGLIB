@@ -1,4 +1,4 @@
-TMGLRR02 ;TMG/kst-Reading from LAB DATA file ;2/11/15, 4/1/18
+TMGLRR02 ;TMG/kst-Reading from LAB DATA file ;2/11/15, 4/1/18, 3/24/21
               ;;1.0;TMG-LIB;**1**;2/11/15
  ;
  ;"TMG LAB READING API
@@ -15,7 +15,7 @@ TMGLRR02 ;TMG/kst-Reading from LAB DATA file ;2/11/15, 4/1/18
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"GETLABS(OUT,DFN,SDT,EDT,OPTION) --return formatted array containing patient's labs for specified date range. 
+ ;"GETLABS(OUT,TMGDFN,SDT,EDT,OPTION) --return formatted array containing patient's labs for specified date range. 
  ;"
  ;"=======================================================================
  ;" API - Private Functions
@@ -37,7 +37,7 @@ TEST  ;
   DO BROWSENODES^TMGMISC("LABS",1,0,1)
   QUIT
   ;
-GETLABS(OUT,DFN,SDT,EDT,OPTION) ;
+GETLABS(OUT,TMGDFN,SDT,EDT,OPTION) ;
   ;"Purpose: return formatted array containing patient's labs for specified date range. 
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;           OLD--> OUT("DT",FMDT,TEST_FLD#)=<data line>
@@ -53,7 +53,7 @@ GETLABS(OUT,DFN,SDT,EDT,OPTION) ;
   ;"          OUT("TEST","NAME",<test name>,FMDT)=""
   ;           OLD-> OUT("NAMES",TEST_FLD#)=<test name>
   ;"          OUT("NAMES",IEN60)=<test name>
-  ;"       DFN -- Patient IEN
+  ;"       TMGDFN -- Patient IEN
   ;"       SDT -- Start date FMDT format.  Optional.  Default is 0 (earliest)
   ;"       EDT -- End date FMDT format.  Optional.  Default is 9999999 (last possible)
   ;"       OPTION -- optional
@@ -64,8 +64,8 @@ GETLABS(OUT,DFN,SDT,EDT,OPTION) ;
   ;"          OPTION("NO DATES")=1  -- don't return DT node
   ;"          OPTION("NO PANELS")=1  -- don't return PANELS node
   ;"          OPTION("ADD SUMMARY")=1 -- add summary
-  SET DFN=+$GET(DFN)
-  NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
+  SET TMGDFN=+$GET(TMGDFN)
+  NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
   NEW SKIPCOMMENT SET SKIPCOMMENT=+$GET(OPTION("NO COMMENTS"))
   NEW SKIPTSTNAMEIDX SET SKIPTSTNAMEIDX=+$GET(OPTION("NO TEST NAME INDEX"))
   NEW SKIPTSTFLDIDX SET SKIPTSTFLDIDX=+$GET(OPTION("NO TEST FLD INDEX"))

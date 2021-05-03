@@ -1,4 +1,4 @@
-TMGHL7E ;TMG/kst-HL7 Processing Error/Alert handling; 10/27/15
+TMGHL7E ;TMG/kst-HL7 Processing Error/Alert handling;  3/24/21, 5/3/21
               ;;1.0;TMG-LIB;**1**;4/3/11
  ;
  ;"TMG HL7 Error/Alert handling for lab messages
@@ -210,7 +210,8 @@ M3      IF TMGUSERINPUT="ViewLog" DO HESHOWLOG(+TMGJOBN) GOTO M2
         . IF $$FINDPT(.TEMP,.TMGHL7MSG)=0 QUIT
         . SET TMGHNDLERR("SSN")=$GET(TEMP("SSN"))
         . SET TMGHNDLERR("DFN")=$GET(TEMP("DFN"))
-        . SET TMGSRCH=$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV,.OPTION)
+        . NEW TEMP2 SET TEMP2=$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV,.OPTION)
+        . SET TMGSRCH=+TEMP2
         IF TMGUSERINPUT="IgnorePt" DO  GOTO M2:(TEMPRESULT'=1),HE2DN
         . SET TEMPRESULT=$$ADDIGNOR(.TMGENV,TMGERROR,INDENTN+2)
         . IF TEMPRESULT'=1 QUIT
@@ -241,12 +242,16 @@ CLEANUP2(TMGJOBN,TMGTIME,FORCE)  ;
         . SET TMGCLEANED=1
         QUIT
         ;
-FINDPT(OUT,TMGHL7MSG) ;
-        ;"FINISH
+FINDPT(OUT,TMGHL7MSG) ;"Find a VistA patient to match patient in HL7 message
+        ;"Input: OUT --
+        ;"       TMGHL7MSG -- The HL7 message
+        ;"Result: 1 if patient found, 0 if no patient found
+        ;
         NEW PTINFO DO GETPTINO(.PTINFO,.TMGHL7MSG) 
         NEW PTARRAY DO GETPTLST(.PTINFO,.PTARRAY)
         NEW MAXNUM SET MAXNUM=$O(PTARRAY(99999),-1)
-M4
+        NEW TMGRESULT SET TMGRESULT="0"  ;"//default
+M4      ;
         NEW TMGPTINPUT,TMGPTMNU,TMPPTERR,TMGPTMNUI,TMGPTIDX
         SET TMGPTMNUI=0
         SET TMGPTMNU(TMGPTMNUI)="PROVIDED DEMOGRAPHICS AS PROVIDED BY HL7 MESSAGE"
@@ -276,16 +281,18 @@ M4
         . D ^DIC
         . WRITE !
         . IF +Y>0 DO
-        . . NEW DFN SET DFN=$P(Y,"^",1)
-        . . SET OUT("SSN")=$P($G(^DPT(DFN,0)),"^",9)
-        . . SET OUT("DFN")=DFN
+        . . NEW TMGDFN SET TMGDFN=$P(Y,"^",1)
+        . . SET OUT("SSN")=$P($G(^DPT(TMGDFN,0)),"^",9)
+        . . SET OUT("DFN")=TMGDFN
+        . . SET TMGRESULT=1
         . . ;"ZWR OUT
         ELSE  IF TMGPTINPUT'="^" DO 
         . SET OUT("SSN")=$P(PTARRAY(TMGPTINPUT),"^",3)
         . SET OUT("DFN")=$P(PTARRAY(TMGPTINPUT),"^",5)
+        . SET TMGRESULT=1
         . ;"ZWR OUT
         KILL TMGPTMNU ;"Prevent from cluttering variable table during debug run
-        QUIT
+        QUIT TMGRESULT
         ;"
 GETPTLST(PTINFO,PTARRAY)
         ;"TEST DATA
@@ -298,29 +305,29 @@ GETPTLST(PTINFO,PTARRAY)
         NEW FNAME SET FNAME=$GET(PTINFO(5,2))
         NEW DOB SET DOB=$G(PTINFO("FMDT"))
         NEW NAME SET NAME=LNAME
-        NEW DFN
+        NEW TMGDFN
         ;"Current match criteria is DOB and last name
         FOR  SET NAME=$O(^DPT("B",NAME)) QUIT:(NAME'[LNAME)!(NAME="")  DO
-        . SET DFN=0
-        . FOR  SET DFN=$O(^DPT("B",NAME,DFN)) QUIT:DFN'>0  DO
-        . . NEW THISDOB SET THISDOB=$P($G(^DPT(DFN,0)),"^",3)
+        . SET TMGDFN=0
+        . FOR  SET TMGDFN=$O(^DPT("B",NAME,TMGDFN)) QUIT:TMGDFN'>0  DO
+        . . NEW THISDOB SET THISDOB=$P($G(^DPT(TMGDFN,0)),"^",3)
         . . IF THISDOB=DOB DO
-        . . . SET PTMATCHARRAY(DFN)=""
+        . . . SET PTMATCHARRAY(TMGDFN)=""
         IF $DATA(PTARRAY)>0 GOTO GPLFIN
         ;"Current match criteria last name and first name
         SET NAME=LNAME
         FOR  SET NAME=$O(^DPT("B",NAME)) QUIT:(NAME'[LNAME)!(NAME="")  DO
-        . SET DFN=0
-        . FOR  SET DFN=$O(^DPT("B",NAME,DFN)) QUIT:DFN'>0  DO
-        . . NEW ZN SET ZN=$G(^DPT(DFN,0))
+        . SET TMGDFN=0
+        . FOR  SET TMGDFN=$O(^DPT("B",NAME,TMGDFN)) QUIT:TMGDFN'>0  DO
+        . . NEW ZN SET ZN=$G(^DPT(TMGDFN,0))
         . . NEW THISNAME SET THISNAME=$PIECE(ZN,"^",1)
         . . NEW THISFNAME SET THISFNAME=$PIECE(THISNAME,",",2)
         . . IF THISFNAME'[FNAME QUIT
-        . . SET PTMATCHARRAY(DFN)=""        
-GPLFIN  SET DFN=0
-        FOR  SET DFN=$O(PTMATCHARRAY(DFN)) QUIT:DFN'>0  DO
-        . NEW ZN SET ZN=$G(^DPT(DFN,0))
-        . SET PTARRAY(IDX)=$P(ZN,"^",1)_"^"_$$EXTDATE^TMGDATE($P(ZN,"^",3))_"^"_$P(ZN,"^",9)_"^"_$P(ZN,"^",2)_"^"_DFN
+        . . SET PTMATCHARRAY(TMGDFN)=""        
+GPLFIN  SET TMGDFN=0
+        FOR  SET TMGDFN=$O(PTMATCHARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+        . NEW ZN SET ZN=$G(^DPT(TMGDFN,0))
+        . SET PTARRAY(IDX)=$P(ZN,"^",1)_"^"_$$EXTDATE^TMGDATE($P(ZN,"^",3))_"^"_$P(ZN,"^",9)_"^"_$P(ZN,"^",2)_"^"_TMGDFN
         . SET IDX=IDX+1        
         QUIT
         ;"
@@ -366,6 +373,7 @@ TRYAGAN2(TMGMSG,DEBUG,TMGENV,OPTION) ;
         ELSE  DO
         . XECUTE CODE
         IF TMGRESULT<0 GOTO DEBG2DN
+        SET TMGRESULT="1^OK"
         WRITE "-------------------",!
         WRITE "Done with filer.  Processing seems to have been without problems.",!
         SET %=1 WRITE !,"Move HL7 message file to SUCCESS folder" DO YN^DICN WRITE !
@@ -374,6 +382,8 @@ TRYAGAN2(TMGMSG,DEBUG,TMGENV,OPTION) ;
         . NEW FNAME SET FNAME=$GET(OPTION("FAILURE STORE FNAME"))
         . NEW FPATH SET FPATH=$GET(OPTION("FAILURE STORE FPATH"))
         . SET OPT2("FILEPATHNAME")=FPATH_FNAME
+        . IF $$FILEXIST^TMGIOUTL(OPT2("FILEPATHNAME"))=0 DO  QUIT
+        . . WRITE !,"HL7 message NOT FOUND. (Probably already moved.)",! 
         . NEW TEMPRESULT SET TEMPRESULT=$$MOVE^TMGHL71(1,.OPT2)
         . IF TEMPRESULT>0 QUIT
         . NEW TEMPRESULT2 SET TEMPRESULT2=$$MOVE^TMGHL71(1,.OPTION)

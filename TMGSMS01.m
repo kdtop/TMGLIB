@@ -1,4 +1,4 @@
-TMGSMS01 ;TMG/kst/OS SMS Message ;1/18/15
+TMGSMS01 ;TMG/kst/OS SMS Message ;1/18/15, 2/24/21
          ;;1.0;TMG-LIB;**1**;12/9/14
  ;
  ;"TMG FUNCTIONS
@@ -17,25 +17,25 @@ TMGSMS01 ;TMG/kst/OS SMS Message ;1/18/15
  ;"=======================================================================
  ;"SENDSMS(DAYLEAD) -- Send out SMS messages for upcoming appts, vit FTP method 
  ;"SENDSMS1(DAYLEAD) -- Send out SMS messages for upcoming appts, via HTTP method
- ;"SNDTSMS(DFN,PHONE) -- Send out 1 TEST SMS message, via FTP method
+ ;"SNDTSMS(TMGDFN,PHONE) -- Send out 1 TEST SMS message, via FTP method
  ;"SMSGTALL() -- Get all incoming SMS messages 
  ;"SMSGET(DELFILE) -- Get all incoming SMS messages, optionally deleting source file.
  ;"GETFSTAT() -- Process FINAL status report.
  ;
- ;"GETPHONS(DFN,OUT,ERRARRAY) -- for a given patient, return list of phone numbers
+ ;"GETPHONS(TMGDFN,OUT,ERRARRAY) -- for a given patient, return list of phone numbers
  ; 
  ;"=======================================================================
  ;" API -- Private Functions.
  ;"=======================================================================
  ;"SETUPSMS(OUT,DAYLEAD,ERRARRAY,NONE) -- set up for sending out SMS messages
- ;"SUDNFSMS(DFN,PHONE,ARR,STOREOUT) --SET UP A TEST MESSAGE
+ ;"SUDNFSMS(TMGDFN,PHONE,ARR,STOREOUT) --SET UP A TEST MESSAGE
  ;"SUHEADER(ARR) -- setup SMS header
  ;"GETDTPTL(OUT,TMGDT,EXCLUDE) -- get a list patients that have upcoming appts on TMGDT
  ;"GETPTLST(OUT,DAYLEAD,EXCLUDE) -- get a list patients that have upcoming appts
  ;
  ;"MKVALPHN(PHONENUM) -- return valid phone number, or "" if can't make valid
  ;"COMPMSG(ARR,ERRARRAY,DAYLEAD) -- create an array with messages to be sent by SMS
- ;"GETMSG(DFN,PROVIEN,TMGDT,REASON,DAYLEAD) -- Create outogoing message.
+ ;"GETMSG(TMGDFN,PROVIEN,TMGDT,REASON,DAYLEAD) -- Create outogoing message.
  ;"SUBSTX(MSG,ARR) -- Substitute values into text string
  ;"SCHSTCHK -- DO SCHEDULE TASK FOR STATUS CHECK
  ;
@@ -53,7 +53,7 @@ TMGSMS01 ;TMG/kst/OS SMS Message ;1/18/15
 GETDTPTL(OUT,TMGDT,MODE,EXCLUDE) ;
   ;"Purpose: to get a list patients that have upcoming appts on TMGDT
   ;"Input:   OUT -- PASS BY REFERENCE.  Format as follows:
-  ;"             OUT(DFN)=SubIEN (file 22723.01)
+  ;"             OUT(TMGDFN)=SubIEN (file 22723.01)
   ;"             Prior data killed.  If no appts, then array returned empty.
   ;"         TMGDT -- The FM date to obtain for.
   ;"         MODE - "A": return only active appts, "*": return any appt
@@ -70,8 +70,8 @@ GETDTPTL(OUT,TMGDT,MODE,EXCLUDE) ;
   . . NEW SUBIEN SET SUBIEN=0
   . . FOR  SET SUBIEN=$ORDER(^TMG(22723,"DT",TMGDT,IEN,SUBIEN)) QUIT:+SUBIEN'>0  DO  
   . . . IF MODE="A",$GET(^TMG(22723,"DT",TMGDT,IEN,SUBIEN))'="A" QUIT
-  . . . NEW DFN SET DFN=$PIECE($GET(^TMG(22723,IEN,0)),"^",1)
-  . . . IF DFN'>0 QUIT
+  . . . NEW TMGDFN SET TMGDFN=$PIECE($GET(^TMG(22723,IEN,0)),"^",1)
+  . . . IF TMGDFN'>0 QUIT
   . . . NEW SKIP SET SKIP=0
   . . . NEW NODE SET NODE=""
   . . . FOR  SET NODE=$ORDER(EXCLUDE(NODE)) QUIT:(NODE="")!SKIP  DO
@@ -82,13 +82,13 @@ GETDTPTL(OUT,TMGDT,MODE,EXCLUDE) ;
   . . . . . FOR  SET VALUE=$ORDER(EXCLUDE(NODE,PCE,VALUE)) QUIT:(VALUE="")!SKIP  DO
   . . . . . . IF VALUE=APPTVAL SET SKIP=1
   . . . IF SKIP QUIT
-  . . . SET OUT(DFN)=SUBIEN
+  . . . SET OUT(TMGDFN)=SUBIEN
   QUIT
   ; 
 GETPTLST(OUT,ADAYLEAD,MODE,EXCLUDE) ;
   ;"Purpose: to get a list patients that have upcoming appts
   ;"Input:   OUT -- PASS BY REFERENCE.  Format as follows:
-  ;"             OUT(DFN)=SubIEN (file 22723.01)
+  ;"             OUT(TMGDFN)=SubIEN (file 22723.01)
   ;"             Prior data killed.  If no appts, then array returned empty.
   ;"         ADAYLEAD --  The number of days from NOW to get list from.  E.g if
   ;"                value = 7, then should return list of patients with an 
@@ -102,17 +102,17 @@ GETPTLST(OUT,ADAYLEAD,MODE,EXCLUDE) ;
   DO GETDTPTL(.OUT,TARGETDT,.MODE,.EXCLUDE) 
   QUIT
   ;
-GETPHONS(DFN,OUT,ERRARRAY) ;"
+GETPHONS(TMGDFN,OUT,ERRARRAY) ;"
   ;"Purpose: for a given patient, return list of phone numbers
-  ;"Input: DFN -- patient IEN
+  ;"Input: TMGDFN -- patient IEN
   ;"       OUT -- PASS BY REFERENCE.  An OUT PARAMETER.  Format:
-  ;"          OUT(DFN,<PHONE NUMBER>)=""
+  ;"          OUT(TMGDFN,<PHONE NUMBER>)=""
   ;"       ERRARRAY -- PASS BY REFERENCE.  An OUT PARAMETER.
-  ;"         Format: ERRARRAY(DFN)=<MESSAGE>
+  ;"         Format: ERRARRAY(TMGDFN)=<MESSAGE>
   ;"NOTE: All phone numbers MUST BE 11 digits, e.g. 14235551111
   ;"      ALSO, field 22705 (TMG SMS EXCLUSION) should be checked and
   ;"      no number should be returned if found there.
-  NEW IENS SET IENS=DFN_","
+  NEW IENS SET IENS=TMGDFN_","
   NEW FIELDS
   SET FIELDS(.131)=""
   SET FIELDS(.132)=""
@@ -128,15 +128,15 @@ GETPHONS(DFN,OUT,ERRARRAY) ;"
   DO GETS^DIQ(2,IENS,FIELDS,"","TMGARRAY","TMGMSG") ;"get EXTERNAL values
   IF $DATA(TMGMSG("DIERR"))'=0 DO  GOTO GPDN   ;"check for errors.
   . ;"MERGE ERRARRAY=TMGMSG("DIERR")
-  . SET ERRARRAY(DFN)=$$GETERRST^TMGDEBU2(.TMGMSG)
+  . SET ERRARRAY(TMGDFN)=$$GETERRST^TMGDEBU2(.TMGMSG)
   SET IDX="" FOR  SET IDX=$ORDER(FIELDS(IDX)) QUIT:(+IDX'>0)  DO
   . NEW FIELD SET FIELD=FIELDS(IDX)
   . NEW VAL SET VAL=$GET(TMGARRAY(2,IENS,IDX)) QUIT:VAL=""
   . NEW PHONE SET PHONE=$$MKVALPHN(VAL) QUIT:PHONE=""
-  . IF $$ISEXLPHN(DFN,PHONE) QUIT
+  . IF $$ISEXLPHN(TMGDFN,PHONE) QUIT
   . NEW FLDNAME SET FLDNAME=$PIECE($GET(^DD(2,IDX,0)),"^",1)
-  . SET OUT(DFN,PHONE)=""
-  . SET OUT(DFN,"NAME",FLDNAME)=PHONE
+  . SET OUT(TMGDFN,PHONE)=""
+  . SET OUT(TMGDFN,"NAME",FLDNAME)=PHONE
 GPDN ;  
   QUIT
   ;
@@ -154,10 +154,10 @@ MKVALPHN(PHONENUM) ;"MAKE VALID PHONE NUMBER
   IF LEN'=11 SET RESULT=""
   QUIT RESULT      
   ;
-ISEXLPHN(DFN,PHONENUM) ;"IS EXCLUDED PHONE NUMBER?
+ISEXLPHN(TMGDFN,PHONENUM) ;"IS EXCLUDED PHONE NUMBER?
   ;"Result: 1 if phone number has been entered 
   NEW RESULT 
-  SET RESULT=($DATA(^DPT(DFN,"TMGSMS","B",PHONENUM))>0)
+  SET RESULT=($DATA(^DPT(TMGDFN,"TMGSMS","B",PHONENUM))>0)
   QUIT RESULT
   ;
 COMPMSG(ARR,ERRARRAY,DAYLEAD) ;"COMPILE MESSAGES
@@ -177,24 +177,24 @@ COMPMSG(ARR,ERRARRAY,DAYLEAD) ;"COMPILE MESSAGES
   ;"                appt exactly 1 week from now.  All results returned
   ;"               be from the same day, i.e. it doesn't return a range.
   ;"Result: none
-  NEW DFN SET DFN=0
-  FOR  SET DFN=$ORDER(ARR(DFN)) QUIT:(+DFN'>0)  DO
-  . NEW SUBIEN SET SUBIEN=$GET(ARR(DFN)) ;"IEN in subfile 22723.01
-  . NEW ZN SET ZN=$GET(^TMG(22723,DFN,1,SUBIEN,0))
+  NEW TMGDFN SET TMGDFN=0
+  FOR  SET TMGDFN=$ORDER(ARR(TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+  . NEW SUBIEN SET SUBIEN=$GET(ARR(TMGDFN)) ;"IEN in subfile 22723.01
+  . NEW ZN SET ZN=$GET(^TMG(22723,TMGDFN,1,SUBIEN,0))
   . NEW TMGDT SET TMGDT=$PIECE(ZN,"^",1)
   . NEW PROVIEN SET PROVIEN=+$PIECE(ZN,"^",3)
   . NEW REASON SET REASON=$PIECE(ZN,"^",4)
-  . NEW PHONEARR DO GETPHONS(DFN,.PHONEARR,.ERRARRAY)
-  . NEW MSG SET MSG=$$GETMSG(DFN,PROVIEN,TMGDT,REASON,DAYLEAD)  
+  . NEW PHONEARR DO GETPHONS(TMGDFN,.PHONEARR,.ERRARRAY)
+  . NEW MSG SET MSG=$$GETMSG(TMGDFN,PROVIEN,TMGDT,REASON,DAYLEAD)  
   . NEW PHONENUM SET PHONENUM=""
   . NEW HASNUM SET HASNUM=0
-  . FOR  SET PHONENUM=$ORDER(PHONEARR(DFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
-  . . SET ARR("MSG",DFN,PHONENUM)=TMGDT_"^"_MSG
+  . FOR  SET PHONENUM=$ORDER(PHONEARR(TMGDFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
+  . . SET ARR("MSG",TMGDFN,PHONENUM)=TMGDT_"^"_MSG
   . . SET HASNUM=1
-  . IF HASNUM=0 SET ARR("NONE",DFN)=MSG
+  . IF HASNUM=0 SET ARR("NONE",TMGDFN)=MSG
   QUIT
   ;  
-GETMSG(DFN,PROVIEN,TMGDT,REASON,DAYLEAD) ;"Create out-going message.
+GETMSG(TMGDFN,PROVIEN,TMGDT,REASON,DAYLEAD) ;"Create out-going message.
   ;"Result: a message like this:
   ;"   [FIRST NAME] has appt with [DOCTOR NAME] on <DATE> for <purpose>
   ;"   Or "" if there was a problem.   
@@ -206,7 +206,7 @@ GETMSG(DFN,PROVIEN,TMGDT,REASON,DAYLEAD) ;"Create out-going message.
   ;"TO DO -- Check what happens with nursing visits, or INR visits.
   NEW PROVNAME SET PROVNAME="DR "_$EXTRACT(PVFNAME,1)_" "_PVLNAME
   NEW ARR SET ARR("PROVNAME")=PROVNAME 
-  SET ARR("FNAME")=$$FNAME^TMGTIUO3(DFN)
+  SET ARR("FNAME")=$$FNAME^TMGTIUO3(TMGDFN)
   IF ARR("FNAME")="" GOTO GMDN  ;"ABORT
   SET ARR("DATE")=$$GETDTSTR(TMGDT)
   SET ARR("REASON")=$$FIXREASN(REASON)
@@ -294,10 +294,10 @@ SETUPSM0(OUT,ADAYLEAD,EXCLBYDL) ;
   ;"OUT FORMAT:
   ;" OUT("MSG",DFN,PhoneNumber)=ApptDT^<message>
   ;" OUT("NONE",DFN)=<message>  <-- Message that could not be sent  
-  NEW DFN SET DFN=""
-  FOR  SET DFN=$ORDER(ERRARRAY(DFN)) QUIT:DFN'>0  DO
-  . NEW ERRMSG SET ERRMSG=$GET(ERRARRAY(DFN)) QUIT:ERRMSG=""
-  . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1) QUIT:PTNAME=""
+  NEW TMGDFN SET TMGDFN=""
+  FOR  SET TMGDFN=$ORDER(ERRARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+  . NEW ERRMSG SET ERRMSG=$GET(ERRARRAY(TMGDFN)) QUIT:ERRMSG=""
+  . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1) QUIT:PTNAME=""
   . SET ERRMSG="Patient='"_PTNAME_"' (`"_DFN_"), "_ERRMSG
   . DO ALERTERR^TMGKERN5(ERRMSG)
   ;"KILL OUT MERGE OUT=TEMP("MSG")  
@@ -389,22 +389,22 @@ SETUPSMS(ARR,STOREOUT,DAYLEAD,NONE,EXCLBYDL) ;
   . MERGE OUT=TEMP
   SET RESULT=$$SUHEADER(.ARR)
   IF +RESULT'>0 GOTO SUSMDN  ;"SUHEADER makes it's own alert
-  NEW DFN SET DFN=""
-  FOR  SET DFN=$ORDER(OUT("MSG",DFN)) QUIT:(+DFN'>0)  DO
+  NEW TMGDFN SET TMGDFN=""
+  FOR  SET TMGDFN=$ORDER(OUT("MSG",TMGDFN)) QUIT:(+TMGDFN'>0)  DO
   . NEW PHONE SET PHONE=""
-  . FOR  SET PHONE=$ORDER(OUT("MSG",DFN,PHONE)) QUIT:(PHONE="")  DO
-  . . NEW LINE SET LINE=$GET(OUT("MSG",DFN,PHONE)) QUIT:LINE=""
+  . FOR  SET PHONE=$ORDER(OUT("MSG",TMGDFN,PHONE)) QUIT:(PHONE="")  DO
+  . . NEW LINE SET LINE=$GET(OUT("MSG",TMGDFN,PHONE)) QUIT:LINE=""
   . . NEW MSG SET MSG=$PIECE(LINE,"^",2) QUIT:MSG=""
   . . NEW DT SET DT=+$PIECE(LINE,"^",1) 
   . . DO ADDLINE(.ARR,"csv:"_PHONE_"|"_MSG)
-  . . SET STOREOUT(PHONE)=DFN_"^"_DT_"^"_MSG
+  . . SET STOREOUT(PHONE)=TMGDFN_"^"_DT_"^"_MSG
   MERGE NONE=OUT("NONE")
 SUSMDN  
   QUIT
   ;
-SUDNFSMS(DFN,PHONE,ARR,STOREOUT) ;"SET UP A TEST MESSAGE
+SUDNFSMS(TMGDFN,PHONE,ARR,STOREOUT) ;"SET UP A TEST MESSAGE
   ;"Purpose: To set up for sending out 1 *TEST* SMS messages
-  ;"Input: DFN -- PATIENT IEN.  Can be 0 if patient unknown.
+  ;"Input: TMGDFN -- PATIENT IEN.  Can be 0 if patient unknown.
   ;"       PHONE -- 11 digit number to send message to. 
   ;"       ARR -- PASS BY REFERENCE -- an OUT PARAMETER.  Format:
   ;"         ARR(#)=output line for FTP file, to be uploaded to FTP server.
@@ -412,7 +412,7 @@ SUDNFSMS(DFN,PHONE,ARR,STOREOUT) ;"SET UP A TEST MESSAGE
   ;"         STOREOUT(phone number)=DFN^Message
   ;"Output: Alerts may be made in case of errors.
   ;"Result: None
-  SET DFN=+$GET(DFN)
+  SET TMGDFN=+$GET(TMGDFN)
   SET PHONE=+$GET(PHONE)
   NEW MSG SET MSG="Test message from Family Physicians of Greeneville."
   SET MSG=MSG_" Please arrive 10 minutes prior to your appointment to complete paperwork. Please bring ALL your medications with you. "
@@ -421,7 +421,7 @@ SUDNFSMS(DFN,PHONE,ARR,STOREOUT) ;"SET UP A TEST MESSAGE
   NEW RESULT SET RESULT=$$SUHEADER(.ARR)
   IF +RESULT'>0 GOTO SUTSMDN  ;"SUHEADER makes it's own alert
   DO ADDLINE(.ARR,"csv:"_PHONE_"|"_MSG)
-  SET STOREOUT(PHONE)=DFN_"^"_MSG
+  SET STOREOUT(PHONE)=TMGDFN_"^"_MSG
 SUTSMDN  
   QUIT
   ;
@@ -447,11 +447,11 @@ TSKSEND ;" <--- ENTRY POINT FOR TASKMAN FOR OPTION: 'TMG SMS SEND MESSAGES'
   DO SENDSMS("1,7")
   QUIT
   ;"
-SNDTSMS(DFN,PHONE) ;"Send out 1 TEST SMS message, via FTP method
-  ;"INPUT: DFN -- PATIENT IEN.  Can be 0 if patient unknown.
+SNDTSMS(TMGDFN,PHONE) ;"Send out 1 TEST SMS message, via FTP method
+  ;"INPUT: TMGDFN -- PATIENT IEN.  Can be 0 if patient unknown.
   ;"       PHONE -- 11 digit number to send message to.
   NEW ARR,STORE
-  DO SUDNFSMS(.DFN,.PHONE,.ARR,.STORE)  ;"SET UP A TEST MESSAGE
+  DO SUDNFSMS(.TMGDFN,.PHONE,.ARR,.STORE)  ;"SET UP A TEST MESSAGE
   DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
   DO SCHSTCHK  ;"Effects call to GETSMSID^TMGKERN5 after 10 minutes
   DO ALRTMSG^TMGKERN5("FYI: Sent 1 *TEST* SMS messages via FTP upload")
@@ -485,13 +485,13 @@ SENDSMS1(DAYLEAD) ;"Send out SMS messages for upcoming appts, via HTTP method
   NEW EXCLBYDL DO SUEXCLUD(.EXCLBYDL)
   DO SETUPSM0(.OUT,.DAYLEAD,.EXCLBYDL) ;
   NEW LIVE SET LIVE=1  ;"SET TO 1 TO TURN SYSTEM ON.
-  NEW DFN SET DFN=""
-  FOR  SET DFN=$ORDER(OUT("MSG",DFN)) QUIT:(+DFN'>0)  DO
+  NEW TMGDFN SET TMGDFN=""
+  FOR  SET TMGDFN=$ORDER(OUT("MSG",TMGDFN)) QUIT:(+TMGDFN'>0)  DO
   . NEW PHONE SET PHONE=""
-  . FOR  SET PHONE=$ORDER(OUT("MSG",DFN,PHONE)) QUIT:(PHONE="")  DO
-  . . NEW MSG SET MSG=$GET(OUT("MSG",DFN,PHONE)) QUIT:MSG=""
+  . FOR  SET PHONE=$ORDER(OUT("MSG",TMGDFN,PHONE)) QUIT:(PHONE="")  DO
+  . . NEW MSG SET MSG=$GET(OUT("MSG",TMGDFN,PHONE)) QUIT:MSG=""
   . . IF LIVE=1 DO 
-  . . . DO SMSSEND1^TMGKERN5(PHONE,MSG,DFN) ;
+  . . . DO SMSSEND1^TMGKERN5(PHONE,MSG,TMGDFN) ;
   . . ELSE  WRITE PHONE," -- ",$LENGTH(MSG)," -- ",MSG,!
   NEW NONE MERGE NONE=OUT("NONE")
   ;"TO DO -- Handle the people that were NOT sent SMS messages, In NONE array
@@ -552,15 +552,15 @@ SENDWAITINGROOM
   . DO GETDTPTL(.TEMPPATLIST,DATE,"A",.EXLIST) ;
   . MERGE PATLIST=TEMPPATLIST
   ;"GET ACTIVE PHONE NUMBERS FOR THOSE PATIENTS
-  NEW PHONELIST,DFN,ERRARRAY,COUNT
-  SET DFN=0
-  FOR  SET DFN=$O(PATLIST(DFN)) QUIT:DFN'>0  DO
-  . DO GETPHONS(DFN,.PHONELIST,.ERRARRAY) ;"
+  NEW PHONELIST,TMGDFN,ERRARRAY,COUNT
+  SET TMGDFN=0
+  FOR  SET TMGDFN=$O(PATLIST(TMGDFN)) QUIT:TMGDFN'>0  DO
+  . DO GETPHONS(TMGDFN,.PHONELIST,.ERRARRAY) ;"
   ;"CYCLE THROUGH THE NUMBERS AND BUILD THE SEND ARRAY
-  SET DFN=0,COUNT=0
-  FOR  SET DFN=$O(PHONELIST(DFN)) QUIT:DFN'>0  DO
+  SET TMGDFN=0,COUNT=0
+  FOR  SET TMGDFN=$O(PHONELIST(TMGDFN)) QUIT:TMGDFN'>0  DO
   . NEW PHONENUM SET PHONENUM=0
-  . FOR  SET PHONENUM=$O(PHONELIST(DFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
+  . FOR  SET PHONENUM=$O(PHONELIST(TMGDFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
   . . DO ADDLINE^TMGSMS01(.ARR,"csv:"_PHONENUM_"|"_MESSAGE)
   ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14235258434|"_MESSAGE)
   ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14233295443|"_MESSAGE)
@@ -577,7 +577,7 @@ SENDTELM(NUMBER)
   NEW ARR,STORE
   NEW RESULT SET RESULT=$$SUHEADER^TMGSMS01(.ARR)
   ;"GET ACTIVE PT LIST
-  NEW PHONELIST,DFN,ERRARRAY,COUNT
+  NEW PHONELIST,TMGDFN,ERRARRAY,COUNT
   DO ADDLINE^TMGSMS01(.ARR,"csv:"_NUMBER_"|"_MESSAGE)
   ZWR ARR
   ;"WRITE "NOT SENDING AT THIS TIME",!
@@ -593,15 +593,15 @@ ONEMSG(MESSAGE)  ;"
   NEW PATLIST 
   DO GETACTPTS^TMGPXR03(.PATLIST,1)
   ;"GET ACTIVE PHONE NUMBERS FOR THOSE PATIENTS
-  NEW PHONELIST,DFN,ERRARRAY,COUNT
-  SET DFN=0
-  FOR  SET DFN=$O(PATLIST(DFN)) QUIT:DFN'>0  DO
-  . DO GETPHONS(DFN,.PHONELIST,.ERRARRAY) ;"
+  NEW PHONELIST,TMGDFN,ERRARRAY,COUNT
+  SET TMGDFN=0
+  FOR  SET TMGDFN=$O(PATLIST(TMGDFN)) QUIT:TMGDFN'>0  DO
+  . DO GETPHONS(TMGDFN,.PHONELIST,.ERRARRAY) ;"
   ;"CYCLE THROUGH THE NUMBERS AND BUILD THE SEND ARRAY
-  SET DFN=0,COUNT=0
-  FOR  SET DFN=$O(PHONELIST(DFN)) QUIT:DFN'>0  DO
+  SET TMGDFN=0,COUNT=0
+  FOR  SET TMGDFN=$O(PHONELIST(TMGDFN)) QUIT:TMGDFN'>0  DO
   . NEW PHONENUM SET PHONENUM=0
-  . FOR  SET PHONENUM=$O(PHONELIST(DFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
+  . FOR  SET PHONENUM=$O(PHONELIST(TMGDFN,PHONENUM)) QUIT:+PHONENUM'>0  DO
   . . DO ADDLINE^TMGSMS01(.ARR,"csv:"_PHONENUM_"|"_MESSAGE)
   . . SET COUNT=COUNT+1
   ;"DO ADDLINE^TMGSMS01(.ARR,"csv:14235258434|"_MESSAGE)

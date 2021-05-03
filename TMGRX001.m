@@ -1,4 +1,4 @@
-TMGRX001 ;TMG/kst/Patient medication code; 08/23/17
+TMGRX001 ;TMG/kst/Patient medication code; 08/23/17, 3/24/21
        ;;1.0;TMG-LIB;**1**;08/23/17
  ;
  ;"Code for parsing medication string into array
@@ -35,10 +35,10 @@ TEST ; "TEST THE PARSED MED LIST FOR A PATIENT
 TL1 ;  
   DO ^DIC WRITE !
   IF +Y'>0 QUIT
-  NEW DFN SET DFN=+Y
+  NEW TMGDFN SET TMGDFN=+Y
   NEW ARR,TEMP
-  ;"//kt 5/7/18  DO MEDLIST^TMGTIUOJ(.TEMP,DFN,.ARR)
-  DO MEDARR^TMGTIUOJ(.TEMP,DFN,.ARR)  ;"//kt 5/7/18
+  ;"//kt 5/7/18  DO MEDLIST^TMGTIUOJ(.TEMP,TMGDFN,.ARR)
+  DO MEDARR^TMGTIUOJ(.TEMP,TMGDFN,.ARR)  ;"//kt 5/7/18
   WRITE !,"--this is before parsing  -------------",!
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO

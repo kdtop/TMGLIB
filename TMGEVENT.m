@@ -1,4 +1,4 @@
-TMGEVENT       ;TMG - TMG CPRS EVENT FUNCTIONS
+TMGEVENT       ;TMG - TMG CPRS EVENT FUNCTIONS;   3/24/21
         ;;1.0.CPRS Event Functions:**1**;OCT 29, 2020;Build 1
         ;"
         ;"
@@ -16,7 +16,7 @@ CHANNEL(TMGRESULT,EVENTINFO)  ;"
         SET EVENTINFO=$P(EVENTINFO,"^",2,9999)
         NEW X SET X="DO "_COMMAND_"(.TMGRESULT,.EVENTINFO)"
         X X
-CHDN
+CHDN    ;
         QUIT
         ;"        
 SAVE(TMGRESULT,EVENTINFO)
@@ -47,7 +47,7 @@ SAVE(TMGRESULT,EVENTINFO)
         DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
         IF $DATA(TMGMSG("DIERROR")) DO
         . SET TMGRESULT(0)="-1^Error: "_$$GETERRST^TMGDEBU2(.TMGMSG) 
-SADN
+SADN    ;
         QUIT
         ;"
 GET(TMGRESULT,EVENTINFO)
@@ -59,11 +59,11 @@ CHKOPEN(TMGRESULT,EVENTINFO)    ;"
         ;"      CLOSE
         SET TMGRESULT(0)="1^NO MESSAGE"
         NEW IDX SET IDX=99999999
-        NEW DFN SET DFN=+$P(EVENTINFO,"^",2)
+        NEW TMGDFN SET TMGDFN=+$P(EVENTINFO,"^",2)
         NEW USER SET USER=+$P(EVENTINFO,"^",1)
         NEW TODAY SET TODAY=$$TODAY^TMGDATE()
         NEW DONE SET DONE=0
-        FOR  SET IDX=$O(^TMG(22747,"C",DFN,IDX),-1) QUIT:(IDX'>0)!(DONE=1)  DO
+        FOR  SET IDX=$O(^TMG(22747,"C",TMGDFN,IDX),-1) QUIT:(IDX'>0)!(DONE=1)  DO
         . NEW ZN SET ZN=$G(^TMG(22747,IDX,0))
         . NEW EVENT SET EVENT=$P(ZN,"^",3) 
         . NEW THISUSER SET THISUSER=$P(ZN,"^",1)
@@ -76,14 +76,15 @@ CHKOPEN(TMGRESULT,EVENTINFO)    ;"
         . . SET DONE=1
         QUIT
         ;"
-GETTIME(DFN,VERBOSE)  ;"
+GETTIME(TMGDFN,VERBOSE,SHOWMSG)  ;"
         ;"GET TOTAL TIME SPENT TODAY
+        SET SHOWMSG=+$G(SHOWMSG)
         SET VERBOSE=+$G(VERBOSE)
         NEW TMGRESULT,TIMEARRAY,IDX 
         NEW TODAY SET TODAY=$$TODAY^TMGDATE()
         NEW TIMEIDX SET TIMEIDX=9999
         SET IDX=999999
-        FOR  SET IDX=$O(^TMG(22747,"C",DFN,IDX),-1) QUIT:IDX'>0  DO
+        FOR  SET IDX=$O(^TMG(22747,"C",TMGDFN,IDX),-1) QUIT:IDX'>0  DO
         . NEW ZN SET ZN=$G(^TMG(22747,IDX,0))
         . NEW EVENT SET EVENT=$P(ZN,"^",3)
         . NEW THISUSER SET THISUSER=$P(ZN,"^",1)
@@ -109,16 +110,16 @@ GETTIME(DFN,VERBOSE)  ;"
         . SET TMGRESULT=TMGRESULT_$$EXTDATE^TMGDATE(BTIME)_"-"_$$EXTDATE^TMGDATE(ETIME)_"="_TIMEDIFF_" MINS"_$C(13,10)
         IF VERBOSE=0 SET TMGRESULT=""
         SET TMGRESULT=TMGRESULT_"Time spent with patient: "_TOTTIME_" mins"
-        IF VERBOSE=1 DO
+        IF SHOWMSG=1 DO
         . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>This time may include chart review before the visit, the actual patient visit, and time spent on documentation after the visit."
         . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>If any procedures were done during the visit, the time for the procedure was not included in determining the level of visit."
         QUIT TMGRESULT
         ;"
-GTREPORT(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
+GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
         ;"RETURN HTML REPORT OF TIME SPENT
         ;"Purpose: Entry point, as called from CPRS REPORT system
         ;"Input: ROOT -- Pass by NAME.  This is where output goes
-        ;"       DFN -- Patient DFN ; ICN for foriegn sites
+        ;"       TMGDFN -- Patient DFN ; ICN for foriegn sites
         ;"       ID --
         ;"       ALPHA -- Start date (lieu of DTRANGE)
         ;"       OMEGA -- End date (lieu of DTRANGE)
@@ -141,7 +142,7 @@ GTREPORT(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
         NEW SUM
         NEW TIMEARR,PRINTTIME,TOTTIME
         NEW TIMEIDX SET TIMEIDX=1
-        FOR  SET IDX=$O(^TMG(22747,"C",DFN,IDX),-1) QUIT:IDX'>0  DO
+        FOR  SET IDX=$O(^TMG(22747,"C",TMGDFN,IDX),-1) QUIT:IDX'>0  DO
         . NEW ZN SET ZN=$G(^TMG(22747,IDX,0))
         . NEW EVENT SET EVENT=$P(ZN,"^",3)
         . NEW THISUSER SET THISUSER=$P(ZN,"^",1)
@@ -189,5 +190,4 @@ TIMESUM(TIMEARR,TMGRESULT,RESULTIDX,SUM)  ;"
         SET RESULTIDX=RESULTIDX+1
         KILL TIMEARR 
         QUIT
-        ;"
-        
+        ;" 

@@ -1,4 +1,4 @@
-TMGRPCS1 ;TMG/kst/RPC entry points for Search PT DOCS API ; 6/20/10, 2/2/14
+TMGRPCS1 ;TMG/kst/RPC entry points for Search PT DOCS API ; 6/20/10, 2/2/14, 3/24/21
         ;;1.0;TMG-LIB;**1**;05/20/10
         ;
  ;"RPC ENTRY POINTS FOR TMG PATIENT DOCUMENTS SEARCH
@@ -50,13 +50,13 @@ PDSRCH(TMGRESULT,TMGPARAMS) ;
         ;"      added on rather than starting over.
         ;
         ;"Results: TMGRESULT(0)="1^Success", OR -1^ErrorMsg
-        NEW DFN SET DFN=+$PIECE(TMGPARAMS,"^",1)
-        IF DFN'>0 DO  GOTO PDSDN
+        NEW TMGDFN SET TMGDFN=+$PIECE(TMGPARAMS,"^",1)
+        IF TMGDFN'>0 DO  GOTO PDSDN
         . SET TMGRESULT(0)="-1^Invalid Patient IEN"
         NEW TMGSRCH SET TMGSRCH=$PIECE(TMGPARAMS,"^",2)
         IF TMGSRCH="" DO  GOTO PDSDN
         . SET TMGRESULT(0)="-1^No search terms provided."
-        DO LAUNCHSR^TMGSRCH2(DFN,TMGSRCH) ;
+        DO LAUNCHSR^TMGSRCH2(TMGDFN,TMGSRCH) ;
         SET TMGRESULT(0)="1^SUCCESS"
 PDSDN   QUIT
         ;

@@ -133,7 +133,7 @@ HLFILEIMPORT(DIRNAME,FNAME,DONEPATH,OPTION)  ;
   ;"Input: DIRNAME -- file path name
   ;"       FNAME -- filename of HL7 file to load and file.  
   ;"       DONEPATH -- Optional.  If provided, then specifies root of
-  ;"                  folder to moved completed messages.  must
+  ;"                  folder to moved completed messages.
   ;"                  NOTE: subfolders ./Processed  and ./Failed_Messages defined.
   ;"                    will be auto-added if not present (if file permissions allow)
   ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PROCESS for description
@@ -155,8 +155,13 @@ HLFILEIMPORT(DIRNAME,FNAME,DONEPATH,OPTION)  ;
   NEW FPNAME SET FPNAME=DIRNAME_FNAME
   SET OPTION("FILEPATHNAME")=FPNAME  
   SET TMGENV("ALERT CODE")="SETALERT^TMGHL7E"  ;"Default, likely overwritten later
+  IF $$UP^XLFSTR(FNAME)="TIU.TXT" DO  GOTO FHLDN
+  . SET TMGRESULT=$$APPENDLOG(.OPTION,"Found: "_FPNAME_". Not processing")
+  . SET TMGRESULT="-1^IGNORING TIU.TXT"
   NEW TMGRESULT SET TMGRESULT=$$HL7CHECKSPLIT(.OPTION) 
   IF TMGRESULT="-1^SPLIT" GOTO FHLDN
+  SET TMGRESULT=$$APPENDLOG(.OPTION,"Processing HL7 file: "_FPNAME)
+  IF TMGRESULT'>0 GOTO FHL1
   SET TMGRESULT=$$LOADHL7^TMGHL7U2(FPNAME,.TMGMSG,.MSH) ;"LOAD FILE INTO ARRAY
   IF TMGRESULT'>0 GOTO FHL1
   NEW ZEF DO CHECKLONGZEF(.TMGMSG,.ZEF) ;"Remove any long ZEF segment, which is an embedded file -- was crashing line below
@@ -340,8 +345,8 @@ SETALERT(TMGRESULT,TMGENV,OPTION) ;"Send error alert for HL7 message
   NEW IGNORE SET IGNORE=0
   ;"NOTE: Line below shouldn't be needed as supposed to be filtered downstream.  
   IF $$PTNOTFOUND^TMGHL7E(TMGRESULT),$$IGNORPT^TMGHL7E(TMGRESULT) GOTO ALTDN
-  IF $$MOVESETUP(-1,.OPTION) ;"Set up OPTION vars to be saved for use during alert processing.
-  IF $$MOVESETUP(1,.OPTION)  ;"Set up OPTION vars to be saved for use during alert processing.
+  IF $$DIRSETUP(-1,.OPTION) ;"Set up OPTION vars to be saved for use during alert processing.
+  IF $$DIRSETUP(1,.OPTION)  ;"Set up OPTION vars to be saved for use during alert processing.
   NEW IEN22720 SET IEN22720=+$GET(TMGENV("IEN 22720"))
   ;"//kt 1/13/21 -- IF IEN22720'>0 GOTO ALTDN   ;"No way to send error message, so just leave
   NEW IEN772 SET IEN772=$GET(TMGENV("IEN 772"))
@@ -358,6 +363,7 @@ SETALERT(TMGRESULT,TMGENV,OPTION) ;"Send error alert for HL7 message
   DO
   . NEW $ETRAP SET $ETRAP="SET TRAPECODE=$ECODE,$ETRAP="""",$ECODE="""""
   . XECUTE CODE
+  IF $$APPENDLOG(.OPTION,"Error encountered, alert sent.")  ;"ignore result. 
 ALTDN  ;
   QUIT 
   ;
@@ -375,7 +381,7 @@ MOVE(SUCCESS,OPTION)  ;"Move HL7 messages to destination folders
   NEW STR SET STR=$SELECT(SUCCESS>0:"SUCCESS",1:"FAILURE")
   SET OUTPATH=$GET(OPTION(STR_" STORE FPATH"))
   SET OUTNAME=$GET(OPTION(STR_" STORE FNAME"))
-  IF (OUTPATH="")!(OUTNAME="") SET TMGRESULT=$$MOVESETUP(.SUCCESS,.OPTION,.OUTPATH,.OUTNAME)
+  IF (OUTPATH="")!(OUTNAME="") SET TMGRESULT=$$DIRSETUP(.SUCCESS,.OPTION,.OUTPATH,.OUTNAME)
   IF TMGRESULT<1 GOTO MVDN
   NEW FILEPATHNAME SET FILEPATHNAME=$GET(OPTION("FILEPATHNAME"))
   HANG 1  ;"for some reason seems to be needed.  
@@ -388,8 +394,10 @@ MOVE(SUCCESS,OPTION)  ;"Move HL7 messages to destination folders
 MVDN ;
   QUIT TMGRESULT
   ; 
-MOVESETUP(SUCCESS,OPTION,OUTPATH,OUTNAME)  ;"Determine destination folders for HL7 move    
-  ;"INPUT: SUCCESS--  Value >0: store in success folder, otherwise store in failed folder
+DIRSETUP(MODE,OPTION,OUTPATH,OUTNAME)  ;"Determine destination folders for HL7 move    
+  ;"INPUT: MODE--  1 --> store in success folder,
+  ;"               0 --> store in LOG folder.  
+  ;"               -1 --> store in failed folder
   ;"       OPTION("FILEPATHNAME")  -- full filepathname of source HL7 file 
   ;"       OPTION("DONEPATH") -- Optional.  If provided, then specifies root of folder to moved completed messages
   ;"       OPTION("HL7DATE")  -- HL7 date of message, if "", then filled with NOW
@@ -401,9 +409,9 @@ MOVESETUP(SUCCESS,OPTION,OUTPATH,OUTNAME)  ;"Determine destination folders for H
   NEW DONEPATH SET DONEPATH=$GET(OPTION("DONEPATH"))
   NEW HL7DATE SET HL7DATE=$GET(OPTION("HL7DATE"))
   DO SPLITFPN^TMGIOUTL(FILEPATHNAME,.OUTPATH,.OUTNAME,"/")
-  SET OUTPATH=$$DESTFLDR(SUCCESS,FILEPATHNAME,.DONEPATH,.HL7DATE)
+  SET OUTPATH=$$DESTFLDR(MODE,FILEPATHNAME,.DONEPATH,.HL7DATE)
   IF +OUTPATH<0 SET TMGRESULT=OUTPATH GOTO MVSUDN
-  NEW STR SET STR=$SELECT(SUCCESS>0:"SUCCESS",1:"FAILURE")
+  NEW STR SET STR=$SELECT(MODE=1:"SUCCESS",MODE=0:"LOG",1:"FAILURE")
   SET OPTION(STR_" STORE FPATH")=OUTPATH
   SET OPTION(STR_" STORE FNAME")=OUTNAME
 MVSUDN  ;
@@ -435,9 +443,12 @@ MAKEMETA(SUCCESS,FNAME,DONEPATH,OPTION,IEN772,IEN773)  ;"Store metadata about so
 MKMTDN  ;
   QUIT TMGRESULT
   ;
-DESTFLDR(SUCCESS,FNAME,DONEPATH,HL7DATE)  ;
-  ;"INPUT: SUCCESS--  Value >0: store in success folder, otherwise store in failed folder
-  ;"                  If Value="SPLIT" then stored in split folder.  
+  
+DESTFLDR(MODE,FNAME,DONEPATH,HL7DATE)  ;
+  ;"INPUT: MODE--  1 --> store in success folder,
+  ;"               0 --> store in LOG folder.  
+  ;"               -1 --> store in failed folder
+  ;"               "SPLIT" --> stored in split folder.  
   ;"       FNAME -- full filepathname of source HL7 file 
   ;"       DONEPATH -- Optional.  If provided, then specifies root of folder to moved completed messages
   ;"       HL7DATE  -- Optional.  HL7 date of message.  Default is NOW
@@ -449,7 +460,7 @@ DESTFLDR(SUCCESS,FNAME,DONEPATH,HL7DATE)  ;
   DO SPLITFPN^TMGIOUTL(FNAME,.OUTPATH,.OUTNAME,"/")
   IF $GET(DONEPATH)'="" SET OUTPATH=DONEPATH
   IF $EXTRACT(OUTPATH,$LENGTH(OUTPATH))'="/" SET OUTPATH=OUTPATH_"/"
-  NEW DESTFOLDER SET DESTFOLDER=$SELECT(SUCCESS>0:"Processed",SUCCESS="SPLIT":"Processed/Split_Messages",1:"Failed_Messages")
+  NEW DESTFOLDER SET DESTFOLDER=$SELECT(MODE=1:"Processed",MODE=0:"LOG",MODE="SPLIT":"Processed/Split_Messages",1:"Failed_Messages")
   SET DESTFOLDER=DESTFOLDER_"/"_YEAR_"/"_MONTH_"/"
   SET OUTPATH=OUTPATH_DESTFOLDER
   NEW TMGRESULT SET TMGRESULT=$$ENSURDIR^TMGKERNL(OUTPATH)
@@ -472,6 +483,9 @@ TSTCKSPDN ;
 HL7CHECKSPLIT(OPTION) ;" Check for mulitple patients in 1 HL7 message
  ;"Input: DIRNAME, 
  ;"       OPTION("FILEPATHNAME")  -- full filepathname of source HL7 file 
+ ;"       OPTION("DONEPATH") -- OPTIONAL.  If provided, then specifies root of folder to moved completed messages.
+ ;"       OPTION("FNAME")=FNAME
+ ;"       OPTION("FPATH")=DIRNAME
  ;"Result: 1 if OK, or -1^SPLIT if split, or -1^message if error.
  NEW DIRNAME SET DIRNAME=$GET(OPTION("FPATH"))
  NEW FNAME SET FNAME=$GET(OPTION("FNAME"))
@@ -482,6 +496,7 @@ HL7CHECKSPLIT(OPTION) ;" Check for mulitple patients in 1 HL7 message
  ;"Check HL7 Array to see if there are more than one MSH or more than one PID
  NEW MSHCOUNT,PIDCOUNT SET (MSHCOUNT,PIDCOUNT)=0
  NEW FILESPLIT SET FILESPLIT=0
+ NEW LOGWRITTEN SET LOGWRITTEN=0
  NEW ARRAYTOSAVE
  NEW IDX SET IDX=0
  FOR  SET IDX=$ORDER(ARRAY(IDX)) QUIT:(IDX'>0)!(+TMGRESULT'>0)  DO
@@ -490,7 +505,10 @@ HL7CHECKSPLIT(OPTION) ;" Check for mulitple patients in 1 HL7 message
  . IF SEG="MSH" SET MSHCOUNT=MSHCOUNT+1
  . IF SEG="PID" SET PIDCOUNT=PIDCOUNT+1
  . IF (MSHCOUNT>1)!(PIDCOUNT>1) DO  QUIT
- . . SET TMGRESULT=$$SAVESUBMSG(DIRNAME,FNAME,.ARRAYTOSAVE)
+ . . IF LOGWRITTEN=0 DO  QUIT:TMGRESULT'>0
+ . . . SET TMGRESULT=$$APPENDLOG(.OPTION,"Splitting HL7 file because it contains multiple messages:"_FPNAME)
+ . . . SET LOGWRITTEN=1
+ . . SET TMGRESULT=$$SAVESUBMSG(DIRNAME,FNAME,.ARRAYTOSAVE,.OPTION)
  . . SET FILESPLIT=1
  . . KILL ARRAYTOSAVE 
  . . IF (PIDCOUNT>1) DO
@@ -505,7 +523,7 @@ HL7CHECKSPLIT(OPTION) ;" Check for mulitple patients in 1 HL7 message
  IF TMGRESULT'>0 GOTO HLCKSPDN
  IF FILESPLIT=1 DO
  . IF $DATA(ARRAYTOSAVE) DO
- . . IF $$SAVESUBMSG(DIRNAME,FNAME,.ARRAYTOSAVE)  ;"DROP RESULT
+ . . IF $$SAVESUBMSG(DIRNAME,FNAME,.ARRAYTOSAVE,.OPTION)  ;"DROP RESULT
  . . ;"DO SPLITFPN^TMGIOUTL(NEWFILENAME,.FPATH,.FNAME)
  . . ;"DO SAVEMSGACTUAL^TMGHL7U2(FPATH,FNAME,.ARRAYTOSAVE)
  . SET TMGRESULT="-1^SPLIT"
@@ -514,7 +532,7 @@ HL7CHECKSPLIT(OPTION) ;" Check for mulitple patients in 1 HL7 message
 HLCKSPDN ;
  QUIT TMGRESULT
  ;"
-SAVESUBMSG(DIRNAME,PARENTFNAME,ARRAY) ;
+SAVESUBMSG(DIRNAME,PARENTFNAME,ARRAY,OPTION) ;
  ;"Result: 1, or -1^OK
  NEW COMBONAME SET COMBONAME=$$MKTRALDV^TMGIOUTL(DIRNAME)_PARENTFNAME 
  NEW NEWFILENAME SET NEWFILENAME=$$UNIQUE^%ZISUTL(COMBONAME)
@@ -526,7 +544,8 @@ SAVESUBMSG(DIRNAME,PARENTFNAME,ARRAY) ;
  . . SET JDX=JDX+1,TEMPARR(JDX)=$GET(ARRAY(IDX))
  . KILL ARRAY MERGE ARRAY=TEMPARR 
  DO SPLITFPN^TMGIOUTL(NEWFILENAME,.FPATH,.FNAME)
- SET TMGRESULT=$$SAVEMSGACTUAL^TMGHL7U2(FPATH,FNAME,.ARRAY) 
+ SET TMGRESULT=$$SAVEMSGACTUAL^TMGHL7U2(FPATH,FNAME,.ARRAY)
+ IF TMGRESULT>0 SET TMGRESULT=$$APPENDLOG(.OPTION,"Created new HL7 file :"_FPATH_FNAME)  
  QUIT TMGRESULT
  ;
 SPLITMSG0(COMBONAME,ARRAY,MSH)  ;"SPLIT MESSAGE INTO SEPARATE MESSAGES
@@ -571,5 +590,29 @@ CHECKLONGZEF(TMGMSG,ZEFOUT) ;"Look for a long ZEF segment, which is an embedded 
  . KILL TMGMSG(IDX)
  QUIT
  ;
- 
- 
+APPENDLOG(OPTION,ENTRYSTR) ;"Append log file to add Entrystr
+  ;"NOTE: Each entry will be prepended with date-time stamp
+  ;"      It is expected that each EntryStr will be just 1 line.
+  ;"INPUT: OPTION: Pass by reference
+  ;"          OPTION("FILEPATHNAME") -- full filepathname of source HL7 file 
+  ;"          OPTION("FNAME")=FNAME
+  ;"          OPTION("FPATH")=DIRNAME
+  ;"          OPTION("DONEPATH") -- Optional.  If provided, then specifies root of folder to moved completed messages
+  ;"          OPTION("LOG STORE FPATH") -- OPTIONAL
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  NEW HANDLE SET HANDLE="TMGLOGHANDLE-"_$J
+  NEW PATH
+  DO DIRSETUP(0,.OPTION,.PATH)
+  NEW DTSTR SET DTSTR=$$FMTE^XLFDT($$NOW^XLFDT,"5ZP")
+  NEW MSG SET MSG=DTSTR_": "_ENTRYSTR
+  NEW CMD SET CMD="echo '"_MSG_"' >> "_PATH_"LOG.txt"
+  SET TMGRESULT=$$LINUXCMD^TMGKERNL(CMD)
+  ;" DO OPEN^%ZISH(HANDLE,PATH,"LOG.txt","A")
+  ;" IF POP DO  GOTO ALDN
+  ;" . SET TMGRESULT="-1^Error opening file for append: "_PATH_FNAME
+  ;" 
+  ;" USE IO
+  ;" WRITE DTSTR,": ",ENTRYSTR,!
+  ;" DO CLOSE^%ZISH(HANDLE)
+ALDN ;
+  QUIT TMGRESULT

@@ -1,4 +1,4 @@
-TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18, 10/19/20
+TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18, 10/19/20, 3/24/21
               ;;1.0;TMG-LIB;**1**;06/20/13
  ;
  ;"TMG LAB RESULTS STORAGE API
@@ -16,7 +16,7 @@ TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18, 10/
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"FILEMSG(IEN62D4,TMGHL7MSG) -- FILE HL7 MESSAGE INTO LAB DATA FILE (63)
- ;"LRWRITE(DFN,ARRAY,LABTYPE,FLAGS,ALERTS) -- Store data in LAB DATA (^LR), file# 63
+ ;"LRWRITE(TMGDFN,ARRAY,LABTYPE,FLAGS,ALERTS) -- Store data in LAB DATA (^LR), file# 63
  ;"PARSXTRA(REF,DATA,DIV1,DIV2) --Parse lab dataline back into XTRA array
  ;"
  ;"=======================================================================
@@ -32,10 +32,10 @@ TMGLRW01 ;TMG/kst-Entry point for writing to LAB DATA file ; 8/2/17, 4/1/18, 10/
  ;"COMPLXTR(REF,DIV) -- COMPILE XTRA ARRAY
  ;"GETPREFX(INFO,NLTCODE) -- Get Prefix for notes. 
  ;"NLT2IEN(INFO,NLTCODE,IEN62D41) -- CONVERT NLT TO IEN62D41
- ;"DEPRECIATED -- FILESARR(DFN,FNUM,IENS,ARRAY,FLAGS,TMGRESULT) -- Prepare user input for passing into Fileman
+ ;"DEPRECIATED -- FILESARR(TMGDFN,FNUM,IENS,ARRAY,FLAGS,TMGRESULT) -- Prepare user input for passing into Fileman
  ;"FILE1ARR(LRDFN,FNUM,IENS,ARRAY,FLAGS) -- File user input with Fileman
  ;"SETUPFDA(FNUM,IEN,PARENTIENS,SRCARRAY,TMGFDA) -- Setup for FDA for fileman
- ;"NEWLRDFN(DFN,MSG) -- Make NEW LAB DATA store record (IEN is LRDFN)
+ ;"NEWLRDFN(TMGDFN,MSG) -- Make NEW LAB DATA store record (IEN is LRDFN)
  ;"SUBFNUM(FILE,FIELD) -- Determine IF field is a subfile
  ;"DELPRIOR(FILEARR,DATESUSED,INFO)  -- DELETE PRIOR FILINGS 
  ;"TEST -- test filing.
@@ -122,12 +122,12 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         FOR  SET STR=$ORDER(ALERTS(STR)) QUIT:(STR="")  DO
         . IF +$PIECE(STR,"^",3)'<+$PIECE(ALERTSTR,"^",3) SET ALERTSTR=STR
         IF ALERTSTR="" GOTO FMGDN
-        NEW DFN SET DFN=$PIECE(ALERTSTR,"^",1)
+        NEW TMGDFN SET TMGDFN=$PIECE(ALERTSTR,"^",1)
         NEW DT SET DT=$PIECE(ALERTSTR,"^",2)
         NEW LEVEL SET LEVEL=$PIECE(ALERTSTR,"^",3)        
         NEW NODE SET NODE=$PIECE(ALERTSTR,"^",4)
         NEW SUPPRESS SET SUPPRESS=1  ;"Don't send if duplicate
-        NEW TEMP SET TEMP=$$ALERT^TMGLRWU2(PROV,DFN,DT,LEVEL,NODE,SUPPRESS)  ;"Send the alert
+        NEW TEMP SET TEMP=$$ALERT^TMGLRWU2(PROV,TMGDFN,DT,LEVEL,NODE,SUPPRESS)  ;"Send the alert
         IF +TEMP'>0 SET TMGRESULT=TEMP
 FMGDN   QUIT TMGRESULT
         ;
@@ -167,9 +167,10 @@ GETINFO(TMGHL7MSG,TMGENV,MSGINFO)  ;"PARSE MESSAGE INFO INTO USABLE ARRAY
         . . SET MSGINFO("DOB")=$E(DOB,5,6)_"-"_$E(DOB,7,8)_"-"_$E(DOB,3,4)  
         . . SET MSGINFO("SEX")=$GET(TMGHL7MSG(IDX,8))
         . . SET MSGINFO("SSNUM")=$TRANSLATE($GET(TMGHL7MSG(IDX,19)),"-","")
-        . . IF $LENGTH(MSGINFO("SSNUM"))<9 SET MSGINFO("SSNUM")="" ;"//kt added 4/19/19 because GCHE passed "41" as a SSN 
-        . . SET MSGINFO("DFN")=+$$GETDFN^TMGGDFN(.MSGINFO,0)  ;"//kt added "+" on 4/9/19
-        . . ;"IF $PIECE(MSGINFO("DFN"),"^",1)<1 DO  QUIT
+        . . IF $LENGTH(MSGINFO("SSNUM"))<9 SET MSGINFO("SSNUM")="" ;"//kt added 4/19/19 because GCHE passed "41" as a SSN
+        . . NEW ALTID SET ALTID=$GET(TMGHL7MSG(IDX,4))  ;"//kt 4/26/21 added
+        . . IF $PIECE(ALTID,TMGU(2),2)="DFN" SET MSGINFO("DFN")=$PIECE(ALTID,TMGU(2),1)  ;"//kt 4/26/21 added
+        . . IF $GET(MSGINFO("DFN"))'>0 SET MSGINFO("DFN")=+$$GETDFN^TMGGDFN(.MSGINFO,0)  ;"//kt 4/26/21 added if
         . . IF $PIECE(MSGINFO("DFN"),"^",1)'>0 DO  QUIT
         . . . SET TMGRESULT="-1^Patient not found in system: "_MSGINFO("NAME")_" ("_MSGINFO("DOB")_"). Lookup routine says: "
         . . . SET TMGRESULT=TMGRESULT_$PIECE(MSGINFO("DFN"),"^",2)  
@@ -336,6 +337,9 @@ STORNOTE(SUBFILE,IENS,NTEARR,WANTDUPL) ;
         NEW IDX SET IDX=0
         FOR  SET IDX=$ORDER(NTEARR(IDX)) QUIT:(+IDX'>0)!(+TMGRESULT'>0)  DO
         . NEW MSG SET MSG=$GET(NTEARR(IDX))
+        . IF MSG["^" DO
+        . . SET MSG=$TRANSLATE(MSG,"^","*")  ;"//kt  Fileman disallows "^", so convert to some allowable char.  4/26/21
+        . . SET NTEARR(IDX)=MSG
         . SET MSG=$PIECE(MSG,DIV,4) 
         . IF $LENGTH(MSG)>(WRAPWIDTH+2) DO   ;"67
         . . NEW WRAPMSG SET WRAPMSG=$EXTRACT(MSG,WRAPWIDTH+1,$LENGTH(MSG))
@@ -491,8 +495,8 @@ NLT2IEN(INFO,NLTCODE,IEN62D41) ;"CONVERT NLT TO IEN62D41
         . SET TMGRESULT="-1^Unable to find NLT code '"_NLTCODE_"' in file #62.4, record #"_IEN62D4_"."
         QUIT TMGRESULT
         ;
-LRWRITE(DFN,ARRAY,LABTYPE,FLAGS,ALERTS) ;"Store data in LAB DATA (^LR), file# 63
-        ;"Input: DFN -- IEN in PATIENT file
+LRWRITE(TMGDFN,ARRAY,LABTYPE,FLAGS,ALERTS) ;"Store data in LAB DATA (^LR), file# 63
+        ;"Input: TMGDFN -- IEN in PATIENT file
         ;"       ARRAY -- PASS BY REFERENCE.  Format:
         ;"         ARRAY(<Field Name or Number>)=<Value>
         ;"         ARRAY(<Field Name or Number>,"XTRA")=<string to SET into global>
@@ -514,8 +518,8 @@ LRWRITE(DFN,ARRAY,LABTYPE,FLAGS,ALERTS) ;"Store data in LAB DATA (^LR), file# 63
         ELSE  IF LABTYPE="MI" SET SUBFILE=63.05
         ELSE  DO  GOTO LRWDN
         . SET TMGRESULT="-1^Invalid LAB TYPE.  Expected 'CH' or 'MI'.  Got ["_LABTYPE_"]"
-        NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(DFN,"LR")),"^",1) ;"Patient identifier for lab package.
-        IF LRDFN'>0 SET LRDFN=$$NEWLRDFN(DFN,.TMGRESULT) ;"CREATE NEW LRDFN RECORD
+        NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(TMGDFN,"LR")),"^",1) ;"Patient identifier for lab package.
+        IF LRDFN'>0 SET LRDFN=$$NEWLRDFN(TMGDFN,.TMGRESULT) ;"CREATE NEW LRDFN RECORD
         IF +TMGRESULT'>0 GOTO LRWDN
         NEW IENS SET IENS=LRDFN_","
         SET TMGRESULT=$$FILE1ARR(LRDFN,SUBFILE,IENS,.ARRAY,FLAGS) 
@@ -527,14 +531,14 @@ LRWRITE(DFN,ARRAY,LABTYPE,FLAGS,ALERTS) ;"Store data in LAB DATA (^LR), file# 63
         . IF (AFLG="H")!(AFLG="L") SET ALVL=2
         . IF (AFLG="HH")!(AFLG="LL")!(AFLG="C")!(AFLG["*") SET ALVL=3
         . IF ALVL>LEVEL SET LEVEL=ALVL
-        SET ALERTS(DFN_"^"_DT_"^"_LEVEL_"^"_LABTYPE)=""
+        SET ALERTS(TMGDFN_"^"_DT_"^"_LEVEL_"^"_LABTYPE)=""
 LRWDN   QUIT TMGRESULT        
         ;
         ;
- ;"FILESARR(DFN,FNUM,IENS,ARRAY,FLAGS,TMGRESULT) ;// DEPRECIATED ;"FILE SUB ENTRIES
+ ;"FILESARR(TMGDFN,FNUM,IENS,ARRAY,FLAGS,TMGRESULT) ;// DEPRECIATED ;"FILE SUB ENTRIES
  ;"        ;"Purpose: To take user input array and prepair for passing into Fileman
  ;"        ;"         -- returning only subfile entries. 
- ;"        ;"Input: DFN -- IEN in PATIENT file 
+ ;"        ;"Input: TMGDFN -- IEN in PATIENT file 
  ;"        ;"       FNUM -- the file/subfile number that contains fields
  ;"        ;"       IENS -- the IENS for record number containing fields
  ;"        ;"       ARRAY -- Array as passed into LRWRITE.  See docs there. 
@@ -597,7 +601,7 @@ FILE1ARR(LRDFN,FNUM,IENS,ARRAY,FLAGS) ;
         . . NEW NEWNODE SET NEWNODE=LRDFN_";"_NODE_";"_RDT_";"_TMGFLD
         . . NEW IEN60 SET IEN60=$GET(ARRAY(TMGFLD,"XTRA",3,7))
         . . IF IEN60'>0 QUIT
-        . . DO SLAB^LRPX(DFN,FLDD01,IEN60,NEWNODE)
+        . . DO SLAB^LRPX(TMGDFN,FLDD01,IEN60,NEWNODE)
         ;"-------------------------------------
         ;"IF +TMGRESULT>0 GOTO FAR2 ;"no problem
         ;"NEW PREEXIST SET PREEXIST="'"_SUBIEN_","_IENS_"' already exists"
@@ -647,31 +651,31 @@ SETUPFDA(FNUM,IEN,PARENTIENS,SRCARRAY,TMGFDA) ;
         . ;"NOTE: Fileman filing would succeed, but trigger CPRS error if missing
         QUIT TMGRESULT
         ;
-NEWLRDFN(DFN,MSG) ;"Make NEW LAB DATA store record (IEN is LRDFN)
-        ;"INPUT: DFN -- IEN in PATIENT file
+NEWLRDFN(TMGDFN,MSG) ;"Make NEW LAB DATA store record (IEN is LRDFN)
+        ;"INPUT: TMGDFN -- IEN in PATIENT file
         ;"       MSG -- PASS BY REFERENCE.  Altered to -1^<Message> IF error or problem
         ;"Results: returns LRDFN (IEN in lab data package)
-        SET DFN=+$GET(DFN) IF DFN'>0 DO  GOTO NLRDDN
+        SET TMGDFN=+$GET(TMGDFN) IF TMGDFN'>0 DO  GOTO NLRDDN
         . SET MSG="-1^Numeric DFN not provided."
         NEW LRDFN 
-        SET LRDFN=+$GET(^DPT(DFN,"LR"))
+        SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
         IF LRDFN>0 DO  GOTO NLRDDN
-        . SET MSG="-1^Patient# "_DFN_" already has lab ID number."
+        . SET MSG="-1^Patient# "_TMGDFN_" already has lab ID number."
         SET LRDFN=$ORDER(^LR("@"),-1)+1  ;"add NEW record right after last entry
         IF LRDFN'>0 SET LRDFN=1
         NEW TMGFDA,TMGIEN,TMGMSG
         SET TMGFDA(63,"+1,",.01)=LRDFN
         SET TMGFDA(63,"+1,",.02)=2  ;"2=PATIENT file
-        SET TMGFDA(63,"+1,",.03)=DFN
+        SET TMGFDA(63,"+1,",.03)=TMGDFN
         SET TMGIEN(1)=LRDFN
         DO UPDATE^DIE("S","TMGFDA","TMGIEN","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO  GOTO NLRDDN
         . SET MSG="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
         ;"NOTE: For SET command below, this is done because field 63's input  
         ;"      transform would have to be changed to allow Fileman to store value.
-        SET ^DPT(DFN,"LR")=LRDFN 
+        SET ^DPT(TMGDFN,"LR")=LRDFN 
         NEW DIK SET DIK="^DPT(",DIK(1)=63  ;"Fld 63 = LABORATORY REFERENCE field.
-        NEW DA SET DA=DFN
+        NEW DA SET DA=TMGDFN
         DO EN1^DIK  ;"Execute SET logic of XRef's for field 63 for this entry. 
 NLRDDN  QUIT LRDFN
         ;
@@ -735,7 +739,7 @@ DELLAB(LRDFN,DT,FLD)  ;"DELETE 1 LAB  -- MOVED.  DEPRECITED, USE OTHER VERSION
   ;"========================================
   ;
 TEST ;
-        NEW DFN SET DFN=70685  ;"PATIENT=TEST,KILLME
+        NEW TMGDFN SET TMGDFN=70685  ;"PATIENT=TEST,KILLME
         NEW LABS
         SET LABS(.01)="NOW-1D"
         SET LABS(.02)=1
@@ -754,6 +758,6 @@ TEST ;
         SET LABS("SODIUM")=132
         SET LABS("POTASSIUM")=5.0
         NEW RESULT
-        SET RESULT=$$LRWRITE(DFN,.LABS,"CH","E") 
+        SET RESULT=$$LRWRITE(TMGDFN,.LABS,"CH","E") 
         WRITE !,RESULT,!
         QUIT

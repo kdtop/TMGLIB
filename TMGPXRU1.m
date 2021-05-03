@@ -1,4 +1,4 @@
-TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;5/8/13, 2/2/14, 1/15/17
+TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;5/8/13, 2/2/14, 1/15/17, 3/24/21
          ;;1.0;TMG-LIB;**1**;5/8/13
  ;
  ;"TMG REMINDER FUNCTIONS
@@ -15,8 +15,8 @@ TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;5/8/13, 2/2/14, 1/15/17
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"NSUREHAS(SOURCEREF,FACTOR) -- Ensure patients have health factor etc stored for given dates
- ;"IFHAS(DFN,FACTOR) -- Determine IF patient has health factor, and IF found, return date of most recent finding.
- ;"GETHFDT(DFN,HFNAME,HFARRAY) ; -- Return most recent date of provided HF 
+ ;"IFHAS(TMGDFN,FACTOR) -- Determine IF patient has health factor, and IF found, return date of most recent finding.
+ ;"GETHFDT(TMGDFN,HFNAME,HFARRAY) ; -- Return most recent date of provided HF 
  ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -30,7 +30,7 @@ TMGPXRU1 ;TMG/kst/TMG Reminder Utilities ;5/8/13, 2/2/14, 1/15/17
  ;
 NSUREHAS(SOURCEREF,FACTOR) ;"ENSURE PATIENT HAS HEALTH FACTOR(S)
         ;"Purpose: Ensure list of patients have health factor etc stored for given dates
-        ;"Input: REF -- format: @REF@(DFN,FMDT)=""        
+        ;"Input: REF -- format: @REF@(TMGDFN,FMDT)=""        
         ;"       FACTOR -- format:  'HF.NOTAVETERAN
         ;"Result : 1^Success, or -1^Message IF error.
         NEW TMGRESULT SET TMGRESULT="-1^Unknown error"
@@ -46,11 +46,11 @@ NSUREHAS(SOURCEREF,FACTOR) ;"ENSURE PATIENT HAS HEALTH FACTOR(S)
         SET VISITMSG(3)="VST^OL^0^"_+$GET(DUZ(2))
         SET VISITMSG(4)="COM^1^@"
         SET TMGRESULT="1^Success"
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(@SOURCEREF@(DFN)) QUIT:(+DFN'>0)  DO
-        . SET VISITMSG(5)="VST^PT^"_DFN
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(@SOURCEREF@(TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . SET VISITMSG(5)="VST^PT^"_TMGDFN
         . NEW FMDT SET FMDT=0
-        . FOR  SET FMDT=$ORDER(@SOURCEREF@(DFN,FMDT)) QUIT:(+FMDT'>0)  DO
+        . FOR  SET FMDT=$ORDER(@SOURCEREF@(TMGDFN,FMDT)) QUIT:(+FMDT'>0)  DO
         . . SET VISITMSG(1)="HDR^0^^0;"_FMDT_";E"
         . . IF PREFIX="IM" SET VISITMSG(6)="IMM+^"_P2IEN_"^^"_FNAME_"^@^^@^0^^1"
         . . IF PREFIX="HF" SET VISITMSG(6)="HF+^"_P2IEN_"^^^^"_DUZ_"^^^^^"_FMDT_"^"
@@ -69,9 +69,9 @@ NSUREHAS(SOURCEREF,FACTOR) ;"ENSURE PATIENT HAS HEALTH FACTOR(S)
         . . DO SAVE^ORWPCE(.OUT,.VISITMSG,0,+$GET(DUZ(2)))
 NSHDN   QUIT TMGRESULT
         ; 
-IFHAS(DFN,FACTOR) ;"RETURN IF PATIENT HAS FACTOR
+IFHAS(TMGDFN,FACTOR) ;"RETURN IF PATIENT HAS FACTOR
         ;"Purpose: See if 1 patient has health factor at all. 
-        ;"Input: DFN -- Patient IEN        
+        ;"Input: TMGDFN -- Patient IEN        
         ;"       FACTOR -- format:  'HF.NOTAVETERAN
         ;"Result : 1^Found^Date, or 0^Not found, or -1^Message if error.
         NEW TMGRESULT SET TMGRESULT="-1^Unknown error"
@@ -123,12 +123,12 @@ SETUPFLS(FACTOR,VFILE,P2IEN,XREF) ;"SET UP VARIABLES FOR FILES, for given FACTOR
         IF +Y>0 SET FNAME=$P(Y,"^",2) 
         ELSE  DO  GOTO SUFSDN
         . SET TMGRESULT="-1^Unable to find factor '"_FNAME_" in file "_P2FILE 
-        SET XREF="^AUPNV"_XREF_"(""AA"",DFN,"_+P2IEN_")"  ;"all the V * have the same AA reference.
+        SET XREF="^AUPNV"_XREF_"(""AA"",TMGDFN,"_+P2IEN_")"  ;"all the V * have the same AA reference.
 SUFSDN  QUIT TMGRESULT
         ;        
-GETHFDT(DFN,HFNAME,HFARRAY,OPTION) ;
+GETHFDT(TMGDFN,HFNAME,HFARRAY,OPTION) ;
         ;"Purpose: Find and return the most recent date of a health factor for a patient
-        ;"Input: DFN - Patient's IEN
+        ;"Input: TMGDFN - Patient's IEN
         ;"       HFName - Name of health factor as defined in 
         ;"                file 9999999.64 Health Factors
         ;"       HFARRAY optional - AN OUT PARAMETER. includes all health
@@ -144,7 +144,7 @@ GETHFDT(DFN,HFNAME,HFARRAY,OPTION) ;
         NEW EDT SET EDT=+$GET(OPTION("EDT")) IF EDT'>0 SET EDT=9999999
         NEW HFIEN SET HFIEN=$$GETHFIEN(HFNAME),TEMPIEN=0
         IF HFIEN'>0 SET TMGRESULT="-1^HF NAME NOT FOUND" GOTO GHDDN
-        FOR  SET TEMPIEN=$ORDER(^AUPNVHF("C",DFN,TEMPIEN)) QUIT:TEMPIEN'>0  DO
+        FOR  SET TEMPIEN=$ORDER(^AUPNVHF("C",TMGDFN,TEMPIEN)) QUIT:TEMPIEN'>0  DO
         . IF HFIEN'=$PIECE($GET(^AUPNVHF(TEMPIEN,0)),"^",1) QUIT
         . SET HFDATE=$PIECE($GET(^AUPNVHF(TEMPIEN,12)),"^",1)
         . IF HFDATE'>0 DO

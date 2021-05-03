@@ -1,4 +1,4 @@
-TMGRPC4B ;TMG/kst/Support Functions for DxLink ;11/16/08, 2/2/14
+TMGRPC4B ;TMG/kst/Support Functions for DxLink ;11/16/08, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;11/16/08
  ;
  ;"TMG RPC FUNCTIONS for a DxLinkprogram
@@ -217,13 +217,13 @@ AL2 ;
         . FOR  SET IEN=$ORDER(^AUPNVSIT("B",TMG1DT,IEN)) Q:(IEN'>0)  DO
         . . NEW LOC SET LOC=+$P($G(^AUPNVSIT(IEN,0)),U,22)
         . . IF (TMGLIEN>0)&(LOC'=TMGLIEN) QUIT
-        . . NEW DFN SET DFN=+$P($G(^AUPNVSIT(IEN,0)),U,5) Q:(DFN'>0)
+        . . NEW TMGDFN SET TMGDFN=+$P($G(^AUPNVSIT(IEN,0)),U,5) Q:(TMGDFN'>0)
         . . NEW Y SET Y=+$P($G(^AUPNVSIT(IEN,0)),U,1)
         . . DO DD^%DT
         . . SET TMGS=Y_"^"
-        . . SET TMGS=TMGS_$P($G(^DPT(DFN,0)),U,1)_"^"_DFN_"^"
-        . . SET Y=$P($G(^DPT(DFN,0)),U,3) DO DD^%DT SET TMGS=TMGS_Y_"^"
-        . . NEW SHRN SET SHRN=$P($G(^DPT(DFN,"TMG")),U,2)
+        . . SET TMGS=TMGS_$P($G(^DPT(TMGDFN,0)),U,1)_"^"_TMGDFN_"^"
+        . . SET Y=$P($G(^DPT(TMGDFN,0)),U,3) DO DD^%DT SET TMGS=TMGS_Y_"^"
+        . . NEW SHRN SET SHRN=$P($G(^DPT(TMGDFN,"TMG")),U,2)
         . . SET TMGS=TMGS_SHRN_"^"
         . . SET TMGS=TMGS_$PIECE($GET(^SC(LOC,"TMG")),U,1)_"^" ;"Custom field 22700
         . . SET TMGS=TMGS_$$CPTLIST(IEN)_"^"

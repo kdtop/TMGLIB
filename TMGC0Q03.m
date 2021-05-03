@@ -1,4 +1,4 @@
-TMGC0Q03 ;TMG/kst/TMG customization of C0Q code ;10/24/12
+TMGC0Q03 ;TMG/kst/TMG customization of C0Q code ;10/24/12, 3/24/21
          ;;1.0;TMG-LIB;**1**;8/8/12
  ;
  ;"TMG C0Q FUNCTIONS
@@ -62,22 +62,22 @@ BRW2    SET USRPICK=$$MENU^TMGUSRI2(.MENU,1)
         . NEW IEN SET IEN=0
         . NEW % SET %=2
         . FOR  SET IEN=$ORDER(^C0Q(301,RECIEN,1,IEN)) QUIT:(+IEN'>0)  DO
-        . . NEW DFN SET DFN=+$PIECE($GET(^C0Q(301,RECIEN,1,IEN,0)),"^",1)
-        . . IF DFN'>0 QUIT
-        . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        . . NEW TMGDFN SET TMGDFN=+$PIECE($GET(^C0Q(301,RECIEN,1,IEN,0)),"^",1)
+        . . IF TMGDFN'>0 QUIT
+        . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         . . QUIT:PTNAME=""
-        . . SET TMGPICK(PTNAME_"      (#"_DFN_")")=DFN
+        . . SET TMGPICK(PTNAME_"      (#"_TMGDFN_")")=TMGDFN
         . IF $DATA(TMGPICK)=0 QUIT
         . DO SELECTR2^TMGUSRI3("TMGPICK","TMGRESULT",LSTNAME_".  Press <Esc><Esc> when done.")
         . IF $DATA(TMGRESULT)=0 QUIT
         . SET PTNAME=""
         . FOR  SET PTNAME=$ORDER(TMGRESULT(PTNAME)) QUIT:(PTNAME="")!(%=-1)  DO
-        . . NEW DFN SET DFN=+$GET(TMGRESULT(PTNAME))
-        . . QUIT:DFN'>0
+        . . NEW TMGDFN SET TMGDFN=+$GET(TMGRESULT(PTNAME))
+        . . QUIT:TMGDFN'>0
         . . SET %=2
         . . WRITE "CHECK DETAILS FOR ",PTNAME DO YN^DICN WRITE !
         . . IF %'=1 QUIT
-        . . NEW STR SET STR=$$MEANFLUS^TMGC0Q06(DFN)
+        . . NEW STR SET STR=$$MEANFLUS^TMGC0Q06(TMGDFN)
         . . WRITE !,STR,!
         . . DO PRESS2GO^TMGUSRI2
 BRWDN   QUIT

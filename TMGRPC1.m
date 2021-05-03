@@ -1,4 +1,4 @@
-TMGRPC1 ;TMG/kst-RPC Functions ; 4/19/15, 5/23/14
+TMGRPC1 ;TMG/kst-RPC Functions ; 4/19/15, 5/23/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;08/18/09
  ;
  ;"TMG RPC FUNCTIONS related to CPRS
@@ -20,14 +20,14 @@ TMGRPC1 ;TMG/kst-RPC Functions ; 4/19/15, 5/23/14
  ;"UPLDDROP(RESULT,FPATH,FNAME,LOCIEN)      ; Depreciated MOVED to TMGRPC1C
  ;"GETLONG(GREF,IMAGEIEN)
  ;"GETDFN(RESULT,RECNUM,RECFIELD,LNAME,FNAME,MNAME,DOB,SEX,SSNUM)
- ;"BLANKTIU(RESULT,DFN,PERSON,LOC,DOS,TITLE)
+ ;"BLANKTIU(RESULT,TMGDFN,PERSON,LOC,DOS,TITLE)
  ;"AUTOSIGN(RESULT,DOCIEN)
- ;"FNINFO(RESULT,DFN) -- GET PATIENT DEMOGRAPHICS
+ ;"FNINFO(RESULT,TMGDFN) -- GET PATIENT DEMOGRAPHICS
  ;"PTADD(RESULT,INFO)  -- ADD PATIENT
- ;"STPTINFO(RESULT,DFN,INFO) -- SET PATIENT DEMOGRAPHICS
+ ;"STPTINFO(RESULT,TMGDFN,INFO) -- SET PATIENT DEMOGRAPHICS
  ;"GETURLS(RESULT) -- TMG CPRS GET URL LIST
  ;"SIGIMAGE(TMGRESULT,DUZ,IMAGEIEN)  -- Store image as user's signature
- ;"GETESIG(DFN)  ; --To return the provided user's last e-signature
+ ;"GETESIG(TMGDFN)  ; --To return the provided user's last e-signature
  ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -139,9 +139,9 @@ GETDFN(RESULT,RECNUM,PMS,FNAME,LNAME,MNAME,DOB,SEX,SSNUM,AUTOADD) ;
         QUIT
         ;
         ;
-BLANKTIU(RESULT,DFN,PERSON,LOC,DOS,TITLE) ;
+BLANKTIU(RESULT,TMGDFN,PERSON,LOC,DOS,TITLE) ;
         ;"Purpose: To create a new, blank TIU note and return it's IEN
-        ;"Input: DFN  -- IEN in PATIENT file of patient
+        ;"Input: TMGDFN  -- IEN in PATIENT file of patient
         ;"       PERSON -- Provider NAME
         ;"       LOC -- Location for NEW document
         ;"       DOS -- Date of Service
@@ -154,13 +154,13 @@ BLANKTIU(RESULT,DFN,PERSON,LOC,DOS,TITLE) ;
         NEW DOCUMENT,Flag
         ;
         ;"KILL ^TMG("TMP","BLANKTIU")
-        ;"SET ^TMG("TMP","BLANKTIU","DFN")=$G(DFN)
+        ;"SET ^TMG("TMP","BLANKTIU","DFN")=$G(TMGDFN)
         ;"SET ^TMG("TMP","BLANKTIU","PERSON")=$G(PERSON)
         ;"SET ^TMG("TMP","BLANKTIU","LOC")=$G(LOC)
         ;"SET ^TMG("TMP","BLANKTIU","DOS")=$G(DOS)
         ;"SET ^TMG("TMP","BLANKTIU","TITLE")=$G(TITLE)
         ;
-        SET DOCUMENT("DFN")=DFN
+        SET DOCUMENT("DFN")=TMGDFN
         SET DOCUMENT("PROVIDER IEN")=$$GetProvIEN^TMGPUTN0(PERSON)
         IF +LOC=LOC s LOC="`"_LOC
         SET DOCUMENT("LOCATION")=$GET(LOC)
@@ -256,10 +256,10 @@ ASDone  ;
         QUIT
         ;
         ;
-DFNINFO(RESULT,DFN) ;
+DFNINFO(RESULT,TMGDFN) ;
         ;"Purpose: To return array with demographcs details about patient
         ;"Input: RESULT (this is the output array)
-        ;"       DFN : The record number in file #2 of the patient to inquire about.
+        ;"       TMGDFN : The record number in file #2 of the patient to inquire about.
         ;"Results: Results passed back in RESULT array.  Format as follows:
         ;"              The results are in format: KeyName=Value,
         ;"              There is no SET order these will appear.
@@ -313,14 +313,14 @@ DFNINFO(RESULT,DFN) ;
         NEW TMGFDA,TMGMSG,IENS
         SET IENS=""
         NEW ptrParts SET ptrParts=0
-        SET DFN=+$GET(DFN)
-        IF DFN>0 DO
-        . SET ptrParts=+$PIECE($GET(^DPT(DFN,"NAME")),"^",1) ;"ptr to file #20, NAME COMPONENTS
-        . SET IENS=DFN_","
+        SET TMGDFN=+$GET(TMGDFN)
+        IF TMGDFN>0 DO
+        . SET ptrParts=+$PIECE($GET(^DPT(TMGDFN,"NAME")),"^",1) ;"ptr to file #20, NAME COMPONENTS
+        . SET IENS=TMGDFN_","
         . DO GETS^DIQ(2,IENS,"**","N","TMGFDA","TMGMSG")
         ;
         NEW LINECT SET LINECT=0
-        SET RESULT(LINECT)="IEN="_DFN SET LINECT=LINECT+1
+        SET RESULT(LINECT)="IEN="_TMGDFN SET LINECT=LINECT+1
         SET RESULT(LINECT)="COMBINED_NAME="_$GET(TMGFDA(2,IENS,.01)) SET LINECT=LINECT+1
         NEW s SET s=""
         IF ptrParts>0 SET s=$GET(^VA(20,ptrParts,1))
@@ -369,9 +369,9 @@ DFNINFO(RESULT,DFN) ;
         ;
         ;"the GETS doesn't return ALIAS entries, so will DO manually:
         NEW Itr,IEN
-        SET IEN=$$ItrInit^TMGITR(2.01,.Itr,DFN_",")
+        SET IEN=$$ItrInit^TMGITR(2.01,.Itr,TMGDFN_",")
         IF IEN'="" FOR  DO  QUIT:(+$$ItrNext^TMGITR(.Itr,.IEN)'>0)
-        . NEW s SET s=$GET(^DPT(DFN,.01,IEN,0))
+        . NEW s SET s=$GET(^DPT(TMGDFN,.01,IEN,0))
         . IF s="" QUIT
         . SET RESULT(LINECT)="ALIAS "_IEN_" NAME="_$PIECE(s,"^",1) SET LINECT=LINECT+1
         . SET RESULT(LINECT)="ALIAS "_IEN_" SSN="_$PIECE(s,"^",2) SET LINECT=LINECT+1
@@ -380,10 +380,10 @@ DFNINFO(RESULT,DFN) ;
         QUIT
         ;
         ;
-STPTINFO(RESULT,DFN,INFO)  ;" SET PATIENT INFO
+STPTINFO(RESULT,TMGDFN,INFO)  ;" SET PATIENT INFO
         ;"Purpose: To SET demographcs details about patient
         ;"Input: RESULT (this is the output array)
-        ;"       DFN : The record number in file #2 of the patient to inquire about.
+        ;"       TMGDFN : The record number in file #2 of the patient to inquire about.
         ;"       INFO: Format as follows:
         ;"              The results are in format: INFO("KeyName")=Value,
         ;"              There is no SET order these will appear.
@@ -441,7 +441,7 @@ STPTINFO(RESULT,DFN,INFO)  ;" SET PATIENT INFO
         ;"MERGE ^TMG("TMP","RPC")=INFO   ;"temp... remove later
         ;
         NEW TMGFDA,TMGMSG,IENS
-        SET IENS=DFN_","
+        SET IENS=TMGDFN_","
         NEW TMGKEY SET TMGKEY=""
         FOR  SET TMGKEY=$ORDER(INFO(TMGKEY)) QUIT:(TMGKEY="")  DO
         . IF TMGKEY="COMBINED_NAME" SET TMGFDA(2,IENS,.01)=INFO("COMBINED_NAME")
@@ -500,8 +500,8 @@ STPTINFO(RESULT,DFN,INFO)  ;" SET PATIENT INFO
         . . NEW TMGFDA,TMGMSG,TMGIEN,newRec
         . . SET newRec=0
         . . SET TMGKEY="" FOR  SET TMGKEY=$ORDER(tempArray(index,TMGKEY)) QUIT:(TMGKEY="")!(RESULT'=1)  DO
-        . . . IF TMGKEY="NAME" SET TMGFDA(2.01,index_","_DFN_",",.01)=$GET(tempArray(index,"NAME"))
-        . . . IF TMGKEY="SSN" SET TMGFDA(2.01,index_","_DFN_",",1)=$GET(tempArray(index,"SSN"))
+        . . . IF TMGKEY="NAME" SET TMGFDA(2.01,index_","_TMGDFN_",",.01)=$GET(tempArray(index,"NAME"))
+        . . . IF TMGKEY="SSN" SET TMGFDA(2.01,index_","_TMGDFN_",",1)=$GET(tempArray(index,"SSN"))
         . . . IF index["+" SET newRec=1
         . . IF $DATA(TMGFDA) DO
         . . . IF newRec=0 DO FILE^DIE("EKST","TMGFDA","TMGMSG")
@@ -546,7 +546,7 @@ PTADD(RESULT,INFO)  ;" ADD PATIENT  RPC Entry point
         KILL ^TMG("TMP","RPC","PTADD^TMGRPC1","INFO")
         MERGE ^TMG("TMP","RPC","PTADD^TMGRPC1","INFO")=INFO
         SET RESULT="-1^Unknown error"  ;"default to failure
-        NEW TMGFDA,TMGMSG,PATIENT,DFN
+        NEW TMGFDA,TMGMSG,PATIENT,TMGDFN
         NEW TMGKEY SET TMGKEY=""
         FOR  SET TMGKEY=$ORDER(INFO(TMGKEY)) QUIT:(TMGKEY="")  DO
         . IF TMGKEY="COMBINED_NAME" SET PATIENT("NAME")=INFO("COMBINED_NAME")
@@ -561,26 +561,26 @@ PTADD(RESULT,INFO)  ;" ADD PATIENT  RPC Entry point
         . ELSE  IF TMGKEY="STATE" SET PATIENT("STATE")=INFO("STATE")
         . ELSE  IF TMGKEY="ZIP" SET PATIENT("ZIP")=INFO("ZIP")
         . ELSE  IF TMGKEY="SEQUELNUM" SET PATIENT("SEQUELNUM")=INFO("SEQUELNUM")
-        SET DFN=$$GETDFN^TMGGDFN(.PATIENT,1)  ;"1=will autoregister if needed
-        IF DFN>0 DO
-        . IF $PIECE(DFN,"^",2)=1 SET RESULT=+DFN  ;"Added new
-        . ELSE  SET RESULT="0^"_+DFN  ;"i.e. already existed
-        ELSE  IF DFN<0 DO
-        . SET RESULT=DFN  ;"Should be in -1^Message format
+        SET TMGDFN=$$GETDFN^TMGGDFN(.PATIENT,1)  ;"1=will autoregister if needed
+        IF TMGDFN>0 DO
+        . IF $PIECE(TMGDFN,"^",2)=1 SET RESULT=+TMGDFN  ;"Added new
+        . ELSE  SET RESULT="0^"_+TMGDFN  ;"i.e. already existed
+        ELSE  IF TMGDFN<0 DO
+        . SET RESULT=TMGDFN  ;"Should be in -1^Message format
         ;
-        ;"IF DFN=-1 DO
+        ;"IF TMGDFN=-1 DO
         ;". NEW Entry,RESULT,TMGERRMSG
         ;". DO PAT2ENTRY^TMGGDFN(.PATIENT,.Entry)
-        ;". SET DFN=$$ADDNEWPAT^TMGGDFN(.Entry,.TMGERRMSG)
-        ;". ;"SET DFN=$$GETDFN^TMGGDFN(.PATIENT)
-        ;". IF DFN>0 DO
-        ;". . SET RESULT=DFN
+        ;". SET TMGDFN=$$ADDNEWPAT^TMGGDFN(.Entry,.TMGERRMSG)
+        ;". ;"SET TMGDFN=$$GETDFN^TMGGDFN(.PATIENT)
+        ;". IF TMGDFN>0 DO
+        ;". . SET RESULT=TMGDFN
         ;". ELSE  DO
         ;". . SET RESULT="-1^ERROR ADDING"
         ;". . IF $GET(TMGERRMSG)'="" SET RESULT="-1^ERROR ADDING: "_$$GETERRST^TMGDEBU2(.TMGERRMSG)
-        ;". . ELSE  SET RESULT="-1^"_$PIECE(DFN,"^",2)
+        ;". . ELSE  SET RESULT="-1^"_$PIECE(TMGDFN,"^",2)
         ;"ELSE  DO
-        ;". SET RESULT="0^"_DFN
+        ;". SET RESULT="0^"_TMGDFN
         ;
         QUIT
         ;
@@ -707,16 +707,16 @@ DBCDone ;
         QUIT
         ;
  ;"--------------------
-GETURLS(RESULT,DFN) ;
+GETURLS(RESULT,TMGDFN) ;
         ;"SCOPE: Public
         ;"RPC that calls this: TMG CPRS GET URL LIST
         ;"Purpose: To provide an entry point for a RPC call from a client.  The client
         ;"         will request URLs to display in custom tabs inside CPRS, in an
         ;"         imbedded web browser
         ;"Input:  RESULT -- an OUT PARAMETER.  See output below.
-        ;"        DFN -- IEN in PATIENT file.  NOTE: this RPC is also called when
+        ;"        TMGDFN -- IEN in PATIENT file.  NOTE: this RPC is also called when
         ;"               patient is CLEARED (i.e. set to NONE).  In that case
-        ;"               DFN=""
+        ;"               TMGDFN=""
         ;"Output: results are passed out in RESULT:
         ;"         RESULT(0)="1^Success"   or "0^SomeFailureMessage"
         ;"         RESULT(<TAB#>)="Name1^URL#1"  ; shows URL#1 in tab #1, named 'Name1'
@@ -758,9 +758,9 @@ GETURLS(RESULT,DFN) ;
         ;"      a given patient.  However, this RPC is also called when
         ;"      patient is CLEARED (i.e. set to NONE).  In that case DFN=""        
         ;
-        SET DFN=+$GET(DFN)
+        SET TMGDFN=+$GET(TMGDFN)
         SET RESULT(0)="1^Success"
-        SET ^TMP("TMG","GETURLS")=$GET(DFN)
+        SET ^TMP("TMG","GETURLS")=$GET(TMGDFN)
         NEW IDX SET IDX=1
         ;"SET RESULT(IDX)="Google^http://www.google.com",IDX=IDX+1
         NEW ADDNUM SET ADDNUM=0
@@ -770,7 +770,7 @@ GETURLS(RESULT,DFN) ;
         . . SET RESULT(IDX)=@REF@(ADDNUM),IDX=IDX+1
 
         ;"SET RESULT(2)="Lab Test^http://{{ws}}:{{wp}}/filesystem/lab/index.html?DFN=9182"
-        SET RESULT(IDX)=$$MAKEURL^TMGRST03(DFN),IDX=IDX+1
+        SET RESULT(IDX)=$$MAKEURL^TMGRST03(TMGDFN),IDX=IDX+1
         ;"SET RESULT(IDX)="yahoo^http://www.yahoo.com",IDX=IDX+1
         ;"SET RESULT(IDX)="Google^http://www.google.com",IDX=IDX+1
         ;"BELOW 1 LINE IS TEMP... REMOVE LATER
@@ -783,7 +783,7 @@ GETURLS(RESULT,DFN) ;
 SIGIMAGE(TMGRESULT,DUZ,IMAGEIEN)  ;
         ;"Purpose: Store image as user's signature
         ;"Input: TMGRESULT - Result variable
-        ;"       DFN - User to store image to
+        ;"       TMGDFN - User to store image to
         ;"       IMAGEIEN - pointer to image in 2005
         NEW TMGFDA,TMGMSG,TMGIEN,RECIEN,TMGIENS
         SET TMGRESULT="1^SUCCESSFUL"
@@ -812,13 +812,13 @@ SIGIMAGE(TMGRESULT,DUZ,IMAGEIEN)  ;
         . SET TMGRESULT="-1^Filing Error Occured:"+$GET(TMGMSG("DIERR",1,"TEXT",1))
 SIDN    QUIT
         ;"
-GETESIG(DFN)  ;
+GETESIG(TMGDFN)  ;
         ;"Purpose: To return the provided user's last e-signature
-        ;"Input: DFN - User's IEN
+        ;"Input: TMGDFN - User's IEN
         ;"Result: Path of image to be appended to an HTML TIU Note
         NEW IMAGEIEN,TMGRESULT,IMAGEARR,MAGIEN,MAGDATE,FILENAME
         SET IMAGEIEN=0,TMGRESULT=""
-        NEW ESIGIEN SET ESIGIEN=$ORDER(^TMG(22701,"B",DFN,0))
+        NEW ESIGIEN SET ESIGIEN=$ORDER(^TMG(22701,"B",TMGDFN,0))
         IF ESIGIEN'>0 GOTO GESDN
         FOR  SET IMAGEIEN=$ORDER(^TMG(22701,ESIGIEN,1,IMAGEIEN)) QUIT:IMAGEIEN'>0  DO
         . SET MAGIEN=$PIECE($GET(^TMG(22701,ESIGIEN,1,IMAGEIEN,0)),"^",1)

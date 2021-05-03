@@ -1,4 +1,4 @@
-TMGTIUO5 ;TMG/kst-Text objects for use in CPRS ; 3/12/15, 1/15/17
+TMGTIUO5 ;TMG/kst-Text objects for use in CPRS ; 3/12/15, 1/15/17, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;7/20/12
  ;
  ;"Kevin Toppenberg MD
@@ -16,12 +16,12 @@ TMGTIUO5 ;TMG/kst-Text objects for use in CPRS ; 3/12/15, 1/15/17
  ;"=======================================================================
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
- ;"GNOTELST(DFN,LIST,INCDAYS,OPTIONS) --Return a list of notes for patient in given time span
- ;"LASTNOTE(DFN,LIST,STARTMARKERS,OPTION) -- GET LAST NOTE POINTED TO IN 22729 
+ ;"GNOTELST(TMGDFN,LIST,INCDAYS,OPTIONS) --Return a list of notes for patient in given time span
+ ;"LASTNOTE(TMGDFN,LIST,STARTMARKERS,OPTION) -- GET LAST NOTE POINTED TO IN 22729 
  ;"XTRCTSPC(IEN8925,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) -- scan the REPORT TEXT field in given document and return ...
  ;"XTRCTREF(REF,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) -- EXTRACT SPECIAL, FROM REFERENCE. 
  ;"SORTMARR(ARR) -- SPLIT MED ARRAY UP INTO LINES, AND KEY-VALUE PAIRS.  
- ;"EMEDSARR(DFN,MEDARRAY)  -- add any eRx scripts found in a note to the provided array. 
+ ;"EMEDSARR(TMGDFN,MEDARRAY)  -- add any eRx scripts found in a note to the provided array. 
  ;"ERX1TIU(TIUIEN,MEDARRAY) -- add any eRx scripts found specified note to the provided array. 
  ;"NOTETEXT(TIUIEN) -- returns the text of a note for a given IEN
  ;"
@@ -37,16 +37,16 @@ TMGTIUO5 ;TMG/kst-Text objects for use in CPRS ; 3/12/15, 1/15/17
  ;"ERXSUFFX()
  ;"CHK1ERX(TIUIEN,MEDARRAY,ADDED,FINALMED)  ;
  ;"NOTEMEDS(TIUIEN,NOTETEXT,MEDARRAY,ADDED)  -- GET EPRESCRIBED MEDS OUT OF A STRING
- ;"ERXNOTES(DFN,MEDARRAY,ADDED) -- FIND THE LAST NOTE WITH MED LIST AS WELL AS ERX DATA
+ ;"ERXNOTES(TMGDFN,MEDARRAY,ADDED) -- FIND THE LAST NOTE WITH MED LIST AS WELL AS ERX DATA
  ;"FRMTMED(THISMED)  -- FORMAT MEDICATION LINE
  ;"SORTMEDS(MEDARRAY) -- sort the medications if any new ones were added
  ;"
  ;"=======================================================================
  ;"Dependancies : %DTC TMGTHM1 XLFSTR
  ;"=======================================================================
-GNOTELST(DFN,LIST,INCDAYS,OPTIONS) ;"GET NOTE LIST
+GNOTELST(TMGDFN,LIST,INCDAYS,OPTIONS) ;"GET NOTE LIST
   ;"Purpose: Return a list of notes for patient in given time span
-  ;"Input: DFN -- IEN in PATIENT file (the patient record number)
+  ;"Input: TMGDFN -- IEN in PATIENT file (the patient record number)
   ;"       LIST -- PASS BY REFERENCE, an OUT PARAMETER. (Format below)
   ;"       INCDAYS -- Number of DAYS to search in.
   ;"              E.g. 4 --> get notes from last 4 days
@@ -65,16 +65,16 @@ GNOTELST(DFN,LIST,INCDAYS,OPTIONS) ;"GET NOTE LIST
   ;"3/12/15 -- modified such that ALL notes can be returned optionally.
   ;"1/15/17 -- modified such that notes AFTER specified DT are ignored.  
   KILL LIST
-  SET DFN=+$GET(DFN)
-  IF DFN'>0 GOTO GNLDONE
+  SET TMGDFN=+$GET(TMGDFN)
+  IF TMGDFN'>0 GOTO GNLDONE
   SET INCDAYS=+$GET(INCDAYS)
   NEW X,NOWDT DO NOW^%DTC SET NOWDT=X
   NEW PTRCOMPL SET PTRCOMPL=$ORDER(^TIU(8925.6,"B","COMPLETED",0))
   NEW USEALLNOTES SET USEALLNOTES=+$GET(OPTIONS("ALL NOTES"))
-  ;"NEW TEMP MERGE TEMP=^TIU(8925,"C",DFN)
+  ;"NEW TEMP MERGE TEMP=^TIU(8925,"C",TMGDFN)
   NEW EDT SET EDT=+$GET(OPTIONS("DT")) IF EDT=0 SET EDT=9999999  ;"//KT 1/15/17
   NEW IEN SET IEN=""
-  FOR  SET IEN=$ORDER(^TIU(8925,"C",DFN,IEN)) QUIT:(+IEN'>0)  DO        
+  FOR  SET IEN=$ORDER(^TIU(8925,"C",TMGDFN,IEN)) QUIT:(+IEN'>0)  DO        
   . NEW X,X1,X2,%Y,ZNODE,STARTDATE,NODE13
   . SET ZNODE=$GET(^TIU(8925,IEN,0))
   . SET NODE13=$GET(^TIU(8925,IEN,13))
@@ -89,9 +89,9 @@ GNOTELST(DFN,LIST,INCDAYS,OPTIONS) ;"GET NOTE LIST
 GNLDONE ;
   QUIT
   ;
-LASTNOTE(DFN,LIST,STARTMARKERS,OPTION) ;"GET LAST NOTE POINTED TO IN 22729
+LASTNOTE(TMGDFN,LIST,STARTMARKERS,OPTION) ;"GET LAST NOTE POINTED TO IN 22729
   ;"Purpose: Return the note referenced in 22729
-  ;"Input: DFN - Patient IEN
+  ;"Input: TMGDFN - Patient IEN
   ;"       LIST - Return array
   ;"       STARTMARKERS - Beginning table marker
   ;"       OPTIONS -- PASS BY REFERENCE.  Optional variable.  Format
@@ -120,7 +120,7 @@ LASTNOTE(DFN,LIST,STARTMARKERS,OPTION) ;"GET LAST NOTE POINTED TO IN 22729
   IF TABLEIEN=31 SET OPTION("ALL NOTES")=1  
   ;"
   ;"Find if table is referenced in 22729
-  NEW IDX SET IDX=+$ORDER(^TMG(22729,"C",DFN,TABLEIEN,0))
+  NEW IDX SET IDX=+$ORDER(^TMG(22729,"C",TMGDFN,TABLEIEN,0))
   IF IDX'>0 GOTO LNDN
   NEW TIUIEN SET TIUIEN=+$PIECE($GET(^TMG(22729,IDX,0)),"^",3)
   IF TIUIEN'>0 GOTO LNDN
@@ -399,13 +399,13 @@ ERXSUFFX()
   QUIT " [Auto added "_$$TODAY^TMGDATE(1)_"] "
   ;"
 
-EMEDSARR(DFN,MEDARRAY)  ;"
+EMEDSARR(TMGDFN,MEDARRAY)  ;"
   ;"Purpose: This function will add any eRx scripts found in a note to the
   ;"         provided array. 
-  ;"Input: DFN - Patient's IEN
+  ;"Input: TMGDFN - Patient's IEN
   ;"       MEDARRAY - Meds will be added to the end of the medication array
   NEW ADDED SET ADDED=0
-  DO ERXNOTES(DFN,.MEDARRAY,.ADDED)
+  DO ERXNOTES(TMGDFN,.MEDARRAY,.ADDED)
   IF ADDED=1 DO SORTMEDS(.MEDARRAY)
   QUIT
   ;"  
@@ -421,17 +421,17 @@ ERX1TIU(TIUIEN,MEDARRAY) ;"
   IF ADDED=1 DO SORTMEDS(.MEDARRAY)
   QUIT
   ;
-ERXNOTES(DFN,MEDARRAY,ADDED) ;"FIND THE LAST NOTE WITH MED LIST AS WELL AS ERX DATA
+ERXNOTES(TMGDFN,MEDARRAY,ADDED) ;"FIND THE LAST NOTE WITH MED LIST AS WELL AS ERX DATA
   NEW TIUDATE SET TIUDATE=9999999
   NEW DONE
   NEW CNT SET CNT=$ORDER(MEDARRAY(9999),-1)
   SET MEDARRAY(0)=CNT
   SET DONE=0
   ;"FIND NOTES
-  FOR  SET TIUDATE=$ORDER(^TIU(8925,"ZTMGPTDT",DFN,TIUDATE),-1) QUIT:(TIUDATE'>0)!(DONE=1)  DO
+  FOR  SET TIUDATE=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,TIUDATE),-1) QUIT:(TIUDATE'>0)!(DONE=1)  DO
   . NEW TIUIEN,NOTETEXT
   . SET TIUIEN=0
-  . FOR  SET TIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",DFN,TIUDATE,TIUIEN)) QUIT:(TIUIEN'>0)!(DONE=1)  DO
+  . FOR  SET TIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,TIUDATE,TIUIEN)) QUIT:(TIUIEN'>0)!(DONE=1)  DO
   . . DO CHK1ERX(TIUIEN,.MEDARRAY,.ADDED,.DONE)  ;"//kt
   . . ;" SET NOTETEXT=$$NOTETEXT(TIUIEN)
   . . ;" IF NOTETEXT[$$FINALMED SET DONE=1

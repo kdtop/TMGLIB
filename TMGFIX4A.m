@@ -1,4 +1,4 @@
-TMGFIX4A ;TMG/kst/Fixes for converting old labs ; 9/25/13, 2/2/14
+TMGFIX4A ;TMG/kst/Fixes for converting old labs ; 9/25/13, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;9/25/13
  ;
  ;"FIXES related to TMG TIU PXRM TABLES
@@ -30,12 +30,12 @@ TMGFIX4A ;TMG/kst/Fixes for converting old labs ; 9/25/13, 2/2/14
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"DOSCAN -- Fix patient's TOBACCO entry in the text table.
- ;"FIXEKG(DFN) -- 
+ ;"FIXEKG(TMGDFN) -- 
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
  ;"GETHDR(TEXT) --LOAD UP HEADER ARRAY
- ;"MAKENOTE(VALUE,YN,DFN,TXTARRAY) -- compose a note with information for NEW table.
+ ;"MAKENOTE(VALUE,YN,TMGDFN,TXTARRAY) -- compose a note with information for NEW table.
  ; 
  ;"=======================================================================
  ;"DEPENDENCIES
@@ -50,26 +50,26 @@ DOSCAN  ;"Purpose: To centralized EKG's into one place: the Studies table.
         NEW STIME SET STIME=$H
         NEW DONE SET DONE=0
         NEW DFNMAX SET DFNMAX=$ORDER(^DPT("!"),-1)
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:(+DFN'>0)  DO
-        . IF DFN#5=0 DO
-        . . DO PROGBAR^TMGUSRI2(DFN,"PROGRESS: "_DFN,0,DFNMAX,60,STIME)
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . IF TMGDFN#5=0 DO
+        . . DO PROGBAR^TMGUSRI2(TMGDFN,"PROGRESS: "_TMGDFN,0,DFNMAX,60,STIME)
         . . IF $$USRABORT^TMGUSRI2("scanning patients") SET DONE=1
-        . DO FIXEKG(DFN)
+        . DO FIXEKG(TMGDFN)
         QUIT
         ;
-FIXEKG(DFN) ;
+FIXEKG(TMGDFN) ;
         ;
         NEW DM2ARR,HTNARR,STUDIESARR,TEMPS
         NEW EKGVAL SET EKGVAL=""
         NEW ONLYSTUDIESTABLE SET ONLYSTUDIESTABLE=1
-        SET TEMPS=$$GETTABLX^TMGTIUO6(DFN,"HYPERTENSION",.HTNARR)
+        SET TEMPS=$$GETTABLX^TMGTIUO6(TMGDFN,"HYPERTENSION",.HTNARR)
         SET TEMPS=$$TRIM^XLFSTR($GET(HTNARR("KEY-VALUE","EKG")))
         IF "<NO DATA>."[$$UP^XLFSTR(TEMPS) SET TEMPS=""
         IF TEMPS'="" DO
         . SET EKGVAL=TEMPS
         . SET ONLYSTUDIESTABLE=0
-        SET TEMPS=$$GETTABLX^TMGTIUO6(DFN,"DIABETIC STUDIES",.DM2ARR)
+        SET TEMPS=$$GETTABLX^TMGTIUO6(TMGDFN,"DIABETIC STUDIES",.DM2ARR)
         SET TEMPS=$$TRIM^XLFSTR($GET(DM2ARR("KEY-VALUE","EKG")))
         IF "<NO DATA>."[$$UP^XLFSTR(TEMPS) SET TEMPS=""
         IF EKGVAL[TEMPS SET TEMPS=""
@@ -77,7 +77,7 @@ FIXEKG(DFN) ;
         . IF EKGVAL'="" SET EKGVAL=EKGVAL_"; "
         . SET EKGVAL=EKGVAL_TEMPS
         . SET ONLYSTUDIESTABLE=0
-        SET TEMPS=$$GETTABLX^TMGTIUO6(DFN,"STUDIES",.STUDIESARR)
+        SET TEMPS=$$GETTABLX^TMGTIUO6(TMGDFN,"STUDIES",.STUDIESARR)
         SET TEMPS=$$TRIM^XLFSTR($GET(STUDIESARR("KEY-VALUE","EKG")))
         IF "<NO DATA>."[$$UP^XLFSTR(TEMPS) SET TEMPS=""
         IF EKGVAL[TEMPS SET TEMPS=""
@@ -85,12 +85,12 @@ FIXEKG(DFN) ;
         . IF EKGVAL'="" SET EKGVAL=EKGVAL_"; "
         . SET EKGVAL=EKGVAL_TEMPS
         IF (EKGVAL'="")&(ONLYSTUDIESTABLE=0) DO
-        . WRITE $P(^DPT(DFN,0),"^",1)," -- "
+        . WRITE $P(^DPT(TMGDFN,0),"^",1)," -- "
         . WRITE "EKG: ",EKGVAL,"                              ",!
         . NEW TXTARR
         . DO MAKENOTE(.STUDIESARR,EKGVAL,.TXTARRAY)  ;
         . NEW FORCE SET FORCE=1
-        . NEW DIDSAVE SET DIDSAVE=$$SAVENOTE^TMGFIX3(DFN,.TXTARRAY,FORCE)
+        . NEW DIDSAVE SET DIDSAVE=$$SAVENOTE^TMGFIX3(TMGDFN,.TXTARRAY,FORCE)
         QUIT
         ;
 HEADER  ;
@@ -137,32 +137,70 @@ MNDN    QUIT
         ;
 CHECKRAD  ;" TEMP REPORT TO CHECK THE RAD DAY CASE POINTERS FOR ERRORS
         ;"Purpose: Provide an interactive entry point for report, asking device.
-        NEW %ZIS,IOP
-        SET IOP="S121-LAUGHLIN-LASER"
-        DO ^%ZIS  ;"standard device call
-        IF POP DO  QUIT
-        . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
-        use IO
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$O(^RADPT("B",DFN)) QUIT:DFN'>0  DO
+        ;NEW %ZIS,IOP
+        ;SET IOP="S121-LAUGHLIN-LASER"
+        ;DO ^%ZIS  ;"standard device call
+        ;IF POP DO  QUIT
+        ;. DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
+        ;use IO
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$O(^RADPT("B",TMGDFN)) QUIT:TMGDFN'>0  DO
         . NEW DISPLAYNAME SET DISPLAYNAME=0
         . NEW DT SET DT=9999999
-        . FOR  SET DT=$O(^RADPT(DFN,"DT",DT),-1) QUIT:DT'>0  DO
+        . FOR  SET DT=$O(^RADPT(TMGDFN,"DT",DT),-1) QUIT:DT'>0  DO
         . . NEW IDX SET IDX=0
-        . . FOR  SET IDX=$O(^RADPT(DFN,"DT",DT,"P",IDX)) QUIT:IDX'>0  DO
+        . . FOR  SET IDX=$O(^RADPT(TMGDFN,"DT",DT,"P",IDX)) QUIT:IDX'>0  DO
         . . . NEW IEN73
-        . . . SET IEN73=+$P($G(^RADPT(DFN,"DT",DT,"P",IDX,0)),"^",17)
+        . . . SET IEN73=+$P($G(^RADPT(TMGDFN,"DT",DT,"P",IDX,0)),"^",17)
         . . . IF IEN73'>0 QUIT
         . . . ;"TEST THE PATIENT FOR THE POINTED TO REPORT
         . . . NEW TEMPDFN SET TEMPDFN=$P($G(^RARPT(IEN73,0)),"^",2)
-        . . . IF TEMPDFN'=DFN DO
+        . . . IF TEMPDFN'=TMGDFN DO
         . . . . IF DISPLAYNAME=0 DO
-        . . . . . WRITE "==",$P($G(^DPT(DFN,0)),"^",1),!
+        . . . . . ;"IF +TEMPDFN'>0 DO
+        . . . . . ;". WRITE "== CANNOT FIND DFN",!
+        . . . . . ;"ELSE  DO
+        . . . . . WRITE "==",$P($G(^DPT(TMGDFN,0)),"^",1),!
         . . . . . SET DISPLAYNAME=1
         . . . . WRITE "      !! DAYCASE # ",$P($G(^RARPT(IEN73,0)),"^",1)
-        . . . . WRITE " ASSIGNED TO ",$P($G(^DPT(TEMPDFN,0)),"^",1),!
+        . . . . IF +TEMPDFN'>0 DO
+        . . . . . WRITE " ASSIGNED TO !!UNKNOWN DFN",!
+        . . . . ELSE  DO
+        . . . . . WRITE " ASSIGNED TO ",$P($G(^DPT(TEMPDFN,0)),"^",1),!
         . . . . WRITE "         *DATE: ",$$EXTDATE^TMGDATE(9999999-$P(DT,".",1),1),". FILE 73 IEN: ",IEN73,!
         . IF DISPLAYNAME=1 WRITE !
-        DO ^%ZISC  ;" Close the output device
+        ;DO ^%ZISC  ;" Close the output device
         QUIT
         ;"
+CHKRADT  ;" TEST 
+        ;"Purpose: Provide an interactive entry point for report, asking device.
+        ;NEW %ZIS,IOP
+        ;SET IOP="S121-LAUGHLIN-LASER"
+        ;DO ^%ZIS  ;"standard device call
+        ;IF POP DO  QUIT
+        ;. DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
+        ;use IO
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$O(^RADPT("B",TMGDFN)) QUIT:TMGDFN'>0  DO
+        . NEW MESSAGE SET MESSAGE=""
+        . NEW DISPLAYNAME SET DISPLAYNAME=0
+        . NEW DT SET DT=9999999
+        . FOR  SET DT=$O(^RADPT(TMGDFN,"DT",DT),-1) QUIT:DT'>0  DO
+        . . NEW IDX SET IDX=0
+        . . FOR  SET IDX=$O(^RADPT(TMGDFN,"DT",DT,"P",IDX)) QUIT:IDX'>0  DO
+        . . . NEW IEN73
+        . . . SET IEN73=+$P($G(^RADPT(TMGDFN,"DT",DT,"P",IDX,0)),"^",17)
+        . . . IF IEN73'>0 QUIT
+        . . . ;"TEST THE PATIENT FOR THE POINTED TO REPORT
+        . . . NEW TEMPDFN SET TEMPDFN=$P($G(^RARPT(IEN73,0)),"^",2)
+        . . . IF TEMPDFN'=TMGDFN DO
+        . . . . SET MESSAGE="RAD ALERT: DAYCASE # "_$P($G(^RARPT(IEN73,0)),"^",1)_"IS USED BY "_$P($G(^DPT(TMGDFN,0)),"^",1)
+        . . . . IF +TEMPDFN'>0 DO
+        . . . . . SET MESSAGE=MESSAGE_" AND UNKNOWN DFN"
+        . . . . ELSE  DO
+        . . . . . SET MESSAGE=MESSAGE_" AND "_$P($G(^DPT(TEMPDFN,0)),"^",1)
+        . . . . SET MESSAGE=MESSAGE_" (DATE: "_$$EXTDATE^TMGDATE(9999999-$P(DT,".",1),1)_". FILE 73 IEN: "_IEN73_")"
+        . . . . DO INFRMALT^TMGXQAL(.ALERTRESULT,150,MESSAGE)
+        ;DO ^%ZISC  ;" Close the output device
+        QUIT
+        ;"        

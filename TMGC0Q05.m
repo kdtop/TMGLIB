@@ -1,4 +1,4 @@
-TMGC0Q05 ;TMG/kst/TMG meanful use util code ;8/15/12, 2/2/14
+TMGC0Q05 ;TMG/kst/TMG meanful use util code ;8/15/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;8/15/12
  ;
  ;"TMG C0Q FUNCTIONS
@@ -19,11 +19,11 @@ TMGC0Q05 ;TMG/kst/TMG meanful use util code ;8/15/12, 2/2/14
  ;"GETLSTO(POUT,SDT,EDT) -- Generate a patient-document list for OBESITY discussions
  ;"GETALIST(TESTFN,POUT,SDT,EDT) -- GET A PATIENT LIST (BY IEN FUNCTION)
  ;"GETXLIST(TESTFN,POUT,SDT,EDT) -- GET A XREF PATIENT LIST (BY TOPIC NAME FUNCTION)
- ;"INLST(DFN,TESTFN,SDT,EDT) --Determine IF patient passes test
- ;"INLSTTOB(DFN,SDT,EDT) --GET IF PATIENT IS IN 'LIST' OF TOBACCO DISCUSSIONS
- ;"INLSTOBE(DFN,SDT,EDT) --GET IF PATIENT IS IN 'LIST' OF OBESITY DISCUSSIONS
- ;"INLSTHTN(DFN,SDT,EDT) -- GET IF PATIENT IS IN 'LIST' OF HTN DISCUSSIONS
- ;"INLSTDM(DFN,SDT,EDT) -- GET IF PATIENT IS IN 'LIST' OF DM DISCUSSIONS
+ ;"INLST(TMGDFN,TESTFN,SDT,EDT) --Determine IF patient passes test
+ ;"INLSTTOB(TMGDFN,SDT,EDT) --GET IF PATIENT IS IN 'LIST' OF TOBACCO DISCUSSIONS
+ ;"INLSTOBE(TMGDFN,SDT,EDT) --GET IF PATIENT IS IN 'LIST' OF OBESITY DISCUSSIONS
+ ;"INLSTHTN(TMGDFN,SDT,EDT) -- GET IF PATIENT IS IN 'LIST' OF HTN DISCUSSIONS
+ ;"INLSTDM(TMGDFN,SDT,EDT) -- GET IF PATIENT IS IN 'LIST' OF DM DISCUSSIONS
  ;"FIXC0Q -- Used when transitioning from MU12 to MU13. Sets up NEW C0Q PATIENT LISTS, AND C0Q QUALITY MEASURE etc.
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -66,8 +66,8 @@ VT1     WRITE !,"Prepairing...."
         . NEW IEN SET IEN=0
         . FOR  SET IEN=$ORDER(^TMG(22719,SECTION,TITLE,IEN)) QUIT:(+IEN'>0)  DO
         . . NEW TIUIEN SET TIUIEN=$PIECE($GET(^TMG(22719,IEN,0)),"^",1)
-        . . NEW DFN SET DFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
-        . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        . . NEW TMGDFN SET TMGDFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
+        . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         . . NEW DISPSTR
         . . IF SORTBY=1 SET DISPSTR=PTNAME_" -- "_TITLE
         . . ELSE  SET DISPSTR=TITLE_" -- "_PTNAME
@@ -90,8 +90,8 @@ VT1     WRITE !,"Prepairing...."
         . . . NEW Y SET Y=$PIECE($GET(^TMG(22719,IEN,0)),"^",7)
         . . . DO DD^%DT NEW DT SET DT=Y
         . . . NEW NOTETTL SET NOTETTL=$$GET1^DIQ(8925,TIUIEN,.01)
-        . . . NEW DFN SET DFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
-        . . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        . . . NEW TMGDFN SET TMGDFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
+        . . . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         . . . SET TMGPICK(PTNAME_" -- "_DT_" --  "_NOTETTL)=IEN
         IF $DATA(TMGPICK) DO
         . IF $$LISTCT^TMGMISC2("TMGPICK")=1 DO
@@ -147,8 +147,8 @@ GETALIST(TESTFN,POUT,SDT,EDT) ;"GET A PATIENT LIST (BY IEN FUNCTION)
         ;"            --Function must accept variable(s), as shown above
         ;"                RECIEN is the IEN in file 22719 being considered
         ;"       POUT -- PASS BY NAME. An OUT PARAMETER.  PRIOR DATA KILLED.
-        ;"             Format:  @POUT@(DFN,TIUIEN)=""
-        ;"              DFN=IEN IN PATIENT FILE
+        ;"             Format:  @POUT@(TMGDFN,TIUIEN)=""
+        ;"              TMGDFN=IEN IN PATIENT FILE
         ;"              TIUIEN=IEN IN FILE 8925
         ;"      SDT -- OPTIONAL. DATE IN FILEMAN FORMAT.  If provided, then
         ;"              entry only included IF linked document field .07 (EPISODE
@@ -177,8 +177,8 @@ GETALIST(TESTFN,POUT,SDT,EDT) ;"GET A PATIENT LIST (BY IEN FUNCTION)
         . NEW DT SET DT=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",7)
         . IF (SDT>0),(DT<SDT) QUIT
         . IF (EDT>0),(DT>EDT) QUIT
-        . NEW DFN SET DFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
-        . SET @POUT@(DFN,TIUIEN)=""
+        . NEW TMGDFN SET TMGDFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
+        . SET @POUT@(TMGDFN,TIUIEN)=""
         QUIT
         ;
 GETXLIST(TESTFN,POUT,SDT,EDT) ;"GET A XREF PATIENT LIST (BY TOPIC NAME FUNCTION)
@@ -192,8 +192,8 @@ GETXLIST(TESTFN,POUT,SDT,EDT) ;"GET A XREF PATIENT LIST (BY TOPIC NAME FUNCTION)
         ;"                SECTION: will be "HPI" or "AP"
         ;"                TOPICNAME: the topic name to accept or reject
         ;"       POUT -- PASS BY NAME. An OUT PARAMETER.  PRIOR DATA KILLED.
-        ;"             Format:  @POUT@(DFN,TIUIEN)=""
-        ;"              DFN=IEN IN PATIENT FILE
+        ;"             Format:  @POUT@(TMGDFN,TIUIEN)=""
+        ;"              TMGDFN=IEN IN PATIENT FILE
         ;"              TIUIEN=IEN IN FILE 8925
         ;"      SDT -- OPTIONAL. DATE IN FILEMAN FORMAT.  If provided, then
         ;"              entry only included IF linked document field .07 (EPISODE
@@ -226,15 +226,15 @@ GETXLIST(TESTFN,POUT,SDT,EDT) ;"GET A XREF PATIENT LIST (BY TOPIC NAME FUNCTION)
         . . . NEW DT SET DT=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",7)
         . . . IF (SDT>0),(DT<SDT) QUIT
         . . . IF (EDT>0),(DT>EDT) QUIT
-        . . . NEW DFN SET DFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
-        . . . SET @POUT@(DFN,TIUIEN)=""
+        . . . NEW TMGDFN SET TMGDFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
+        . . . SET @POUT@(TMGDFN,TIUIEN)=""
         QUIT
         ;
 GETLSTT(POUT,SDT,EDT)  ;"GET LIST OF TOBACCO DISCUSSIONS
         ;"Purpose: Generate a patient-document list for TOBACCO discussions
         ;"       POUT -- PASS BY NAME. An OUT PARAMETER.  PRIOR DATA KILLED.
-        ;"             Format:  @POUT@(DFN,TIUIEN)=""
-        ;"              DFN=IEN IN PATIENT FILE
+        ;"             Format:  @POUT@(TMGDFN,TIUIEN)=""
+        ;"              TMGDFN=IEN IN PATIENT FILE
         ;"              TIUIEN=IEN IN FILE 8925
         ;"      SDT -- OPTIONAL. DATE IN FILEMAN FORMAT.  If provided, then
         ;"              entry only included IF linked document field .07 (EPISODE
@@ -249,8 +249,8 @@ GETLSTT(POUT,SDT,EDT)  ;"GET LIST OF TOBACCO DISCUSSIONS
 GETLSTO(POUT,SDT,EDT)  ;"GET LIST OF OBESITY DISCUSSIONS
         ;"Purpose: Generate a patient-document list for OBESITY discussions
         ;"       POUT -- PASS BY NAME. An OUT PARAMETER.  PRIOR DATA KILLED.
-        ;"             Format:  @POUT@(DFN,TIUIEN)=""
-        ;"              DFN=IEN IN PATIENT FILE
+        ;"             Format:  @POUT@(TMGDFN,TIUIEN)=""
+        ;"              TMGDFN=IEN IN PATIENT FILE
         ;"              TIUIEN=IEN IN FILE 8925
         ;"      SDT -- OPTIONAL. DATE IN FILEMAN FORMAT.  If provided, then
         ;"              entry only included IF linked document field .07 (EPISODE
@@ -262,7 +262,7 @@ GETLSTO(POUT,SDT,EDT)  ;"GET LIST OF OBESITY DISCUSSIONS
         DO GETXLIST("ISWT^TMGC0Q05",POUT,.SDT,.EDT)
         QUIT
         ;
-INLST(DFN,TESTFN,SDT,EDT) ;"Determine IF patient passes test
+INLST(TMGDFN,TESTFN,SDT,EDT) ;"Determine IF patient passes test
         ;"Purpose: Cycle through entries in TMG TIU DOCUMENT TOPICS, and check for entry matches
         ;"Input: TESTFN -- This should be mumps code in the following format:
         ;"            e.g. 'MYTEST2^MYROUTINE'
@@ -282,10 +282,10 @@ INLST(DFN,TESTFN,SDT,EDT) ;"Determine IF patient passes test
         ;
         SET SDT=+$GET(SDT)
         SET EDT=+$GET(EDT)
-        SET DFN=$GET(DFN)
+        SET TMGDFN=$GET(TMGDFN)
         NEW FOUND SET FOUND=0
         NEW RECIEN SET RECIEN=0
-        FOR  SET RECIEN=$ORDER(^TMG(22719,"DFN",DFN,RECIEN)) QUIT:(+RECIEN'>0)!FOUND  DO
+        FOR  SET RECIEN=$ORDER(^TMG(22719,"DFN",TMGDFN,RECIEN)) QUIT:(+RECIEN'>0)!FOUND  DO
         . NEW TIUIEN SET TIUIEN=+$PIECE($GET(^TMG(22719,RECIEN,0)),"^",1)
         . QUIT:TIUIEN'>0
         . NEW DT SET DT=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",7)
@@ -306,30 +306,30 @@ INLST(DFN,TESTFN,SDT,EDT) ;"Determine IF patient passes test
         ;
         ;"------------------------------------------------------------
         ;"------------------------------------------------------------
-INLSTTOB(DFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF TOBACCO DISCUSSIONS
+INLSTTOB(TMGDFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF TOBACCO DISCUSSIONS
         ;"Purpose: Rather than create a list and then query list, I can use
         ;"         cross reference to test patient directly.
         ;"Results: 1 IF patient in list (passes test), 0 otherwise
-        QUIT $$INLST(DFN,"ISTOBBAC^TMGC0Q05",.SDT,.EDT)
+        QUIT $$INLST(TMGDFN,"ISTOBBAC^TMGC0Q05",.SDT,.EDT)
         ;
-INLSTOBE(DFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF OBESITY DISCUSSIONS
+INLSTOBE(TMGDFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF OBESITY DISCUSSIONS
         ;"Purpose: Rather than create a list and then query list, I can use
         ;"         cross reference to test patient directly.
         ;"Results: 1 IF patient in list (passes test), 0 otherwise
-        QUIT $$INLST(DFN,"ISWT^TMGC0Q05",.SDT,.EDT)
+        QUIT $$INLST(TMGDFN,"ISWT^TMGC0Q05",.SDT,.EDT)
         ;
-INLSTHTN(DFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF HTN DISCUSSIONS
+INLSTHTN(TMGDFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF HTN DISCUSSIONS
         ;"Purpose: Rather than create a list and then query list, I can use
         ;"         cross reference to test patient directly.
         ;"Results: 1 IF patient in list (passes test), 0 otherwise
-        QUIT $$INLST(DFN,"ISHTN^TMGC0Q05",.SDT,.EDT)
+        QUIT $$INLST(TMGDFN,"ISHTN^TMGC0Q05",.SDT,.EDT)
         ;
-INLSTDM(DFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF DM DISCUSSIONS
+INLSTDM(TMGDFN,SDT,EDT) ;"GET IF PATIENT IS IN 'LIST' OF DM DISCUSSIONS
         ;"NOTE:  See also PTHASDM^TMGPXR01
         ;"Purpose: Rather than create a list and then query list, I can use
         ;"         cross reference to test patient directly.
         ;"Results: 1 IF patient in list (passes test), 0 otherwise
-        QUIT $$INLST(DFN,"ISDM^TMGC0Q05",.SDT,.EDT)
+        QUIT $$INLST(TMGDFN,"ISDM^TMGC0Q05",.SDT,.EDT)
         ;
         ;"------------------------------------------------------------
         ;"------------------------------------------------------------

@@ -1,4 +1,4 @@
-TMGTIUO7 ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14
+TMGTIUO7 ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;7/20/12
  ;
  ;"Kevin Toppenberg MD
@@ -29,7 +29,7 @@ TMGTIUO7 ;TMG/kst-Text objects for use in CPRS ; 7/20/12, 2/2/14
  ;"=======================================================================
 PARSTABL(TABLEARRAY) ;"Parse table array to enhance data extraction
         ;"Input: TABLEARRAY -- This is the array of the table, as created by 
-        ;"                     $$GETTABLX(DFN,LABEL,.TABLEARRAY)
+        ;"                     $$GETTABLX(TMGDFN,LABEL,.TABLEARRAY)
         ;"Output: TABLEARRAY is modified to parsed values, as follows.  
         ;"        TABLEARRAY('KEY-VALUE',<label>,"PARSED",Index#)=Value^FMDate^SourceText
         ;"                  index is in date order, with #1 being most recent. 

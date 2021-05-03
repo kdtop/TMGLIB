@@ -1,4 +1,4 @@
-TMGLRWU2 ;TMG/kst-Utility filing LAB DATA ;1/4/17,4/1/18
+TMGLRWU2 ;TMG/kst-Utility filing LAB DATA ; 4/15/21
               ;;1.0;TMG-LIB;**1**;1/4/17
  ;
  ;"TMG LAB ENTRY UTILITIES
@@ -16,8 +16,8 @@ TMGLRWU2 ;TMG/kst-Utility filing LAB DATA ;1/4/17,4/1/18
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST)  --  Send OR (CPRS) notification of lab reports being available.  
- ;"ALERT(RECIP,DFN,FMDT,LEVEL,NODE)  -- Send Alert.  Wrapper for OR() above
- ;"RPCALERT(OUT,RECIP,DFN,FMDT,LEVEL,NODE)  -- RPC for sending Alert.  Wrapper for ALERT() above
+ ;"ALERT(RECIP,TMGDFN,FMDT,LEVEL,NODE)  -- Send Alert.  Wrapper for OR() above
+ ;"RPCALERT(OUT,RECIP,TMGDFN,FMDT,LEVEL,NODE)  -- RPC for sending Alert.  Wrapper for ALERT() above
  ;"
  ;"=======================================================================
  ;" API - Private Functions
@@ -44,7 +44,7 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   ;"           LRTST  = test IEN60 ^ Name of test being alerted ^ parent test ien60
   ;"           SUPPRESS = Optional. Default is 0. If 1, will suppress if duplicate alert
   ;"Result: 1^Alert Sent, or -1^Error
-  NEW DFN,LRMSG,LRPREFIX,LRX,LRY         
+  NEW TMGDFN,LRMSG,LRPREFIX,LRX,LRY         
   SET SUPPRESS=+$GET(SUPPRESS)
   NEW LRIENS   ;"a string to pass to EN^ORB3
   NEW LROIFN   ;"OK to be null "". OERR INTERNAL FILE #, an IEN100  
@@ -56,7 +56,7 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   NEW TMGRESULT SET TMGRESULT="1^Alert Sent"
   IF LRSS'?1(1"CH",1"MI") DO  GOTO ORDN
   . SET TMGRESULT="-1^Lab Subscript not supported"
-  SET DFN=$PIECE(^LR(LRDFN,0),"^",3)
+  SET TMGDFN=$PIECE(^LR(LRDFN,0),"^",3)
   SET LRPREFIX=$SELECT(LRTYPE=3:"",LRTYPE=14:"Abnormal ",LRTYPE=57:"Critical ",LRTYPE=999:"Manually entered ",1:"")
   IF LRTYPE=999 SET LRTYPE=3
   ;
@@ -100,7 +100,7 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   ;
   SET LRMSG=LRMSG_" - ["_$PIECE(LRTST,"^",2)_"]"
   IF $D(LRXQA(83)) SET SUPPRESS=0
-  IF SUPPRESS=1 DO CHKALERT(.LRXQA,DFN,LRMSG) ;"Removes entries from LRXQA if duplicates
+  IF SUPPRESS=1 DO CHKALERT(.LRXQA,TMGDFN,LRMSG) ;"Removes entries from LRXQA if duplicates or unwanted
   ;
   ;"OERR parameters:
   ;"            ORN: notification id (#100.9 ien). e.g. 3 <-- NF_LAB_RESULTS 
@@ -110,12 +110,17 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   ;"            |     |    |       |     ORBPMSG: message text
   ;"            |     |    |       |     |     ORBPDATA lab result reference
   ;"            |     |    |       |     |     |
-  IF SUPPRESS=0 DO
-  . DO EN^ORB3(LRTYPE,DFN,LROIFN,.LRXQA,LRMSG,LRIENS)
-  ELSE  IF (SUPPRESS=1)&($D(LRXQA)) DO
-  . DO EN^ORB3(LRTYPE,DFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+  ;"//kt mod 4/15/21
+  IF $ORDER(LRXQA(""))>0 DO
+  . DO EN^ORB3(LRTYPE,TMGDFN,LROIFN,.LRXQA,LRMSG,LRIENS)
   ELSE  DO
-  . SET TMGRESULT="0^ALERTS ALREADY EXISTS"
+  . SET TMGRESULT="0^OK"
+  ;"IF SUPPRESS=0 DO
+  ;". DO EN^ORB3(LRTYPE,TMGDFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+  ;"ELSE  IF (SUPPRESS=1)&($D(LRXQA)) DO
+  ;". DO EN^ORB3(LRTYPE,TMGDFN,LROIFN,.LRXQA,LRMSG,LRIENS)
+  ;"ELSE  DO
+  ;". SET TMGRESULT="0^ALERTS ALREADY EXISTS"
   ;
   ;"FYI: In comparison, this is what is sent from RAUTL00, a radiology alert
   ;"------------------------------------------------
@@ -130,11 +135,11 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
 ORDN  ;
   QUIT TMGRESULT
   ;
-CHKALERT(RECIPARR,DFN,ALERTMSG)   
+CHKALERT(RECIPARR,TMGDFN,ALERTMSG)   
   ;"Purpose: Checks existing alerts to see if current one is duplicate.
   ;"         When one is found, the user's entry will be removed from RECIPARR
   ;"Input: RECIPARR - BY REF - array of user IENs
-  ;"       DFN - Patient IEN
+  ;"       TMGDFN - Patient IEN
   ;"       ALERTMSG - Message text of current alert
   SET ALERTMSG=$$TRIM^XLFSTR(ALERTMSG)
   NEW DTTIME SET DTTIME=0
@@ -145,7 +150,7 @@ CHKALERT(RECIPARR,DFN,ALERTMSG)
   . . NEW ITEMDFN,ITEMMSG
   . . SET ITEMDFN=$P($P(ZN,"^",2),",",2)
   . . SET ITEMMSG=$$TRIM^XLFSTR($P($P(ZN,"^",3),": ",2,999))
-  . . IF (ITEMDFN=DFN)&(ITEMMSG=ALERTMSG) DO
+  . . IF (ITEMDFN=TMGDFN)&(ITEMMSG=ALERTMSG) DO
   . . . KILL RECIPARR(RECIP)
   . . ;"ELH -- 11/16/17
   . . ;"  Try to determine if:
@@ -156,7 +161,7 @@ CHKALERT(RECIPARR,DFN,ALERTMSG)
   . . . ;"   THIS WILL NOT ADD IF ABNORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
   . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
   . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
-  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) DO
+  . . . IF (ITEMDFN=TMGDFN)&(CURENDPART=MSGENDPART) DO
   . . . . KILL RECIPARR(RECIP)
   . . IF ALERTMSG["Abnormal" DO
   . . . ;"BELOW WILL DETERMINE IF NORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
@@ -164,19 +169,19 @@ CHKALERT(RECIPARR,DFN,ALERTMSG)
   . . . ;"note: don't enact this portion yet until top has been tested
   . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
   . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
-  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART)&(ALERTMSG'["Abnormal") DO
+  . . . IF (ITEMDFN=TMGDFN)&(CURENDPART=MSGENDPART)&(ITEMMSG'["Abnormal") DO
   . . . . KILL ^XTV(8992,RECIP,"XQA",DTTIME)
   . ;"Just in case an alert was previously created in the same job, but 
   . ;"was tasked off and hasn't been fully completed yet... we will test
   . ;"a temp global and also store in the global
-  . IF $D(^TMP("TMG HL7 ALERT",$J,RECIP,DFN,ALERTMSG)) DO
+  . IF $D(^TMP("TMG HL7 ALERT",$J,RECIP,TMGDFN,ALERTMSG)) DO
   . . KILL RECIPARR(RECIP)
-  . SET ^TMP("TMG HL7 ALERT",$J,RECIP,DFN,ALERTMSG)=""
+  . SET ^TMP("TMG HL7 ALERT",$J,RECIP,TMGDFN,ALERTMSG)=""
   QUIT
   ;  
-ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
+ALERT(RECIP,TMGDFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   ;"Input: RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
-  ;"       DFN -- IEN in 2
+  ;"       TMGDFN -- IEN in 2
   ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)
   ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal,3->CriticalM 4->Manually Entered
   ;"       NODE -- Optional.  Default is "CH".  Should be "CH" or "MI" only. 
@@ -186,11 +191,11 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   ;"Result:  1^OK, or -1^Error message
   NEW TMGRESULT SET TMGRESULT="1^OK"
   SET SUPPRESS=+$GET(SUPPRESS)
-  SET DFN=$GET(DFN) IF DFN'>0 DO  GOTO ALRTDN
-  . SET TMGRESULT="-1^Valid DFN not provided.  Got ["_DFN_"]"
-  NEW LRDFN SET LRDFN=+$GET(^DPT(DFN,"LR"))
+  SET TMGDFN=$GET(TMGDFN) IF TMGDFN'>0 DO  GOTO ALRTDN
+  . SET TMGRESULT="-1^Valid DFN not provided.  Got ["_TMGDFN_"]"
+  NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
   IF LRDFN'>0 DO  GOTO ALRTDN
-  . SET TMGRESULT="-1^Field# 63 not defined in file #2 (PATIENT) for DFN="_DFN 
+  . SET TMGRESULT="-1^Field# 63 not defined in file #2 (PATIENT) for DFN="_TMGDFN 
   SET FMDT=$GET(FMDT) IF FMDT'>0 DO  GOTO ALRTDN
   . SET TMGRESULT="-1^Valid Lab date-time not provided.  Got ["_FMDT_"]"
   ;"NEW NODE SET NODE=$GET(NODE,"CH")
@@ -199,12 +204,15 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   . SET TMGRESULT="-1^Invalid NODE provided.  Got ["_NODE_"]"
   NEW RDT SET RDT=$$FMDT2RDT^TMGLRWU1(FMDT)
   IF $DATA(^LR(LRDFN,NODE,RDT))=0 DO  GOTO ALRTDN
-  . SET TMGRESULT="-1^No lab data to send alert for.  DFN=["_DFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
+  . SET TMGRESULT="-1^No lab data to send alert for.  DFN=["_TMGDFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
   SET LEVEL=$GET(LEVEL,1)
-  IF "1,2,3,4"'[LEVEL_"," DO  GOTO ALRTDN  ;"ADDED 999      4/24/18
-  . SET TMGRESULT="-1^Invalid LEVEL.  Expected 1, 2, or 3.  Got ["_LEVEL_"]"
+  IF "1,2,3,4,"'[LEVEL_"," DO  GOTO ALRTDN  ;"ADDED 999      4/24/18
+  . SET TMGRESULT="-1^Invalid LEVEL.  Expected 1, 2, 3 or 4.  Got ["_LEVEL_"]"
   NEW LRTYPE SET LRTYPE=$SELECT(LEVEL=4:999,LEVEL=3:57,LEVEL=2:14,1:3)  ;"//kt changed level 3 LRTYPE from 57 --> 24 (then changed it back)  
-  NEW TEMP SET TEMP=$GET(RECIP) IF TEMP>0 SET RECIP(TEMP)="",RECIP=""
+  NEW TEMP IF $GET(RECIP)>0 SET TEMP(RECIP)=""
+  NEW ADUZ SET ADUZ="" FOR  SET ADUZ=$ORDER(RECIP(ADUZ)) QUIT:ADUZ'>0  SET TEMP(ADUZ)=""
+  KILL RECIP MERGE RECIP=TEMP KILL TEMP   ;"The purpose of this is to disallow RECIP="" //kt 4/15/21
+  ;"//kt 4/15/21 -- NEW TEMP SET TEMP=$GET(RECIP) IF TEMP>0 SET RECIP(TEMP)="",RECIP=""
   ;
   NEW FLD SET FLD=1
   NEW IEN60 SET IEN60=0
@@ -219,7 +227,7 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
   ;"   So I am going to remove IEN60=0 as an error state.  Will see if this causes
   ;"   other problems.  
   ;"IF IEN60'>0 DO  GOTO ALRTDN
-  ;". SET TMGRESULT="-1^Unable to find lab test (IEN 60).  DFN=["_DFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
+  ;". SET TMGRESULT="-1^Unable to find lab test (IEN 60).  DFN=["_TMGDFN_"], NODE=["_NODE_"], RDT=["_RDT_"]"
   ;"NOTE: I will be sending an alert for just 1 single test.  This will be used
   ;"      to notify the provider of the availablity for review of the entire panel.
   NEW TESTNAME SET TESTNAME=$PIECE($GET(^LAB(60,IEN60,0)),"^",1)
@@ -232,11 +240,11 @@ ALERT(RECIP,DFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() above
 ALRTDN ;
   QUIT TMGRESULT
   ;
-RPCALERT(OUT,RECIP,DFN,FMDT,LEVEL,NODE)  ;"RPC for sending Alert.  Wrapper for ALERT() above
+RPCALERT(OUT,RECIP,TMGDFN,FMDT,LEVEL,NODE)  ;"RPC for sending Alert.  Wrapper for ALERT() above
   ;"RPC NAME -- 'TMG CPRS LAB ALERT'
   ;"Input: OUT -- PASSED BY REFERENCE.  AN OUT PARAMETER.  Format: OUT(0)=1^OK, or -1^Error message
   ;"       RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
-  ;"       DFN -- IEN in 2
+  ;"       TMGDFN -- IEN in 2
   ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)
   ;"       LEVEL -- Optional.  Default=1.  1->normal 2->abnormal, 3->Critical 
   ;"                ;"4/24/18. Added a LEVEL 4 for manually entered values.
@@ -250,24 +258,24 @@ RPCALERT(OUT,RECIP,DFN,FMDT,LEVEL,NODE)  ;"RPC for sending Alert.  Wrapper for A
   NEW TMGZZDEBUG SET TMGZZDEBUG=0
   IF TMGZZDEBUG=1 DO
   . KILL RECIP MERGE RECIP=^TMP("RPCALERT","RECIP")
-  . SET DFN=$GET(^TMP("RPCALERT","DFN"))
+  . SET TMGDFN=$GET(^TMP("RPCALERT","DFN"))
   . SET FMDT=$GET(^TMP("RPCALERT","FMDT"))
   . SET LEVEL=$GET(^TMP("RPCALERT","LEVEL"))
   . SET NODE=$GET(^TMP("RPCALERT","NODE"))
   ELSE  DO
   . MERGE ^TMP("RPCALERT","RECIP")=RECIP
-  . SET ^TMP("RPCALERT","DFN")=DFN
+  . SET ^TMP("RPCALERT","DFN")=TMGDFN
   . SET ^TMP("RPCALERT","FMDT")=FMDT
   . SET ^TMP("RPCALERT","LE1VEL")=LEVEL
   . SET ^TMP("RPCALERT","NODE")=NODE
   ;"
   NEW TMGRESULT 
-  SET TMGRESULT=$$ALERT(.RECIP,.DFN,.FMDT,.LEVEL,.NODE)  ;"Send Alert.  Wrapper for ALERT() above
+  SET TMGRESULT=$$ALERT(.RECIP,.TMGDFN,.FMDT,.LEVEL,.NODE)  ;"Send Alert.  Wrapper for ALERT() above
   SET OUT(0)=TMGRESULT
   QUIT
   ;  
 TEST1  ;       
-  ;" DFN=9182       
+  ;" TMGDFN=9182       
   ;" LRDFN=128               
   ;" 
   ;" 22) ^LR(128,"CH",6839492.899498,0) = 3160506.100502^0^3160507.0051^168^72^^^^^
@@ -324,7 +332,7 @@ CLEANALR()  ;"Remove duplicate lab alerts
 
 
   QUIT
-;  . . IF (ITEMDFN=DFN)&(ITEMMSG=ALERTMSG) KILL RECIPARR(RECIP)
+;  . . IF (ITEMDFN=TMGDFN)&(ITEMMSG=ALERTMSG) KILL RECIPARR(RECIP)
 ;  . . ;"ELH -- 11/16/17
 ;  . . ;"  Try to determine if:
 ;  . . ;"    current is abnormal, previous was normal... add (maybe remove normal later)
@@ -334,15 +342,15 @@ CLEANALR()  ;"Remove duplicate lab alerts
 ;  . . . ;"   THIS WILL NOT ADD IF ABNORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
 ;  . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
 ;  . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
-;  . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) KILL RECIPARR(RECIP)
+;  . . . IF (ITEMDFN=TMGDFN)&(CURENDPART=MSGENDPART) KILL RECIPARR(RECIP)
 ;  . . IF ALERTMSG["Abnormal" DO
 ;  . . . ;"BELOW WILL DETERMINE IF NORMAL ALREADY EXISTS FOR THE SAME DATETIME LABS
 ;  . . . ;"   THIS WILL DELETE THE EXISTING NORMAL ALERT
 ;  . . . ;"note: don't enact this portion yet until top has been tested
 ;  . . . NEW CURENDPART SET CURENDPART=$P(ITEMMSG,"ab ",2)
  ;; . . . NEW MSGENDPART SET MSGENDPART=$P(ALERTMSG,"ab ",2)
- ; . . . IF (ITEMDFN=DFN)&(CURENDPART=MSGENDPART) KILL ^XTV(8992,RECIP,"XQA",DTTIME)
+ ; . . . IF (ITEMDFN=TMGDFN)&(CURENDPART=MSGENDPART) KILL ^XTV(8992,RECIP,"XQA",DTTIME)
  ; . ;"Just in case an alert was previously created in the same job, but
  ; . ;"was tasked off and hasn't been fully completed yet... we will test
  ; . ;"a temp global and also store in the global
- ; . IF $D(^TMP("TMG HL7 ALERT",$J,RECIP,DFN,ALERTMSG)) KILL 
+ ; . IF $D(^TMP("TMG HL7 ALERT",$J,RECIP,TMGDFN,ALERTMSG)) KILL 

@@ -1,4 +1,4 @@
-TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 3/30/15, 1/13/17
+TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 3/30/15, 1/13/17, 3/28/21
          ;;1.0;TMG-LIB;**1,17**;03/25/06
  ;
  ;"Kevin Toppenberg MD
@@ -23,44 +23,44 @@ TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 3/30/15, 1/13/17
  ;"=======================================================================
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
- ;"$$VITALS(DFN,.TIU)
- ;"$$ONEVITAL(DFN,.TIU,TYPE)
- ;"$$NICENAME(DFN)
- ;"$$FNAME(DFN)
- ;"$$MNAME(DFN)
- ;"$$LNAME(DFN)
- ;"$$PHONENUM(DFN)
- ;"$$GETTABLX(DFN,LABEL,OUT,ARRAY) -- return a table compiled from prior notes.
+ ;"$$VITALS(TMGDFN,.TIU)
+ ;"$$ONEVITAL(TMGDFN,.TIU,TYPE)
+ ;"$$NICENAME(TMGDFN)
+ ;"$$FNAME(TMGDFN)
+ ;"$$MNAME(TMGDFN)
+ ;"$$LNAME(TMGDFN)
+ ;"$$PHONENUM(TMGDFN)
+ ;"$$GETTABLX(TMGDFN,LABEL,OUT,ARRAY) -- return a table compiled from prior notes.
  ;"TESTTABL 
- ;"$$MEDLIST(RESULT,DFN)  -- RPC Entry point (TMG GET MED LIST).  Return a patient's med list
- ;"MEDARR(RESULT,DFN,ARRAY,DT) -- Get MED LIST ARRAY
- ;"$$ALLERGY(DFN) -- Get allergy list to populate TIU Object |TMG ALLERGY LIST|
- ;"$$PTPRPRO(DFN) -- Returns patient's personal pronoun
- ;"$$PTPOPRO(DFN) -- Returns patient's possessive pronoun
+ ;"$$MEDLIST(RESULT,TMGDFN)  -- RPC Entry point (TMG GET MED LIST).  Return a patient's med list
+ ;"MEDARR(RESULT,TMGDFN,ARRAY,DT) -- Get MED LIST ARRAY
+ ;"$$ALLERGY(TMGDFN) -- Get allergy list to populate TIU Object |TMG ALLERGY LIST|
+ ;"$$PTPRPRO(TMGDFN) -- Returns patient's personal pronoun
+ ;"$$PTPOPRO(TMGDFN) -- Returns patient's possessive pronoun
  ;"$$GETREACT(IEN120D8,COMMENTS,NOTHTML) --  Return either signs/symptoms (if COMMENTS=0) or comments (COMMENTS=1)
- ;"$$DETALRGY(DFN) -- FIND AND RETURN DETAILED ALLERGY INFORMATION 
- ;"$$ROSALRGY(TMGRESULT,DFN) --FIND AND RETURN DETAILED ALLERGY INFORMATION FOR THE ROS FORM 
- ;"$$WEIGHT(DFN,TIU)  ;
- ;"$$BMI(DFN,BMI,IDEALWTS,USEWTDT,WHY) --Return BMI
+ ;"$$DETALRGY(TMGDFN) -- FIND AND RETURN DETAILED ALLERGY INFORMATION 
+ ;"$$ROSALRGY(TMGRESULT,TMGDFN) --FIND AND RETURN DETAILED ALLERGY INFORMATION FOR THE ROS FORM 
+ ;"$$WEIGHT(TMGDFN,TIU)  ;
+ ;"$$BMI(TMGDFN,BMI,IDEALWTS,USEWTDT,WHY) --Return BMI
  ;"$$TMGVISDT(TIU)  --Visit date
- ;"$$WTTREND(DFN,TIU) --return text showing patient's trend in change of weight.
- ;"$$MEANFLUS(DFN) -- Return text showing missing items for meaningful use.
- ;"$$GETLMAMO(DFN) --Return date of last mammogram
- ;"$$GETLCOLN(DFN) --Return date of last colonoscopy
- ;"$$GETLADIR(DFN) --Return date of last advance directives        
- ;"$$GETLBONE(DFN) --Return date of bone density
- ;"$$PTPRPRO(DFN) --Returns patient's personal pronoun
- ;"$$PTPOPRO(DFN) --Returns patient's possessive pronoun
- ;"$$GETLTSH(DFN)  --Return last lab data for TSH
- ;"$$GETLB12(DFN)  --Return last lab data for Vitamin B-12
- ;"$$GETLVITD(DFN)  --Return last lab data for Vitamin D
- ;"$$GETLTOBA(DFN)  --Return last tobacco status
+ ;"$$WTTREND(TMGDFN,TIU) --return text showing patient's trend in change of weight.
+ ;"$$MEANFLUS(TMGDFN) -- Return text showing missing items for meaningful use.
+ ;"$$GETLMAMO(TMGDFN) --Return date of last mammogram
+ ;"$$GETLCOLN(TMGDFN) --Return date of last colonoscopy
+ ;"$$GETLADIR(TMGDFN) --Return date of last advance directives        
+ ;"$$GETLBONE(TMGDFN) --Return date of bone density
+ ;"$$PTPRPRO(TMGDFN) --Returns patient's personal pronoun
+ ;"$$PTPOPRO(TMGDFN) --Returns patient's possessive pronoun
+ ;"$$GETLTSH(TMGDFN)  --Return last lab data for TSH
+ ;"$$GETLB12(TMGDFN)  --Return last lab data for Vitamin B-12
+ ;"$$GETLVITD(TMGDFN)  --Return last lab data for Vitamin D
+ ;"$$GETLTOBA(TMGDFN)  --Return last tobacco status
  ;"$$GETLEYEE(TMGDFN) --Return last diabetic eye exam
  ;"$$GETLFTEX(TMGDFN) --Return last diabetic foot exam
- ;"$$GETLGLAS(DFN)  --Return last glaucoma screening
- ;"$$GETHFGRP(DFN,HFGROUPIEN,TMGRESULTARR)  -- Return health factors for a patient by a given hf group
- ;"$$GETTIUOJ(DFN,NAME) -- return tiu text object for patient
- ;"$$GETLURIN(DFN,NUM) -- Return the last urine with comments
+ ;"$$GETLGLAS(TMGDFN)  --Return last glaucoma screening
+ ;"$$GETHFGRP(TMGDFN,HFGROUPIEN,TMGRESULTARR)  -- Return health factors for a patient by a given hf group
+ ;"$$GETTIUOJ(TMGDFN,NAME) -- return tiu text object for patient
+ ;"$$GETLURIN(TMGDFN,NUM) -- Return the last urine with comments
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
  ;"=======================================================================
@@ -70,67 +70,67 @@ TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 3/30/15, 1/13/17
  ;"                TIUL01 XLFDT TIULO XLFSTR
  ;"=======================================================================
  ;
-ALLERGY(DFN) ; ALLERGY LIST
-  QUIT $$ALLERGY^TMGTIUO3(.DFN)
+ALLERGY(TMGDFN) ; ALLERGY LIST
+  QUIT $$ALLERGY^TMGTIUO3(.TMGDFN)
   ;
 GETREACT(IEN120D8,COMMENTS,NOTHTML)  ;
   QUIT $$GETREACT^TMGTIUO3(.IEN120D8,.COMMENTS,.NOTHTML)  
   ;
-DETALRGY(DFN)  ;
-  QUIT $$DETALRGY^TMGTIUO3(.DFN) 
+DETALRGY(TMGDFN)  ;
+  QUIT $$DETALRGY^TMGTIUO3(.TMGDFN) 
   ;
-ROSALRGY(TMGRESULT,DFN)  ;
-  QUIT $$ROSALRGY^TMGTIUO3(.TMGRESULT,.DFN)  
+ROSALRGY(TMGRESULT,TMGDFN)  ;
+  QUIT $$ROSALRGY^TMGTIUO3(.TMGRESULT,.TMGDFN)  
   ;
-VITALS(DFN,TIU) ;
+VITALS(TMGDFN,TIU) ;
   ;"Purpose: Return a composite Vitals string
-  ;"Input: DFN -- the patient's unique ID (record#)
+  ;"Input: TMGDFN -- the patient's unique ID (record#)
   ;"       TIU -- See documentation below.
   ;"Output: returns RESULT
   ;"note: Consider using $$GETVITLS^TMGGMRV1 in the future...
-  QUIT $$ONEVITAL(.DFN,.TIU,"ALL",1)
+  QUIT $$ONEVITAL(.TMGDFN,.TIU,"ALL",1)
   ;                                                  
-WEIGHT(DFN,TIU)  ;         
-  QUIT $$WEIGHT^TMGTIUO3(.DFN,.TIU)
+WEIGHT(TMGDFN,TIU)  ;         
+  QUIT $$WEIGHT^TMGTIUO3(.TMGDFN,.TIU)
   ;
-ONEVITAL(DFN,TIU,TYPE,HTMLWRAP)    ;
+ONEVITAL(TMGDFN,TIU,TYPE,HTMLWRAP)    ;
   SET HTMLWRAP=+$G(HTMLWRAP)
-  QUIT $$ONEVITAL^TMGTBL01(.DFN,.TIU,.TYPE,HTMLWRAP)
+  QUIT $$ONEVITAL^TMGTBL01(.TMGDFN,.TIU,.TYPE,HTMLWRAP)
   ;
-BMI(DFN,BMI,IDEALWTS,USEWTDT,WHY) ;"Return BMI
-  QUIT $$BMI^TMGTIUO3(.DFN,.BMI,.IDEALWTS,.USEWTDT,.WHY) ;"Return BMI
+BMI(TMGDFN,BMI,IDEALWTS,USEWTDT,WHY) ;"Return BMI
+  QUIT $$BMI^TMGTIUO3(.TMGDFN,.BMI,.IDEALWTS,.USEWTDT,.WHY) ;"Return BMI
   ;
 TMGVISDT(TIU)  ;" Visit date
   QUIT $$TMGVISDT^TMGTIUO3(.TIU)
   ;
-FNAME(DFN)  ;
-  QUIT $$FNAME^TMGTIUO3(.DFN)
+FNAME(TMGDFN)  ;
+  QUIT $$FNAME^TMGTIUO3(.TMGDFN)
   ;
-MNAME(DFN) ;
-  QUIT $$MNAME^TMGTIUO3(.DFN)
+MNAME(TMGDFN) ;
+  QUIT $$MNAME^TMGTIUO3(.TMGDFN)
   ;
-LNAME(DFN) ;
-  QUIT $$LNAME^TMGTIUO3(.DFN)
+LNAME(TMGDFN) ;
+  QUIT $$LNAME^TMGTIUO3(.TMGDFN)
   ;
-NICENAME(DFN) ;
-  QUIT $$NICENAME^TMGTIUO3(.DFN)
+NICENAME(TMGDFN) ;
+  QUIT $$NICENAME^TMGTIUO3(.TMGDFN)
   ;
-PHONENUM(DFN) ;
-  QUIT $$PHONENUM^TMGTIUO3(.DFN)
+PHONENUM(TMGDFN) ;
+  QUIT $$PHONENUM^TMGTIUO3(.TMGDFN)
   ;
-WTTREND(DFN,TIU) ;"Purpose: return text showing patient's trend in change of weight.
-  QUIT $$WTTREND^TMGTIUO4(DFN,.TIU)
+WTTREND(TMGDFN,TIU) ;"Purpose: return text showing patient's trend in change of weight.
+  QUIT $$WTTREND^TMGTIUO4(TMGDFN,.TIU)
   ;
-GETTABLX(DFN,LABEL,ARRAY,OPTION) ;"Purpose: A call point for TIU objects, to return a table comprised from prior notes.
-  QUIT $$GETTABLX^TMGTIUO6(.DFN,.LABEL,.ARRAY,.OPTION)
+GETTABLX(TMGDFN,LABEL,ARRAY,OPTION) ;"Purpose: A call point for TIU objects, to return a table comprised from prior notes.
+  QUIT $$GETTABLX^TMGTIUO6(.TMGDFN,.LABEL,.ARRAY,.OPTION)
   ;
 TESTTABL  ;
-  NEW DIC,X,Y,DFN,IEN22708,TABLENAME
-  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET DFN=+Y IF DFN'>0 QUIT
+  NEW DIC,X,Y,TMGDFN,IEN22708,TABLENAME
+  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET TMGDFN=+Y IF TMGDFN'>0 QUIT
   SET DIC=22708 DO ^DIC WRITE ! SET IEN22708=+Y,TABLENAME=$PIECE(Y,"^",2) IF IEN22708'>0 QUIT
   NEW ARRAY,RESULT
   DO INITPFIL^TMGMISC2("GETITEM^TMGTIUO8")
-  SET RESULT=$$GETTABLX(DFN,TABLENAME,.ARRAY)
+  SET RESULT=$$GETTABLX(TMGDFN,TABLENAME,.ARRAY)
   WRITE "Table output:",!,RESULT,!
   WRITE "Associated output array:",!
   ZWRITE ARRAY
@@ -139,15 +139,15 @@ TESTTABL  ;
   QUIT
   ;  
 TESTMEDLIST ;
-  NEW DIC,X,Y,DFN,STR,ARR
-  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET DFN=+Y IF DFN'>0 QUIT
-  DO MEDLIST(.STR,DFN,.ARR)
+  NEW DIC,X,Y,TMGDFN,STR,ARR
+  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET TMGDFN=+Y IF TMGDFN'>0 QUIT
+  DO MEDLIST(.STR,TMGDFN,.ARR)
   WRITE STR,!
   QUIT
   ;
 TESTTIUOBJ ; ;"Interact with user to select a patient and TIU TEXT OBJECT and test it.
-  NEW DIC,X,Y,DFN,STR,ARR,IEN8925D1
-  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET DFN=+Y IF DFN'>0 DO  QUIT
+  NEW DIC,X,Y,TMGDFN,STR,ARR,IEN8925D1
+  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET TMGDFN=+Y IF TMGDFN'>0 DO  QUIT
   . WRITE "No patient selected.  Aborting.",! 
   SET DIC=8925.1 DO ^DIC WRITE ! SET IEN8925D1=+Y IF IEN8925D1'>0 DO  QUIT
   . WRITE "No TIU TEXT OBJECT selected.  Aborting.",! 
@@ -159,64 +159,64 @@ TESTTIUOBJ ; ;"Interact with user to select a patient and TIU TEXT OBJECT and te
   . WRITE "OUTPUT:",!,$GET(X),!
   QUIT
   ;
-PRVPROBS(DFN)  ;"
+PRVPROBS(TMGDFN)  ;"
   NEW TMGRESULT 
-  SET TMGRESULT=$$GETTABLX^TMGTIUOJ(+$G(DFN),"[FOLLOWUP ITEMS]")
+  SET TMGRESULT=$$GETTABLX^TMGTIUOJ(+$G(TMGDFN),"[FOLLOWUP ITEMS]")
   SET TMGRESULT=$$REPLSTR^TMGSTUT3(TMGRESULT,$C(13,10),"<br>")
   QUIT TMGRESULT
   ;"
-MEDLIST(RESULT,DFN,ARRAY,DT,OPTION)  ;"Purpose: RPC (TMG GET MED LIST) to return a patient's med list
+MEDLIST(RESULT,TMGDFN,ARRAY,DT,OPTION)  ;"Purpose: RPC (TMG GET MED LIST) to return a patient's med list
   ;"NOTE!!: It is not effecient to call this just to get ARRAY.  
   ;"        Use MEDARR() below instead!
   ;"SET OPTION("USEOLDMETHOD")=1  ;"TEMP!, REMOVE LATER.
-  DO GTMEDLST^TMGTIUO8(.RESULT,.DFN,.ARRAY,.DT,.OPTION)
+  DO GTMEDLST^TMGTIUO8(.RESULT,.TMGDFN,.ARRAY,.DT,.OPTION)
   QUIT
   ;
-MEDARR(RESULT,DFN,ARRAY,DT,OPTION) ;"Get MED LIST ARRAY
+MEDARR(RESULT,TMGDFN,ARRAY,DT,OPTION) ;"Get MED LIST ARRAY
   SET RESULT=1  ;"Does nothing.  I included to keep function signature same as MEDLIST()
   IF $GET(DT)>0 SET OPTION("DT")=DT
   ;"SET OPTION("USEOLDMETHOD")=1  ;"TEMP!, REMOVE LATER.
-  DO PRIORRXT^TMGTIUO8(DFN,48,.ARRAY,1,.OPTION)
+  DO PRIORRXT^TMGTIUO8(TMGDFN,48,.ARRAY,1,.OPTION)
   QUIT
   ;
-MEANFLUS(DFN) ;"Return text showing missing items for meaningful use.
-  QUIT $$MEANFLOJ^TMGC0Q06(DFN)
+MEANFLUS(TMGDFN) ;"Return text showing missing items for meaningful use.
+  QUIT $$MEANFLOJ^TMGC0Q06(TMGDFN)
   ;
-GETLMAMO(DFN) ;"Return date of last mammogram
-  QUIT $$GETLMAMO^TMGTBL01(.DFN)
+GETLMAMO(TMGDFN) ;"Return date of last mammogram
+  QUIT $$GETLMAMO^TMGTBL01(.TMGDFN)
   ;
-GETLCOLN(DFN) ;"Return date of last colonoscopy
-  QUIT $$GETLCOLN^TMGTBL01(.DFN)
+GETLCOLN(TMGDFN) ;"Return date of last colonoscopy
+  QUIT $$GETLCOLN^TMGTBL01(.TMGDFN)
   ;
-GETLADIR(DFN) ;"Return date of last advance directives        
-  QUIT $$GETLADIR^TMGTBL01(.DFN)
+GETLADIR(TMGDFN) ;"Return date of last advance directives        
+  QUIT $$GETLADIR^TMGTBL01(.TMGDFN)
   ;
-GETLBONE(DFN) ;"Return date of bone density
-  QUIT $$GETLBONE^TMGTBL01(.DFN)
+GETLBONE(TMGDFN) ;"Return date of bone density
+  QUIT $$GETLBONE^TMGTBL01(.TMGDFN)
   ;
-PTPRPRO(DFN)  ;Returns patient's personal pronoun
-  QUIT $$PTPRPRO^TMGTIUO3(DFN) 
+PTPRPRO(TMGDFN)  ;Returns patient's personal pronoun
+  QUIT $$PTPRPRO^TMGTIUO3(TMGDFN) 
   ;
-PTPOPRO(DFN)  ;Returns patient's possessive pronoun
-  QUIT $$PTPOPRO^TMGTIUO3(DFN)  
+PTPOPRO(TMGDFN)  ;Returns patient's possessive pronoun
+  QUIT $$PTPOPRO^TMGTIUO3(TMGDFN)  
   ;
-GETLTSH(DFN)  ;"Return last lab data for TSH
-  QUIT $$GETLTSH^TMGTBL01(.DFN)
+GETLTSH(TMGDFN)  ;"Return last lab data for TSH
+  QUIT $$GETLTSH^TMGTBL01(.TMGDFN)
   ;
-GETLB12(DFN)  ;"Return last lab data for Vitamin B-12
-  QUIT $$GETLB12^TMGTBL01(.DFN)
+GETLB12(TMGDFN)  ;"Return last lab data for Vitamin B-12
+  QUIT $$GETLB12^TMGTBL01(.TMGDFN)
   ;
-GETIVITD(DFN)  ;"Return Vit-D level for inline table
-  QUIT $PIECE($$GETLVITD(DFN),"[T]",1)
+GETIVITD(TMGDFN)  ;"Return Vit-D level for inline table
+  QUIT $PIECE($$GETLVITD(TMGDFN),"[T]",1)
   ;
-GETIMAG(DFN)   ;"Return Magnesium level for inline table
+GETIMAG(TMGDFN)   ;"Return Magnesium level for inline table
   QUIT "NOT FINISHED"
   ;
-GETLVITD(DFN)  ;"Return last lab data for Vitamin D
-  QUIT $$GETLVITD^TMGTIUO3(.DFN)  ;"Return last lab data for Vitamin D
+GETLVITD(TMGDFN)  ;"Return last lab data for Vitamin D
+  QUIT $$GETLVITD^TMGTIUO3(.TMGDFN)  ;"Return last lab data for Vitamin D
   ;
-GETLTOBA(DFN)  ;"Return last tobacco status
-  QUIT $$GETLTOBA^TMGTBL01(.DFN)
+GETLTOBA(TMGDFN)  ;"Return last tobacco status
+  QUIT $$GETLTOBA^TMGTBL01(.TMGDFN)
   ;
 GETLEYEE(TMGDFN) ;"Return last diabetic eye exam
   QUIT $$GETLEYEE^TMGTBL01(.TMGDFN)
@@ -224,32 +224,32 @@ GETLEYEE(TMGDFN) ;"Return last diabetic eye exam
 GETLFTEX(TMGDFN) ;"Return last diabetic foot exam
   QUIT $$GETLFTEX^TMGTBL01(.TMGDFN)
   ;
-GETLGLAS(DFN)  ;"Return last glaucoma screening
-  QUIT $$GETLGLAS^TMGTBL01(.DFN)
+GETLGLAS(TMGDFN)  ;"Return last glaucoma screening
+  QUIT $$GETLGLAS^TMGTBL01(.TMGDFN)
   ;"
-GETHFGRP(DFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by a given hf group
-  DO GETHFGRP^TMGTBL01(.DFN,.HFGROUPIEN,.TMGRESULTARR)
+GETHFGRP(TMGDFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by a given hf group
+  DO GETHFGRP^TMGTBL01(.TMGDFN,.HFGROUPIEN,.TMGRESULTARR)
   QUIT
   ;        
-GETTIUOJ(DFN,NAME) ;" return tiu text object for patient
+GETTIUOJ(TMGDFN,NAME) ;" return tiu text object for patient
   NEW RESULT SET RESULT=$$BOIL^TIUSRVD("|"_NAME_"|")
   QUIT RESULT
   ;
-ADGIVEN(DFN)  ;"Return the health factor date for when the last CP papers were given
-  QUIT $$ADGIVEN^TMGTBL01(.DFN)
+ADGIVEN(TMGDFN)  ;"Return the health factor date for when the last CP papers were given
+  QUIT $$ADGIVEN^TMGTBL01(.TMGDFN)
   ;
-GETLLAB(DFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
-  QUIT $$GETLLAB^TMGTBL01(.DFN,.LABNUM,.NUM,.DTONLY)
+GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
+  QUIT $$GETLLAB^TMGTBL01(.TMGDFN,.LABNUM,.NUM,.DTONLY)
   ;
-ALLHFTBL(DFN)  ;"Return an HTML table containing all health factors
-  QUIT $$ALLHFTBL^TMGTBL01(.DFN)
+ALLHFTBL(TMGDFN)  ;"Return an HTML table containing all health factors
+  QUIT $$ALLHFTBL^TMGTBL01(.TMGDFN)
   ;
-FUITEMS(DFN)  ;"Return the followup table if data is contained
-  QUIT $$FUITEMS^TMGTIUO3(.DFN)  
+FUITEMS(TMGDFN)  ;"Return the followup table if data is contained
+  QUIT $$FUITEMS^TMGTIUO3(.TMGDFN)  
   ;
-LASTHPI(DFN,AWV)  ;"Return the last HPI section.  Called by TIU TEXT OBJECT 'TMG LAST HPI'
+LASTHPI(TMGDFN,AWV)  ;"Return the last HPI section.  Called by TIU TEXT OBJECT 'TMG LAST HPI'
   SET AWV=+$G(AWV)
-  QUIT $$LASTHPI^TMGTIUP2(.DFN,AWV)  ;"Moved to TMGTIUP2 to minimize file size 
+  QUIT $$LASTHPI^TMGTIUP2(.TMGDFN,AWV)  ;"Moved to TMGTIUP2 to minimize file size 
   ;
 ADMINDOC(TMGRESULT);
   NEW IEN SET IEN=0
@@ -258,11 +258,11 @@ ADMINDOC(TMGRESULT);
   . SET TMGRESULT(IEN)=NAME_";"
   QUIT
   ;
-XTRAFORM(TMGRESULT,DFN)  ;
-  QUIT $$XTRAFORM^TMGTIUO3(.TMGRESULT,.DFN) 
+XTRAFORM(TMGRESULT,TMGDFN)  ;
+  QUIT $$XTRAFORM^TMGTIUO3(.TMGRESULT,.TMGDFN) 
   ;
-NEEDPSA(TMGRESULT,DFN)  ;
-  QUIT $$NEEDPSA^TMGTIUO3(.TMGRESULT,.DFN)  
+NEEDPSA(TMGRESULT,TMGDFN)  ;
+  QUIT $$NEEDPSA^TMGTIUO3(.TMGRESULT,.TMGDFN)  
   ;
 GETSTATS(STATUS,TMGRESULT) ;
   QUIT $$GETSTATS^TMGTIUO3(.STATUS,.TMGRESULT) 
@@ -273,8 +273,8 @@ UNSIGNED(TMGRESULT)  ;
 ADDLSIGN(TMGRESULT)  ;
   QUIT $$ADDLSIGN^TMGTIUO3(.TMGRESULT)  
   ;
-LASTOPTH(DFN)  ;
-  QUIT $$LASTOPTH^TMGTIUO3(.DFN) 
+LASTOPTH(TMGDFN)  ;
+  QUIT $$LASTOPTH^TMGTIUO3(.TMGDFN) 
   ;      
 ADVNOTES(TMGDFN)  ;"
   NEW TMGRESULT SET TMGRESULT=""

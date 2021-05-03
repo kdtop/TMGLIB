@@ -1,4 +1,4 @@
-TMGGRC2A	     ;TMG/kst-Work with Growth Chart Data ;10/5/10 ; 9/27/11 9:41am
+TMGGRC2A	     ;TMG/kst-Work with Growth Chart Data ;10/5/10 ; 9/27/11, 3/24/21
 	             ;;1.0;TMG-LIB;**1,17**;10/5/10;Build 38
 	      ;
 	      ;"Code for working with pediatric growth chart data.
@@ -18,7 +18,7 @@ TMGGRC2A	     ;TMG/kst-Work with Growth Chart Data ;10/5/10 ; 9/27/11 9:41am
 	      ;"TMGCOMGR(ROOT,GRAPHTYP) --Common graphic entry point
 	      ;"SETITEM(ROOT,X) -- set output into ROOT
 	      ;"ADDSECT(LABEL,MODULES,ROOT) -- send out section of code, from LABEL until EOF found
-	      ;"GETPAT(DFN,AGE,GENDER,DOB,TMGERR)  -- ensure Patient variables are setup.
+	      ;"GETPAT(TMGDFN,AGE,GENDER,DOB,TMGERR)  -- ensure Patient variables are setup.
 	      ;"=======================================================================
 	      ;
 TMGCOMGR(ROOT,GRAPHTYP)	       ;
@@ -44,13 +44,13 @@ TMGCOMGR(ROOT,GRAPHTYP)	       ;
 	      ;"Output: @ROOT is filled
 	      ;
 	      NEW TMGERR,AGE,GENDER,TMGERR,DOB
-	      DO GETPAT(.DFN,.AGE,.GENDER,.DOB,.TMGERR)
+	      DO GETPAT(.TMGDFN,.AGE,.GENDER,.DOB,.TMGERR)
 	      DO CHECKTYP(.GRAPHTYP,.TMGERR) GOTO:($D(TMGERR)) TGERR
 	      DO ADDSECT("TOP","TMGGRC3A",.ROOT,.GENDER)
 	      DO ADDSECT("GLIB","TMGGRC3A,TMGGRC3B,TMGGRC3C,TMGGRC3D,TMGGRC3E",.ROOT)
 	      DO ADDSECT("SCRIPT","TMGGRC3F",.ROOT)
 	      DO SETGRAPH(ROOT,AGE,GENDER,GRAPHTYP,.TMGERR) GOTO:($D(TMGERR)) TGERR
-	      DO SETLINES^TMGGRC2B(ROOT,DFN,DOB,AGE,GENDER,GRAPHTYP,.TMGERR) GOTO:($D(TMGERR)) TGERR
+	      DO SETLINES^TMGGRC2B(ROOT,TMGDFN,DOB,AGE,GENDER,GRAPHTYP,.TMGERR) GOTO:($D(TMGERR)) TGERR
 	      GOTO TGDN
 TGERR	 DO SETITEM(ROOT,.TMGERR)
 TGDN	  DO ADDSECT("ENDING","TMGGRC3F",.ROOT)
@@ -117,18 +117,18 @@ GETCOLOR(GENDER)
 	             IF COLOR'="" SET TMGRESULT=COLOR
 GCDN	         QUIT TMGRESULT
 	             ;
-GETPAT(DFN,AGE,GENDER,DOB,TMGERR)	        ;
+GETPAT(TMGDFN,AGE,GENDER,DOB,TMGERR)	        ;
 	      ;"Purpose: To ensure Patient variables are setup.
-	      ;"Input: DFN -- The patient to get info from
+	      ;"Input: TMGDFN -- The patient to get info from
 	      ;"       AGE -- PASS BY REFERENCE, AN OUT PARAMETER
 	      ;"       GENDER -- PASS BY REFERENCE, AN OUT PARAMETER
 	      ;"       DOB -- PASS BY REFERENCE, AN OUT PARAMETER
 	      ;"       TMGERR -- PASS BY REFERENCE, AN OUT PARAMETER
 	      ;"Result: None
-	      IF +$GET(DFN)'>0 DO  QUIT
+	      IF +$GET(TMGDFN)'>0 DO  QUIT
 	      . SET TMGERR="<bold>Error</bold>: Patient ID 'DFN' not defined.  Contact administrator."
-	      SET AGE=+$$GET1^DIQ(2,DFN_",",.033) ;"returns calculated field, INTEGER yrs
-	      SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+	      SET AGE=+$$GET1^DIQ(2,TMGDFN_",",.033) ;"returns calculated field, INTEGER yrs
+	      SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
 	      IF AGE<18 DO
 	      . NEW %,X,X1,X2,%Y
 	      . DO NOW^%DTC
@@ -137,7 +137,7 @@ GETPAT(DFN,AGE,GENDER,DOB,TMGERR)	        ;
 	      . DO ^%DTC  ;"result out in X (days delta)
 	      . IF %Y=0 QUIT  ;"dates are unworkable
 	      . SET AGE=+$JUSTIFY(X/365,0,4)
-	      SET GENDER=$PIECE($GET(^DPT(DFN,0)),"^",2)
+	      SET GENDER=$PIECE($GET(^DPT(TMGDFN,0)),"^",2)
 	      IF GENDER="" DO  QUIT
 	      . SET TMGERR="<bold>Error</bold>: Patient SEX not defined."
 	      QUIT

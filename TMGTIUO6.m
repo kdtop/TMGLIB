@@ -1,4 +1,4 @@
-TMGTIUO6 ;TMG/kst-Text objects for use in CPRS ; 11/25/12, 2/2/14, 5/18/18
+TMGTIUO6 ;TMG/kst-Text objects for use in CPRS ; 11/25/12, 2/2/14, 5/18/18, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;7/20/12
  ;
  ;"Kevin Toppenberg MD
@@ -16,8 +16,8 @@ TMGTIUO6 ;TMG/kst-Text objects for use in CPRS ; 11/25/12, 2/2/14, 5/18/18
  ;"=======================================================================
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
- ;"GETTABL1(DFN,LABEL)--Entry point for TIU objects, to return a table comprised from 1 prior table.
- ;"GETTABLX(DFN,LABEL) --Entry point for TIU objects, to return a table comprised from prior notes.
+ ;"GETTABL1(TMGDFN,LABEL)--Entry point for TIU objects, to return a table comprised from 1 prior table.
+ ;"GETTABLX(TMGDFN,LABEL) --Entry point for TIU objects, to return a table comprised from prior notes.
  ;"GETTBLST(OUT) -- return a list of all defined tables.
  ;"FIXABREV(STR) -- Fix abbreviations in medication descriptions.    
  ;"ISREMDLG(LABEL) -- IS LABEL A REMINDER DIALOG TYPE TABLE?
@@ -28,7 +28,7 @@ TMGTIUO6 ;TMG/kst-Text objects for use in CPRS ; 11/25/12, 2/2/14, 5/18/18
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
  ;"=======================================================================
- ;"STUBRECS(DFN,ARRAY,LABEL)  -- add stubs for recommended studies to Array
+ ;"STUBRECS(TMGDFN,ARRAY,LABEL)  -- add stubs for recommended studies to Array
  ;"CHKTAGS(LABEL,ARRAY)  -- To add tags to appropriate lines
  ;"TESTLABL(VALUE,CONST) ; 
  ;"=======================================================================
@@ -48,14 +48,14 @@ GETTBLST(OUT) ;"GET TABLE LIST
     . SET OUT("["_LABEL_"]")=""
     QUIT
     ;
-STUBRECS(DFN,ARRAY,LABEL)  ;"STUB RECOMMENDATIONS
+STUBRECS(TMGDFN,ARRAY,LABEL)  ;"STUB RECOMMENDATIONS
     ;"Purpose: to add stubs for recommended studies to Array
-    ;"Get age from DFN
-    SET DFN=+$GET(DFN)
-    IF DFN=0 GOTO SRDONE
-    NEW AGE SET AGE=+$$GET1^DIQ(2,DFN,.033)
-    NEW SEX SET SEX=$$GET1^DIQ(2,DFN,.02)
-    NEW DOB SET DOB=$$GET1^DIQ(2,DFN,.03,"I")
+    ;"Get age from TMGDFN
+    SET TMGDFN=+$GET(TMGDFN)
+    IF TMGDFN=0 GOTO SRDONE
+    NEW AGE SET AGE=+$$GET1^DIQ(2,TMGDFN,.033)
+    NEW SEX SET SEX=$$GET1^DIQ(2,TMGDFN,.02)
+    NEW DOB SET DOB=$$GET1^DIQ(2,TMGDFN,.03,"I")
     ;
     IF $$TESTLABL(LABEL,"LIPIDS") DO
     . DO ENSURE^TMGTIUO3(.ARRAY,"Total Cholesterol","=")
@@ -86,13 +86,13 @@ STUBRECS(DFN,ARRAY,LABEL)  ;"STUB RECOMMENDATIONS
     ELSE  IF $$TESTLABL(LABEL,"ASTHMA") DO
     . DO ENSURE^TMGTIUO3(.ARRAY,"Peak Flow Personal Best")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Rescue Inhaler Freq")
-    . DO SETBYPXR^TMGTIUO3(DFN,.ARRAY,"Pneumovax",":","IMMUNIZATIONS","Pneumococcal")
+    . DO SETBYPXR^TMGTIUO3(TMGDFN,.ARRAY,"Pneumovax",":","IMMUNIZATIONS","Pneumococcal")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Triggers")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Smoker")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Nocturnal Symptoms")
     ELSE  IF $$TESTLABL(LABEL,"COPD") DO
     . DO ENSURE^TMGTIUO3(.ARRAY,"Rescue Inhaler Freq")
-    . DO SETBYPXR^TMGTIUO3(DFN,.ARRAY,"Pneumovax",":","IMMUNIZATIONS","Pneumococcal")
+    . DO SETBYPXR^TMGTIUO3(TMGDFN,.ARRAY,"Pneumovax",":","IMMUNIZATIONS","Pneumococcal")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Pulmonologist")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Home O2")
     . DO ENSURE^TMGTIUO3(.ARRAY,"PFT Testing")
@@ -102,7 +102,7 @@ STUBRECS(DFN,ARRAY,LABEL)  ;"STUB RECOMMENDATIONS
     . DO ENSURE^TMGTIUO3(.ARRAY,"T-Score Spine/Hips")
     . DO REMOVE^TMGTIUO3(.ARRAY,"Advised Calcium ~1500 mg & Vit-D 1000-2000 IU")
     ELSE  IF $$TESTLABL(LABEL,"CHF") DO
-    . DO SETBYPXR^TMGTIUO3(DFN,.ARRAY,"Pneumovax",":","IMMUNIZATIONS","Pneumococcal")
+    . DO SETBYPXR^TMGTIUO3(TMGDFN,.ARRAY,"Pneumovax",":","IMMUNIZATIONS","Pneumococcal")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Cardiologist")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Last echocardiogram")
     . DO ENSURE^TMGTIUO3(.ARRAY,"Educated about sodium intake")
@@ -181,37 +181,6 @@ FIXABVW(ARR)  ;"Fix abreviations of medications in a word array
     . ;"//kt 6/15/18IF UWORD="DAILY" SET ARR(IDX)="QDAY"
     QUIT
     ;"
-    ;"//Delete later if no problems.  Removed 5/8/18
-    ;"GMEDTABL(DFN,LABEL,ARRAY) ;"Depreciated  -- but see also PRIORRXT^TMGTIUO8
-    ;"    ;"Note: The MEDICATIONS table should retrieve the prior '[FINAL MEDICATIONS]' IF possible (and dates are correct)
-    ;"    ;"SET ^TMG("EDDIE","GMEDTABL")="I'm running through the function!"
-    ;"    NEW RESULT SET RESULT=""
-    ;"    NEW RXDT,FRXDT
-    ;"    NEW SPACES SET SPACES=""
-    ;"    NEW SPACES1 SET SPACES1=""
-    ;"    NEW SPACES2 SET SPACES2=""
-    ;"    NEW ARRAY1,ARRAY2 KILL ARRAY
-    ;"    ;"Get both tables, and take the most recent one. 
-    ;"    DO GETSPECL^TMGTIUO4(DFN,"[FINAL MEDICATIONS]","BLANK_LINE",48,.ARRAY1,1,.SPACES1)  ;"mode 1 = only last table; 2=compile
-    ;"    SET FRXDT=+$GET(ARRAY1("KEY-VALUE","SOURCE-DATE"))
-    ;"    DO GETSPECL^TMGTIUO4(DFN,"[MEDICATIONS]","BLANK_LINE",48,.ARRAY2,1,.SPACES2)  ;"mode 1 = only last table; 2=compile
-    ;"    SET RXDT=$GET(ARRAY2("KEY-VALUE","SOURCE-DATE"))
-    ;"    IF RXDT>FRXDT DO  ;"If MEDICATIONS table has been reconcilled since FINAL MEDICATIONS table has, then use it. 
-    ;"    . SET SPACES=SPACES2 
-    ;"    . MERGE ARRAY=ARRAY2
-    ;"    ELSE  DO
-    ;"    . SET SPACES=SPACES1
-    ;"    . MERGE ARRAY=ARRAY1
-    ;"    NEW IDX SET IDX=0
-    ;"    FOR  SET IDX=$ORDER(ARRAY(IDX)) QUIT:(+IDX'>0)  DO
-    ;"    . SET ARRAY(IDX)=$$FIXABREV($GET(ARRAY(IDX)))
-    ;"    SET RESULT=SPACES_"-- "_LABEL_" ---------"_$CHAR(13)_$CHAR(10)
-    ;"    DO STUBRECS(.DFN,.ARRAY,LABEL)
-    ;"    NEW SAVEARRAY MERGE SAVEARRAY=ARRAY
-    ;"    SET RESULT=RESULT_$$ARRAY2ST^TMGTIUO4(.ARRAY,.SPACES)
-    ;"    KILL ARRAY MERGE ARRAY=SAVEARRAY
-    ;"GMTDONE QUIT RESULT
-    ;"    ;
 ISREMDLG(LABEL) ;"IS LABEL A REMINDER DIALOG TYPE TABLE?
     NEW MODE SET MODE=$$TABLMODE(LABEL)
     QUIT (MODE="R")
@@ -244,25 +213,25 @@ TBLMODE QUIT RESULT
   ;"    KILL ARRAY("KEY-VALUE","HEPATITIS C SCREEN")
   ;"    QUIT
   ;"    ;
-GETTABL1(DFN,LABEL,ARRAY,OPTION) ;
+GETTABL1(TMGDFN,LABEL,ARRAY,OPTION) ;
     ;"Purpose: A call point for TIU objects, to return a table comprised from 1 prior table.
     ;"NOTE: This type of table just gets the *LAST* table found (not a compilation)
     ;"Note: The MEDICATIONS table should retrieve the prior '[FINAL MEDICATIONS]' IF possible
     ;"Note: The FINAL MEDICATIONS table should retrieve the same as MEDICATIONS table. It will then be edited by provider.
-    ;"Input: DFN- the patient IEN
+    ;"Input: TMGDFN- the patient IEN
     ;"       LABEL -- the table label, e.g. [MEDICATIONS]
     ;"       ARRAY -- OPTIONAL.  PASS BY REFERENCE to get back array of data.
     ;"       OPTION("DT")=FMDT <-- if present, then table is to be returns AS OF given date
     ;"Result: outputs string of result, with CRLF's as needed for multiple lines
 GT1 NEW RESULT SET RESULT=""
     ;"Note: the MEDICATIONS table is now a Lab&Comment table, so should is typically handled in $$GETTABLX.
-    ;"//kt 1/15/17 --> IF LABEL["MEDICATIONS" SET RESULT=$$GMEDTABL(DFN,LABEL,.ARRAY) GOTO GT1DONE
+    ;"//kt 1/15/17 --> IF LABEL["MEDICATIONS" SET RESULT=$$GMEDTABL(TMGDFN,LABEL,.ARRAY) GOTO GT1DONE
     IF $GET(LABEL)="" GOTO GT1DONE
     NEW SPACES SET SPACES=""
-    DO GETSPECL^TMGTIUO4(DFN,LABEL,"BLANK_LINE",48,.ARRAY,1,.SPACES,.OPTION)  ;"mode 1 = only last table; 2=compile
+    DO GETSPECL^TMGTIUO4(TMGDFN,LABEL,"BLANK_LINE",48,.ARRAY,1,.SPACES,.OPTION)  ;"mode 1 = only last table; 2=compile
     ;"DO DELOLD(.ARRAY)  <-- no longer needed.  
     SET RESULT=SPACES_"-- "_LABEL_" ---------"_$CHAR(13)_$CHAR(10)
-    DO STUBRECS(.DFN,.ARRAY,LABEL)
+    DO STUBRECS(.TMGDFN,.ARRAY,LABEL)
     DO CHKTAGS(LABEL,.ARRAY)
     NEW SAVEARRAY MERGE SAVEARRAY=ARRAY
     SET RESULT=RESULT_$$ARRAY2ST^TMGTIUO4(.ARRAY,.SPACES)
@@ -300,9 +269,9 @@ TOKILL(LINE,LABEL,KILLARRAY)  ;
     . IF LINEHEADER=HEADER SET TMGRESULT=1
     QUIT TMGRESULT
     ;"
-GETTABLX(DFN,LABEL,ARRAY,OPTION) ;
+GETTABLX(TMGDFN,LABEL,ARRAY,OPTION) ;
     ;"Purpose: A call point for TIU objects, to return a table comprised from prior notes.
-    ;"Input: DFN- the patient IEN
+    ;"Input: TMGDFN- the patient IEN
     ;"       LABEL -- the table label, e.g. MEDICATIONS
     ;"       ARRAY -- OPTIONAL.  PASS BY REFERENCE to get back array of data.
     ;"       OPTION -- OPTIONAL.
@@ -317,22 +286,22 @@ GETTABLX(DFN,LABEL,ARRAY,OPTION) ;
     NEW TMGTABLDEBUG SET TMGTABLDEBUG=0
     IF TMGTABLDEBUG DO
     . SET LABEL=$GET(^TMG("TMP","RPC","GETTABLX","LABEL"))
-    . SET DFN=$GET(^TMG("TMP","RPC","GETTABLX","DFN"))
+    . SET TMGDFN=$GET(^TMG("TMP","RPC","GETTABLX","DFN"))
     . KILL OPTION MERGE OPTION=^TMG("TMP","RPC","GETTABLX","OPTION")
     . KILL ARRAY
     ELSE  DO
     . KILL ^TMG("TMP","RPC","GETTABLX")
     . SET ^TMG("TMP","RPC","GETTABLX","LABEL")=LABEL
-    . SET ^TMG("TMP","RPC","GETTABLX","DFN")=DFN
+    . SET ^TMG("TMP","RPC","GETTABLX","DFN")=TMGDFN
     . MERGE ^TMG("TMP","RPC","GETTABLX","OPTION")=OPTION
     NEW RESULT SET RESULT=""
     IF '$DATA(OPTION("HTML")) SET OPTION("HTML")=$GET(TMGCPRSHTMLMODE,1) ;"<-- This will be set by a RPC called from CPRS during mode setting.      
     NEW IRDLG SET IRDLG=$$ISREMDLG(LABEL) 
-    IF IRDLG SET RESULT=$$RMDGTABL^TMGPXR02(DFN,LABEL,,.ARRAY,.OPTION) GOTO GTXDONE
+    IF IRDLG SET RESULT=$$RMDGTABL^TMGPXR02(TMGDFN,LABEL,,.ARRAY,.OPTION) GOTO GTXDONE
     NEW ILCMT SET ILCMT=$$ISLABCMT(LABEL)
-    IF ILCMT SET RESULT=$$LABCMTBL^TMGTIUO8(DFN,LABEL,.ARRAY,.OPTION) GOTO GTXDONE
+    IF ILCMT SET RESULT=$$LABCMTBL^TMGTIUO8(TMGDFN,LABEL,.ARRAY,.OPTION) GOTO GTXDONE
     NEW IILT SET IILT=$$ISINLINE(LABEL)
-    IF IILT SET RESULT=$$INLNTABL^TMGTIUO8(DFN,LABEL,.ARRAY,.OPTION) GOTO GTXDONE
-    SET RESULT=$$GETTABL1(.DFN,.LABEL,.ARRAY,.OPTION) ;  
+    IF IILT SET RESULT=$$INLNTABL^TMGTIUO8(TMGDFN,LABEL,.ARRAY,.OPTION) GOTO GTXDONE
+    SET RESULT=$$GETTABL1(.TMGDFN,.LABEL,.ARRAY,.OPTION) ;  
 GTXDONE QUIT RESULT
     ;

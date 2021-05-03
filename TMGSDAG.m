@@ -1,4 +1,4 @@
-TMGSDAG ;TMG/kst/API FOR GETTING LIST OF APPTS;1/11/09, 2/2/14
+TMGSDAG ;TMG/kst/API FOR GETTING LIST OF APPTS;1/11/09, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;1/11/09
  ;
  ;"Called into from TMGRPC5
@@ -178,10 +178,10 @@ FILTR4(FILTER,TMGARRAY,TMGMSG)
         ;"Purpose: To take and validate user input, and insert into TMGARRAY(4) filter
         ;
         NEW NAMES SET NAMES=$GET(FILTER("PATIENT"))
-        NEW ANAME,STR,DFN
+        NEW ANAME,STR,TMGDFN
         SET STR=""
         FOR  SET ANAME=$PIECE(NAMES,"^",1) QUIT:(ANAME="")  DO
-        . SET DFN=0
+        . SET TMGDFN=0
         . IF +ANAME'=ANAME DO
         . . NEW TMG2MSG
         . . DO FIND^DIC(2,,".01","MP",ANAME,"*","","","","TMG2MSG")
@@ -192,10 +192,10 @@ FILTR4(FILTER,TMGARRAY,TMGMSG)
         . . IF NUM>1 DO  QUIT
         . . . SET TMGMSG=+$GET(TMGMSG)+1
         . . . SET TMGMSG(TMGMSG)="-1^Name: "_ANAME_" Not specific.  Multiple patients with this name exist."
-        . . SET DFN=+$GET(TMG2MSG("DILIST",1,0))
-        . IF DFN>0 DO
+        . . SET TMGDFN=+$GET(TMG2MSG("DILIST",1,0))
+        . IF TMGDFN>0 DO
         . . IF STR'="" SET STR=STR_";"
-        . . SET STR=STR_DFN
+        . . SET STR=STR_TMGDFN
         . IF $LENGTH(NAMES,"^")=1 SET NAMES="" QUIT
         . ELSE  SET NAMES=$PIECE(NAMES,2,$LENGTH(NAMES,"^"))
         IF STR'="" SET TMGARRAY(4)=STR
@@ -228,16 +228,16 @@ GETRSLTS(RESULTS)
         ;"Output:  RESULTS(Count)=PatientIEN;PatientName^DOB^FMFormatApptDateTime;ExtFormatApptDateTime^ClinicIEN;ClinicName^StatusCode;StatusName
         KILL RESULTS
         NEW COUNT SET COUNT=0
-        NEW DFN SET DFN=0
-        FOR  SET DFN=$ORDER(^TMP($J,"SDAMA301",DFN)) QUIT:(DFN="")  DO
-        . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-        . NEW STR SET STR=DFN_";"_NAME
-        . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+        NEW TMGDFN SET TMGDFN=0
+        FOR  SET TMGDFN=$ORDER(^TMP($J,"SDAMA301",TMGDFN)) QUIT:(TMGDFN="")  DO
+        . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        . NEW STR SET STR=TMGDFN_";"_NAME
+        . NEW DOB SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
         . SET DOB=$PIECE($$FMTE^XLFDT(DOB,+5),"@",1)
         . SET STR=STR_"^"_DOB
         . NEW APPT SET APPT=""
-        . FOR  SET APPT=$ORDER(^TMP($J,"SDAMA301",DFN,APPT)) QUIT:(APPT="")  DO
-        . . NEW VALUE SET VALUE=$GET(^TMP($J,"SDAMA301",DFN,APPT)) QUIT:VALUE=""
+        . FOR  SET APPT=$ORDER(^TMP($J,"SDAMA301",TMGDFN,APPT)) QUIT:(APPT="")  DO
+        . . NEW VALUE SET VALUE=$GET(^TMP($J,"SDAMA301",TMGDFN,APPT)) QUIT:VALUE=""
         . . NEW TIME SET TIME=$$FMTE^XLFDT(APPT,+5)  ;"+5 = MM/DD/YYYY@HH:MM:SS format
         . . SET $PIECE(VALUE,"^",1)=APPT_";"_TIME
         . . SET VALUE=STR_"^"_VALUE

@@ -1,4 +1,4 @@
-TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18
+TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18, 3/24/21
          ;;1.0;TMG-LIB;**1**;5/1/13
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -63,7 +63,7 @@ PROCESS(TMGRESULT,TMGIN,OPTION) ;
         ;"NOTE: Later, other tasks could also be done at this time. 
 PRODN   QUIT
         ;       
-REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES.  -- DEPRECIATED
+REFRSHTB(ITEMARRAY,TMGDFN)  ;"REFRESH TABLES.  -- DEPRECIATED
         ;"//NOTE: As of 5/20/18, this REFRSHTB() doesn't seem to be in use.  
         ;"        This code refreshes tables that have already been parsed out from HPI
         ;"        Section.  But it would be unable to parse the FINAL MEDICATIONS table, for example.
@@ -86,7 +86,7 @@ REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES.  -- DEPRECIATED
         ;"            ITEMARRAY("TEXT",Ref#,4)=part 4, e.g. name of table  
         ;"            ITEMARRAY("TEXT",Ref#,"GROUPX",#)=""  <-- index of GROUP nodes
         ;"            ITEMARRAY("TEXT",Ref#,"TABLEX",#)=""  <-- index of TABLE nodes        
-        ;"       DFN - IEN of the patient
+        ;"       TMGDFN - IEN of the patient
         ;"Result: 1^OK, or -1^Error message
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW PARAIDX SET PARAIDX=0
@@ -97,7 +97,7 @@ REFRSHTB(ITEMARRAY,DFN)  ;"REFRESH TABLES.  -- DEPRECIATED
         . . . NEW TABLENAME SET TABLENAME=$GET(ITEMARRAY("TEXT",PARAIDX,JDX,"TABLE"))
         . . . IF TABLENAME'="" DO
         . . . . NEW TABLESTR,TABLEARR
-        . . . . SET TABLESTR=$$GETTABLX^TMGTIUO6(DFN,TABLENAME,.TABLEARR)
+        . . . . SET TABLESTR=$$GETTABLX^TMGTIUO6(TMGDFN,TABLENAME,.TABLEARR)
         . . . . SET ITEMARRAY("TEXT",PARAIDX,JDX,"TEXT")=TABLESTR
         QUIT TMGRESULT
         ;        
@@ -119,6 +119,7 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
         SET TMGRESULT(0)="1^Success"
         NEW ATABLE,TABLES DO GETTABLS(.TABLES,.OPTION)
         NEW TMGDFN SET TMGDFN=+$GET(TMGIN("DFN"))
+        NEW DFN SET DFN=+$GET(TMGIN("DFN"))  ;"ADDED TO PLACE DFN ON SYSTEM TABLE FOR TIU TEMPLATE OBJECT METHODS (FIELD 9 OF 8925.1) 3/25/21
         NEW TERMINALCHARS SET TERMINALCHARS=""
         NEW FOUNDTABLE SET FOUNDTABLE=""
         NEW OUTLNUM SET OUTLNUM=0
@@ -498,13 +499,13 @@ SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2
        ;"              TMGIN("TEXT",2) = 2nd line of text, etc
        ;"Output: TMGIN will contain the text as sent, with changes
        ;"Result: none
-       NEW MEDARR,DFN SET DFN=TMGIN("DFN")
+       NEW MEDARR,TMGDFN SET TMGDFN=TMGIN("DFN")
        NEW TEMP MERGE TEMP=TMGIN("TEXT")
        DO XTRCTREF^TMGTIUO5("TEMP","[MEDICATIONS]","BLANK_LINE",.MEDARR)       
        DO FIXABVA^TMGTIUO6(.MEDARR)
        DO SORTMARR^TMGTIUO5(.MEDARR) ;"splits to KEY-VALUE pairs etc.              
-       DO SAVETABL^TMGRX007(DFN,.MEDARR)  ;"SAVE MEDICATION TABLE.
-       KILL TMGGSMEDLIST(DFN) ;"clear out any cached med table
+       DO SAVETABL^TMGRX007(TMGDFN,.MEDARR)  ;"SAVE MEDICATION TABLE.
+       KILL TMGGSMEDLIST(TMGDFN) ;"clear out any cached med table
        QUIT
        ;"       
 FIXSPCS(STR)  ;"STRIP OUT EXCESS WHITE SPACE, &nbsp;   //kt 3/9/21         

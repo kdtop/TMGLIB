@@ -1,4 +1,4 @@
-TMGTIUF2 ;TMG/kst/TIU files;7/25/19
+TMGTIUF2 ;TMG/kst/TIU files;7/25/19, 3/24/21
        ;;1.0;TMG-LIB;**1**;7/25/19
        ;
  ;
@@ -16,63 +16,16 @@ CHKFILES   ;"Check each patient for files in P:/FPG Charts
   DO CHECK1FILE(22742.1,"loosedocs",VERBOSE)   
   QUIT  
   ;
-  ;"delete later --> NEW DFN SET DFN=0
-  ;"delete later --> FOR  SET DFN=$O(^DPT(DFN)) QUIT:DFN'>0  DO
-  ;"delete later --> . ;"Check existing entries for deletions
-  ;"delete later --> . NEW IEN SET IEN=0
-  ;"delete later --> . FOR  SET IEN=$O(^TMG(22742,"B",DFN,IEN)) QUIT:IEN'>0  DO
-  ;"delete later --> . . NEW THISPATH
-  ;"delete later --> . . SET THISPATH=$P($G(^TMG(22742,IEN,1)),"^",1)
-  ;"delete later --> . . NEW HFSROOT SET HFSROOT=$$HFSROOT()
-  ;"delete later --> . . SET THISPATH=HFSROOT_$P(THISPATH,"oldrecs/",2)
-  ;"delete later --> . . ;"WRITE "CHECKING ",THISPATH,!
-  ;"delete later --> . . IF ($$FILEXIST^TMGIOUTL(THISPATH)=0)!($$UP^XLFSTR(THISPATH)'[".PDF") DO
-  ;"delete later --> . . . ;"WRITE " ****DELETING ",THISPATH,!
-  ;"delete later --> . . . NEW TMGFDA,TMGMSG,TMGIEN
-  ;"delete later --> . . . SET TMGFDA(22742,IEN_",",.01)="@"
-  ;"delete later --> . . . DO FILE^DIE("E","TMGFDA","TMGMSG")
-  ;"delete later --> . . ELSE  DO
-  ;"delete later --> . . . ;"WRITE "!!!!EXISTS!!!!",!
-  ;"delete later --> . ;"
-  ;"delete later --> . ;"Enter new ones
-  ;"delete later --> . NEW LIST
-  ;"delete later --> . DO PREPRCLK(.LIST,DFN)
-  ;"delete later --> . ;"WRITE "== ",DFN," ==",!
-  ;"delete later --> . NEW DATE SET DATE=0
-  ;"delete later --> . FOR  SET DATE=$O(LIST(DATE)) QUIT:DATE'>0  DO
-  ;"delete later --> . . NEW FULLPATH SET FULLPATH=""
-  ;"delete later --> . . FOR  SET FULLPATH=$O(LIST(DATE,FULLPATH)) QUIT:FULLPATH=""  DO
-  ;"delete later --> . . . NEW FILENAME SET FILENAME=$P(FULLPATH,"^",2)
-  ;"delete later --> . . . IF $$UP^XLFSTR(FILENAME)'[".PDF" QUIT
-  ;"delete later --> . . . NEW PATH SET PATH=$P(FULLPATH,"^",1)
-  ;"delete later --> . . . NEW COMPLETE SET COMPLETE=PATH_FILENAME 
-  ;"delete later --> . . . IF $$ISDIR^TMGKERNL(COMPLETE)=1 QUIT  ;"NOT A FOLDER
-  ;"delete later --> . . . ;"WRITE "      ->",PATH," ",FILENAME,!
-  ;"delete later --> . . . IF $$FEXISTS(DFN,COMPLETE)=1 QUIT ;"W "  *EXISTS",! QUIT
-  ;"delete later --> . . . NEW TMGFDA,TMGMSG,TMGIEN
-  ;"delete later --> . . . SET TMGFDA(22742,"+1,",.01)="`"_DFN
-  ;"delete later --> . . . SET TMGFDA(22742,"+1,",.02)=PATH
-  ;"delete later --> . . . SET TMGFDA(22742,"+1,",.03)=FILENAME
-  ;"delete later --> . . . SET TMGFDA(22742,"+1,",.04)=DATE
-  ;"delete later --> . . . SET TMGFDA(22742,"+1,",1)=COMPLETE
-  ;"delete later --> . . . DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
-  ;"delete later --> . . . IF $DATA(TMGMSG("DIERR")) DO 
-  ;"delete later --> . . . . ;"SET RESULT=-1
-  ;"delete later --> . . . . ;"ZWR TMGMSG("DIERR",*)
-  ;"delete later --> . . . ELSE  DO
-  ;"delete later --> . . . . ;"WRITE "ADDED ",COMPLETE,!
-  ;"delete later --> QUIT
-  ;
 CHECK1FILE(FNUM,DIR,VERBOSE)   ;" Check each patient for files appropriate subfolder in P:/FPG Charts 
   ;"Input: FNUM -- should be 22742 or 22742.1 ONLY!  This only works because data dictionary is identical for both files. 
   ;"       DIR --  should 'oldrecs' or 'loosedocs' ONLY   This matches directories established on HFS
   NEW HFSROOT SET HFSROOT=$$HFSROOT(DIR)
   SET VERBOSE=+$GET(VERBOSE)
-  NEW DFN SET DFN=0
-  FOR  SET DFN=$O(^DPT(DFN)) QUIT:DFN'>0  DO
+  NEW TMGDFN SET TMGDFN=0
+  FOR  SET TMGDFN=$O(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
   . ;"Check existing entries for deletions
   . NEW IEN SET IEN=0          
-  . FOR  SET IEN=$ORDER(^TMG(FNUM,"B",DFN,IEN)) QUIT:IEN'>0  DO
+  . FOR  SET IEN=$ORDER(^TMG(FNUM,"B",TMGDFN,IEN)) QUIT:IEN'>0  DO
   . . NEW THISPATH SET THISPATH=$P($G(^TMG(FNUM,IEN,1)),"^",1)
   . . SET THISPATH=HFSROOT_$PIECE(THISPATH,DIR_"/",2)
   . . IF VERBOSE WRITE "CHECKING ",THISPATH,!
@@ -85,8 +38,8 @@ CHECK1FILE(FNUM,DIR,VERBOSE)   ;" Check each patient for files appropriate subfo
   . . . IF VERBOSE WRITE "!!!!EXISTS!!!!",!
   . ;"
   . ;"Enter new ones
-  . NEW LIST DO PREPRCLK(.LIST,DFN,DIR)
-  . IF VERBOSE WRITE "== ",DFN," ==",!
+  . NEW LIST DO PREPRCLK(.LIST,TMGDFN,DIR)
+  . IF VERBOSE WRITE "== ",TMGDFN," ==",!
   . NEW DATE SET DATE=0
   . FOR  SET DATE=$ORDER(LIST(DATE)) QUIT:DATE'>0  DO
   . . NEW FULLPATH SET FULLPATH=""
@@ -97,9 +50,9 @@ CHECK1FILE(FNUM,DIR,VERBOSE)   ;" Check each patient for files appropriate subfo
   . . . NEW COMPLETE SET COMPLETE=PATH_FILENAME 
   . . . IF $$ISDIR^TMGKERNL(COMPLETE)=1 QUIT  ;"NOT A FOLDER
   . . . IF VERBOSE WRITE "      ->",PATH," ",FILENAME,!
-  . . . IF $$FEXISTS(DFN,COMPLETE,FNUM)=1 QUIT ;"W "  *EXISTS",! QUIT
+  . . . IF $$FEXISTS(TMGDFN,COMPLETE,FNUM)=1 QUIT ;"W "  *EXISTS",! QUIT
   . . . NEW TMGFDA,TMGMSG,TMGIEN
-  . . . SET TMGFDA(FNUM,"+1,",.01)="`"_DFN
+  . . . SET TMGFDA(FNUM,"+1,",.01)="`"_TMGDFN
   . . . SET TMGFDA(FNUM,"+1,",.02)=PATH
   . . . SET TMGFDA(FNUM,"+1,",.03)=FILENAME
   . . . SET TMGFDA(FNUM,"+1,",.04)=DATE
@@ -112,11 +65,11 @@ CHECK1FILE(FNUM,DIR,VERBOSE)   ;" Check each patient for files appropriate subfo
   . . . . IF VERBOSE WRITE "ADDED ",COMPLETE,!
   QUIT
   ;
-FEXISTS(DFN,FILEPATH,FNUM)  ;"IS FILE AREADY ENTERED IN 22742 OR 22742.1
+FEXISTS(TMGDFN,FILEPATH,FNUM)  ;"IS FILE AREADY ENTERED IN 22742 OR 22742.1
   NEW TMGRESULT SET TMGRESULT=0
   SET FNUM=$GET(FNUM,22742)  ;"default to 22742
   NEW IEN SET IEN=0
-  FOR  SET IEN=$ORDER(^TMG(FNUM,"B",DFN,IEN)) QUIT:IEN'>0  DO
+  FOR  SET IEN=$ORDER(^TMG(FNUM,"B",TMGDFN,IEN)) QUIT:IEN'>0  DO
   . NEW THISPATH SET THISPATH=$PIECE($GET(^TMG(FNUM,IEN,1)),"^",1)
   . IF THISPATH=FILEPATH SET TMGRESULT=1
   QUIT TMGRESULT
@@ -124,13 +77,13 @@ FEXISTS(DFN,FILEPATH,FNUM)  ;"IS FILE AREADY ENTERED IN 22742 OR 22742.1
 HFSROOT(DIR)  ;"Get the hard coded root in the HFS to the folder holding 'data'
   QUIT "/opt/worldvista/EHR/www/"_DIR_"/"
   ;
-PREPRCLK(OUTARR,DFN,DIR)  ;"Prep Record Links listing
+PREPRCLK(OUTARR,TMGDFN,DIR)  ;"Prep Record Links listing
   ;"Input: OUTARR -- AN OUT PARAMETER.  PASS BY REFERENCE.  Format:
   ;"            OUTARR(FMDT,URLPATH^FILENAME)=""
-  ;"       DFN -- PATIENT IEN
+  ;"       TMGDFN -- PATIENT IEN
   ;"       DIR --  should 'oldrecs' or 'loosedocs' ONLY.  This matches directories established on HFS
   ;"RESULTS: NONE
-  NEW PATHS DO PATH4DFN^TMGRST03(.PATHS,DFN,DIR)   ;"Get one or more filepaths for patient name, including aliases
+  NEW PATHS DO PATH4DFN^TMGRST03(.PATHS,TMGDFN,DIR)   ;"Get one or more filepaths for patient name, including aliases
   NEW APATH SET APATH=""
   FOR  SET APATH=$ORDER(PATHS(APATH)) QUIT:APATH=""  DO
   . NEW HFSPATH SET HFSPATH=$$HFSROOT(DIR)_APATH
@@ -222,8 +175,8 @@ TIULOOSE(TMGRESULT,DOCIEN,FPATH,TIUDETAILS)  ;"
    ;"MOVE TO TIU, DELETE THE REFERENCE, DELETE THE FILE
    ;"
    SET TMGRESULT="1^SUCCESS"
-   NEW DFN,TIUTITLE,AUTHORNAME,DOS,NEWFNAME,TIUIEN
-   SET DFN=$P(TIUDETAILS,"^",1),TIUTITLE=$P(TIUDETAILS,"^",2)
+   NEW TMGDFN,TIUTITLE,AUTHORNAME,DOS,NEWFNAME,TIUIEN
+   SET TMGDFN=$P(TIUDETAILS,"^",1),TIUTITLE=$P(TIUDETAILS,"^",2)
    SET AUTHORNAME=$P(TIUDETAILS,"^",3),DOS=$P(TIUDETAILS,"^",4)
    SET NEWFNAME=$P(TIUDETAILS,"^",5)
    ;"
@@ -231,7 +184,7 @@ TIULOOSE(TMGRESULT,DOCIEN,FPATH,TIUDETAILS)  ;"
    SET TMGRESULT=$$DELREF(DOCIEN)
    IF $P(TMGRESULT,"^",1)="-1" GOTO MLDN
    ;"Set the text of the TIU note
-   DO BLANKTIU^TMGRPC1(.TIUIEN,DFN,AUTHORNAME,6,DOS,TIUTITLE)
+   DO BLANKTIU^TMGRPC1(.TIUIEN,TMGDFN,AUTHORNAME,6,DOS,TIUTITLE)
    IF TIUIEN'>0 SET TMGRESULT="-1^COULD NOT CREATE NOTE TITLE" GOTO MLDN
    ;"
    NEW TMGFDA,TMGMSG
@@ -304,13 +257,13 @@ UNIQUEFN(PATH,FILENAME)  ;"RETURNS A UNIQUE FILENAME
 UFDN    
     QUIT FILENAME
     ;"
-TIUTOLOS(TMGRESULT,DFN,TIUIEN,FILENAME)  ;"RPC ENTRY: TMG TIU NOTE TO LOOSE
+TIUTOLOS(TMGRESULT,TMGDFN,TIUIEN,FILENAME)  ;"RPC ENTRY: TMG TIU NOTE TO LOOSE
    ;"SET FILENAME AND PATH
    SET TMGRESULT="1^SUCCESS"
    ;"CREATE OUR OWN PATH NOW. NEW PATHS DO PATH4DFN^TMGRST03(.PATHS,DFN,"loosedocs")
    NEW PATH
-   NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
-   NEW FMDOB SET FMDOB=$PIECE($GET(^DPT(DFN,0)),"^",3)\1
+   NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+   NEW FMDOB SET FMDOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)\1
    NEW MONTH SET MONTH=$E(FMDOB,4,5)
    NEW DAY SET DAY=$E(FMDOB,6,7)
    NEW YEAR SET YEAR=$E(FMDOB,1,3)+1700
@@ -355,7 +308,7 @@ TIUTOLOS(TMGRESULT,DFN,TIUIEN,FILENAME)  ;"RPC ENTRY: TMG TIU NOTE TO LOOSE
    DO DELFILE(FOLDERNAME_HTMLNAME)
    ;"ADD REFERENCE TO THE NEW LOOSE DOCUMENT
    NEW TMGFDA,TMGIEN,TMGMSG 
-   SET TMGFDA(22742.1,"+1,",.01)=DFN
+   SET TMGFDA(22742.1,"+1,",.01)=TMGDFN
    SET TMGFDA(22742.1,"+1,",.02)="/filesystem/loosedocs/"_$O(PATHS(""))
    SET TMGFDA(22742.1,"+1,",.03)=PDFNAME  
    SET TMGFDA(22742.1,"+1,",.04)=$$TODAY^TMGDATE

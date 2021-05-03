@@ -1,4 +1,4 @@
-TMGHL76R ;TMG/kst-HL7 transformation engine processing ;4/11/19
+TMGHL76R ;TMG/kst-HL7 transformation engine processing ;4/11/19, 3/24/21
               ;;1.0;TMG-LIB;**1**;11/14/16
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
@@ -89,12 +89,12 @@ ISLMHRAD(TMGHL7MSG) ;"Test if message is LMH/GCHE rad HL7 message.
 MSG     ;"Purpose: Process entire message before processing segments
         DO FIXRPT(.TMGHL7MSG,.TMGU) 
         DO XMSG^TMGHL72 
-        KILL TMGLASTOBR4,TMGLASTOBX3,TMGOBXCOUNT
+        ;"//kt 415/21  KILL TMGLASTOBR4,TMGLASTOBX3,TMGOBXCOUNT,TMGINFO
         QUIT
         ;
 MSG2    ;"Purpose: Process entire message after processing segments
         DO XMSG2^TMGHL72 
-        KILL TMGEXAMIDX
+        ;"//kt 415/21 KILL TMGEXAMIDX,TMGINFO
         QUIT
         ;
 MSH4  ;"Purpose: Process MSH segment, FLD 4 (Sending Facility)
@@ -112,9 +112,10 @@ MSH16  ;"Purpose: Process MSH segment, FLD 16
         QUIT
         ;
 PID     ;"Purpose: To transform the PID segment, esp SSN
-        DO PID^TMGHL72        
-        NEW DFN SET DFN=$PIECE(TMGVALUE,TMGU(1),4)
-        SET TMGHL7MSG("RAD STUDY","DFN")=DFN
+        DO PID^TMGHL74R
+        ;"DO PID^TMGHL72        
+        ;"NEW TMGDFN SET TMGDFN=$PIECE(TMGVALUE,TMGU(1),4)
+        ;"SET TMGHL7MSG("RAD STUDY","DFN")=TMGDFN
         QUIT
         ;
 PV18    ;"Purpose: Process entire PV18 segment

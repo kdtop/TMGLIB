@@ -1,4 +1,4 @@
-TMGGRC2	       ;TMG/kst-Work with Growth Chart Data ;10/5/10 ; 9/27/11 9:41am
+TMGGRC2	       ;TMG/kst-Work with Growth Chart Data ;10/5/10 ; 9/27/11, 3/24/21
 	       ;;1.0;TMG-LIB;**1,17**;10/5/10;Build 38
 	       ;
 	       ;"Code for working with pediatric growth chart data.
@@ -86,10 +86,10 @@ TMGGRC2	       ;TMG/kst-Work with Growth Chart Data ;10/5/10 ; 9/27/11 9:41am
 	       ;
 	       ;"=======================================================================
 	       ;
-TMGGRAPH(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGRAPH(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"Input: ROOT -- Pass by NAME.  This is where output goes
-	       ;"       DFN -- Patient DFN ; ICN for foriegn sites
+	       ;"       TMGDFN -- Patient DFN ; ICN for foriegn sites
 	       ;"       ID --
 	       ;"       ALPHA -- Start date (lieu of DTRANGE)
 	       ;"       OMEGA -- End date (lieu of DTRANGE)
@@ -101,7 +101,7 @@ TMGGRAPH(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"CH-HT")
 	       QUIT
 	       ;
-TMGGCLNI(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCLNI(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For Length percentile for age (infant)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -110,7 +110,7 @@ TMGGCLNI(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"INF-LN")
 	       QUIT
 	       ;
-TMGGCWTI(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCWTI(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For Weight percentile for age (infant)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -118,7 +118,7 @@ TMGGCWTI(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"INF-WT")
 	       QUIT
 	       ;
-TMGGCHDC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCHDC(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For Head Circumference percentile for age
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -126,7 +126,7 @@ TMGGCHDC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"INF-HC")
 	       QUIT
 	       ;
-TMGGCBMI(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCBMI(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For BMI percentile for age (infant)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -134,7 +134,7 @@ TMGGCBMI(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"INF-BMI")
 	       QUIT
 	       ;
-TMGGCWHL(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCWHL(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For Weight percentile for Length (infant)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -142,7 +142,7 @@ TMGGCWHL(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"INF-WT4L")
 	       QUIT
 	       ;
-TMGGCHTC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCHTC(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For Height percentile for age (child)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -150,7 +150,7 @@ TMGGCHTC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"CH-HT")
 	       QUIT
 	       ;
-TMGGCWTC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCWTC(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For Weight percentile for age (child)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -158,7 +158,7 @@ TMGGCWTC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"CH-WT")
 	       QUIT
 	       ;
-TMGGCBMC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCBMC(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For BMI percentile for age (child)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -166,7 +166,7 @@ TMGGCBMC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"CH-BMI")
 	       QUIT
 	       ;
-TMGGCWHS(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGGCWHS(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"         For Weight percentile for stature (child)
 	       ;"Input: (Same as TMGGRAPH, see above)
@@ -175,7 +175,7 @@ TMGGCWHS(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       QUIT
 	       ;
 	       ;"WHO - BMI ENTRY POINTS
-TMGWHOBA(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHOBA(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO BMI by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -183,7 +183,7 @@ TMGWHOBA(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-BA")
 	       QUIT
 	       ;
-TMGWBAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWBAB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO BMI by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -191,7 +191,7 @@ TMGWBAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-BA-B2")
 	       QUIT
 	       ;
-TMGWBAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWBAB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO BMI by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -199,7 +199,7 @@ TMGWBAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-BA-B5")
 	       QUIT
 	       ;
-TMGWBA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWBA25(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO BMI by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -207,7 +207,7 @@ TMGWBA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-BA-25")
 	       QUIT
 	       ;
-TMGWB519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWB519(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO BMI by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -216,7 +216,7 @@ TMGWB519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       QUIT
 	       ;
 	       ;"WHO - Height for Age Entry Points
-TMGWHOHA(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHOHA(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Height by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -224,7 +224,7 @@ TMGWHOHA(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HA")
 	       QUIT
 	       ;
-TMGWHAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHAB6(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Height by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -232,7 +232,7 @@ TMGWHAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HA-B6")
 	       QUIT
 	       ;
-TMGWHAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHAB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Height by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -240,7 +240,7 @@ TMGWHAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HA-B2")
 	       QUIT
 	       ;
-TMGWHA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHA62(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Height by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -248,7 +248,7 @@ TMGWHA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HA-62")
 	       QUIT
 	       ;
-TMGWHA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHA25(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Height by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -256,7 +256,7 @@ TMGWHA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HA-25")
 	       QUIT
 	       ;
-TMGWH519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWH519(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Height by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -264,7 +264,7 @@ TMGWH519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HA-519")
 	       QUIT
 	       ;
-TMGWHAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHAB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Height by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -273,7 +273,7 @@ TMGWHAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       QUIT
 	       ;
 	       ;"WHO - Weight for age Entry Points
-TMGWHOWA(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHOWA(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -281,7 +281,7 @@ TMGWHOWA(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WA")
 	       QUIT
 	       ;
-TMGWWAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWWAB6(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -289,7 +289,7 @@ TMGWWAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WA-B6")
 	       QUIT
 	       ;
-TMGWWAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWWAB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -297,7 +297,7 @@ TMGWWAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WA-B2")
 	       QUIT
 	       ;
-TMGWWA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWWA62(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -305,7 +305,7 @@ TMGWWA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WA-62")
 	       QUIT
 	       ;
-TMGWWAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWWAB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -313,7 +313,7 @@ TMGWWAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WA-B5")
 	       QUIT
 	       ;
-TMGWWA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWWA25(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -321,7 +321,7 @@ TMGWWA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WA-25")
 	       QUIT
 	       ;
-TMGWW510(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWW510(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -330,7 +330,7 @@ TMGWW510(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       QUIT
 	       ;
 	       ;"WHO - Head Circumference Entry Points
-TMGWHOHC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHOHC(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Head Circumference by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -338,7 +338,7 @@ TMGWHOHC(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HC")
 	       QUIT
 	       ;
-TMGWHCBT(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHCBT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Head Circumference by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -346,7 +346,7 @@ TMGWHCBT(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HC-BT")
 	       QUIT
 	       ;
-TMGWHCB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHCB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Head Circumference by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -354,7 +354,7 @@ TMGWHCB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HC-B2")
 	       QUIT
 	       ;
-TMGWHCB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHCB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Head Circumference by Age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -362,7 +362,7 @@ TMGWHCB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-HC-B5")
 	       QUIT
 	       ;
-TMGWHOWL(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHOWL(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight for Length
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -370,7 +370,7 @@ TMGWHOWL(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WH") ;"temp solution
 	       QUIT
 	       ;
-TMGWHOWS(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
+TMGWHOWS(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Weight for Stature
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -378,7 +378,7 @@ TMGWHOWS(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	       ;
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"WHO-WL") ;"temp solution
 	       QUIT
 	       ;  ====>Z-SCORE ENTRY POINTS =====
-TMGZBAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZBAB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score BMI for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -386,7 +386,7 @@ TMGZBAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-BA-B2")
 	       QUIT
 	       ;
-TMGZBAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZBAB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score BMI for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -394,7 +394,7 @@ TMGZBAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-BA-B5")
 	       QUIT
 	       ;
-TMGZBA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZBA25(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score BMI for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -402,7 +402,7 @@ TMGZBA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-BA-25")
 	       QUIT
 	       ;
-TMGZB519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZB519(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score BMI for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -410,7 +410,7 @@ TMGZB519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-BA-519")
 	       QUIT
 	       ;
-TMGZHAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZHAB6(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Length for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -418,7 +418,7 @@ TMGZHAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HA-B6")
 	       QUIT
 	       ;
-TMGZHAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZHAB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Length for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -426,7 +426,7 @@ TMGZHAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HA-B2")
 	       QUIT
 	       ;
-TMGZHA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZHA62(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Length for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -434,7 +434,7 @@ TMGZHA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HA-62")
 	       QUIT
 	       ;
-TMGZHA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZHA25(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Height for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -442,7 +442,7 @@ TMGZHA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HA-25")
 	       QUIT
 	       ;
-TMGZH519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
+TMGZH519(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for height
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -450,7 +450,7 @@ TMGZH519(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HA-519")
 	       QUIT
 	              ;
-TMGZHAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZHAB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Length for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -458,7 +458,7 @@ TMGZHAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HA-B5")
 	       QUIT
 	       ;
-TMGZWAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZWAB6(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score weight for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -466,7 +466,7 @@ TMGZWAB6(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WA-B6")
 	       QUIT
 	       ;
-TMGZWAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZWAB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -474,7 +474,7 @@ TMGZWAB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WA-B2")
 	       QUIT
 	       ;
-TMGZWA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZWA62(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -482,7 +482,7 @@ TMGZWA62(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WA-62")
 	       QUIT
 	       ;
-TMGZWAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZWAB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -490,7 +490,7 @@ TMGZWAB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WA-B5")
 	       QUIT
 	       ;
-TMGZWA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZWA25(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -498,7 +498,7 @@ TMGZWA25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WA-25")
 	       QUIT
 	       ;
-TMGZW510(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZW510(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for age
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -506,7 +506,7 @@ TMGZW510(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WA-510")
 	       QUIT
 	       ;
-TMGZWLB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
+TMGZWLB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for length
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -514,7 +514,7 @@ TMGZWLB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WL-B2")
 	       QUIT
 	       ;
-TMGZWH25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
+TMGZWH25(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Weight for height
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -522,7 +522,7 @@ TMGZWH25(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-WH-25")
 	       QUIT
 	              ;
-TMGZHCBT(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
+TMGZHCBT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Head Circumference
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -530,7 +530,7 @@ TMGZHCBT(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HC-BT")
 	       QUIT
 	              ;
-TMGZHCB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
+TMGZHCB2(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Head Circumference
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -538,7 +538,7 @@ TMGZHCB2(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HC-B2")
 	       QUIT
 	              ;
-TMGZHCB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
+TMGZHCB5(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)	   
 	       ;"Purpose: Entry point, as called from CPRS REPORT system
 	       ;"           For WHO Z-Score Head Circumference
 	       ;"Input (Same as TMGGRAPH, see above)
@@ -546,7 +546,7 @@ TMGZHCB5(ROOT,DFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)
 	       DO TMGCOMGR^TMGGRC2A(.ROOT,"ZWO-HC-B5")
 	       QUIT
 	       ;
-ADDRPT	        ;
-	              DO ADDRPT^TMGGRC2C
+ADDRPT	   ;
+	       DO ADDRPT^TMGGRC2C
 	       DO INSTALL^TMGGRC0
-	              QUIT
+	       QUIT

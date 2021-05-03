@@ -1,4 +1,4 @@
-TMGPXR01 ;TMG/kst/TMG reminder stuff ;7/26/12, 2/2/14
+TMGPXR01 ;TMG/kst/TMG reminder stuff ;7/26/12, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;7/26/12
  ;
  ;"TMG REMINDER FUNCTIONS
@@ -14,9 +14,9 @@ TMGPXR01 ;TMG/kst/TMG reminder stuff ;7/26/12, 2/2/14
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"DOB(DFN,TEST,DATE,DATA,TEXT) -- Return information about the date of birth for the patient
- ;"ACTIVEPT(DFN,TEST,DATE,DATA,TEXT) -- Return IF patient is an active patient (recent activity)
- ;"DTEVAL(DFN,TEST,DATE,DATA,TEXT) --Return the effective date that the reminder is being run.
+ ;"DOB(TMGDFN,TEST,DATE,DATA,TEXT) -- Return information about the date of birth for the patient
+ ;"ACTIVEPT(TMGDFN,TEST,DATE,DATA,TEXT) -- Return IF patient is an active patient (recent activity)
+ ;"DTEVAL(TMGDFN,TEST,DATE,DATA,TEXT) --Return the effective date that the reminder is being run.
  ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -27,9 +27,9 @@ TMGPXR01 ;TMG/kst/TMG reminder stuff ;7/26/12, 2/2/14
  ;"DEPENDENCIES
  ;"
  ;"=======================================================================
-DOB(DFN,TEST,DATE,DATA,TEXT) ;
+DOB(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Return information about the date of birth for the patient
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test: 1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED FINDING PARAMETER will be passed in here.
         ;"       DATE -- AN OUT PARAMETER.  Date of finding.
@@ -43,7 +43,7 @@ DOB(DFN,TEST,DATE,DATA,TEXT) ;
         ;"          DATA("MONTH")= month of birth (2 digits)
         ;"          DATA("DAY")= day of birth (2 digits)
         ;"        TEST -- The logical value of the test: 1=true, 0=false
-        NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)\1
+        NEW DOB SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)\1
         NEW YEAR,MONTH,DAY
         DO PARSEDT(DOB,.YEAR,.MONTH,.DAY)
         SET DATA=DOB
@@ -70,7 +70,7 @@ PARSEDT(DT,YEAR,MONTH,DAY,TIME) ;"PARSE date to component parts
         SET TIME=+$PIECE(DT,".",2)
         QUIT
         ;
-DTEVAL(DFN,TEST,DATE,DATA,TEXT) ;"DATE OF EVALUATION
+DTEVAL(TMGDFN,TEST,DATE,DATA,TEXT) ;"DATE OF EVALUATION
         ;"Purpose: Return a "NOW" date as a "finding".  This is the effective date 
         ;"          that the reminder is being run.
         ;"Input: See discussion above for details. 
@@ -97,8 +97,8 @@ DTEVAL(DFN,TEST,DATE,DATA,TEXT) ;"DATE OF EVALUATION
         SET DATA("DOY")=DIFF+1
         QUIT
         ;        
-ACTIVEPT(DFN,TEST,DATE,DATA,TEXT) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACTIVEPT^TMGPXR03() for a different purpose.
-        ;"Input: DFN -- the patient IEN
+ACTIVEPT(TMGDFN,TEST,DATE,DATA,TEXT) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACTIVEPT^TMGPXR03() for a different purpose.
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test: 1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED FINDING PARAMETER (Field #26) will be passed in here.
         ;"       DATE -- AN OUT PARAMETER.  Date of finding.
@@ -119,13 +119,13 @@ ACTIVEPT(DFN,TEST,DATE,DATA,TEXT) ;"ACTIVE PATIENT   **NAME ALERT** --There is a
         NEW DOCIEN SET DOCIEN=0        
         NEW TITLEIEN SET TITLEIEN=0
         NEW FOUND SET FOUND=0
-        FOR  SET TITLEIEN=$ORDER(^TIU(8925,"APT",DFN,TITLEIEN)) QUIT:(+TITLEIEN'>0)!(FOUND>0)  DO
+        FOR  SET TITLEIEN=$ORDER(^TIU(8925,"APT",TMGDFN,TITLEIEN)) QUIT:(+TITLEIEN'>0)!(FOUND>0)  DO
         . NEW STATUSIEN SET STATUSIEN=0
-        . FOR  SET STATUSIEN=$ORDER(^TIU(8925,"APT",DFN,TITLEIEN,STATUSIEN)) QUIT:(+STATUSIEN'>0)!(FOUND>0)  DO
-        . . NEW PREVDT SET PREVDT=$ORDER(^TIU(8925,"APT",DFN,TITLEIEN,STATUSIEN,REVDATE))
+        . FOR  SET STATUSIEN=$ORDER(^TIU(8925,"APT",TMGDFN,TITLEIEN,STATUSIEN)) QUIT:(+STATUSIEN'>0)!(FOUND>0)  DO
+        . . NEW PREVDT SET PREVDT=$ORDER(^TIU(8925,"APT",TMGDFN,TITLEIEN,STATUSIEN,REVDATE))
         . . IF PREVDT'>REVSDT DO
         . . . SET FOUND=PREVDT
-        . . . SET DOCIEN=$ORDER(^TIU(8925,"APT",DFN,TITLEIEN,STATUSIEN,PREVDT,0))
+        . . . SET DOCIEN=$ORDER(^TIU(8925,"APT",TMGDFN,TITLEIEN,STATUSIEN,PREVDT,0))
         SET TEST=(FOUND>0)
         IF TEST DO
         . NEW DATE SET DATE=9999999-FOUND
@@ -137,7 +137,7 @@ ACTIVEPT(DFN,TEST,DATE,DATA,TEXT) ;"ACTIVE PATIENT   **NAME ALERT** --There is a
         ;        
 PAINMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient is on pain medication
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED FINDING PARAMETER will be passed in here.
@@ -228,8 +228,8 @@ COPDINC(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         NEW INS2INC
         SET INS2INC=",3,5,6,13,17,36,15," ;"IENS OF ACCEPTABLE INS IN #36. USING LEADING AND TRAILING COMMAS FOR EASE OF MATCHING
         NEW IDX SET IDX=0
-        FOR  SET IDX=$ORDER(^DPT(DFN,.312,IDX)) QUIT:IDX'>0  DO
-        . NEW INSIEN SET INSIEN=","_$GET(^DPT(DFN,.312,IDX,0))_","
+        FOR  SET IDX=$ORDER(^DPT(TMGDFN,.312,IDX)) QUIT:IDX'>0  DO
+        . NEW INSIEN SET INSIEN=","_$GET(^DPT(TMGDFN,.312,IDX,0))_","
         . IF INS2INC[INSIEN DO
         . . DO NOW^%DTC
         . . SET TEST=1
@@ -332,17 +332,17 @@ GETIUIEN(NAME) ;
        SET TMGRESULT=$ORDER(^TIU(8925.1,"B",NAME,TMGRESULT))
        QUIT TMGRESULT
        ;"
-TIUDATES(DFN,TITLENAME,RESULTARR)  ;
+TIUDATES(TMGDFN,TITLENAME,RESULTARR)  ;
        ;"Purpose: Return array of all a patient's complete physical exam
        ;"         note titles
-       ;"Input: DFN -- Patient's IEN
+       ;"Input: TMGDFN -- Patient's IEN
        ;"       RESULTARR(DATE,NOTEIEN)="" -- OUTPUT ARRAY 
        NEW IEN8925D1 SET IEN8925D1=$$GETIUIEN(TITLENAME)
        IF IEN8925D1'>0 GOTO GCDN
        NEW DATE SET DATE=0
        NEW TIUIEN,FMDATE
        SET TIUIEN=0
-       FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",DFN,TIUIEN)) QUIT:TIUIEN'>0  DO
+       FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:TIUIEN'>0  DO
        . NEW DOCIEN,ZN
        . SET ZN=$GET(^TIU(8925,TIUIEN,0))
        . SET DOCIEN=$PIECE(ZN,"^",1)
@@ -351,18 +351,18 @@ TIUDATES(DFN,TITLENAME,RESULTARR)  ;
        . . SET RESULTARR(FMDATE,TIUIEN)=""
        GOTO GCDN
        ;"OLD METHOD
-       FOR  SET DATE=$ORDER(^TIU(8925,"AE",DFN,DATE)) QUIT:DATE'>0  DO
+       FOR  SET DATE=$ORDER(^TIU(8925,"AE",TMGDFN,DATE)) QUIT:DATE'>0  DO
        . SET TIUIEN=0
-       . FOR  SET TIUIEN=$ORDER(^TIU(8925,"AE",DFN,DATE,TIUIEN)) QUIT:TIUIEN'>0  DO
+       . FOR  SET TIUIEN=$ORDER(^TIU(8925,"AE",TMGDFN,DATE,TIUIEN)) QUIT:TIUIEN'>0  DO
        . . IF TIUIEN=IEN8925D1 DO
        . . . SET FMDATE=9999999-DATE
-       . . . SET RESULTARR(FMDATE,$ORDER(^TIU(8925,"AE",DFN,DATE,TIUIEN,0)))=""
+       . . . SET RESULTARR(FMDATE,$ORDER(^TIU(8925,"AE",TMGDFN,DATE,TIUIEN,0)))=""
 GCDN   QUIT
        ;"
 LASTCPES(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
        ;"Purpose: Return dates of patient's complete physical exams -
        ;"         multiple computed finding
-       ;"Input: DFN -- the patient IEN
+       ;"Input: TMGDFN -- the patient IEN
        ;"       NGET -- the number of findings to search for
        ;"       BDT -- the beginning date and time for the finding search
        ;"       EDT -- the ending date and time for the finding search
@@ -397,10 +397,10 @@ LASTCPES(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
        . . SET DATE(NFOUND)=NOTEDATE
 CPEDN  QUIT
         ;
-LASTEYEE(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
+LASTEYEE(TMGTMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
        ;"Purpose: Return dates of patient's last eye exam -
        ;"         multiple computed finding
-       ;"Input: DFN -- the patient IEN
+       ;"Input: TMGDFN -- the patient IEN
        ;"       NGET -- the number of findings to search for
        ;"       BDT -- the beginning date and time for the finding search
        ;"       EDT -- the ending date and time for the finding search
@@ -471,9 +471,9 @@ DATPAINK(TMGDFN,PIECE)   ;
        . SET TMGRESULT="-1^MED LIST NOT FOUND"
 DNPC   QUIT TMGRESULT
        ;
-PAINDONE(DFN,TEST,DATE,DATA,TEXT) ;
+PAINDONE(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Return information about the last pain contract
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -483,7 +483,7 @@ PAINDONE(DFN,TEST,DATE,DATA,TEXT) ;
         ;"       TEXT -- Text to be display in the Clinical Maintenance
         ;"Output.  Optional.
         ;"Results: none
-        NEW CONTRACTDATE SET CONTRACTDATE=$$DATPAINK(.DFN,1)
+        NEW CONTRACTDATE SET CONTRACTDATE=$$DATPAINK(.TMGDFN,1)
         IF CONTRACTDATE="DUE" DO
         . SET TEST=0
         . SET DATE=0
@@ -495,11 +495,11 @@ PAINDONE(DFN,TEST,DATE,DATA,TEXT) ;
         . SET DATE=0
         QUIT
         ;"
-CSDBDONE(DFN,TEST,DATE,DATA,TEXT)  ;
+CSDBDONE(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         SET TEST=0,DATE=0
         NEW TMGTABLE,TMGTABLEARR
-        ;"SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(DFN),"[MEDICATIONS]",.TMGTABLEARR)
-        DO MEDARR^TMGTIUOJ(.TMGTABLE,+$G(DFN),.TMGTABLEARR)  ;"//kt 5/8/18
+        ;"SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(TMGDFN),"[MEDICATIONS]",.TMGTABLEARR)
+        DO MEDARR^TMGTIUOJ(.TMGTABLE,+$G(TMGDFN),.TMGTABLEARR)  ;"//kt 5/8/18
         IF $DATA(TMGTABLEARR) DO
         . NEW CSDBDATA SET CSDBDATA=$$UP^XLFSTR($GET(TMGTABLEARR("KEY-VALUE","*CSM-DATABASE REVIEW")))
         . IF CSDBDATA'="" DO
@@ -513,9 +513,9 @@ CSDBDONE(DFN,TEST,DATE,DATA,TEXT)  ;
         . . . SET DATE=Y
         QUIT
         ;"
-DRGSDONE(DFN,TEST,DATE,DATA,TEXT)  ;
+DRGSDONE(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return information about the last drug screen
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -525,8 +525,8 @@ DRGSDONE(DFN,TEST,DATE,DATA,TEXT)  ;
         ;"       TEXT -- Text to be display in the Clinical Maintenance
         ;"Output.  Optional.
         ;"Results: none
-        NEW DSDATE SET DSDATE=$$GETHFDT^TMGPXRU1(.DFN,"TMG DRUG SCREEN DONE")
-        IF DSDATE'>0 SET DSDATE=+$$DATPAINK(.DFN,2) 
+        NEW DSDATE SET DSDATE=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG DRUG SCREEN DONE")
+        IF DSDATE'>0 SET DSDATE=+$$DATPAINK(.TMGDFN,2) 
         ;"Check to see if Urine Drug Screen note title exists and compare
         ;"    dates if it does.
         NEW UDSIEN SET UDSIEN=+$ORDER(^TIU(8925.1,"B","URINE DRUG SCREEN",0))
@@ -534,7 +534,7 @@ DRGSDONE(DFN,TEST,DATE,DATA,TEXT)  ;
         . NEW TIUIEN SET TIUIEN=0
         . FOR  SET TIUIEN=$ORDER(^TIU(8925,"B",UDSIEN,TIUIEN)) QUIT:TIUIEN'>0  DO
         . . NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
-        . . IF DFN'=$PIECE(ZN,"^",2) QUIT
+        . . IF TMGDFN'=$PIECE(ZN,"^",2) QUIT
         . . IF $PIECE(ZN,"^",7)>DSDATE SET DSDATE=$PIECE(ZN,"^",7) 
         IF +DSDATE'>0 DO
         . SET TEST=0
@@ -544,11 +544,11 @@ DRGSDONE(DFN,TEST,DATE,DATA,TEXT)  ;
         . SET DATE=DSDATE     
         QUIT
         ;"
-EKGDONE(DFN,TEST,DATE,DATA,TEXT)  ;do not use yet
+EKGDONE(TMGDFN,TEST,DATE,DATA,TEXT)  ;do not use yet
         SET TEST=0,DATE=0
         QUIT  ;"DATA IS INCONSISTENT
         NEW TMGTABLE,TMGTABLEARR
-        SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(DFN),"[STUDIES]",.TMGTABLEARR)
+        SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(TMGDFN),"[STUDIES]",.TMGTABLEARR)
         IF $DATA(TMGTABLEARR) DO
         . NEW EKGDATA SET EKGDATA=$$UP^XLFSTR($GET(TMGTABLEARR("KEY-VALUE","EKG")))
         . IF EKGDATA'="" DO
@@ -562,20 +562,20 @@ EKGDONE(DFN,TEST,DATE,DATA,TEXT)  ;do not use yet
         . . . SET DATE=Y
         QUIT
         ;"
-EKGNOTES(DFN,HFARRARY)  ;"Get note titles
+EKGNOTES(TMGDFN,HFARRARY)  ;"Get note titles
         NEW TIUIEN SET TIUIEN=0
         NEW EKGIEN SET EKGIEN=2017
-        FOR  SET TIUIEN=$O(^TIU(8925,"C",DFN,TIUIEN)) QUIT:TIUIEN'>0  DO
+        FOR  SET TIUIEN=$O(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:TIUIEN'>0  DO
         . NEW ZN SET ZN=$G(^TIU(8925,TIUIEN,0))
         . IF $P(ZN,"^",1)'=EKGIEN QUIT
         . NEW REFDT SET REFDT=$P($P($G(^TIU(8925,TIUIEN,13)),"^",1),".",1)
         . SET HFARRAY(REFDT)="NOTE"
         QUIT
         ;"
-LASTEKG2(DFN)  ;"  USED FOR TIU TABLE
+LASTEKG2(TMGDFN)  ;"  USED FOR TIU TABLE
         NEW TMGRESULT,HFARRAY SET TMGRESULT="EKG = "
-        NEW EKGDATE SET EKGDATE=$$GETHFDT^TMGPXRU1(.DFN,"TMG EKG DONE",.HFARRAY)
-        DO EKGNOTES(.DFN,.HFARRAY)
+        NEW EKGDATE SET EKGDATE=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG EKG DONE",.HFARRAY)
+        DO EKGNOTES(.TMGDFN,.HFARRAY)
         NEW COUNT SET COUNT=0
         NEW DATE SET DATE=9999999
         FOR  SET DATE=$ORDER(HFARRAY(DATE),-1) QUIT:(DATE="")!(COUNT>2)  DO
@@ -591,15 +591,15 @@ LASTEKG2(DFN)  ;"  USED FOR TIU TABLE
         . . SET TMGRESULT=TMGRESULT_" (HF)"
         . SET COUNT=COUNT+1
         ;"IF TMGRESULT'="EKG = " SET TMGRESULT=TMGRESULT_" (HF)"
-        NEW EKGSTUDIES SET EKGSTUDIES=$$LASTEKG(DFN)
+        NEW EKGSTUDIES SET EKGSTUDIES=$$LASTEKG(TMGDFN)
         IF (EKGSTUDIES'="")&(TMGRESULT="EKG = ") SET TMGRESULT=TMGRESULT_$P(EKGSTUDIES,"EKG:",2)_" (STUDIES TABLE)"
         QUIT TMGRESULT
         ;"
-LASTEKG(DFN)    ;"  USED FOR REMINDER DIALOG
+LASTEKG(TMGDFN)    ;"  USED FOR REMINDER DIALOG
         NEW TMGRESULT SET TMGRESULT=""
         NEW TMGTABLE,TMGTABLEARR,OPTION
         SET OPTION("HTML")=0
-        SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(DFN),"[STUDIES]",.TMGTABLEARR,.OPTION)
+        SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(TMGDFN),"[STUDIES]",.TMGTABLEARR,.OPTION)
         IF $DATA(TMGTABLEARR) DO
         . NEW IDX SET IDX=0
         . FOR  SET IDX=$ORDER(TMGTABLEARR(IDX)) QUIT:IDX'>0  DO
@@ -608,17 +608,17 @@ LASTEKG(DFN)    ;"  USED FOR REMINDER DIALOG
         . . . SET TMGRESULT=LINE
         QUIT TMGRESULT
         ;"
-UDSTABLE(DFN,OUTARRAY)  ;"
+UDSTABLE(TMGDFN,OUTARRAY)  ;"
         ;"Purpose: this function will be called from the UDS item in the Pain Table
         ;"         and return the last 3 entries
         NEW TMGRESULT,HFARRAY SET TMGRESULT="UDS: "
-        NEW DSDATE SET DSDATE=$$GETHFDT^TMGPXRU1(.DFN,"TMG DRUG SCREEN DONE",.HFARRAY)
+        NEW DSDATE SET DSDATE=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG DRUG SCREEN DONE",.HFARRAY)
         NEW UDSIEN SET UDSIEN=+$ORDER(^TIU(8925.1,"B","URINE DRUG SCREEN",0))
         IF UDSIEN>0 DO
         . NEW TIUIEN SET TIUIEN=0
         . FOR  SET TIUIEN=$ORDER(^TIU(8925,"B",UDSIEN,TIUIEN)) QUIT:TIUIEN'>0  DO
         . . NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
-        . . IF DFN'=$PIECE(ZN,"^",2) QUIT
+        . . IF TMGDFN'=$PIECE(ZN,"^",2) QUIT
         . . SET HFARRAY($P($PIECE(ZN,"^",7),".",1))=""
         NEW COUNT SET COUNT=0
         NEW DATE SET DATE=9999999
@@ -632,10 +632,10 @@ UDSTABLE(DFN,OUTARRAY)  ;"
         . SET COUNT=COUNT+1
         QUIT TMGRESULT
         ;"
-LASTHGT(DFN,TEST,DATE,DATA,TEXT)   ;
+LASTHGT(TMGDFN,TEST,DATE,DATA,TEXT)   ;
         ;"Purpose: Return date of last height check and 
         ;"         whether it was in the last 2 years
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -651,7 +651,7 @@ LASTHGT(DFN,TEST,DATE,DATA,TEXT)   ;
         IF HEIGHTIEN'>0 QUIT
         NEW GMRIEN SET GMRIEN=0
         NEW VITTYPE,VITDATA
-        FOR  SET GMRIEN=$ORDER(^GMR(120.5,"C",DFN,GMRIEN)) QUIT:(+GMRIEN'>0)  DO
+        FOR  SET GMRIEN=$ORDER(^GMR(120.5,"C",TMGDFN,GMRIEN)) QUIT:(+GMRIEN'>0)  DO
         . SET VITDATA=$GET(^GMR(120.5,GMRIEN,0))
         . SET VITTYPE=$PIECE(VITDATA,"^",3)
         . IF VITTYPE'=HEIGHTIEN QUIT
@@ -661,7 +661,7 @@ LASTHGT(DFN,TEST,DATE,DATA,TEXT)   ;
         ;
 ONOXYGEN(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient is on oxygen
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -736,7 +736,7 @@ NTDN
         ;"
 APNEAPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient uses CPAP machine
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -762,7 +762,7 @@ CPAPDN  QUIT WHY
         ;"
 PULSEOX(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient is on oxygen
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -791,7 +791,7 @@ PULSEOX(TMGDFN,TEST,DATE,DATA,TEXT)  ;
 PTHASDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient is diabetic
         ;"         Will search the TMG TIU 
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -834,7 +834,7 @@ PTHASDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;
 PTHSCOPD(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient has COPD
         ;"         Will search the TMG TIU
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -873,7 +873,7 @@ PTHASTOP(TMGDFN,TOPICNAME)  ;"DOES THIS PATIENT HAS TOPIC
 PTASTHMA(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient has asthma
         ;"         Will search the TMG TIU
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -898,7 +898,7 @@ PTASTHMA(TMGDFN,TEST,DATE,DATA,TEXT)  ;
 PTLIPID(TMGDFN,TEST,DATE,DATA,TEXT)   ;
         ;"Purpose: Return whether patient is hypertensive
         ;"         Will search the TMG TIU
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -963,7 +963,7 @@ PACKYR(TMGDFN)
 LDCTSMKR(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine IF patient is currently a smoker or has quit in
         ;"         the last 15 years
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1001,7 +1001,7 @@ LDCTSMKR(TMGDFN,TEST,DATE,DATA,TEXT) ;
         . . . . SET FOUND=1
 LDDN    QUIT
         ;"
-GETHFGRP(DFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by a given hf group
+GETHFGRP(TMGDFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by a given hf group
         ;"Purpose:
         ;"Input:
         ;"Output:
@@ -1009,16 +1009,16 @@ GETHFGRP(DFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by 
         SET HFIEN=0
         FOR  SET HFIEN=$ORDER(^AUTTHF("AC",HFGROUPIEN,HFIEN)) QUIT:HFIEN'>0  DO
         . SET DATE=0
-        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",DFN,HFIEN,DATE)) QUIT:DATE'>0  DO
+        . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE)) QUIT:DATE'>0  DO
         . . SET TMGRESULTARR(9999999-DATE,HFIEN)=""
         QUIT
         ;"
-MCOGRSLT(DFN)  ;"
+MCOGRSLT(TMGDFN)  ;"
         NEW TMGRESULT SET TMGRESULT="Mini Cog Results = "
         NEW RESULTS,COUNT,MAX,HFTAG
         SET COUNT=0,MAX=3
         SET HFTAG(2318)="ABN",HFTAG(2347)="BRD",HFTAG(2317)="N"
-        DO GETHFGRP(DFN,2348,.RESULTS)
+        DO GETHFGRP(TMGDFN,2348,.RESULTS)
         NEW DATE SET DATE=9999999
         FOR  SET DATE=$O(RESULTS(DATE),-1) QUIT:(DATE'>0)!(COUNT>MAX)  DO
         . NEW HFIEN SET HFIEN=$O(RESULTS(DATE,0))
@@ -1029,7 +1029,7 @@ MCOGRSLT(DFN)  ;"
         . SET COUNT=COUNT+1
         QUIT TMGRESULT
         ;"
-FLUREM(DFN,TEST,DATE,DATA,TEXT) ;"Return whether flu reminder should be active
+FLUREM(TMGDFN,TEST,DATE,DATA,TEXT) ;"Return whether flu reminder should be active
         ;"Purpose: Determine whether a flu reminder should be active
         ;"Input: See discussion above for details.
         ;"Output: TEST=1 or 0
@@ -1054,20 +1054,20 @@ REPORT
        use IO
        WRITE "PATIENTS WITH MEDICARE WHO ARE DIABETIC",!
        WRITE "BASED ON PRIMARY INSURANCE AND CPRS NOTE TOPICS",!
-       NEW DFN SET DFN=0
+       NEW TMGDFN SET TMGDFN=0
        NEW TEST,DATE,DATA,TEXT
-       FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:+DFN'>0  DO
-       . DO PTHASDM(DFN,.TEST,.DATE,.DATA,.TEXT)
+       FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:+TMGDFN'>0  DO
+       . DO PTHASDM(TMGDFN,.TEST,.DATE,.DATA,.TEXT)
        . IF TEST=0 QUIT
-       . IF $$EXCLUDE^TMGC0QTU(DFN)=1 QUIT
-       . WRITE "[ ] ",$PIECE($GET(^DPT(DFN,0)),"^",1),!
+       . IF $$EXCLUDE^TMGC0QTU(TMGDFN)=1 QUIT
+       . WRITE "[ ] ",$PIECE($GET(^DPT(TMGDFN,0)),"^",1),!
        DO ^%ZISC  ;" Close the output device
        DO PRESS2GO^TMGUSRI2
        QUIT
        ;"
 HTNMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient is on HTN medication
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1178,7 +1178,7 @@ HTNGOAL(TMGDFN,GOAL)  ;"Determine HTN Goal based on JNC8
         ;"
 LIPIDMED(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient is on lipid medication
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1203,7 +1203,7 @@ LIPIDMED(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"
 DMMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient is on DM medication
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1224,7 +1224,7 @@ DMMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"
 PTOWBMI(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient's BMI is overweight
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1237,7 +1237,7 @@ PTOWBMI(TMGDFN,TEST,DATE,DATA,TEXT) ;
         SET TEST=0
         SET DATE=0
         NEW X DO NOW^%DTC
-        NEW BMI SET BMI=$$ONEVITAL^TMGTIUOJ(+$GET(DFN),.TIU,"BMI")
+        NEW BMI SET BMI=$$ONEVITAL^TMGTIUOJ(+$GET(TMGDFN),.TIU,"BMI")
         IF BMI>25 DO
         . SET TEST=1
         . SET DATE=$$TODAY^TMGDATE
@@ -1456,7 +1456,7 @@ PTCKD2(TMGDFN,TEST,DATE,DATA,TEXT)  ;" Determines the patient's CKD
         ;"
 PTHASCKD(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient has CKD
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1477,7 +1477,7 @@ PTHASCKD(TMGDFN,TEST,DATE,DATA,TEXT) ;
 
 PATPICS(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return when the patient's last picture was
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1500,7 +1500,7 @@ PATPICS(TMGDFN,TEST,DATE,DATA,TEXT)  ;
 P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Return true is patient is scheduled for physical
         ;"         or 1 yr check for date provided
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       NGET -- the number of findings to search for
         ;"       BDT -- the beginning date and time for the finding search
         ;"       EDT -- the ending date and time for the finding search
@@ -1521,7 +1521,7 @@ P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         SET NFOUND=0
         NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
         IF AGE<18 QUIT
-        NEW APPTSTR SET APPTSTR="PHYSICAL^1 YR CHECK^WELL CPE^OFFICE VISIT^MO CHECK^OFF VISIT"
+        NEW APPTSTR SET APPTSTR="PHYSICAL^1 YR CHECK^WELL CPE^OFFICE VISIT^MO CHECK^OFF VISIT^AWV^TH-AWV^ANNUAL^MEDANNUAL"
         NEW APPTREASON,THISDATE,APPTDATE
         ;"SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY
         SET THISDATE=$P(EDT,".",1),APPTDATE=THISDATE
@@ -1543,9 +1543,9 @@ P9COHORT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         . . . ;"SET DATE=APPTDATE
         QUIT
         ;"
-AWVCOHRT(TMGDFN,TEST,DATE,DATA,TEXT) ;
+AWVCOHRT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Return true if patient is scheduled for annual wellness visit
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"                1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1560,9 +1560,10 @@ AWVCOHRT(TMGDFN,TEST,DATE,DATA,TEXT) ;
         SET NFOUND=0
         NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
         IF AGE<18 QUIT
-        NEW APPTSTR SET APPTSTR="AWV^ANNUAL^MEDANNUAL"
+        NEW APPTSTR SET APPTSTR="AWV^TH-AWV^ANNUAL^MEDANNUAL"
         NEW APPTREASON,THISDATE,APPTDATE
-        SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY,THISDATE=TODAY
+        ;"SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY,THISDATE=TODAY
+        SET THISDATE=$P(EDT,".",1),APPTDATE=THISDATE
         FOR  SET APPTDATE=$O(^TMG(22723,"DT",APPTDATE)) QUIT:(APPTDATE'[THISDATE)!(APPTDATE'>0)  DO
         . NEW APPTDFN SET APPTDFN=0
         . FOR  SET APPTDFN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN)) QUIT:APPTDFN'>0  DO
@@ -1571,14 +1572,58 @@ AWVCOHRT(TMGDFN,TEST,DATE,DATA,TEXT) ;
         . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDATE,APPTDFN,APPTIEN))
         . . IF STATUS="C" QUIT
         . . NEW REASON SET REASON=$P($G(^TMG(22723,APPTDFN,1,APPTIEN,0)),"^",4)
+        . . IF REASON["MO CHECK" SET REASON="MO CHECK"
         . . IF APPTSTR[REASON DO
-        . . . SET TEST=1
-        . . . SET DATE=APPTDATE
+        . . . IF NGET=NFOUND QUIT
+        . . . SET NFOUND=NFOUND+1
+        . . . SET TEST(NFOUND)=1
+        . . . SET DATE(NFOUND)=APPTDATE
+        . . . ;"SET TEST=1
+        . . . ;"SET DATE=APPTDATE
         QUIT
-        ;"        
+        ;" 
+AWVORCPE(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Return true if patient is scheduled for annual wellness visit or CPE
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;"                FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"            (NOTE: There is no need to SET the unsubscripted
+        ;"                   values of TEST and DATE in a multi-occurrence
+        ;"                   computed finding.)
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"SET TEST=0,DATE=0,
+        SET NFOUND=0
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        IF AGE<18 QUIT
+        NEW APPTSTR SET APPTSTR="AWV^TH-AWV^ANNUAL^MEDANNUAL^PHYSICAL^1 YR CHECK^WELL CPE"
+        NEW APPTREASON,THISDATE,APPTDATE
+        ;"SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY,THISDATE=TODAY
+        SET THISDATE=$P(EDT,".",1),APPTDATE=THISDATE
+        FOR  SET APPTDATE=$O(^TMG(22723,"DT",APPTDATE)) QUIT:(APPTDATE'[THISDATE)!(APPTDATE'>0)  DO
+        . NEW APPTDFN SET APPTDFN=0
+        . FOR  SET APPTDFN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN)) QUIT:APPTDFN'>0  DO
+        . . IF APPTDFN'=TMGDFN QUIT
+        . . NEW APPTIEN SET APPTIEN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN,0))
+        . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDATE,APPTDFN,APPTIEN))
+        . . IF STATUS="C" QUIT
+        . . NEW REASON SET REASON=$P($G(^TMG(22723,APPTDFN,1,APPTIEN,0)),"^",4)
+        . . IF REASON["MO CHECK" SET REASON="MO CHECK"
+        . . IF APPTSTR[REASON DO
+        . . . IF NGET=NFOUND QUIT
+        . . . SET NFOUND=NFOUND+1
+        . . . SET TEST(NFOUND)=1
+        . . . SET DATE(NFOUND)=APPTDATE
+        . . . ;"SET TEST=1
+        . . . ;"SET DATE=APPTDATE
+        QUIT
+        ;"          
 P9RESOLV(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Resolution logic for PHQ-9 reminder
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1594,7 +1639,7 @@ P9RESOLV(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"
 MCRESOLV(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Resolution logic for mini cog reminder
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1619,14 +1664,14 @@ NEGHPV(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
         
         QUIT
         ;"
-MRFNDN(DFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
+MRFNDN(TMGDFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
         ;"This returns name^date
         NEW DATE SET DATE=0
         NEW TMGRESULT SET TMGRESULT=""
         NEW HFNAME SET HFNAME=""
         FOR  SET HFNAME=$O(HFARRAY(HFNAME)) QUIT:HFNAME=""  DO
         . NEW HFIEN SET HFIEN=$G(HFARRAY(HFNAME))
-        . NEW TEMPDATE SET TEMPDATE=$$MRDFN^TMGPXR03(DFN,HFIEN)
+        . NEW TEMPDATE SET TEMPDATE=$$MRDFN^TMGPXR03(TMGDFN,HFIEN)
         . IF TEMPDATE>DATE DO
         . . SET TMGRESULT=HFNAME
         . . SET DATE=TEMPDATE
@@ -1636,7 +1681,7 @@ MRFNDN(DFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
 GETEGDFU(TMGDFN,TEST,DATE,DATA,TEXT)  ;"  
         ;"GERDMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Determine if patient is on GERD medication
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED
@@ -1835,7 +1880,7 @@ INRDN
 LSTCTORD(TMGDFN)  ;"
         ;"Return date of last low dose Chest CT Ordered
         NEW TMGRESULT,HFARRAY SET TMGRESULT=""
-        NEW CTDATE SET CTDATE=$$GETHFDT^TMGPXRU1(.DFN,"TMG LOW DOSE CT ORDERED",.HFARRAY)
+        NEW CTDATE SET CTDATE=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG LOW DOSE CT ORDERED",.HFARRAY)
         NEW COUNT SET COUNT=0
         NEW DATE SET DATE=9999999
         FOR  SET DATE=$ORDER(HFARRAY(DATE),-1) QUIT:(DATE="")!(COUNT>1)  DO
@@ -1898,7 +1943,7 @@ LIPIDTOP(TMGDFN,TEST,DATE,DATA,TEXT)   ;
         ;"         It is true if pt doesn't have lipid topic AND has HTN or DM
         ;"              or LDL is > 160
         ;"         Will search the TMG TIU
-        ;"Input: DFN -- the patient IEN
+        ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
         ;"               1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED

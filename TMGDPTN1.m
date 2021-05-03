@@ -1,4 +1,4 @@
-TMGDPTN1 ;BPOIFO/KEITH - NAME STANDARDIZATION ; 27 Jan 2002 11:05 PM, 2/2/14; 6/23/15 (kt)
+TMGDPTN1 ;BPOIFO/KEITH - NAME STANDARDIZATION ; 27 Jan 2002 11:05 PM, 2/2/14; 6/23/15 (kt), 3/24/21
          ;;1.0;TMG-LIB;**1**;2/15/15
         ;;5.3;Registration;**244**;Aug 13, 1993
         ;
@@ -119,8 +119,8 @@ NARY(DG20NAME)        ;Set up name array
         S DG20NAME("NOTES")=$$NOTES^TMGDPTN2()
         Q
         ;
-NCEDIT(DFN,DGHDR,DG20NAME)        ;Edit name components
-        ;Input: DFN=patient ifn
+NCEDIT(TMGDFN,DGHDR,DG20NAME)        ;Edit name components
+        ;Input: TMGDFN=patient ifn
         ;     DGHDR=1 to WRITE components header (optional)
         ;  DG20NAME=array of name components (optional)
         ;Output: formatted name and DG20NAME components array IF the user
@@ -129,14 +129,14 @@ NCEDIT(DFN,DGHDR,DG20NAME)        ;Edit name components
         N DIR,X,Y,DGCOMP,DGC,DGI,DGX,DGY,DGCOM
         N DGCL,DGCX,DGOUT,DGEDIT,%,DIE,DR,DA
         ;Initialize variables
-START        S DFN=+DFN,(DGOUT,DGEDIT)=0,DGCOMP=$D(DG20NAME)>9
+START        S TMGDFN=+TMGDFN,(DGOUT,DGEDIT)=0,DGCOMP=$D(DG20NAME)>9
         S DGCOM="FAMILY^GIVEN^MIDDLE^PREFIX^SUFFIX^DEGREE"
         S DGCX=" (LAST) NAME^ (FIRST) NAME^ NAME"
         S DGCL="1:35^1:25^1:25^1:10^1:10^1:10"
         ;Get patient name
-        S DGX=$P($G(^DPT(DFN,0)),U) Q:DGX=""
+        S DGX=$P($G(^DPT(TMGDFN,0)),U) Q:DGX=""
         ;Get name component values from file #20
-        I 'DGCOMP S DGCOMP=+$G(^DPT(DFN,"NAME"))_"," I DGCOMP D
+        I 'DGCOMP S DGCOMP=+$G(^DPT(TMGDFN,"NAME"))_"," I DGCOMP D
         .D GETS^DIQ(20,DGCOMP,"1:6",,"DGCOMP")
         .I '$D(DGCOMP(20,DGCOMP)) S DGCOMP=0 Q
         .F DGI=1:1:6 S DGX($P(DGCOM,U,DGI))=DGCOMP(20,DGCOMP,DGI)

@@ -1,4 +1,4 @@
-TMGHRPC5 ;SLC/GRE - General Utilities for Windows Calls [2/25/04 11:10am], 2/2/14
+TMGHRPC5 ;SLC/GRE - General Utilities for Windows Calls [2/25/04 11:10am], 2/2/14, 3/24/21
           ;;1.0;TMG-LIB;**1**;6/24/15
   ;;3.0;ORDER ENTRY/RESULTS REPORTING;**149,187,195,215**;Dec 17, 1997
  ;"NOTE: This file is a direct copy of ORWU1.m from the r directory.
@@ -222,12 +222,12 @@ NEWLOC(Y,ORFROM,DIR) ; Return "CZ" locations from HOSPITAL LOCATION file.
  . . S I=I+1,Y(I)=IEN_"^"_ORFROM
  Q
  ;
-GETRACE(TMGRESULT,DFN)  ;
+GETRACE(TMGRESULT,TMGDFN)  ;
         ;"Purpose: return the race abbreviation from the patient file, race
         ; information
         NEW RACEIEN SET RACEIEN=0
         SET TMGRESULT=" "
-        SET RACEIEN=$ORDER(^DPT(DFN,.02,RACEIEN))
+        SET RACEIEN=$ORDER(^DPT(TMGDFN,.02,RACEIEN))
         IF RACEIEN'>0 GOTO GRDN
         SET TMGRESULT=$PIECE($GET(^DIC(10,RACEIEN,0)),"^",2)
 GRDN    QUIT

@@ -1,4 +1,4 @@
-TMGSEQL8 ;TMG/KST - Handle insurance importing (From SequelPMS);11/06/17
+TMGSEQL8 ;TMG/KST - Handle insurance importing (From SequelPMS);11/06/17, 3/24/21
         ;;1.0;TMG-LIB;**1**; 11/6/17
        ;
  ;"TMG SEQUEL PMS FUNCTIONS -- Importing insurances
@@ -27,18 +27,18 @@ TMGSEQL8 ;TMG/KST - Handle insurance importing (From SequelPMS);11/06/17
  ;" TMGIOUTL,TMGSEQE1,TMGIOUT4
  ;"=======================================================================
  ;
-ENSURINS(SHORTNAME,PLANID,COB,DFN)  ;"Ensure insurance name is a valid record, and link to patient.
+ENSURINS(SHORTNAME,PLANID,COB,TMGDFN)  ;"Ensure insurance name is a valid record, and link to patient.
   ;"Input: SHORTNAME - Name of insurance
   ;"       PLANID - Patient's ID
   ;"       COB - Coordination of benefits
-  ;"       DFN -- Patient IEN
+  ;"       TMGDFN -- Patient IEN
   ;"Result: 1 if OK, or -1^Message if problem.
   ;"NEW SHORTNAME SET SHORTNAME=$GET(CSV(1))
   ;"NEW PLANID SET PLANID=$GET(CSV(20))
   NEW TMGRESULT SET TMGRESULT=1
-  ;"NEW DFN SET DFN=+$GET(OUT("DFN"))
-  ;"IF DFN'>0 SET DFN=+$GET(INDFN)
-  IF DFN'>0 DO  GOTO ENSDN
+  ;"NEW TMGDFN SET TMGDFN=+$GET(OUT("DFN"))
+  ;"IF TMGDFN'>0 SET TMGDFN=+$GET(INDFN)
+  IF TMGDFN'>0 DO  GOTO ENSDN
   . SET TMGRESULT="-1^Patient DFN not provided to ENSURINS^TMGSEQL5"
   NEW IEN36 SET IEN36=+$ORDER(^DIC(36,"C",SHORTNAME,0))
   IF IEN36>0 GOTO ENIS1
@@ -60,12 +60,12 @@ ENSURINS(SHORTNAME,PLANID,COB,DFN)  ;"Ensure insurance name is a valid record, a
   IF $DATA(TMGMSG("DIERR")) DO  GOTO ENSDN
   . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
 ENIS1  ;"ENSURE PATIENT IS LINKED TO INSURANCE COMPANY
-  NEW SUBIEN SET SUBIEN=+$ORDER(^DPT(DFN,.312,"B",IEN36,0))
+  NEW SUBIEN SET SUBIEN=+$ORDER(^DPT(TMGDFN,.312,"B",IEN36,0))
   NEW SUBRECPLANID SET SUBRECPLANID=""
   IF SUBIEN>0 GOTO ENIS2
   ;"ADD INSURANCE SUBRECORD
   KILL TMGFDA,TMGIEN,TMGMSG
-  SET TMGFDA(2.312,"+1,"_DFN_",",.01)=IEN36
+  SET TMGFDA(2.312,"+1,"_TMGDFN_",",.01)=IEN36
   DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO  GOTO ENSDN
   . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
@@ -75,7 +75,7 @@ ENIS1  ;"ENSURE PATIENT IS LINKED TO INSURANCE COMPANY
 ENIS2  ;"ENSURE SUBFILE RECORD HAS MATCHING PLAN ID
   ;"NOTE: FIELD 1,'SUBSCRIBER ID' is marked for deletion as of 2015
   ;"  So I am going to use 5.01 'PATIENT ID' to store Sequel plan ID
-  SET SUBRECPLANID=$PIECE($GET(^DPT(DFN,.312,SUBIEN,5)),"^",1)
+  SET SUBRECPLANID=$PIECE($GET(^DPT(TMGDFN,.312,SUBIEN,5)),"^",1)
   IF SUBRECPLANID=PLANID GOTO ENIS3
   ;"Here I will just put the plan ID in that Sequel provides.
   ;"But if the changes in the future, should a new subrecord be
@@ -100,10 +100,10 @@ ENIS3 ;
 ENSDN
   QUIT TMGRESULT
   ;
-DELINS(DFN)  ;" Delete all insurances
+DELINS(TMGDFN)  ;" Delete all insurances
   NEW INSIDX SET INSIDX=0
-  FOR  SET INSIDX=$ORDER(^DPT(DFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
-  . SET TMGFDA(2.312,INSIDX_","_DFN_",",.01)="@"
+  FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+  . SET TMGFDA(2.312,INSIDX_","_TMGDFN_",",.01)="@"
   . DO FILE^DIE("E","TMGFDA","TMGMSG")
   QUIT
   ;"

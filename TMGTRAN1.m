@@ -1,4 +1,4 @@
-TMGTRAN1 ;TMG/kst/TRANSCRIPTION REPORT FUNCTIONS -- UI ;03/25/06, 8/8/10, 2/2/14
+TMGTRAN1 ;TMG/kst/TRANSCRIPTION REPORT FUNCTIONS -- UI ;03/25/06, 8/8/10, 2/2/14, 3/24/21
          ;;1.0;TMG-LIB;**1**;09/01/05
 
  ;" TRANSCRIPTION REPORT FUNCTIONS
@@ -754,7 +754,7 @@ PRINT(DocArray) ; Prompt and print, or array
         ;"                DocArray(1236)=1236  with 1235 being IEN of document to be printed.
         ;"              Note: Is appears that DocArray(IEN)="" is the needed format.
 
-        New TIUDEV,TIUTYP,DFN,TIUPMTHD,TIUD0,TIUMSG,TIUPR,TIUDARR,TIUDPRM
+        New TIUDEV,TIUTYP,TMGDFN,TIUPMTHD,TIUD0,TIUMSG,TIUPR,TIUDARR,TIUDPRM
         NEW TIUFLAG SET TIUFLAG="x"
         New TIUPGRP,TIUPFHDR,TIUPFNBR
 
@@ -767,7 +767,7 @@ PRINT(DocArray) ; Prompt and print, or array
         . If $Get(^TIU(8925,DocIEN,21)) Set DocIEN=^TIU(8925,DocIEN,21)
         . Set TIUD0=$Get(^TIU(8925,DocIEN,0))
         . Set TIUTYP=$Piece(TIUD0,U)
-        . Set DFN=$Piece(TIUD0,U,2)
+        . Set TMGDFN=$Piece(TIUD0,U,2)
         . If +TIUTYP'>0 Quit
         . ;
         . Set TIUPMTHD=$$PRNTMTHD^TIULG(+TIUTYP)
@@ -780,8 +780,8 @@ PRINT(DocArray) ; Prompt and print, or array
         . If +$Piece($Get(TIUDPRM(0)),U,9) do
         . . IF TIUFLAG="x" Set TIUFLAG=$$FLAG^TIUPRPN3 ;"Asks Chart vs. Work Copy? only ONCE
         . If ($Get(TIUPMTHD)]"")&(+$Get(TIUPGRP))&($Get(TIUPFHDR)]"")&($Get(TIUPFNBR)]"") do
-        . . Set TIUDARR(TIUPMTHD,$Get(TIUPGRP)_"$"_TIUPFHDR_";"_DFN,1,DocIEN)=TIUPFNBR
-        . Else  Set TIUDARR(TIUPMTHD,DFN,1,DocIEN)=""
+        . . Set TIUDARR(TIUPMTHD,$Get(TIUPGRP)_"$"_TIUPFHDR_";"_TMGDFN,1,DocIEN)=TIUPFNBR
+        . Else  Set TIUDARR(TIUPMTHD,TMGDFN,1,DocIEN)=""
         . ;
         . If $Get(TIUPMTHD)']"" DO  ;"Goto PRINT1X
         . . IF OPTIONS("DETAILS")=1 do

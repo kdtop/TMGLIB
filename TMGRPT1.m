@@ -1,4 +1,4 @@
-TMGRPT1 ;TMG/kst/Misc Reports;8/14/13, 2/2/14, 10/12/16, 5/8/17
+TMGRPT1 ;TMG/kst/Misc Reports;8/14/13, 2/2/14, 10/12/16, 5/8/17, 3/24/21
          ;;1.0;TMG-LIB;**1**;05/01/09
 
  ;"TMG MISCELLANEOUS FUNCTIONS
@@ -24,7 +24,7 @@ TMGRPT1 ;TMG/kst/Misc Reports;8/14/13, 2/2/14, 10/12/16, 5/8/17
  ;"CNSLTRPT(RECORDS,MAKENOTES) -- report of outstanding consults and extract schedule
  ;"ASKCNRPT --  interactive entry point for Consult report, asking for device 
  ;"DEVCNRPT -- NON-interactive entry point for Consult report 
- ;"MRNOTE(RESULT,DFN,DOS,SPECIALTY) -- Automatically create TIU note for sent records and sign
+ ;"MRNOTE(RESULT,TMGDFN,DOS,SPECIALTY) -- Automatically create TIU note for sent records and sign
  ;"ASKMRRPT -- interactive entry point for MR report
  ;"ALLINRS -- diaplay all patient's PT/INR TIU Notes for the past year for verification of Sequel charges
  ;"PRTPAINR -- Non-interactive entry point for Pain report
@@ -165,27 +165,27 @@ UNSCH
        WRITE "************************************************************",!
        WRITE "              Unscheduled  mammograms",!
        WRITE "************************************************************",!,!
-       NEW DFN,UNSCHEDULEARR SET DFN=0
+       NEW TMGDFN,UNSCHEDULEARR SET TMGDFN=0
        NEW TODAY,X,Y DO NOW^%DTC SET TODAY=X
-       FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:DFN'>0  DO
-       . IF $$ACTIVEPT^TMGPXR03(DFN)'=1 QUIT
-       . NEW AGE K VADM SET AGE=$$AGE^TIULO(DFN)
+       FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
+       . IF $$ACTIVEPT^TMGPXR03(TMGDFN)'=1 QUIT
+       . NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
        . IF +AGE>75 QUIT
        . IF +AGE<64 QUIT
        . ;"GET LAST VISIT DATE
        . NEW LASTDT,VSTIEN SET LASTDT=0,VSTIEN=0
-       . FOR  SET VSTIEN=$ORDER(^TMG(22723,DFN,1,VSTIEN)) QUIT:VSTIEN'>0  DO
-       . . NEW VSTDATE SET VSTDATE=$P($G(^TMG(22723,DFN,1,VSTIEN,0)),"^",1)
+       . FOR  SET VSTIEN=$ORDER(^TMG(22723,TMGDFN,1,VSTIEN)) QUIT:VSTIEN'>0  DO
+       . . NEW VSTDATE SET VSTDATE=$P($G(^TMG(22723,TMGDFN,1,VSTIEN,0)),"^",1)
        . . IF VSTDATE>TODAY QUIT
        . . IF LASTDT<VSTDATE SET LASTDT=VSTDATE
        . IF LASTDT=0 QUIT
        . SET Y=LASTDT X ^DD("DD") SET LASTDT=Y
-       . NEW REMRESULT SET REMRESULT=$$DOREM^TMGPXR03(DFN,224,5,$$TODAY^TMGDATE)
+       . NEW REMRESULT SET REMRESULT=$$DOREM^TMGPXR03(TMGDFN,224,5,$$TODAY^TMGDATE)
        . IF REMRESULT["DUE NOW" DO
-       . . IF $D(IENLIST(DFN)) DO
-       . . . ;"skip  SET UNSCHEDULEARR($P($G(^DPT(DFN,0)),"^",1))="SCHEDULED AS ABOVE"
+       . . IF $D(IENLIST(TMGDFN)) DO
+       . . . ;"skip  SET UNSCHEDULEARR($P($G(^DPT(TMGDFN,0)),"^",1))="SCHEDULED AS ABOVE"
        . . ELSE  DO
-       . . . SET UNSCHEDULEARR($P($G(^DPT(DFN,0)),"^",1))=$P(REMRESULT,"^",2,999)_"^"_LASTDT
+       . . . SET UNSCHEDULEARR($P($G(^DPT(TMGDFN,0)),"^",1))=$P(REMRESULT,"^",2,999)_"^"_LASTDT
        ;"
        NEW NAME SET NAME=""
        FOR  SET NAME=$ORDER(UNSCHEDULEARR(NAME)) QUIT:NAME=""  DO
@@ -245,11 +245,11 @@ COUMARPT ;
         WRITE "************************************************************",!
         WRITE "                                            (From TMGRPT1.m)",!!
         NEW CPIEN SET CPIEN=""
-        NEW DFN,TIUIEN,TIUDATE,PTNAME,ACTIVE
+        NEW TMGDFN,TIUIEN,TIUDATE,PTNAME,ACTIVE
         NEW X1,X2
         WRITE "--------------------- OLD SYSTEM ---------------------",!
         FOR  SET CPIEN=+$ORDER(^VEFA(19009,"C",COUMADINIEN,CPIEN)) QUIT:(CPIEN'>0)  DO
-        . SET DFN=+$PIECE($GET(^VEFA(19009,CPIEN,0)),"^",1)
+        . SET TMGDFN=+$PIECE($GET(^VEFA(19009,CPIEN,0)),"^",1)
         . SET TIUIEN=$ORDER(^VEFA(19009,CPIEN,3,"B",""),-1)
         . SET TIUDATE=$$GET1^DIQ(8925,TIUIEN,.07,"I")
         . SET ACTIVE=$PIECE($GET(^VEFA(19009,CPIEN,0)),"^",5)
@@ -259,9 +259,9 @@ COUMARPT ;
         . IF (X<180)&(X>45)&(ACTIVE="Y") DO
         . . SET Y=TIUDATE
         . . DO DD^%DT
-        . . SET PTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+        . . SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
         . . IF ($PIECE(PTNAME,",",1)'["ZZTEST")&($PIECE(PTNAME,",",1)'["TEST ")&($PIECE(PTNAME,",",1)'="TEST")  DO
-        . . . WRITE PTNAME,"(",DFN,")",!
+        . . . WRITE PTNAME,"(",TMGDFN,")",!
         . . . WRITE "            Last Check: ",Y," (",X/7\1," WKS AGO)",!
         . . . WRITE "     ------------- ",!
         WRITE !
@@ -273,25 +273,25 @@ NEWCOUMA ;
        NEW DATE SET DATE=$$TODAY^TMGDATE
        WRITE "--------------------- NEW SYSTEM ---------------------",!
        FOR  SET DATE=$O(^ORAM(103,"L",DATE),-1) QUIT:DATE'>0  DO
-       . NEW DFN SET DFN=0
-       . FOR  SET DFN=$O(^ORAM(103,"L",DATE,DFN)) QUIT:DFN'>0  DO
-       . . IF $$ACTIVEPT^TMGPXR03(DFN)'=1 QUIT
-       . . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+       . NEW TMGDFN SET TMGDFN=0
+       . FOR  SET TMGDFN=$O(^ORAM(103,"L",DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . IF $$ACTIVEPT^TMGPXR03(TMGDFN)'=1 QUIT
+       . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
        . . IF NAME["ZZ" QUIT
-       . . WRITE NAME,"(",DFN,")",!
+       . . WRITE NAME,"(",TMGDFN,")",!
        . . WRITE "            Was Due On ",$$EXTDATE^TMGDATE(DATE),!
        . . WRITE "     ------------- ",!
-       NEW DFN SET DFN=0
-       FOR  SET DFN=$O(^ORAM(103,DFN)) QUIT:DFN'>0  DO
+       NEW TMGDFN SET TMGDFN=0
+       FOR  SET TMGDFN=$O(^ORAM(103,TMGDFN)) QUIT:TMGDFN'>0  DO
        . NEW LASTDATE 
-       . SET LASTDATE=$O(^ORAM(103,DFN,3,"B",9999999),-1)
+       . SET LASTDATE=$O(^ORAM(103,TMGDFN,3,"B",9999999),-1)
        . NEW DAYSDIFF SET DAYSDIFF=$$DAYSDIFF^TMGDATE($$TODAY^TMGDATE,LASTDATE)
        . IF DAYSDIFF>44 DO
-       . . IF $$ACTIVEPT^TMGPXR03(DFN)'=1 QUIT
-       . . IF $$UP^XLFSTR($P($G(^ORAM(103,DFN,0)),"^",7))="COMPLETED" QUIT
-       . . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+       . . IF $$ACTIVEPT^TMGPXR03(TMGDFN)'=1 QUIT
+       . . IF $$UP^XLFSTR($P($G(^ORAM(103,TMGDFN,0)),"^",7))="COMPLETED" QUIT
+       . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
        . . IF NAME["ZZ" QUIT
-       . . WRITE NAME,"(",DFN,")",!
+       . . WRITE NAME,"(",TMGDFN,")",!
        . . WRITE "            Was Last Done On ",$$EXTDATE^TMGDATE(LASTDATE),"(",DAYSDIFF," ago)",!
        . . WRITE "     ------------- ",!
        QUIT
@@ -388,7 +388,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        DO C^%DTC
        IF RECORDS>0 SET dueDate=X
        ELSE  SET dueDate=""
-       SET X1=X,X2=7
+       SET X1=X,X2=14
        DO C^%DTC
        SET endDate=X+.999999
        ;"SET NowDate=3181231
@@ -411,14 +411,14 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        . . . DO MRNOTE(.RESULT,$p($p(s,"^",2),"-",2),$p(s,"^",3),$p(s,"^",4))
 CNSTDn QUIT
 	;
-MRNOTE(RESULT,DFN,DOS,SPECIALTY)  ;
+MRNOTE(RESULT,TMGDFN,DOS,SPECIALTY)  ;
        ;"Purpose: Automatically create TIU note for sent records and sign
        NEW DOCIEN
-       SET DFN=+$GET(DFN),DOS=$GET(DOS)
+       SET TMGDFN=+$GET(TMGDFN),DOS=$GET(DOS)
        SET RESULT="-1^ERROR"
-       IF DFN'>0 GOTO MNDN
+       IF TMGDFN'>0 GOTO MNDN
        IF DOS=0 GOTO MNDN
-       DO BLANKTIU^TMGRPC1(.RESULT,DFN,"HAGOOD,EDDIE",6,DOS,"RECORDS SENT")
+       DO BLANKTIU^TMGRPC1(.RESULT,TMGDFN,"HAGOOD,EDDIE",6,DOS,"RECORDS SENT")
        IF RESULT>0 DO SEND^TIUALRT(RESULT)
        SET DOCIEN=RESULT
        IF DOCIEN'>0 GOTO MNDN
@@ -511,7 +511,7 @@ ALLINRS ;
 AIDn   QUIT
        ;"
 GETINRS  ;
-       NEW DOCTYPE,TIUIEN,DFN,TIUDATE,INRIEN,NOWDATE,YEARAGODT
+       NEW DOCTYPE,TIUIEN,TMGDFN,TIUDATE,INRIEN,NOWDATE,YEARAGODT
        NEW RESULTARR,X,X1,X2
        DO NOW^%DTC SET NOWDATE=X
        SET X1=NOWDATE,X2=-365
@@ -520,16 +520,16 @@ GETINRS  ;
        FOR  SET TIUIEN=$ORDER(^TIU(8925,"B",INRIEN,TIUIEN)) QUIT:TIUIEN'>0  DO
        . NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
        . SET TIUDATE=$PIECE(ZN,"^",7)
-       . SET DFN=$PIECE(ZN,"^",2)
+       . SET TMGDFN=$PIECE(ZN,"^",2)
        . IF TIUDATE>YEARAGODT DO
-       . . SET RESULTARR(DFN,TIUDATE)=""
-       SET DFN=0
-       FOR  SET DFN=$ORDER(RESULTARR(DFN)) QUIT:DFN'>0  DO
+       . . SET RESULTARR(TMGDFN,TIUDATE)=""
+       SET TMGDFN=0
+       FOR  SET TMGDFN=$ORDER(RESULTARR(TMGDFN)) QUIT:TMGDFN'>0  DO
        . SET TIUDATE=0
        . NEW PATIENTNAME
-       . SET PATIENTNAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . SET PATIENTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
        . WRITE "===== ",PATIENTNAME," ====",!
-       . FOR  SET TIUDATE=$ORDER(RESULTARR(DFN,TIUDATE)) QUIT:TIUDATE'>0  DO
+       . FOR  SET TIUDATE=$ORDER(RESULTARR(TMGDFN,TIUDATE)) QUIT:TIUDATE'>0  DO
        . . NEW Y SET Y=TIUDATE
        . . DO DD^%DT
        . . WRITE "  ->",Y,!
@@ -589,9 +589,9 @@ GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
        DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,BDATE,EDATE)
        QUIT
        ;" 
-PAINICD(DFN)
+PAINICD(TMGDFN)
        NEW ICD10,TMGTABLEARR,TMGTABLE SET ICD10="NOT ENTERED"
-       SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(DFN),"[PAIN MANAGEMENT]",.TMGTABLEARR)
+       SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(TMGDFN),"[PAIN MANAGEMENT]",.TMGTABLEARR)
        IF $DATA(TMGTABLEARR) DO
        . NEW ICDDATA SET ICDDATA=$$UP^XLFSTR($GET(TMGTABLEARR("KEY-VALUE","ICD-10 Treatment")))
        . IF ICDDATA'="" SET ICD10=ICDDATA 
@@ -619,10 +619,10 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        . NEW DATE SET DATE=0
        . WRITE "============= PATIENTS SCHEDULED, ON CONTROLLED SUBSTANCES ============",!
        . FOR  SET DATE=$ORDER(CSPTRESULT(DATE)) QUIT:DATE'>0  DO
-       . . NEW DFN SET DFN=0
-       . . FOR  SET DFN=$ORDER(CSPTRESULT(DATE,DFN)) QUIT:DFN'>0  DO
-       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-       . . . NEW ICD10 SET ICD10="ICD-10: "_$$PAINICD(DFN)
+       . . NEW TMGDFN SET TMGDFN=0
+       . . FOR  SET TMGDFN=$ORDER(CSPTRESULT(DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+       . . . NEW ICD10 SET ICD10="ICD-10: "_$$PAINICD(TMGDFN)
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?30,Y,?55,ICD10,!
        . WRITE !,!
@@ -632,10 +632,10 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        ;"IF +$G(CSDBRESULT(0))>0 DO
        ;". NEW DATE SET DATE=0
        ;". FOR  SET DATE=$ORDER(DUERESULT(DATE)) QUIT:DATE'>0  DO
-       ;". . NEW DFN SET DFN=0
-       ;". . FOR  SET DFN=$ORDER(DUERESULT(DATE,DFN)) QUIT:DFN'>0  DO
-       ;". . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-       ;". . . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+       ;". . NEW TMGDFN SET TMGDFN=0
+       ;". . FOR  SET TMGDFN=$ORDER(DUERESULT(DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       ;". . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+       ;". . . NEW DOB SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
        ;". . . SET Y=DOB DO DD^%DT SET DOB=Y
        ;". . . NEW APPT SET Y=DATE DO DD^%DT SET APPT=Y
        ;". . . WRITE "  - ",NAME," (",DOB,")",?40,APPT,!
@@ -649,15 +649,15 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        . WRITE "============= PATIENTS DUE FOR ",REMDISP," ============",!
        . NEW DATE SET DATE=0
        . FOR  SET DATE=$ORDER(REMRESULT(REMIEN,DATE)) QUIT:DATE'>0  DO
-       . . NEW DFN SET DFN=0
-       . . FOR  SET DFN=$ORDER(REMRESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
-       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-       . . . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+       . . NEW TMGDFN SET TMGDFN=0
+       . . FOR  SET TMGDFN=$ORDER(REMRESULT(REMIEN,DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+       . . . NEW DOB SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
        . . . SET Y=DOB DO DD^%DT SET DOB=Y
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME," (",DOB,")",?40,Y,!
        . . . IF REMIEN=272 DO
-       . . . . NEW SCHEDULED SET SCHEDULED=$$MAMSCHED(DFN)
+       . . . . NEW SCHEDULED SET SCHEDULED=$$MAMSCHED(TMGDFN)
        . . . . IF SCHEDULED'="" WRITE "       ["_SCHEDULED,"]",!
        . WRITE !!
        ;"
@@ -665,29 +665,29 @@ PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        WRITE "============= PATIENTS WITH OUT OF RANGE TSH ==================",!
        NEW PTARRAY,DATE
        DO GETSCHED^TMGPXR03(.PTARRAY,BDATE,EDATE)
-       NEW DFN SET DFN=0
-       FOR  SET DFN=$ORDER(PTARRAY(DFN)) QUIT:DFN'>0  DO
+       NEW TMGDFN SET TMGDFN=0
+       FOR  SET TMGDFN=$ORDER(PTARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
        . NEW RESULTS,TESTRESULT
-       . DO GETVALS^TMGLRR01(DFN_"^2",110,.RESULTS)  ;"TSH. THIS CAN BE EXPANDED TO OTHER TESTS THOUGH
+       . DO GETVALS^TMGLRR01(TMGDFN_"^2",110,.RESULTS)  ;"TSH. THIS CAN BE EXPANDED TO OTHER TESTS THOUGH
        . NEW TESTNAME,DATE SET TESTNAME=1
        . FOR  SET TESTNAME=$O(RESULTS(TESTNAME)) QUIT:+TESTNAME'>0  DO
        . . SET DATE=9999999
        . . SET DATE=$O(RESULTS(TESTNAME,DATE),-1)
        . . SET TESTRESULT=$G(RESULTS(TESTNAME,DATE))
        . . IF (TESTRESULT["H")!(TESTRESULT["L") DO
-       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?30,"had a TSH of ",TESTRESULT," on ",$P(Y,"@",1),!
        WRITE !,!
        ;"
        ;"Check for allergy lists that haven't been accessed
        WRITE "========= PATIENTS WITH UNACCESSED ALLERGY LISTS==============",!
-       SET DFN=0
-       FOR  SET DFN=$ORDER(PTARRAY(DFN)) QUIT:DFN'>0  DO
-       . NEW ALLERGIES SET ALLERGIES=$$ALLERGY^TMGTIUO3(DFN)
+       SET TMGDFN=0
+       FOR  SET TMGDFN=$ORDER(PTARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+       . NEW ALLERGIES SET ALLERGIES=$$ALLERGY^TMGTIUO3(TMGDFN)
        . IF (ALLERGIES["NEEDS ALLERGY ASSESSMENT")!(ALLERGIES="") DO
-       . . NEW NAME,DOB,Y SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
-       . . SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . NEW NAME,DOB,Y SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
+       . . SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
        . . SET Y=DOB DO DD^%DT SET DOB=Y
        . . WRITE "  - ",NAME," (",DOB,")",!
 PRTDN  QUIT
@@ -726,10 +726,10 @@ CSDBRPT   ;"CSMD report.
        NEW DATE SET DATE=0
        WRITE "          NAME",?28,"  DOB",?45," APPT DATE",!
        FOR  SET DATE=$ORDER(DUERESULT(DATE)) QUIT:DATE'>0  DO
-       . NEW DFN SET DFN=0
-       . FOR  SET DFN=$ORDER(DUERESULT(DATE,DFN)) QUIT:DFN'>0  DO
-       . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
-       . . NEW DOB SET DOB=$PIECE($GET(^DPT(DFN,0)),"^",3)
+       . NEW TMGDFN SET TMGDFN=0
+       . FOR  SET TMGDFN=$ORDER(DUERESULT(DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+       . . NEW DOB SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
        . . SET Y=DOB DO DD^%DT SET DOB=Y
        . . NEW APPT SET Y=DATE DO DD^%DT SET APPT=Y
        . . WRITE "[ ] ",NAME,?28,"(",DOB,")",?45,APPT,!
@@ -744,17 +744,17 @@ GETDBDUE(TMGRESULT,BEGDT,ENDDT)  ;"
        SET BEGDT=$GET(BEGDT),ENDDT=+$GET(ENDDT),COUNT=0
        IF ENDDT'>0 SET ENDDT=BEGDT
        DO GETSCHED^TMGPXR03(.PTARRAY,BEGDT,ENDDT)
-       NEW DFN SET DFN=0
-       FOR  SET DFN=$ORDER(PTARRAY(DFN)) QUIT:DFN'>0  DO
+       NEW TMGDFN SET TMGDFN=0
+       FOR  SET TMGDFN=$ORDER(PTARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
        . NEW MEDARRAY,OUT
-       . DO MEDLIST^TMGTIUOJ(.OUT,DFN,.MEDARRAY)
+       . DO MEDLIST^TMGTIUOJ(.OUT,TMGDFN,.MEDARRAY)
        . ;"Use old method for now since it includes the "NEEDS UPDATE" tag. 
        . ;"In future, research below method to find out why new way doesn't
        . ;"pull it, then use below method instead
-       . ;"DO MEDARR^TMGTIUOJ(.OUT,DFN,.MEDARRAY)   ;"//kt 5/7/18 
+       . ;"DO MEDARR^TMGTIUOJ(.OUT,TMGDFN,.MEDARRAY)   ;"//kt 5/7/18 
        . IF $GET(MEDARRAY("KEY-VALUE","*CSM-DATABASE REVIEW","LINE"))["NEEDS UPDATE" DO
        . . SET COUNT=COUNT+1
-       . . SET TMGRESULT($ORDER(PTARRAY(DFN,0)),DFN)=""
+       . . SET TMGRESULT($ORDER(PTARRAY(TMGDFN,0)),TMGDFN)=""
        SET TMGRESULT(0)=COUNT
        QUIT
        ;"
@@ -776,7 +776,7 @@ DEEMEDPT()  ;"
        NEW IDX SET IDX=0
        NEW PTARRAY
        FOR  SET IDX=$ORDER(^TIU(8925,"CA",83,IDX)) QUIT:IDX'>0  DO
-       . NEW ZN,DFN,DATE,INS,INSIDX,INCLUDE,NOTEIEN
+       . NEW ZN,TMGDFN,DATE,INS,INSIDX,INCLUDE,NOTEIEN
        . SET ZN=$GET(^TIU(8925,IDX,0))
        . SET DATE=$P(ZN,"^",7)
        . ;"WRITE DATE,!
@@ -784,15 +784,15 @@ DEEMEDPT()  ;"
        . SET NOTEIEN=$P(ZN,"^",1)
        . ;"WRITE NOTEIEN,!
        . IF (NOTEIEN'=1408)&(NOTEIEN'=1399)&(NOTEIEN'=1402)&(NOTEIEN'=1983)&(NOTEIEN'=6)&(NOTEIEN'=7) QUIT
-       . SET DFN=$P(ZN,"^",2)
+       . SET TMGDFN=$P(ZN,"^",2)
        . SET INSIDX=0,INCLUDE=0
-       . FOR  SET INSIDX=$ORDER(^DPT(DFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
-       . . NEW INSIEN SET INSIEN=$GET(^DPT(DFN,.312,INSIDX,0))
+       . FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+       . . NEW INSIEN SET INSIEN=$GET(^DPT(TMGDFN,.312,INSIDX,0))
        . . IF INSIEN=3 SET INCLUDE=1
        . IF INCLUDE=0 QUIT
-       . NEW NAME SET NAME=$P($G(^DPT(DFN,0)),"^",1)
+       . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
        . NEW ICDIEN SET ICDIEN=0
-       . FOR  SET ICDIEN=$ORDER(^AUPNVPOV("C",DFN,ICDIEN)) QUIT:+ICDIEN'>0  DO
+       . FOR  SET ICDIEN=$ORDER(^AUPNVPOV("C",TMGDFN,ICDIEN)) QUIT:+ICDIEN'>0  DO
        . . NEW ZN SET ZN=$GET(^AUPNVPOV(ICDIEN,0)) QUIT:ZN=""
        . . NEW VSTIEN SET VSTIEN=+$PIECE(ZN,"^",3) QUIT:VSTIEN'>0
        . . NEW VSTZN SET VSTZN=$GET(^AUPNVSIT(VSTIEN,0)) QUIT:VSTZN=""
@@ -841,22 +841,22 @@ PT2BINAC()   ;" Print a list of patients who should be inactivated
        WRITE "                                        (From TMGRPT1.m)",!!
        WRITE " ",!
        WRITE "PATIENT",?25,"LAST OV NOTE",?47,"DISCHARGE ?",!
-       NEW DFN,PTARRAY,NOVISITARRAY SET DFN=0
-       FOR  SET DFN=$ORDER(^DPT(DFN)) QUIT:DFN'>0  DO
-       . IF $$ACTIVEPT^TMGPXR03(DFN)'=1 QUIT
+       NEW TMGDFN,PTARRAY,NOVISITARRAY SET TMGDFN=0
+       FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
+       . IF $$ACTIVEPT^TMGPXR03(TMGDFN)'=1 QUIT
        . ;"GET LAST VISIT DATE
        . NEW LASTDT,VSTIEN SET LASTDT=0,VSTIEN=0
-       . FOR  SET VSTIEN=$ORDER(^TMG(22723,DFN,1,VSTIEN)) QUIT:VSTIEN'>0  DO
-       . . NEW VSTDATE SET VSTDATE=$P($G(^TMG(22723,DFN,1,VSTIEN,0)),"^",1)
+       . FOR  SET VSTIEN=$ORDER(^TMG(22723,TMGDFN,1,VSTIEN)) QUIT:VSTIEN'>0  DO
+       . . NEW VSTDATE SET VSTDATE=$P($G(^TMG(22723,TMGDFN,1,VSTIEN,0)),"^",1)
        . . IF LASTDT<VSTDATE SET LASTDT=VSTDATE
        . IF LASTDT>0 QUIT
-       . SET PTARRAY($P($G(^DPT(DFN,0)),"^",1))=DFN
+       . SET PTARRAY($P($G(^DPT(TMGDFN,0)),"^",1))=TMGDFN
        NEW NAME SET NAME=""
        FOR  SET NAME=$ORDER(PTARRAY(NAME)) QUIT:NAME=""  DO
        . NEW NOTEDATE,LASTON SET NOTEDATE=9999999,LASTON=0
-       . SET DFN=$GET(PTARRAY(NAME))
-       . FOR  SET NOTEDATE=$ORDER(^TIU(8925,"APTP",DFN,NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(LASTON>0)  DO
-       . . NEW TIUIEN SET TIUIEN=$ORDER(^TIU(8925,"APTP",DFN,NOTEDATE,0))
+       . SET TMGDFN=$GET(PTARRAY(NAME))
+       . FOR  SET NOTEDATE=$ORDER(^TIU(8925,"APTP",TMGDFN,NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(LASTON>0)  DO
+       . . NEW TIUIEN SET TIUIEN=$ORDER(^TIU(8925,"APTP",TMGDFN,NOTEDATE,0))
        . . NEW DOCTYPE SET DOCTYPE=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
        . . NEW OFFNOTE SET OFFNOTE=$G(^TIU(8925.1,DOCTYPE,"TMGH"))
        . . IF OFFNOTE="Y" SET LASTON=NOTEDATE
@@ -916,9 +916,9 @@ EKGSDUE()  ;"SCRATCH FUNCTION
        . WRITE "============= PATIENTS DUE FOR ",REMDISP," ============",!
        . NEW DATE SET DATE=0
        . FOR  SET DATE=$ORDER(REMRESULT(REMIEN,DATE)) QUIT:DATE'>0  DO
-       . . NEW DFN SET DFN=0
-       . . FOR  SET DFN=$ORDER(REMRESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
-       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)
+       . . NEW TMGDFN SET TMGDFN=0
+       . . FOR  SET TMGDFN=$ORDER(REMRESULT(REMIEN,DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?40,Y,!
        . WRITE !!
@@ -944,19 +944,19 @@ P23NEWRM  ;"SCRATCH FUNCTION WHICH CAN BE DELETED LATER   ELH    2/6/18
        . WRITE "============= PATIENTS DUE FOR ",REMDISP," ============",!
        . NEW DATE SET DATE=0
        . FOR  SET DATE=$ORDER(REMRESULT(REMIEN,DATE)) QUIT:DATE'>0  DO
-       . . NEW DFN SET DFN=0
-       . . FOR  SET DFN=$ORDER(REMRESULT(REMIEN,DATE,DFN)) QUIT:DFN'>0  DO
-       . . . NEW AGE K VADM SET AGE=$$AGE^TIULO(DFN)
+       . . NEW TMGDFN SET TMGDFN=0
+       . . FOR  SET TMGDFN=$ORDER(REMRESULT(REMIEN,DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . . NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
        . . . IF AGE>64 QUIT
-       . . . NEW SEQL SET SEQL=$P($G(^DPT(DFN,"TMG")),"^",2)
-       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(DFN,0)),"^",1)_" ("_SEQL_")"
+       . . . NEW SEQL SET SEQL=$P($G(^DPT(TMGDFN,"TMG")),"^",2)
+       . . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)_" ("_SEQL_")"
        . . . SET Y=DATE DO DD^%DT
        . . . WRITE "  - ",NAME,?40,Y,?65,AGE,!
        . WRITE !!
        DO ^%ZISC  ;" Close the output device
        QUIT
        ;"
-MAMSCHED(DFN)  ;"IS MAMMO SCHEDULED
+MAMSCHED(TMGDFN)  ;"IS MAMMO SCHEDULED
        NEW RESULT SET RESULT=""
        NEW MammoIEN SET MammoIEN=+$ORDER(^GMR(123.5,"B","MAMMOGRAM",""))
        IF MammoIEN'>0 DO  GOTO MRPTDn
@@ -969,7 +969,7 @@ MAMSCHED(DFN)  ;"IS MAMMO SCHEDULED
        ;
        NEW idx SET idx=""
        NEW matches,IENLIST
-       FOR  SET idx=+$ORDER(^GMR(123,"F",DFN,idx)) QUIT:(idx'>0)  do
+       FOR  SET idx=+$ORDER(^GMR(123,"F",TMGDFN,idx)) QUIT:(idx'>0)  do
        . NEW TYPE
        . NEW znode SET znode=$GET(^GMR(123,idx,0))
        . SET TYPE=$P(znode,"^",5)
@@ -1002,19 +1002,46 @@ FLUAGE  ;" REPORT TO DETERMINE AGE OF PATIENTS WHO GOT FLU VACCINATIONS
        NEW TOTALCNT,OVER65CNT
        SET TOTALCNT=0,OVER65CNT=0
        FOR  SET IDX=$O(^AUPNVCPT("B",90686,IDX)) QUIT:IDX'>0  DO
-       . NEW VISIT,DATE,DFN
+       . NEW VISIT,DATE,TMGDFN
        . SET VISIT=$P($G(^AUPNVCPT(IDX,0)),"^",3)
        . SET DATE=$P($G(^AUPNVSIT(VISIT,0)),"^",1)
        . IF DATE<3200501 QUIT
        . SET TOTALCNT=TOTALCNT+1
-       . SET DFN=$P($G(^AUPNVCPT(IDX,0)),"^",2)
-       . NEW AGE K VADM SET AGE=+$$AGE^TIULO(DFN)
+       . SET TMGDFN=$P($G(^AUPNVCPT(IDX,0)),"^",2)
+       . NEW AGE K VADM SET AGE=+$$AGE^TIULO(TMGDFN)
        . IF AGE<65 QUIT
        . W AGE," INCLUDED",!
        . SET OVER65CNT=OVER65CNT+1
        W TOTALCNT," TOTAL FLU VACCINATIONS",!,OVER65CNT," WERE OVER 65",!
        QUIT
        ;"
+NEWAPPT  ;"single use function that can be deleted if no longer needed
+       ;"prints all patients who had a new patient appointment between the 
+       ;"below date ranges
+       NEW %ZIS,IOP
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO INRDn
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
+       use IO       
+       NEW BDT,EDT SET BDT=3210109,EDT=3210410
+       WRITE "*****************************************************************************************",!
+       WRITE "****      NEW PATIENT APPOINTMENTS BETWEEN ",$$EXTDATE^TMGDATE(BDT,1)," AND ",$$EXTDATE^TMGDATE(EDT,1),!
+       WRITE "*****************************************************************************************",!
+       NEW THISDT SET THISDT=BDT
+       FOR  SET THISDT=$O(^TMG(22723,"DT",THISDT)) QUIT:(THISDT'>0)!(THISDT>EDT)  DO
+       . NEW TMGDFN SET TMGDFN=0
+       . FOR  SET TMGDFN=$O(^TMG(22723,"DT",THISDT,TMGDFN)) QUIT:(TMGDFN'>0)  DO
+       . . NEW IDX SET IDX=0
+       . . FOR  SET IDX=$O(^TMG(22723,"DT",THISDT,TMGDFN,IDX)) QUIT:(IDX'>0)  DO
+       . . . NEW ZN SET ZN=$G(^TMG(22723,TMGDFN,1,IDX,0))
+       . . . NEW REASON SET REASON=$P(ZN,"^",4)
+       . . . IF REASON'["NEW" QUIT
+       . . . NEW STATUS SET STATUS=$P(ZN,"^",7)
+       . . . IF STATUS="C" QUIT
+       . . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," (",$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3),1),") VISIT ON ",$$EXTDATE^TMGDATE(THISDT,1),!
+       DO ^%ZISC  ;" Close the output device
+       QUIT
 
 
 

@@ -1,4 +1,4 @@
-TMGTIUOB ;TMG/kst-TIU OBJECTS ; 06/30/15, 4/11/17
+TMGTIUOB ;TMG/kst-TIU OBJECTS ; 06/30/15, 4/11/17, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;06/30/15
  ;"
  ;
@@ -22,7 +22,7 @@ TMGTIUOB ;TMG/kst-TIU OBJECTS ; 06/30/15, 4/11/17
  ;"=======================================================================
  ;
 TEST ;
-  NEW DFN SET DFN=14191 ;"//ZZTEST,CAROLYN SUE
+  NEW TMGDFN SET TMGDFN=14191 ;"//ZZTEST,CAROLYN SUE
   NEW PROBIEN SET PROBIEN=24163
   NEW TXT SET TXT=$$PROBSUM(PROBIEN)
   WRITE TXT,!
@@ -41,14 +41,15 @@ PROBSUM(INFO) ;"TIU TEXT OBJECT entry point for TMG NOTE PROB SUMMARY
   ;"NOTE: Uses DFN in global scope
   ;"Result: One long line of text that will be inserted into CPRS to comprise text object
   ;
+  NEW TMGDFN SET TMGDFN=$GET(DFN)  ;"accessing via global scope.  //kt 3/24/21
   SET INFO=$GET(INFO)
   IF '$DATA(TMGZZ) NEW TMGZZ SET TMGZZ=0
   IF TMGZZ=1 DO
   . SET INFO=$GET(^TMG("TMP","TMGTIUOB","INFO"))
-  . SET DFN=$GET(^TMG("TMP","TMGTIUOB","DFN"))
+  . SET TMGDFN=$GET(^TMG("TMP","TMGTIUOB","DFN"))
   ELSE  DO
   . SET ^TMG("TMP","TMGTIUOB","INFO")=INFO
-  . SET ^TMG("TMP","TMGTIUOB","DFN")=DFN
+  . SET ^TMG("TMP","TMGTIUOB","DFN")=TMGDFN
   NEW IEN SET IEN=+INFO
   NEW PROBNAME SET PROBNAME=$PIECE(INFO,"^",2)
   NEW ICD SET ICD=$PIECE(INFO,"^",3)
@@ -57,20 +58,20 @@ PROBSUM(INFO) ;"TIU TEXT OBJECT entry point for TMG NOTE PROB SUMMARY
   SET DATA("ID")=IEN
   SET DATA("NAME")=PROBNAME
   SET DATA("ICD")=ICD
-  DO GETTOPIC(.DATA,DFN,IEN,HTML)  ;"Load information, if avail, for topics linked to problem.  
-  DO GETCOMP(.DATA,DFN,IEN) ;"Get prior info based on problem IEN
+  DO GETTOPIC(.DATA,TMGDFN,IEN,HTML)  ;"Load information, if avail, for topics linked to problem.  
+  DO GETCOMP(.DATA,TMGDFN,IEN) ;"Get prior info based on problem IEN
   DO ADJDATA(.DATA)  ;"ADJUST DATA
   ZLINK "TMGTIUOC"  ;"<--remove once TMGTIUOC development finished.
   NEW OPTION SET OPTION("PLAINTEXT")='HTML   
   NEW TMGRESULT SET TMGRESULT=$$ASMNTOBJ^TMGTIUOC(.DATA,.OPTION)  ;"Assemble data into output text
   QUIT TMGRESULT
   ;
-GETTOPIC(OUT,DFN,PROBIEN,HTML)  ;"Load information, if avail, for topics linked to problem.
+GETTOPIC(OUT,TMGDFN,PROBIEN,HTML)  ;"Load information, if avail, for topics linked to problem.
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;"          OUT("PRIOR",<FMDATE>,"TEXT",#)=<long line of text>
   ;"          OUT("PRIOR",<FMDATE>,"TABLE",<TABLE NAME>)=""   <-- no need to include old table text
   ;"          OUT("TABIX",<TABLE NAME>,<FMDATE>)=""
-  ;"       DFN -- Patient IEN
+  ;"       TMGDFN -- Patient IEN
   ;"       PROBIEN -- IEN in PROBLEM file -- IEN9000011
   ;"       HTML: 1 if text is HTML
   ;"Result: none
@@ -96,10 +97,10 @@ TOP4PROB(OUT,PROBIEN) ;"Get topic names for given problem IEN
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;"         OUT(<TOPIC NAME>)=""
   ;"       PROBIEN -- IEN in PROBLEM file (9000011)
-  ;"NOTE: Uses DFN in global scope
+  ;"NOTE: Uses TMGDFN in global scope
   ;"Results: none
   NEW TEMP,IN
-  SET IN(1)="GET^"_DFN_"^PROB="_IEN
+  SET IN(1)="GET^"_TMGDFN_"^PROB="_IEN
   DO TOPRBLNK^TMGTIUT3(.TEMP,.IN)
   NEW LINE SET LINE=$PIECE($GET(TEMP(1)),"^",5)
   NEW TOPICS SET TOPICS=$PIECE(LINE,"TOPIC=",2)
@@ -118,10 +119,11 @@ GETOPIC1(OUT,TOPICNAME,HTML) ;"Get prior note info based on one topic name
   ;"NOTE: Uses DFN in global scope
   ;"Result: none   
   ;
+  NEW TMGDFN SET TMGDFN=$GET(DFN)  ;"accessing via global scope.  //kt 3/24/21
   NEW TEMP  
   NEW OPTION 
   ;"SET OPTION("LAST")=1  ;"Get only last entry
-  DO TOPICS^TMGTIUT3(.TEMP,"SUM1",DFN,"HPI",TOPICNAME,0,9999999,.OPTION)
+  DO TOPICS^TMGTIUT3(.TEMP,"SUM1",TMGDFN,"HPI",TOPICNAME,0,9999999,.OPTION)
   IF +$GET(TEMP(0))'=1 QUIT
   NEW TEXT
   NEW CURDT SET CURDT=""
@@ -216,16 +218,16 @@ HASTABL(LINE,TABLES) ;"DOES LINE CONTAIN TABLE START?
   . SET RESULT=$$HTML2TXS^TMGHTM1($PIECE($PIECE(ATABLE,"]",1),"[",2))
   QUIT RESULT
   ;
-GETCOMP(OUT,DFN,PROBIEN) ;"Get prior info based on problem IEN
+GETCOMP(OUT,TMGDFN,PROBIEN) ;"Get prior info based on problem IEN
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;"          OUT("PRIOR",<FMDATE>,"TEXT",#)=<long line of text>
   ;"          OUT("PRIOR",<FMDATE>,"TABLE",<TABLE NAME>)=""   <-- no need to include old table text
   ;"          OUT("TABIX",<TABLE NAME>,<FMDATE>)=""
-  ;"       DFN -- Patient IEN
+  ;"       TMGDFN -- Patient IEN
   ;"       PROBIEN -- IEN in PROBLEM file -- IEN9000011
   ;"Result: none      
   ;
-  NEW TEMPOUT DO READSEC^TMGTIU11(DFN,PROBIEN,"ATMGPROB",0,.TEMPOUT)
+  NEW TEMPOUT DO READSEC^TMGTIU11(TMGDFN,PROBIEN,"ATMGPROB",0,.TEMPOUT)
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(TEMPOUT(IDX)) QUIT:+IDX'>0  DO
   . NEW ENTRY SET ENTRY=$GET(TEMPOUT(IDX))  ;"Format is DOC^IEN8925^SDATE^AUTHOR^SUBJECT
