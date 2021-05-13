@@ -94,7 +94,7 @@ HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH,EXT,OPTION)    ;
   ;"                  folder to moved completed messages.  
   ;"                  NOTE: subfolders ./Processed  and ./Failed_Messages defined.
   ;"                    will be auto-added if not present (if file permissions allow)
-  ;"       EXT -- OPTIONAL.  Default = '.txt'.  
+  ;"       EXT -- OPTIONAL.  Default = '.txt'  '.hl7' is also always added.  
   ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PROCESS for description
   ;"Result: none
   SET COUNT=+$GET(COUNT,999999)
@@ -102,7 +102,10 @@ HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH,EXT,OPTION)    ;
   SET EXT=$$TRIM^XLFSTR($GET(EXT,".txt")) 
   IF $EXTRACT(EXT,1)'="." SET EXT="."_EXT
   SET EXT="*"_EXT
-  NEW SRCH SET SRCH(EXT)="",SRCH($$UP^XLFSTR(EXT))="",SRCH($$LOW^XLFSTR(EXT))=""
+  NEW EXT2 SET EXT2=".HL7"
+  NEW SRCH 
+  SET SRCH(EXT)="",SRCH($$UP^XLFSTR(EXT))="",SRCH($$LOW^XLFSTR(EXT))=""
+  SET SRCH(EXT2)="",SRCH($$UP^XLFSTR(EXT2))="",SRCH($$LOW^XLFSTR(EXT2))=""
   NEW LOG,LOGIDX SET LOGIDX=1
 HLDR1 ;  
   NEW HLDIRRETRY SET HLDIRRETRY=0

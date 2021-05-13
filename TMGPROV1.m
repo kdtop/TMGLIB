@@ -119,3 +119,38 @@ TESTPROV
  WRITE " as their PCP",!
  QUIT
  ;"
+GETPROVN(TMGRESULT,TMGDFN,TMGDUZ) ;"-- Get the patient's current provider (RPC: TMG SCANNER GET CURRENT PROVIDER)
+ ;"Purpose: This function will return the patient's provider to be set in
+ ;the
+ ;"         encounter object and displayed in the pnlVisit of frmFrame.
+ ;"Input: TMGRESULT - (RPC Output) IEN of user (New Person file)
+ ;"       TMGDFN - IEN of patient (Patient file)
+ ;"       TMGDUZ - IEN of current user (New Person file)
+ ;"Output: TMGRESULT should be the IEN of the provider
+ ;"Result: none
+ SET TMGDFN=+$G(TMGDFN),TMGDUZ=+$G(TMGDUZ)
+ IF (TMGDFN'>0)!(TMGDUZ'>0) DO  GOTO GPNDN
+ . SET TMGRESULT=0
+ ;"Here we will determine if a PCP was determined previously
+ ;"  and if so, use if it is was set in the last 30 days 3/3/20
+ NEW SAVEDPCP,SAVEDDATE
+ SET SAVEDPCP=+$P($G(^DPT(TMGDFN,"TMGPCP")),"^",1)
+ SET SAVEDDATE=+$P($G(^DPT(TMGDFN,"TMGPCP")),"^",2)
+ IF (SAVEDPCP>0)&(SAVEDDATE>$$ADDDAYS^TMGDATE(-30)) DO  GOTO GPNDN
+ . SET TMGRESULT=SAVEDPCP
+ SET TMGRESULT=$$FINDPCP(TMGDFN)
+ IF TMGRESULT="-1" DO
+ . SET TMGRESULT=0
+ ELSE  DO
+ . ;"save the provider here  3/3/20
+ . NEW TMGFDA,TMGMSG
+ . SET TMGFDA(2,TMGDFN_",",22707)="`"_TMGRESULT
+ . SET TMGFDA(2,TMGDFN_",",22707.1)=$$TODAY^TMGDATE
+ . DO FILE^DIE("E","TMGFDA","TMGMSG")
+GPNDN
+ IF TMGRESULT>0 DO
+ . SET TMGRESULT=$P($G(^VA(200,TMGRESULT,0)),"^",1)
+ ELSE  DO
+ . SET TMGRESULT="NO PCP DEFINED"
+ QUIT
+ ;"

@@ -388,7 +388,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        DO C^%DTC
        IF RECORDS>0 SET dueDate=X
        ELSE  SET dueDate=""
-       SET X1=X,X2=14
+       SET X1=X,X2=7
        DO C^%DTC
        SET endDate=X+.999999
        ;"SET NowDate=3181231

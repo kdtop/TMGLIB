@@ -953,13 +953,13 @@ CPTIIRPT
   DO ^%ZIS  ;"standard device call
   IF POP DO  GOTO NRDn
   . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
-  ;"USE IO
+  USE IO
   ;"get month name and beginning date
   NEW BEGINDATE SET BEGINDATE=$$TODAY^TMGDATE
   SET BEGINDATE=$E(BEGINDATE,1,5)_"01.000000"
   ;"SET BEGINDATE=3200601.0000
   SET BEGINDATE=$$ADDDAYS^TMGDATE(-21)
-  SET BEGINDATE=3200401.0000
+  ;"SET BEGINDATE=3200401.0000
   ;"header
   WRITE !
   WRITE "************************************************************",!

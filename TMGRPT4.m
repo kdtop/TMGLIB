@@ -319,3 +319,131 @@ PHNVISIT(BDT,EDT)  ;"
   . . WRITE DATASTR,!
   . WRITE !
   ;"
+NONTEAPT    ;"This report checks to see if there are any appts scheduled
+  ;" that doesn't have any notes. Checks for the last 7 days
+  NEW BDATE,EDATE 
+  SET BDATE=$$ADDDAYS^TMGDATE(-8)
+  SET EDATE=$$ADDDAYS^TMGDATE(-1)
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  USE IO  
+  WRITE !
+  WRITE "****************************************************************",!
+  WRITE "         PATIENTS WITH APPOINTMENTS SCHEDULED BUT NO NOTES",!
+  WRITE "         (SHOULD THEY HAVE NO SHOW OR CANCELLED NOTES?)",!
+  WRITE "             DATE RANGE: ",$$EXTDATE(BDATE)," TO ",$$EXTDATE(EDATE),!
+  WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
+  WRITE "",!
+  WRITE "                  PLEASE DELIVER TO BRENDA",!
+  WRITE "****************************************************************",!
+  WRITE "                                        (From TMGRPT4.m)",!,!
+  WRITE " ",!  
+  NEW APPTDATE SET APPTDATE=BDATE
+  FOR  SET APPTDATE=$O(^TMG(22723,"DT",APPTDATE)) QUIT:(APPTDATE>EDATE)!(APPTDATE'>0)  DO
+  . NEW TMGDFN SET TMGDFN=0
+  . FOR  SET TMGDFN=$O(^TMG(22723,"DT",APPTDATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+  . . NEW APPTIEN SET APPTIEN=0
+  . . FOR  SET APPTIEN=$O(^TMG(22723,"DT",APPTDATE,TMGDFN,APPTIEN)) QUIT:APPTIEN'>0  DO
+  . . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDATE,TMGDFN,APPTIEN))
+  . . . ;"IF STATUS="C" QUIT
+  . . . NEW TIMEIN SET TIMEIN=+$P($G(^TMG(22723,TMGDFN,1,APPTIEN,0)),"^",8)
+  . . . IF TIMEIN>0 QUIT
+  . . . NEW TIUDATE SET TIUDATE=BDATE
+  . . . NEW FOUND SET FOUND=0
+  . . . FOR  SET TIUDATE=$O(^TIU(8925,"ZTMGPTDT",TMGDFN,TIUDATE)) QUIT:TIUDATE'>0  DO
+  . . . . IF TIUDATE[$P(APPTDATE,".",1) SET FOUND=1
+  . . . IF FOUND=1 QUIT
+  . . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+  . . . WRITE NAME," HAD APPT ON: ",$$EXTDATE^TMGDATE(APPTDATE)," - STATUS IS: ",STATUS,!
+  . . . NEW FUTUREAPPT SET FUTUREAPPT=$$TODAY^TMGDATE_".9999"
+  . . . SET FUTUREAPPT=$O(^TMG(22723,TMGDFN,1,"B",FUTUREAPPT))
+  . . . IF FUTUREAPPT>0 SET FUTUREAPPT="    PATIENT SCHEDULED ON :"_$$EXTDATE^TMGDATE(FUTUREAPPT,1)
+  . . . ELSE  SET FUTUREAPPT="    !!!! NO UPCOMING APPT !!!!"
+  . . . WRITE FUTUREAPPT," [  ] OLD APPT, [  ] MADE NOTE",!,!
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+NOADDL  ;"This report checks to see if over the course of the last
+  ;" 7 days there are any particular note titles that doesn't have 
+  ;" addl signers but should
+  NEW BDATE,EDATE 
+  SET BDATE=$$ADDDAYS^TMGDATE(-8)
+  SET EDATE=$$ADDDAYS^TMGDATE(-1)
+  NEW ADDLARRAY
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  USE IO  
+  WRITE !
+  WRITE "****************************************************************",!
+  WRITE "         RAD, MAM, AND D/C SUMMARIES WITH NO ADDL SIGNERS",!
+  WRITE "             DATE RANGE: ",$$EXTDATE(BDATE)," TO ",$$EXTDATE(EDATE),!
+  WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
+  WRITE "",!
+  WRITE "                  PLEASE DELIVER TO SABRINA",!
+  WRITE "****************************************************************",!
+  WRITE "                                        (From TMGRPT4.m)",!,!
+  WRITE " ",!
+  NEW TIUDATE SET TIUDATE=BDATE
+  FOR  SET TIUDATE=$O(^TIU(8925,"D",TIUDATE)) QUIT:TIUDATE'>0  DO
+  . NEW TIUIEN SET TIUIEN=0
+  . FOR  SET TIUIEN=$O(^TIU(8925,"D",TIUDATE,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . NEW DOCIEN SET DOCIEN=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
+  . . ;"ONLY CHECK MAM REPORT, RAD REPORT, AND HOSPITAL D/C
+  . . IF (DOCIEN'=26)&(DOCIEN'=1428)&(DOCIEN'=1470)&(DOCIEN'=1471) QUIT
+  . . ;"IS SABRINA AN ADD'L SIGNER?
+  . . NEW ADDLIEN SET ADDLIEN=0
+  . . NEW ADDLFOUND SET ADDLFOUND=0
+  . . FOR  SET ADDLIEN=$O(^TIU(8925.7,"B",TIUIEN,ADDLIEN)) QUIT:ADDLIEN'>0  DO
+  . . . IF $P($G(^TIU(8925.7,ADDLIEN,0)),"^",3)=259 SET ADDLFOUND=1
+  . . IF ADDLFOUND=0 DO
+  . . . NEW TMGDFN SET TMGDFN=$P($G(^TIU(8925,TIUIEN,0)),"^",2)
+  . . . SET ADDLARRAY(DOCIEN,TIUIEN)="  "_$P($G(^DPT(TMGDFN,0)),"^",1)_" ON "_$$EXTDATE^TMGDATE(TIUDATE,1)
+  NEW DOCIEN SET DOCIEN=0
+  FOR  SET DOCIEN=$O(ADDLARRAY(DOCIEN)) QUIT:DOCIEN'>0  DO
+  . WRITE "==== ",$P($G(^TIU(8925.1,DOCIEN,0)),"^",1)," ====",!
+  . NEW TIUIEN SET TIUIEN=0
+  . FOR  SET TIUIEN=$O(ADDLARRAY(DOCIEN,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . WRITE $G(ADDLARRAY(DOCIEN,TIUIEN)),!,!
+  . WRITE !
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+UNSIGNTIU  ;"
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  USE IO  
+  WRITE !
+  WRITE "****************************************************************",!
+  WRITE "                  UNSIGNED OFFICE NOTES",!
+  WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
+  WRITE "",!
+  WRITE "                  PLEASE DELIVER TO EDDIE",!
+  WRITE "****************************************************************",!
+  WRITE "                                        (From TMGRPT4.m)",!,!
+  WRITE " ",!
+  NEW TMGDUZ SET TMGDUZ=0
+  FOR  SET TMGDUZ=$O(^XTV(8992,TMGDUZ)) QUIT:TMGDUZ'>0  DO
+  . NEW DISPLAY SET DISPLAY=0
+  . NEW XTVDT SET XTVDT=0
+  . FOR  SET XTVDT=$O(^XTV(8992,TMGDUZ,"XQA",XTVDT)) QUIT:XTVDT=""  DO
+  . . NEW XTVOBJ SET XTVOBJ=$P($G(^XTV(8992,TMGDUZ,"XQA",XTVDT,0)),"^",2)
+  . . IF XTVOBJ'["TIU" QUIT
+  . . SET XTVOBJ=$P($P(XTVOBJ,"TIU",2),";",1)
+  . . NEW TIUTYPE,TIUHLIGHT,TMGDFN
+  . . SET TIUTYPE=+$P($G(^TIU(8925,XTVOBJ,0)),"^",1)
+  . . IF TIUTYPE'>0 QUIT
+  . . SET TMGDFN=$P($G(^TIU(8925,XTVOBJ,0)),"^",2)
+  . . SET TIUHLIGHT=$P($G(^TIU(8925.1,TIUTYPE,"TMGH")),"^",1)
+  . . IF TIUHLIGHT="" QUIT
+  . . IF DISPLAY=0 WRITE " **** ",$P($G(^VA(200,TMGDUZ,0)),"^",1)," **** ",! SET DISPLAY=1
+  . . WRITE "  - ",$P($G(^DPT(TMGDFN,0)),"^",1),", ",$$EXTDATE^TMGDATE($P($G(^TIU(8925,XTVOBJ,13)),"^",1),1)," -> ",$P($G(^TIU(8925.1,TIUTYPE,0)),"^",1),!
+  . IF DISPLAY=1 WRITE !
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"

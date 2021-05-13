@@ -81,7 +81,7 @@ ENIS2  ;"ENSURE SUBFILE RECORD HAS MATCHING PLAN ID
   ;"But if the changes in the future, should a new subrecord be
   ;"created instead of overwriting?
   KILL TMGFDA,TMGMSG
-  SET TMGFDA(2.312,SUBIEN_","_DFN_",",5.01)=PLANID
+  SET TMGFDA(2.312,SUBIEN_","_TMGDFN_",",5.01)=PLANID
   DO FILE^DIE("E","TMGFDA","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO  GOTO ENSDN
   . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
