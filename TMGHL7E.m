@@ -43,17 +43,15 @@ SETALERT(ERRTEXT,AMSG,IEN772,IEN773,ERRMODE) ;
   SET ERRTEXT=$GET(ERRTEXT)
   IF (ERRTEXT["^")&(+ERRTEXT>0) SET ERRTEXT=$PIECE(ERRTEXT,"^",2,99)
   SET AMSG=$GET(AMSG)
-  SET ERRMODE=$GET(ERRMODE)
+  SET ERRMODE=$GET(ERRMODE) 
+  IF ERRMODE="" SET ERRMODE="POC" 
   KILL MSGSTORE ;"Not needed, and clutters variable table.
   NEW PTNOTFOUND SET PTNOTFOUND=$$PTNOTFOUND(ERRTEXT) 
   IF PTNOTFOUND,$$IGNORPT(ERRTEXT) GOTO SA2DN         
   NEW TMGERROR
-  IF ERRMODE="RAD" DO
-  . SET TMGERROR="[RAD ERR]: "_ERRTEXT
-  . IF AMSG'="" SET TMGERROR=TMGERROR_"; RAD MESSAGE]: "_AMSG
-  ELSE  DO
-  . SET TMGERROR="[POC ERR]: "_ERRTEXT
-  . IF AMSG'="" SET TMGERROR=TMGERROR_"; POC MESSAGE]: "_AMSG
+  IF "^ADT^RAD^POC^"[ERRMODE DO
+  . SET TMGERROR="["_ERRMODE_" ERR]: "_ERRTEXT
+  . IF AMSG'="" SET TMGERROR=TMGERROR_"; "_ERRMODE_" MESSAGE]: "_AMSG
   NEW ZEF DO CHECKLONGZEF^TMGHL71(.TMGMSG,.ZEF) ;"Remove any long ZEF segment from TMGMSG, which is an embedded file, causing problems. 
   IF $DATA(ZEF) DO   ;"CODE COPIED FROM ZEF2^TMGHL73
   . NEW IDX SET IDX=0
@@ -94,7 +92,7 @@ ERRLABEL()  ;
   QUIT "Error during POC lab filer process."
   ;"---------------------------------------------------------------------
   ;"---------------------------------------------------------------------
-STOREROOT ;
+STOREROOT() ;
   QUIT $NAME(^TMG("TMP","TMGHL7E"))
   ;
 IDXDATA ;
@@ -183,6 +181,8 @@ HNDLERR(ERRMODE) ;
   SET TMGENV("INTERACTIVE MODE")=1
   IF TMGERROR="" SET TMGUSERINPUT="TryAgain" GOTO M3
   IF (TMGERROR["The value")&(TMGERROR["for field PATIENT in") SET TMGUSERINPUT="TryAgain" GOTO M3
+  ;"Line below is temp!  Delete later
+  ;"if TMGERROR["Unable to find unique match for HL7 facility" SET TMGUSERINPUT="TryAgain" GOTO M3
   ;
 M2  ;
   KILL TMGUSERINPUT,TMGMNU,TMPERR
@@ -393,9 +393,11 @@ TRYAGAN2(TMGMSG,DEBUG,TMGENV,OPTION) ;
   ;"Result: 1 if OK, or -1^Abort IF aborted. 
   NEW TMGRESULT SET TMGRESULT=1
   NEW % SET %=1
+  ;"GOTO TA2  ;"TEMP!! DELETE LATER
   WRITE "Send HL7 message through POC filer again" SET %=+$$YNA^TMGUSRI2(%) WRITE !
   IF %'=1 DO  GOTO DBDN2  ;"DEBG2DN
   . SET TMGRESULT="-1^HL7 Message Filing Aborted"        
+TA2 ;
   NEW CODE SET CODE="SET TMGRESULT=$$HLMSGIMPORT^TMGHL71(.TMGMSG,1,.OPTION,.TMGENV)"
   IF +$GET(DEBUG)=1 DO
   . DO DIRDEBUG^TMGIDE(CODE)
@@ -405,7 +407,9 @@ TRYAGAN2(TMGMSG,DEBUG,TMGENV,OPTION) ;
   SET TMGRESULT="1^OK"
   WRITE "-------------------",!
   WRITE "Done with filer.  Processing seems to have been without problems.",!
-  SET %=1 WRITE !,"Move HL7 message file to SUCCESS folder" DO YN^DICN WRITE !
+  SET %=1 
+  ;"WRITE !,"Move HL7 message file to SUCCESS folder" DO YN^DICN WRITE !
+  WRITE !,"Moving HL7 message file to SUCCESS folder",!
   IF %=1 DO
   . NEW OPT2 MERGE OPT2=OPTION
   . NEW FNAME SET FNAME=$GET(OPTION("FAILURE STORE FNAME"))

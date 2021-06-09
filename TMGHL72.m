@@ -273,6 +273,12 @@ OBR     ;"Purpose: setup for OBR fields.
         IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
         ;
         NEW ARR,ORDERTEST SET ORDERTEST=$GET(TMGHL7MSG(TMGSEGN,4)) IF ORDERTEST="" GOTO OBRDN
+        IF $PIECE(ORDERTEST,TMGU(2),1)="" DO  ;"Real world example: "^^^^^^^^POCT COVID VIRAL 4PLEX"
+        . NEW ARR MERGE ARR=TMGHL7MSG(TMGSEGN,4)
+        . NEW IDX SET IDX=$ORDER(ARR(0)) QUIT:IDX'>0
+        . NEW NAME SET NAME=$GET(ARR(IDX))
+        . SET $PIECE(ORDERTEST,TMGU(2),1)=$TRANSLATE(NAME," ","_")
+        . SET $PIECE(ORDERTEST,TMGU(2),2)=NAME
         SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,ORDERTEST,"O",.ARR)
         KILL TMGHL7MSG(TMGSEGN,"ORDER") MERGE TMGHL7MSG(TMGSEGN,"ORDER")=ARR
         KILL TMGHL7MSG("ORDER",TMGSEGN) MERGE TMGHL7MSG("ORDER",TMGSEGN)=ARR
@@ -328,7 +334,16 @@ OBR16   ;"Transform Ordering provider.
         ;
 OBX     ;"Purpose: to transform the entire OBX segment before any fields are processed
         ;"Uses TMGSEGN, that is set up in from TMGHL7X* code before calling here.
-        SET TMGLASTOBX("SEGN")=TMGSEGN  ;"Will be killed in MSG2^TMHL72        
+        SET TMGLASTOBX("SEGN")=TMGSEGN  ;"Will be killed in MSG2^TMHL72
+        QUIT
+        ;"note: Later I may apply this to all messages.  But I will first test with just OBX^TMGHL76"
+        ;"//kt 5/19/21 mod ---
+        NEW ISMULT SET ISMULT=$$CHKMULTIOBX(.TMGHL7MSG,TMGSEGN)
+        IF +ISMULT>0 DO
+        . NEW STARTSEGN SET STARTSEGN=$PIECE(ISMULT,"^",1)
+        . NEW ENDSEGN SET ENDSEGN=$PIECE(ISMULT,"^",2)
+        . DO OBR2NTE(.TMGHL7MSG,.TMGU,STARTSEGN,ENDSEGN)
+        ;"-- end mod
         QUIT
         ;
 OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifier
@@ -968,7 +983,7 @@ SUMOBXSTA(TMGHL7MSG,SEGN,OUT) ;"Get net status from OBX's after an OBR
         NEW OBXARR DO GETOBXAR(.TMGHL7MSG,OBXSEGN,.OBXARR)
         NEW IDX SET IDX=""
         FOR  SET IDX=$ORDER(OBXARR(IDX)) QUIT:IDX'>0  DO
-        . NEW STATUS SET STATUS=OBXARR(IDX,11)
+        . NEW STATUS SET STATUS=$GET(OBXARR(IDX,11))
         . IF STATUS="F" SET STATUS="FINAL"
         . IF STATUS="I" SET STATUS="INCOMPLETE/PRELIMINARY"
         . IF STATUS="C" SET STATUS="CORRECTED"
@@ -1008,3 +1023,65 @@ CHKOBRNT(TMGHL7MSG,SEGN,OBRCOMMENTS) ;"CHECK / Handle NTE's that follow OBR (i.e
         . . KILL TMGHL7MSG(IDX),TMGHL7MSG("B","NTE",IDX),TMGHL7MSG("PO",IDX)
         . SET OBRCOMMENTS(.5)="Order comments:"
         QUIT
+        ;
+CHKMULTIOBX(TMGHL7MSG,SEGN,ARR) ;"Check if OBX is a multi-lines grouping for results
+       ;"INPUT:  TMGHL7MSG -- The master array.  PASS BY REFERENCE
+       ;"        SEGN -- This index of the segment to start analysis for
+       ;"RESULT:  0 if not multi-lines.  Or 1^<start seg #>^<end seg #>
+       ;"Note: the rules that will be applied will be as follows to determine if OBX should be grouped
+       ;"        -- all values for OBX3 (identifier) are the same
+       ;"        -- all values for OBX4 (sub identifier) are the same.
+       NEW TMGRESULT SET TMGRESULT=0
+       NEW ID SET ID=""
+       NEW SUBID SET SUBID=""
+       NEW CT SET CT=0
+       NEW STARTIDX,ENDIDX SET (STARTIDX,ENDIDX)=0 
+       NEW DONE SET DONE=0
+       NEW IDX SET IDX=SEGN-0.001
+       FOR  SET IDX=$ORDER(TMGHL7MSG(IDX)) QUIT:DONE  DO
+       . IF $GET(TMGHL7MSG(IDX,"SEG"))'="OBX" SET DONE=1 QUIT
+       . IF ID="" SET ID=$GET(TMGHL7MSG(IDX,3))
+       . IF SUBID="" SET SUBID=$GET(TMGHL7MSG(IDX,4))     
+       . NEW THISID SET THISID=$GET(TMGHL7MSG(IDX,3))
+       . NEW THISSUBID SET THISSUBID=$GET(TMGHL7MSG(IDX,4))
+       . IF THISID'=ID SET DONE=1 QUIT
+       . IF THISSUBID'=SUBID SET DONE=1 QUIT
+       . SET CT=CT+1
+       . IF STARTIDX=0 SET STARTIDX=IDX
+       . SET ENDIDX=IDX
+       IF CT>1 SET TMGRESULT="1^"_STARTIDX_"^"_ENDIDX
+       QUIT TMGRESULT
+       ;
+OBR2NTE(TMGHL7MSG,TMGU,STARTSEGN,ENDSEGN) ;"Convert NOTE style OBX results into NTE segments
+       ;"Handle situation where there is 1 order (OBR), and then many OBX's, with each OBX
+       ;"  holding the next line of a text document, which should be handled like NTE fields.
+       ;"This function will covert the Starting SEGN to a result that says "See notes", and then
+       ;"  convert the rest of the lines into NTE segments.  
+       ;"NOTE: I think the function HNDUPOBX() above is similar in nature.
+       ;"INPUT:  TMGHL7MSG -- The master array.  PASS BY REFERENCE
+       ;"        TMGU
+       ;"        STARTSEGN -- This index of the first OBX to be converted.
+       ;"        ENDSEG -- The index of the last OBX segment to be converted.  
+       ;"Results: none
+       NEW U SET U=TMGU(1)
+       ;"Move first OBX index forward by 0.01 or so.
+       NEW NEXTI SET NEXTI=STARTSEGN
+       FOR  SET NEXTI=NEXTI+0.01 QUIT:$DATA(TMGHL7MSG(NEXTI))=0
+       MERGE TMGHL7MSG(NEXTI)=TMGHL7MSG(STARTSEGN)
+       SET TMGHL7MSG("PO",NEXTI)=NEXTI
+       ;
+       ;"Make a new OBX at original starting point --> "See Comments:"
+       KILL TMGHL7MSG(STARTSEGN)
+       SET TMGHL7MSG(STARTSEGN)="OBX"_U_"1"_U_"NM"_U_"TMG-MULTIOBX"_TMGU(2)_"TMG MULTILINE RESULT"_U_"See comments:"
+       DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,STARTSEGN)
+       ;
+       ;"convert OBX's to NTE's
+       NEW IDX SET IDX=STARTSEGN
+       FOR  SET IDX=$ORDER(TMGHL7MSG(IDX)) QUIT:(IDX>ENDSEGN)  DO
+       . NEW LINE SET LINE="NTE"_U_U_$GET(TMGHL7MSG(IDX,5))   ;"5 IS REALLY 4 because 'OBX' is piece 1 here
+       . KILL TMGHL7MSG(IDX),TMGHL7MSG("B","OBX",IDX)
+       . SET TMGHL7MSG(IDX)=LINE
+       . DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,IDX)
+       . SET TMGHL7MSG("B","NTE",IDX)=""
+       QUIT
+       ;

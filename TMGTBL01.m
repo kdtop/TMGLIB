@@ -535,7 +535,7 @@ ADGIVEN(TMGDFN)  ;"Return the health factor date for when the last CP papers wer
 GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         ;"ADDING DTONLY, IF 1 WILL ONLY RETURN THE DATE ONLY
         SET DTONLY=+$G(DTONLY)
-        NEW TMGRESULT SET TMGRESULT=""
+        NEW TMGRESULT SET TMGRESULT="NO URINE CULTURE FOUND"
         SET TMGDFN=$GET(TMGDFN) IF TMGDFN'>0 QUIT TMGRESULT
         NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
         IF LRDFN'>0 QUIT TMGRESULT
@@ -559,6 +559,7 @@ GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         . MERGE TOTARR(DATEIDX)=TEMP
         ;"zwr ARR
         IF $DATA(ARR) DO
+        . SET TMGRESULT=""
         . IF DTONLY=1 DO
         . . NEW LASTDT SET LASTDT=0
         . . NEW COUNT SET COUNT=0

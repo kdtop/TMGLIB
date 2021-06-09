@@ -149,8 +149,7 @@ HFS2ARR(PATH,FILENAME,REF,OPTION)  ;
         ;"                        If 1 then the overflow portion is concat'd to the orig line (making length>255)
         ;"                        If 2 then over lines are left with index values with decimal (e.g. 123.1)
         ;"NOTE: This will support loading lines of length 255*1000000 = ~255 MB
-        ;"Result: 0 if failure, 1 if success
-        
+        ;"Result: 0 if failure, 1 if success      
         NEW TMGRESULT,%ZZWP
         SET TMGRESULT=$$FTG^%ZISH(PATH,FILENAME,"%ZZWP(1,0)",1)
         IF TMGRESULT=0 GOTO H2ARDN
@@ -199,7 +198,7 @@ H2ARDN  QUIT TMGRESULT
         ;
 HFS2ARFP(PATHFILENAME,REF,OPTION) ;" HFS file to Array, via FilePathName
         ;"Purpose: To provide an interface to HFS2ARR for cases when filename is not already separated from path
-        ;"Result: 0 IF failure, 1 IF success
+        ;"Result: 0 if failure, 1 if success
         NEW PATH,FILENAME,RESULT
         DO SPLITFPN^TMGIOUTL(.PATHFILENAME,.PATH,.FILENAME)
         SET RESULT=$$HFS2ARR(.PATH,.FILENAME,.REF,.OPTION)

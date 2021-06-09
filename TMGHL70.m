@@ -1,4 +1,4 @@
-TMGHL70 ;TMG/kst-Installation/config tools for POC HL7 processing ;8/12/15, 11/14/16
+TMGHL70 ;TMG/kst-Installation/config tools for POC HL7 processing ;11/14/16, 5/18/21
               ;;1.0;TMG-LIB;**1**;03/12/11
  ;
  ;"TMG POC-UTILITY FUNCTIONS
@@ -483,8 +483,8 @@ GETCFG2(MSH,TMGU,HL7INST,HL7APP) ;
         ;"       HL7APP -- an OUT PARAMETER.  
         ;"Result: IEN in 22720 or -1^message if not found or problem.        
         SET HL7INST=$PIECE($PIECE(MSH,TMGU(1),4),TMGU(2),1) IF HL7INST="" SET HL7INST="?"
-        IF $$XFRMFACILITY^TMGHL7U2(.HL7INST) ;"ignore result  //kt 1/14/21
-        SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1) IF HL7APP="" SET HL7APP="?"
+        IF $$XFRMFACILITY^TMGHL7U2(.HL7INST,.TMGU) ;"ignore result  //kt 1/14/21. Added TMGU 5/18/21
+        SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1) IF HL7APP="" SET HL7APP="Epic"
         NEW MSGTYPE SET MSGTYPE=$PIECE($PIECE(MSH,TMGU(1),9),TMGU(2),1)
         NEW IEN22720 SET IEN22720=0
         NEW FOUND SET FOUND=0

@@ -128,7 +128,7 @@ READBC(FPathName)
         SET ^TMG("TMP","BARCODE","LOG")="5d"  ;"temp
 
         NEW resultArray
-        IF $$FTG^%ZISH(FPath,FNAME,"resultArray(0)",1)=0 DO  GOTO RBCDone
+        IF $$FTG^%ZISH(FPath,FNAME,"resultArray(0)",1)=0 GOTO RBCDone
         ;"First line should be just '#' (filler character)
         ;"Second line should hold answer
         SET result=$GET(resultArray(1))

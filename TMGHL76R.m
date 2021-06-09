@@ -163,15 +163,12 @@ OBR4    ;"Purpose: To transform the OBR segment, field 4  'UNIVERSAL SERVICE ID'
 OBR4DN  QUIT
         ;
 OBR7    ;"Purpose: To transform the OBR segment, field 7  'OBSERVATION DATE TIME'
-        IF TMGVALUE="" DO
-        . ;"For some reason Epic is not providing an observation time.  So will use Request DT in OBR6
-        . SET TMGVALUE=$GET(TMGHL7MSG(TMGSEGN,6))
-        SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"DT")=TMGVALUE
+        DO OBR7^TMGHL74R
         QUIT
         ;
 OBR16   ;"Transform Ordering provider.
         DO OBR16^TMGHL74R
-OBR16DN QUIT
+        QUIT
         ;
 OBR32   ;"Transform Principle results interpretor (radiologist)
         ;"Input: Uses globally scoped vars: TMGVALUE,TMGHL7MSG,TMGU
@@ -310,4 +307,13 @@ FILERAD(TMGENV,TMGHL7MSG)  ;
         ;"Here I will file the radiology report.  
         ;"Use code in TMGRAU01 for filing...
         QUIT $$FILERAD^TMGHL74R(.TMGENV,.TMGHL7MSG) 
+        ;
+NOFILE(TMGENV,TMGHL7MSG)  ;"**DON'T** FILE THE MESSAGE
+        ;"NOTE: This is a NULL sink, where by the message is NOT filed
+        ;"      This is used for some HL7 messages that contain info
+        ;"      that does not need to be stored, and should be ignored. 
+        ;"Input: TMGENV -- PASS BY REFERENCE
+        ;"       TMGHL7MSG -- PASS BY REFERENCE
+        ;"Results: 1^OK, 
+        QUIT "1^OK"
         ;

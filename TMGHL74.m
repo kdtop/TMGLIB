@@ -264,23 +264,18 @@ OBX18   ;"Purpose: To transform the OBX segment, field 18 ---- Equipment Identif
 NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
         ;"Note: This handles NTE's after OBX's.  
         ;"      NTE's after OBR's are handled in OBRDN
-        DO NTE3^TMGHL72                         
-        IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
-        ;"NEW OBXIDX SET OBXIDX=+$GET(TMGINFO("MOST RECENT OBX","SEGN"))
-        NEW OBXIDX SET OBXIDX=+$GET(TMGLASTOBX("SEGN"))
-        IF $ORDER(TMGHL7MSG(OBXIDX))=TMGSEGN DO
-        . ;"NEW LABNAME SET LABNAME=$GET(TMGINFO("MOST RECENT OBX")) QUIT:LABNAME=""
-        . NEW LABNAME SET LABNAME=$GET(TMGLASTOBX("NAME")) QUIT:LABNAME=""
-        . NEW LINE SET LINE="Comment for: "_LABNAME
-        . DO PREFIXNT^TMGHL72(LINE,.TMGHL7MSG,.TMGU,TMGSEGN)  ;"PREFIX NOTE (INSERT LINE BEFORE INDEX LINE)
-        IF $$ISFINALN^TMGHL72(.TMGHL7MSG,TMGSEGN) DO
-        . NEW ARR SET ARR(1)=$$DBLN^TMGHL72
-        . DO APPNDNTE^TMGHL72(.ARR,.TMGHL7MSG,.TMGU,TMGSEGN)   ;"APPEND LINE AFTER NOTE 
+        DO NTE3^TMGHL73
+        ;"DO NTE3^TMGHL72                         
+        ;"IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
+        ;"NEW OBXIDX SET OBXIDX=+$GET(TMGLASTOBX("SEGN"))
+        ;"IF $ORDER(TMGHL7MSG(OBXIDX))=TMGSEGN DO
+        ;". NEW LABNAME SET LABNAME=$GET(TMGLASTOBX("NAME")) QUIT:LABNAME=""
+        ;". NEW LINE SET LINE="Comment for: "_LABNAME
+        ;". DO PREFIXNT^TMGHL72(LINE,.TMGHL7MSG,.TMGU,TMGSEGN)  ;"PREFIX NOTE (INSERT LINE BEFORE INDEX LINE)
+        ;"IF $$ISFINALN^TMGHL72(.TMGHL7MSG,TMGSEGN) DO
+        ;". NEW ARR SET ARR(1)=$$DBLN^TMGHL72
+        ;". DO APPNDNTE^TMGHL72(.ARR,.TMGHL7MSG,.TMGU,TMGSEGN)   ;"APPEND LINE AFTER NOTE 
         QUIT
-        ;
-  ;"SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
-  ;"        DO SUPROV^TMGHL72                
-  ;"        QUIT   
         ;
 SUORL   ;"Purpose: Setup TMGINFO("ORL") and TMGINFO("LOC") and TMGINFO("INSTNAME")
         DO SUORL^TMGHL72

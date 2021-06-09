@@ -12,9 +12,15 @@ TMGHL74R ;TMG/kst-HL7 transformation engine processing ;11/14/16, 3/24/21
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
  ;"NOTE: this is code for working with **radiology** from **[Laughlin]**
- ;"      FYI --    Laughlin LAB is in TMGHL74
- ;"                Pathgroup code is in TMGHL73
- ;"                common code is in TMGHL72
+ ;"      UPDATE: -- It seems that other NON-LAB messages from Laughlin are getting routed here...
+ ;"      FYI -- Pathgroup code is in TMGHL73
+ ;"             Laughlin code is in TMGHL74
+ ;"             Laughlin RADIOLOGY is in TMGHL74R
+ ;"             Quest code is in TMGHL75
+ ;"             common code is in TMGHL72
+ ;"             GCHE LAB code is TMGHL76
+ ;"             GCHE RADIOLOGY code is TMGHL76R
+ 
  ;"=======================================================================
  ;"=======================================================================
  ;" API -- Public Functions.
@@ -131,11 +137,19 @@ OBR4    ;"Purpose: To transform the OBR segment, field 4  'UNIVERSAL SERVICE ID'
         NEW TMGFDA,TMGMSG,TMGIEN,ZN
         NEW INST SET INST=71  ;"HARD CODED TO LAUGHLIN IEN IN FILE #4
         NEW CODE SET CODE=$PIECE(TMGVALUE,TMGU(2),1)
+        IF CODE="" DO  ;"real world example: ^^^^DEVICE CHECK IN CLINIC ILR/ICD/PACEMAKER
+        . NEW IDX FOR IDX=2:1:$LENGTH(TMGVALUE,TMGU(2)) DO  QUIT:CODE'=""
+        . . SET CODE=$PIECE(TMGVALUE,TMGU(2),IDX) QUIT:CODE=""
+        . . SET CODE=$TRANSLATE(CODE," ","_")
         IF CODE="" DO  GOTO OBR4DN
-        . SET TMGXERR="N OBR4^TMGHL74R, ERROR.  Study CODE not provided."
+        . SET TMGXERR="IN OBR4^TMGHL74R, ERROR.  Study CODE not provided."
         NEW LMHCODE SET LMHCODE="LMH-"_CODE
         NEW NAME SET NAME=$PIECE(TMGVALUE,TMGU(2),2)
-        NEW PROCIEN SET PROCIEN=+$ORDER(^RAMIS(71,"E",LMHCODE,0))
+        IF NAME="" DO   ;"real world example: ^^^^DEVICE CHECK IN CLINIC ILR/ICD/PACEMAKER
+        . NEW IDX FOR IDX=2:1:$LENGTH(TMGVALUE,TMGU(2)) DO  QUIT:NAME'=""
+        . . SET NAME=$PIECE(TMGVALUE,TMGU(2),IDX) QUIT:NAME=""
+        . . SET NAME=$TRANSLATE(NAME," ","_")                
+        NEW PROCIEN SET PROCIEN=+$ORDER(^RAMIS(71,"E",$E(LMHCODE,1,30),0))
         IF PROCIEN>0 GOTO OBR4B
 OBR4A   ;"-- ADD NEW PROCEDURE RECORD INF #71     
         SET TMGFDA(71,"+1,",.01)=NAME
@@ -168,6 +182,10 @@ OBR4B   SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"PROC")=PROCIEN
 OBR4DN  QUIT
         ;
 OBR7    ;"Purpose: To transform the OBR segment, field 7  'OBSERVATION DATE TIME'
+        IF TMGVALUE'>0 DO  ;"For some reason Epic is not providing an observation time.  
+        . SET TMGVALUE=$GET(TMGHL7MSG(TMGSEGN,6)) ;"Try Request DT in OBR6
+        . IF TMGVALUE>0 QUIT
+        . SET TMGVALUE=$GET(TMGHL7MSG(1,7)) ;"If still no date, then use date of HL7 message
         SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"DT")=TMGVALUE
         QUIT
         ;
@@ -402,7 +420,8 @@ FILERAD(TMGENV,TMGHL7MSG)  ;
         IF TMGDFN'>0 DO  GOTO FLRDDN
         . ;"SET TMGRESULT="-1^DFN not found in FILERAD^TMGHL74R.  Got ["_TMGDFN_"]"
         . NEW NAMEDOB SET NAMEDOB=$$GETNMDOB^TMGHL7U3(.TMGHL7MSG)
-        . SET TMGRESULT="-1^Patient not found in system: "_NAMEDOB         
+        . SET TMGRESULT="-1^Patient not found in system: "_NAMEDOB   
+        IF TMGRESULT'>0 GOTO FLRDDN
         SET TMGRESULT=$$REGEXAM^TMGRAU01(TMGDFN,.DATA)
         IF TMGRESULT<0 GOTO FLRDDN
         SET TMGRESULT=$$STOREXAM^TMGRAU01(TMGDFN,.DATA)

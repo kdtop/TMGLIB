@@ -23,6 +23,7 @@ TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ;3/7/18, 5/22/18, 4/26/19
  ;"MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
  ;"MKHLMAR2(MSGARRAY,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
  ;"STUBHL7M(MSH,IEN772,IEN773) --Create stub records in 772, 773
+ ;"XFRMFACILITY(FACILITY,TMGU) -- transform sending facility before any processing is done. 
  ;"FROM772(IEN772,IEN773,MSGARRAY) --FILL MSGARRAY FROM FILES 772 & 773
  ;"FROM772H(IEN772,IEN773,MSGARRAY,MSH) -- FILL MSGARRAY+MSH FROM FILES 772 & 773
  ;"TO772(MSGARRAY,IEN772,IEN773) --PUT MSGARRAY INTO FILES 772 & 773 (PRE-EXISTING RECORDS)
@@ -95,13 +96,13 @@ LOADHL7(FNAME,ARRAY,MSH) ;"LOAD FILE INTO ARRAY
         NEW TMGRESULT,OPTION,LINE
         SET OPTION("LINE-TERM")=$CHAR(13)  ;"NOTE: HL7 messages have just #13 as line terminator. 
         SET OPTION("OVERFLOW")=1 ;"Overflow portion is concat'd to the orig line (making length>255)
-        SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)
+        SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)  ;"returns 0 if failure, 1 if success
         IF $$LISTCT^TMGMISC2("ARRAY")=1 DO
         . SET LINE=$GET(ARRAY(1)) QUIT:(LINE="")!($EXTRACT(LINE,1,3)'="MSH")
         . NEW DIVCH SET DIVCH=$EXTRACT(LINE,4)
         . IF LINE'["PID"_DIVCH QUIT
         . KILL OPTION("LINE-TERM")  ;"NOTE: Try again without special line divider    
-        . SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)
+        . SET TMGRESULT=$$HFS2ARFP^TMGIOUT3(FNAME,"ARRAY",.OPTION)  ;"returns 0 if failure, 1 if success
         NEW LINENUM SET LINENUM=$ORDER(ARRAY(0))
         SET MSH=$GET(ARRAY(LINENUM)) 
         NEW BOM SET BOM=$CHAR(239)_$CHAR(187)_$CHAR(191)
@@ -111,7 +112,10 @@ LOADHL7(FNAME,ARRAY,MSH) ;"LOAD FILE INTO ARRAY
         . SET ARRAY(LINENUM)=MSH
         IF MSH'["MSH" DO              
         . SET TMGRESULT="-1^'MSH' not found on first line.  Got: '"_MSH_"'"
-LDHL7DN QUIT TMGRESULT        
+LDHL7DN ;
+        IF TMGRESULT'>0 DO  ;"//kt added 6/8/21
+        . SET TMGRESULT="-1^Error opening file: ["_FNAME_"]; "_$PIECE(TMGRESULT,"^",2,99)
+        QUIT TMGRESULT        
         ;
 STUBHL7M(MSH,IEN772,IEN773) ;"Create stub records in 772, 773 
         ;"Input: MSH -- the message header segment. 
@@ -212,16 +216,21 @@ MKHLMAR2(MSGARRAY,IEN772,IEN773)  ;"Take input message array, and create a NEW H
         SET TMGRESULT=$$MKHLMARR(.ARR,MSH,.IEN772,.IEN773)  ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 1 each in 772, 773)
         QUIT TMGRESULT
         ;   
-XFRMFACILITY(FACILITY) ;"
-        ;"Purpose: transform sending facility before any processing is done.
+XFRMFACILITY(FACILITY,TMGU) ;"Transform sending facility before any processing is done.
         ;"NOTE: With Epic, I have started getting messages from hospital all through
         ;"     the network.  I think all messages will use same code names etc,
         ;"     so I will map them all to a generic hospital name.
         ;"Input: FACILITY -- an IN AND OUT PARAMETER
+        ;"       TMGU -- Array with section delimiters
         ;"RESULT: 1 if modified, 0 if no change.  
         NEW RESULT SET RESULT=0
-        ;"IF (FACILITY="GCHW")!(FACILITY="BRMC")!(FACILITY="BHMA")!(FACILITY="HVMC")!(FACILITY="WCS")!(FACILITY="WMA")!(FACILITY="JCMC")!(FACILITY="BHMS")!(FACILITY="WDR")!(FACILITY="IPCH") DO
-        IF "^GCHW^BRMC^BHMA^HVMC^WCS^WMA^JCMC^BHMS^WDR^IPCH^HCMH^FWCH^SSH"[FACILITY DO
+        SET FACILITY=$PIECE(FACILITY,TMGU(2),1)
+        NEW SHOULDMAP SET SHOULDMAP=0
+        IF "^GCHW^BRMC^BHMA^HVMC^WCS^WMA^JCMC^BHMS^WDR^"[FACILITY SET SHOULDMAP=1
+        IF "^IPCHH^IPCH^HCMH^FWCH^SSH^GCHE^JCMCZ^UCH^TRH^"[FACILITY SET SHOULDMAP=1
+        IF "^JMHZ^"[FACILITY SET SHOULDMAP=1        
+        IF FACILITY="" SET SHOULDMAP=1
+        IF SHOULDMAP DO
         . SET FACILITY="BALLADNETWORK"
         . SET RESULT=1
         IF (FACILITY="") DO  ;"IF BLANK ASSUME GCHE
@@ -268,7 +277,7 @@ MSH2IENA(MSH,INFO) ;"MSH HEADER TO IEN INFO ARRAY
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW TMGU DO SUTMGU^TMGHL7X2(.TMGU,$EXTRACT(MSH,4),$EXTRACT(MSH,5,8))
         NEW FACILITY SET FACILITY=$PIECE(MSH,TMGU(1),4)
-        IF $$XFRMFACILITY(.FACILITY) DO
+        IF $$XFRMFACILITY(.FACILITY,.TMGU) DO
         . SET $PIECE(MSH,TMGU(1),4)=FACILITY
         NEW X,Y,DIC,D SET DIC=771,DIC(0)="",D="TMGFACILITY",X=FACILITY  ;"Setup search on just custom XRef TMGFACILITY in file 771
         DO IX^DIC KILL D 

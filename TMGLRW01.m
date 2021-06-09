@@ -219,7 +219,10 @@ FILESUBM(INFO,MSGARR,DATESUSED,ALERTS) ;"FILE SUB HL7 MESSAGE
         MERGE OBRARR=MSGARR(OBRIDX)
         ;"Collect array of labs to be placed in DT, for used to avoid mixing
         ;"  this set with different labs from a different OBR+OBX set.
-        NEW OBSDATETIME SET OBSDATETIME=+$$HL72FMDT^TMGHL7U3($GET(OBRARR(7)))
+        NEW OBSDATETIME SET OBSDATETIME=$GET(OBRARR(7))  ;"7= Observation Date/Time
+        IF OBSDATETIME'>0 DO  GOTO FSMDN
+        . SET TMGRESULT="-1^Unable to file lab results because valid date-time not provided on OBR.7"
+        SET OBSDATETIME=+$$HL72FMDT^TMGHL7U3(OBSDATETIME)
         NEW NEWDATES SET NEWDATES(OBSDATETIME)=""
         NEW OBXIDX SET OBXIDX=0
         FOR  SET OBXIDX=$ORDER(MSGARR(OBXIDX)) QUIT:(+OBXIDX'>0)!(+TMGRESULT'>0)  DO
@@ -268,6 +271,8 @@ PREPOBR(INFO,OBRARR,FILEARR,DATESUSED,NEWDATES) ;"prepair array for LRWRITE from
         NEW TMGRESULT SET TMGRESULT=1
         ;"TO DO - VERIFY DATES
         NEW OBSDATETIME SET OBSDATETIME=$GET(OBRARR(7))  ;"7= Observation Date/Time
+        IF OBSDATETIME'>0 DO  GOTO POBRDN
+        . SET TMGRESULT="-1^Unable to file lab results because valid date-time not provided on OBR.7"
         SET OBSDATETIME=+$$HL72FMDT^TMGHL7U3(OBSDATETIME)
         NEW USEUNQ SET USEUNQ=1
         IF USEUNQ=1 SET OBSDATETIME=$$UNIQUEDT(OBSDATETIME,.DATESUSED,.NEWDATES) ;

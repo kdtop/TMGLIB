@@ -4,7 +4,7 @@ TMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19, 2/27/20, 3/24/2
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
- ;"Copyright (c) 4/11/19  Kevin S. Toppenberg MD
+ ;"Copyright (c) 4/11/19  Knothevin S. Toppenberg MD
  ;"
  ;"This file is part of the TMG LIBRARY, and may only be used in accordence
  ;" to license terms outlined in separate file TMGLICNS.m, which should 
@@ -131,6 +131,7 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         ;"Input: TMGENV -- PASS BY REFERENCE
         ;"       TMGHL7MSG -- PASS BY REFERENCE
         ;"Results: 1 if OK, or -1^Message if error
+        ;"         NOTE: if undesired ADT type, this will NOT file the message, but will still return 1^SUCCESS
         NEW MESSAGE,ADTEDATE,PCPDUZ,NOTETITLE,ARR
         NEW TMGRESULT SET TMGRESULT="1^SUCCESS"
         IF $DATA(TMGADTTYPES)=0 DO LOADTYPS(.TMGADTTYPES) ;"//NOTE: TMGADTTYPES is killed is MSG2^TMGHL76A
@@ -331,8 +332,9 @@ HL72PRE(ARR,REFHTML,JDX,STYLE) ;"Convert array to PRE block.
         SET @REFHTML@(JDX,0)="</PRE>",JDX=JDX+1
         QUIT
         ;
-SETALERT(ERRTEXT,AMSG) ;
+SETALERT(ERRTEXT,AMSG,IEN772,IEN773) ;
         ;"do nothing for now
+        DO SETALERT^TMGHL7E(.ERRTEXT,.AMSG,.IEN772,.IEN773,"ADT")
         QUIT
         ;"        
 LOADTYPS(ARR) ;" Load names of ADT event names into ARR

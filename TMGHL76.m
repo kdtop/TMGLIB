@@ -135,6 +135,12 @@ OBR4    ;"Purpose: To transform the OBR segment, field 4
         DO OBR4^TMGHL72
         QUIT
         ;
+OBR14   ;"Transform the Specimen taken DT
+        ;
+        IF TMGVALUE="" DO
+        . SET TMGVALUE=$G(TMGHL7MSG(TMGSEGN,22))
+        . IF TMGVALUE="" SET TMGVALUE=$G(TMGHL7MSG(TMGSEGN,7))
+        QUIT
 OBR15   ;"Transform Secimen source
         IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
         DO OBR15^TMGHL73
@@ -148,6 +154,18 @@ OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc ar
         ;"This allows putting information about the ordered test(s) into the comment section
         ;"Uses globally scoped vars: TMGSEGN, TMGDD
         DO OBRDN^TMGHL74
+        QUIT
+        ;
+OBX     ;"Purpose: To transform the entire OBX segment -- Observation Identifier
+        ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE, 
+        ;"       TMGSEGN, TMGINFO, TMGENV
+        DO OBX^TMGHL72
+        NEW ISMULT SET ISMULT=$$CHKMULTIOBX^TMGHL72(.TMGHL7MSG,TMGSEGN)
+        IF +ISMULT>0 DO
+        . NEW STARTSEGN SET STARTSEGN=$PIECE(ISMULT,"^",2)
+        . NEW ENDSEGN SET ENDSEGN=$PIECE(ISMULT,"^",3)
+        . DO OBR2NTE^TMGHL72(.TMGHL7MSG,.TMGU,STARTSEGN,ENDSEGN)
+        ;"-- end mod
         QUIT
         ;
 OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifier

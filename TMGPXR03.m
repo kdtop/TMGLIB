@@ -298,9 +298,10 @@ ACTIVEPT(TMGDFN,WINDOW) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACT
         ;"      added to the record, then it is irrevocable.  If this is a problem, 
         ;"      will have to refine later. 
         IF $DATA(^TIU(8925,"APT",TMGDFN,DIEDTITLE))>0 GOTO APTDN
-        IF $DATA(^TIU(8925,"APT",TMGDFN,DCTITLE))>0 GOTO APTDN   ;"ELH added 10-5-15
+        ;"TEST BELOW IF $DATA(^TIU(8925,"APT",TMGDFN,DCTITLE))>0 GOTO APTDN   ;"ELH added 10-5-15
         NEW XFER,XFERDT,LASTOVDT
-        SET XFER=0,XFERDT=0,LASTOVDT=0
+        NEW DCED,DCDT
+        SET XFER=0,XFERDT=0,LASTOVDT=0,DCED=0,DCDT=0
         ;"IF $DATA(^TIU(8925,"APT",TMGDFN,XFERTITLE))>0 GOTO APTDN ;"Transfer handled below now ELH
         FOR  SET TITLEIEN=$ORDER(^TIU(8925,"APT",TMGDFN,TITLEIEN)) QUIT:(+TITLEIEN'>0)  DO
         . NEW STATUSIEN SET STATUSIEN=0
@@ -317,7 +318,10 @@ ACTIVEPT(TMGDFN,WINDOW) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACT
         . . . IF TITLEIEN=XFERTITLE DO  ;"TRANSFER DATE STORED FOR TESTING ELH
         . . . . SET XFER=1
         . . . . SET XFERDT=ONEDATE
-        . . . IF (TITLEIEN=1408)!(TITLEIEN=1399)!(TITLEIEN=1402) DO
+        . . . IF TITLEIEN=DCTITLE DO  ;"ADDED IF 5/27/21
+        . . . . SET DCED=1
+        . . . . SET DCDT=ONEDATE
+        . . . IF (TITLEIEN=1408)!(TITLEIEN=1399)!(TITLEIEN=1402)!(TITLEIEN=2140)!(TITLEIEN=2012)!(TITLEIEN=2135) DO
         . . . . IF ONEDATE>LASTOVDT SET LASTOVDT=ONEDATE
         . . . IF FOUND=0 SET FOUND=((ONEDATE'<SDTIME)&(ONEDATE'>DATE))
         IF (XFER=1)&(LASTOVDT>0) DO
@@ -325,7 +329,12 @@ ACTIVEPT(TMGDFN,WINDOW) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACT
         . SET X1=LASTOVDT,X2=XFERDT
         . DO ^%DTC
         . IF X>30 SET XFER=0
-        IF XFER=0 SET TMGRESULT=(FOUND>0)
+        IF (DCED=1)&(LASTOVDT>0) DO  ;"ADDED IF 5/27/21
+        . NEW X1,X2,X
+        . SET X1=LASTOVDT,X2=DCDT
+        . DO ^%DTC
+        . IF X>30 SET DCED=0
+        IF (XFER=0)&(DCED=0) SET TMGRESULT=(FOUND>0)
 APTDN   QUIT TMGRESULT        
         ;                
 RUNRPT(RESULTARR,PTARRAY,IEN,DATE,SHOWPROG,WANTNA)  ;Prints reminder report to specified device
