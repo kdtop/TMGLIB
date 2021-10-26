@@ -1,7 +1,7 @@
 TMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19, 2/27/20, 3/24/21
               ;;1.0;TMG-LIB;**1**;11/14/16
  ;
- ;"TMG HL7 TRANSFORMATION FUNCTIONS
+ ;"TMG HL7 TRANSFORMATION FUNCTIONS 
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;"Copyright (c) 4/11/19  Knothevin S. Toppenberg MD
@@ -153,18 +153,20 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         . SET TMGRESULT="-1^PCP COULD NOT BE DETERMINED FOR "_$P($G(^DPT(TMGDFN,0)),"^",1)_"  FROM HL7 ADT MESSAGE"
         NEW EDDIEMSG SET EDDIEMSG=""
         NEW ALRTDUZ SET ALRTDUZ=150  ;"//hard coded to Eddie Hagood user
+        ;"NEW ALRTDUZ SET ALRTDUZ=140  ;"Brenda for now while Eddie is on vacation
         NEW PATNAME SET PATNAME=$P($G(^DPT(TMGDFN,0)),"^",1)
         NEW PV1IDX SET PV1IDX=+$ORDER(TMGHL7MSG("B","PV1",0))
         NEW PV2IDX SET PV2IDX=+$ORDER(TMGHL7MSG("B","PV2",0))
         NEW PD1IDX SET PD1IDX=+$ORDER(TMGHL7MSG("B","PD1",0))
         ;"NEW FACILITYLOC SET FACILITYLOC=$GET(TMGHL7MSG(1,4,1),"<not found>")
-        NEW FACILITYLOC SET FACILITYLOC=$GET(TMGHL7MSG(PD1IDX,3,1),"<not found>")
+        NEW FACILITYLOC SET FACILITYLOC=$GET(TMGHL7MSG(PD1IDX,3,1),"<not found>") 
         NEW DATARR
         ;
         NEW LOC SET LOC=$GET(TMGHL7MSG(+PV1IDX,2))
         IF "INPATIENT^OBSERVATION^EMERGENCY"'[LOC GOTO FADTDN   ;"//kt <--- is this too strict?
         NEW VSTDESC SET VSTDESC=$GET(TMGHL7MSG(+PV2IDX,12))
         IF VSTDESC["PRE-ADMISSION TESTING" GOTO FADTDN    ;"3/31/20
+        IF VSTDESC["RAD FILM PERMANENT TRANSFER" GOTO FADTDN    ;"10/12/21
         ;"
         IF ADTEVENT="A01" DO  ;"ADMISSION
         . IF LOC="EMERGENCY" DO
@@ -359,8 +361,8 @@ TYPES   ;"//----- ADT TYPES ----
         ;;"A18^Merge patient information
         ;;"A19^QRY/ADR - Patient query
         ;;"A20^Bed status update
-        ;;"A21^Patient goes on a “leave of absence”
-        ;;"A22^Patient returns from a “leave of absence”
+        ;;"A21^Patient goes on a ï¿½leave of absenceï¿½
+        ;;"A22^Patient returns from a ï¿½leave of absenceï¿½
         ;;"A23^Delete a patient record
         ;;"A24^Link patient information
         ;;"A25^Cancel pending discharge
@@ -412,3 +414,5 @@ TESTADD
         . SET TIUIEN=RTNTIUIEN
         ELSE  DO
         . DO BLANKTIU^TMGRPC1(.TIUIEN,TMGDFN,USERNAME,6,DOS,NOTETITLE)
+      
+        QUIT

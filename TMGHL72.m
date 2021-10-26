@@ -84,6 +84,7 @@ TMGHL72 ;TMG/kst-HL7 transformation engine processing ;4/11/19, 3/24/21, 4/26/21
  ;"SUMOBXSTA(TMGHL7MSG,SEGN,OUT) -- Get net status from OBX's after an OBR
  ;"SUMNTARR(TMGHL7MSG,SEGN,OUT) -- Convert NTE's after SEGN into simple ARR(#)=Text array
  ;"CHKOBRNT(TMGHL7MSG,SEGN,OBRCOMMENTS) -- CHECK / Handle NTE's that follow OBR (i.e. order comments) 
+ ;"CK4NOOBX(TMGHL7MSG,SEGN,TMGU) -- Check (and fix) for situation where we have OBR and NTE, but no OBX
  ;
  ;"=======================================================================
  ;"Dependancies
@@ -223,6 +224,8 @@ PID     ;"Purpose: To transform the PID segment, esp SSN
         . SET INFO("DOB")=FMDT
         . SET INFO("SEX")=SEX
         . SET TMGDFN=$$GETDFN^TMGGDFN(.INFO,0)     
+        . ;"CHECK FOR ALIAS - ADDED 7/12/21
+        . IF TMGDFN'>0 SET TMGDFN=$$ALIAS2DFN^TMGHL7U3(NAME,FMDT,SEX,$P(HL7SSN,"^",1))
         . IF TMGDFN>0,(HL7SSN'>0) DO   
         . . SET $PIECE(TMGVALUE,TMGU(1),19)=$PIECE($GET(^DPT(TMGDFN,0)),"^",9)
         . . SET $PIECE(HL7SSN,TMGU(2),4)=170
@@ -272,8 +275,11 @@ OBR     ;"Purpose: setup for OBR fields.
         ;
         IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
         ;
+        NEW TMGRESULT SET TMGRESULT=$$CK4NOOBX^TMGHL72(.TMGHL7MSG,TMGSEGN,.TMGU)  ;"Check (and fix) for situation where have OBR and NTE, but no OBX
+        IF TMGRESULT<1 GOTO OBRDN
+        ;
         NEW ARR,ORDERTEST SET ORDERTEST=$GET(TMGHL7MSG(TMGSEGN,4)) IF ORDERTEST="" GOTO OBRDN
-        IF $PIECE(ORDERTEST,TMGU(2),1)="" DO  ;"Real world example: "^^^^^^^^POCT COVID VIRAL 4PLEX"
+        IF $PIECE(ORDERTEST,TMGU(2),1)="" DO  ;"Real world example: '^^^^^^^^POCT COVID VIRAL 4PLEX'
         . NEW ARR MERGE ARR=TMGHL7MSG(TMGSEGN,4)
         . NEW IDX SET IDX=$ORDER(ARR(0)) QUIT:IDX'>0
         . NEW NAME SET NAME=$GET(ARR(IDX))
@@ -290,6 +296,14 @@ OBR     ;"Purpose: setup for OBR fields.
         SET VACODE=NLT_"^"_LABPRNAME_"^"_LABNAME_"^"_+IEN60  ;"WRKLDCode^LabPrintName^LabName^LabIEN60
         ;
         SET TMGINFO("VACODE")=VACODE
+        ;
+        IF $GET(TMGHL7MSG(TMGSEGN,7))'>0 DO    ;"real world example.  PFT did not have OBR.7, but had OBR.22, OBR.6, (and also some OBX DTs)
+        . NEW DT1 SET DT1=$GET(TMGHL7MSG(TMGSEGN,22))  ;" OBR.22 - Results Rpt/Status Chng - Date/Time
+        . NEW DT2 SET DT2=$GET(TMGHL7MSG(TMGSEGN,6))   ;" OBR.6 -  Requested Date/Time
+        . NEW DT SET DT=$SELECT(DT1>0:DT1,DT2>0:DT2,1:0)
+        . IF DT'>0 QUIT
+        . SET $PIECE(TMGVALUE,TMGU(1),7)=DT   ;"By modifiying TMGVALUE, a refresh of parse should be automatic. 
+        ;        
 OBRDN   IF TMGRESULT<0 SET TMGXERR=$PIECE(TMGRESULT,"^",2,99)   
         QUIT
 
@@ -452,8 +466,16 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         ;"Results: None.  TMGXERR SET IF error
         KILL TMGINFO("PROV")
         NEW PROV SET PROV=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"OBR",16)
-        IF $PIECE(PROV,TMGU(2),13)="NPI" DO
-        . NEW NPI,ADUZ
+        IF PROV="" DO  
+        . SET PROV=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"ORC",12)  ;"try getting from ORC.12
+        IF PROV="" DO  
+        . SET PROV=$$GETPCE^TMGHL7X2(.TMGHL7MSG,"PV1",8)  ;"try getting from PV1.8
+        IF $PIECE(PROV,TMGU(2),2,4)="BIBLE^III,^RANDALL B" DO   ;"@#$q@#! stupid input ... hard coding fix
+        . SET $PIECE(PROV,TMGU(2),3)=$PIECE(PROV,TMGU(2),4)
+        . SET $PIECE(PROV,TMGU(2),4)=""
+        NEW PROVTYPE SET PROVTYPE=$PIECE(PROV,TMGU(2),13)
+        IF PROVTYPE="NPI" DO
+        . NEW NPI,ADUZ SET ADUZ=0
         . SET NPI=$PIECE(PROV,TMGU(2),1)
         . IF NPI="" DO  QUIT
         . . SET TMGXERR="In SPROV.TMGHL72: Set to NPI, but NPI is blank in field #16 of 'OBR' segment in HL7 message"
@@ -471,20 +493,33 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         . SET FNAME=$PIECE(FNAME," ",1)
         . SET PROV=ADUZ_TMGU(2)_LNAME_TMGU(2)_FNAME
         . SET TMGINFO("PROV")=PROV
-        IF $DATA(TMGINFO("PROV"))=0,$GET(TMGXERR)="" DO
-        . NEW LNAME,FNAME,MNAME,NAME  ;"added "NAME" here on 2/25/21
+        IF PROVTYPE="PROVID" DO  ;"real world example: '333555^BALK^LEANNE^A^^^^^PROVID^^^^PROVID'  (id and name modified)
         . SET TMGINFO("PROV","ORIGINAL")=PROV
-        . ;"//kt 2/4/21 Changing to register outside providers.  Old --> IF $$UP^XLFSTR(PROV)'["TOPPENBERG" SET PROV="^Doctor^Unspecified^"
-        . IF PROV="" DO  QUIT
-        . . SET TMGXERR="In SUPROV.TMGHL72: Ordering provider not provided in field #16 or 'OBR' segment in HL7 message"
-        . ;"SET LNAME=$PIECE(PROV,TMGU(2),2)
-        . ;"SET FNAME=$PIECE(PROV,TMGU(2),3)
-        . ;"SET MNAME=$PIECE(PROV,TMGU(2),4)
-        . ;"IF MNAME["-STATCARE" SET MNAME=""
-        . ;"IF MNAME["-APP" SET MNAME=""
-        . ;"NEW NAME SET NAME=LNAME_","_FNAME_" "_MNAME
-        . ;"IF (LNAME="TOPPENBERG")&(FNAME="EE") SET FNAME="MARCIA"  
-        . ;"SET NAME=$$TRIM^XLFSTR(NAME)
+        . NEW LNAME,FNAME,NAME
+        . SET LNAME=$PIECE(PROV,TMGU(2),2)
+        . SET FNAME=$PIECE(PROV,TMGU(2),3)
+        . SET FNAME=$PIECE(FNAME," ",1)
+        . SET NAME=LNAME_","_FNAME
+        . NEW X,Y,DIC SET DIC=200,DIC(0)="M"
+        . SET X=NAME DO ^DIC
+        . IF +Y>0 DO
+        . . NEW ADUZ SET ADUZ=+Y
+        . . SET NAME=$PIECE(Y,"^",2)
+        . . SET LNAME=$PIECE(NAME,",",1)
+        . . SET FNAME=$PIECE(NAME,",",2)
+        . . SET PROV=ADUZ_TMGU(2)_LNAME_TMGU(2)_FNAME
+        . ELSE  DO
+        . . SET ADUZ=$$ADDPROV(NAME,.TMGU) ;"ELH begin addition 10/12/21
+        . . IF ADUZ>0 DO
+        . . . SET PROV=ADUZ_TMGU(2)_LNAME_TMGU(2)_FNAME
+        . . ELSE  DO                       ;"ELH end addition   
+        . . . SET PROV="^Doctor^Unspecified^"
+        . SET TMGINFO("PROV")=PROV        
+        IF +$GET(TMGINFO("PROV"))=0,$GET(TMGXERR)="" DO
+        . NEW LNAME,FNAME,MNAME,NAME 
+        . IF $GET(TMGINFO("PROV","ORIGINAL"))="" SET TMGINFO("PROV","ORIGINAL")=PROV
+        . IF PROV="" DO  
+        . . SET PROV="^Doctor^Unspecified^"   
         . SET NAME=$$HL7N2FMN(.TMGU,PROV,.LNAME,.FNAME,.MNAME)
         . NEW DIC,X,Y SET DIC=200,DIC(0)="M",X=NAME
         . DO ^DIC
@@ -509,7 +544,7 @@ ADDPROV(FMNAME,TMGU)  ;"ADD PROVIDER TO NEW PERSON FILE.  (*CAUTION*)
         SET TMGFDA(200,"+1,",.01)=FMNAME
         DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO  GOTO ADDDN
-        . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(TMGMSG("DIERR"))
+        . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
         SET TMGIEN=+$GET(TMGIEN(1))
         IF +TMGIEN<1 DO  GOTO ADDDN
         . SET TMGRESULT="-1^USER NOT CREATED FOR UNKNOWN REASON"
@@ -599,10 +634,12 @@ VVSET1  IF $PIECE(ZNODE,"^",2)["S" DO
         IF TMGCODE="" GOTO VVDN
         NEW X SET X=TMGVALUE
         DO
-        . NEW $ETRAP
-        . SET $ETRAP="SET TMGXERR=""Error trapped executing input transform code: '""_TMGCODE_""' "
-        . SET $ETRAP=$ETRAP_"$ZSTATUS=""_$ZSTATUS_""; $ECODE=""_$ECODE "
-        . SET $ETRAP=$ETRAP_"SET $ETRAP="""",$ECODE="""" "
+        . NEW NOQTCODE SET NOQTCODE=$TRANSLATE(TMGCODE,"""","'")
+        . NEW STR,$ETRAP
+        . SET STR="SET TMGXERR=""Error trapped executing input transform code: [ "_NOQTCODE_" ] "
+        . SET STR=STR_"; $ZSTATUS=""_$ZSTATUS_""; $ECODE=""_$ECODE_"" "" "
+        . SET STR=STR_"SET $ETRAP="""" SET $ECODE="""" "
+        . SET $ETRAP=STR
         . XECUTE TMGCODE
         IF '$DATA(X) GOTO VV1 ;"input transform failed.
         ;"Put extra checks here IF needed ...
@@ -746,7 +783,84 @@ LABLDATA(OUT,TMGHL7MSG,SEG,SEGN)  ;
         . SET OUT(FLDNAME)=VALUE
         QUIT
         ;
+GETINSRTS(TMGHL7MSG,SEGNPRIOR,COUNT)  ;"Get parameters for insertion
+        ;"Input: TMGHL7MSG -- the working array. PASS BY REFERENCE.
+        ;"       SEGNPRIOR -- The segment number that the NTE array is to be inserted AFTER
+        ;"       COUNT -- the number of elements that will be needed to be inserted AFTER
+        ;"                SEGNPRIOR, and before the prior NEXT element
+        ;"Result: # to increment by, e.g. 0.01
+        NEW INC SET INC=0.1  ;"Default
+        SET COUNT=+$GET(COUNT)
+        IF COUNT'>0 GOTO GETIDN
+        NEW NEXTSEGN SET NEXTSEGN=+$ORDER(TMGHL7MSG(SEGNPRIOR))
+        IF NEXTSEGN'>0 GOTO GETIDN
+        NEW DELTA SET DELTA=NEXTSEGN-SEGNPRIOR
+        NEW DONE SET DONE=0
+        FOR  DO  QUIT:DONE
+        . IF (DELTA/INC)<COUNT SET INC=INC/10  ;"e.g. 0.1 -> 0.01
+        . ELSE  SET DONE=1
+GETIDN  QUIT INC
+        ;
+INSRTSEG(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert segment(s) after SEGNPRIOR from ARR
+        ;"Input: ARR -- PASS BY REFERENCE.  The array to add.  Format:
+        ;"         ARR(#)=properly formatted line in HL7 format to be inserted.   
+        ;"      TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
+        ;"      TMGU -- The array with divisor chars.
+        ;"      SEGNPRIOR -- The segment number that the NTE array is to be inserted AFTER
+        ;"Results: 1^OK, or -1^Error message
+        NEW TMGRESULT SET TMGRESULT="1^OK"
+        NEW ARRCT SET ARRCT=$$LISTCT^TMGMISC2("ARR")
+        NEW INC SET INC=$$GETINSRTS(.TMGHL7MSG,SEGNPRIOR,ARRCT)
+        NEW CURSEGN SET CURSEGN=SEGNPRIOR
+        NEW NEWSEGN  
+        NEW ARRIDX SET ARRIDX=""
+        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
+        . NEW LINE SET LINE=$GET(ARR(ARRIDX))
+        . SET NEWSEGN=CURSEGN+INC
+        . SET TMGHL7MSG(NEWSEGN)=LINE
+        . NEW SEGNAME SET SEGNAME=$PIECE(LINE,TMGU(1),1)
+        . SET TMGHL7MSG(NEWSEGN,"SEG")=SEGNAME       
+        . SET TMGHL7MSG("B",SEGNAME,NEWSEGN)=""
+        . SET TMGHL7MSG("PO",NEWSEGN)=NEWSEGN
+        . DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,NEWSEGN)
+        . SET CURSEGN=NEWSEGN
+        QUIT TMGRESULT
+        ;        
 INSRTNTE(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert note segment after SEGNPRIOR from ARR
+        ;"Input: ARR -- PASS BY REFERENCE.  The array to add.  Format:
+        ;"   ARR(#)=<line of unformatted text>  <-- must not contain TMGU(1) divisor (e.g. '|')
+        ;"      TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
+        ;"      TMGU -- The array with divisor chars.
+        ;"      SEGNPRIOR -- The segment number that the NTE array is to be inserted AFTER
+        ;"NOTE: If there is a NTE segment directly after SEGNPRIOR, then that NTE
+        ;"      block will be appended to.
+        ;"Results: 1^OK, or -1^Message
+        NEW TMGRESULT SET TMGRESULT="1^OK"
+        NEW NTENUM SET NTENUM=1
+        NEW SEGN SET SEGN=SEGNPRIOR
+        ;"If inserting a NTE, and the next segment is an NTE, then we will change
+        ;"  And APPEND to NTE block.  So will need to find end of block, and also
+        ;"  get the last NTE index number.  
+        ;"  Also, will prefix ARR with a double line to separate the blockes.  
+        NEW DONE SET DONE=0
+        FOR  SET SEGN=$ORDER(TMGHL7MSG(SEGN)) QUIT:(SEGN'>0)!DONE  DO
+        . IF $GET(TMGHL7MSG(SEGN,"SEG"))'="NTE" SET DONE=1 QUIT
+        . NEW LINE SET LINE=$GET(TMGHL7MSG(SEGN))
+        . IF NTENUM=1 DO
+        . . NEW FIRSTIDX SET FIRSTIDX=$ORDER(ARR(""))
+        . . SET ARR(FIRSTIDX-0.1)=$$DBLN()
+        . SET NTENUM=$PIECE(LINE,TMGU(1),2)+1
+        . SET SEGNPRIOR=SEGN
+        NEW NTEARR
+        NEW ARRIDX SET ARRIDX=""
+        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
+        . NEW LINE SET LINE=$GET(ARR(ARRIDX))
+        . SET NTEARR(ARRIDX)="NTE"_TMGU(1)_NTENUM_TMGU(1)_"L"_TMGU(1)_LINE_TMGU(1),NTENUM=NTENUM+1
+        SET TMGRESULT=$$INSRTSEG(.NTEARR,.TMGHL7MSG,.TMGU,SEGNPRIOR)
+INSNDN  QUIT TMGRESULT
+
+ ;"BACKUP FUNCTION BELOW.  DELETE LATER IF ABOVE VERSION WORKS  10/8/21
+INSRTNTE0(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert note segment after SEGNPRIOR from ARR
         ;"Input: ARR -- PASS BY REFERENCE.  The array to add.  Format:
         ;"   ARR(#)=<line of text>
         ;"      TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
@@ -778,8 +892,8 @@ INSRTNTE(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert note segment after SEGNPRIOR f
         . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"       
         . SET TMGHL7MSG("B","NTE",NEWSEGN)=""
         . SET SEGNPRIOR=NEWSEGN
-INSNDN  QUIT
-        ;        
+        QUIT
+        ;  
 PREFIXNT(LINE,TMGHL7MSG,TMGU,SEGN)  ;"PREFIX NOTE (INSERT LINE BEFORE INDEX LINE)
         ;"Input: LINE -- A SINGLE LINE TO PREFIX
         ;"      TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
@@ -873,14 +987,26 @@ DELSEG(TMGHL7MSG,SEGN)  ;"DELETE SEGMENT, AND REFERENCES TO IT IN THE CROSS REFE
         . IF $GET(TMGHL7MSG("PO",APO))=SEGN KILL TMGHL7MSG("PO",APO)
         QUIT
         ;
-GETSEGAR(TMGHL7MSG,SEGN,SEGNAME,OUT) ;
+GETSEGAR(TMGHL7MSG,SEGN,SEGNAME,OUT,OUT2) ;
         ;"Return array with all segments matching SEGNAME *following* SEGN, until non-match found
         ;"A utility function for functions below
+        ;"Input: TMGHL7MSG -- the message array, pass by reference
+        ;"       SEGN -- number of segment to start searching AFTER
+        ;"       SEGNAME -- name(s) or segments to match.  If multiple, separate by '^'.  DON'T pass by reference
+        ;"                  e.g. "OBX", or "NTE;OBX"
+        ;"       OUT -- output array.  PASS BY REFERENCE.  Format:
+        ;"          OUT(ASEGN)=TMGHL7MSG(ASEGN)
+        ;"       OUT2 -- output array.  OPTIONAL.  PASS BY REFERENCE.  Format:
+        ;"          OUT2(<SegName>)=1    This will be summary of segments found.   
         NEW ASEGN SET ASEGN=SEGN
+        IF $EXTRACT(SEGNAME,1)'=";" SET SEGNAME=";"_SEGNAME
+        IF $EXTRACT(SEGNAME,$LENGTH(SEGNAME))'=";" SET SEGNAME=SEGNAME_";"
         NEW DONE SET DONE=0
         FOR  SET ASEGN=$ORDER(TMGHL7MSG(ASEGN)) QUIT:(ASEGN'>0)!DONE  DO
-        . IF $GET(TMGHL7MSG(ASEGN,"SEG"))'=SEGNAME SET DONE=1 QUIT
+        . NEW CURRENTSEG SET CURRENTSEG=$GET(TMGHL7MSG(ASEGN,"SEG"))
+        . IF SEGNAME'[(";"_CURRENTSEG_";") SET DONE=1 QUIT
         . MERGE OUT(ASEGN)=TMGHL7MSG(ASEGN)
+        . SET OUT2(CURRENTSEG)=1
         QUIT
         ;
 GETOBXAR(TMGHL7MSG,SEGN,OUT) ;"Return array with all "OBX" segments *following* SEGN, until non-OBX found
@@ -932,6 +1058,8 @@ HNDUPOBX(TMGHL7MSG,SEGN,TMGU) ;"Handle situation with an OBR having duplicate OB
         ;"      was putting comment-style results into multiple UCULT test result OBX's.
         ;"      Without this code, only the last value was being stored, and the
         ;"      others were being overwritten.  
+        ;"RESULT: 1^OK or -1^ErrorMessage
+        NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW TMP DO GETOBXAR(.TMGHL7MSG,SEGN,.TMP)
         NEW ARR DO SUMOBXAR(.TMP,.ARR)
         IF $GET(ARR("HAS DUP"))'=1 QUIT
@@ -966,11 +1094,11 @@ HNDUPOBX(TMGHL7MSG,SEGN,TMGU) ;"Handle situation with an OBR having duplicate OB
         . . NEW VALUE SET VALUE=$PIECE(STR,"^",3)
         . . DO SETPCE^TMGHL7X2(VALUE,.TMGHL7MSG,.TMGU,ASEG,5)
         SET TEST=""
-        FOR  SET TEST=$ORDER(NOTE(TEST)) QUIT:TEST=""  DO
+        FOR  SET TEST=$ORDER(NOTE(TEST)) QUIT:(TEST="")!(+TMGRESULT<0)  DO
         . NEW ASEG SET ASEG=NOTE(TEST,"INSERT") KILL NOTE(TEST,"INSERT")
         . NEW TEMPNOTE MERGE TEMPNOTE=NOTE(TEST)
-        . IF ASEG>0 DO INSRTNTE(.TEMPNOTE,.TMGHL7MSG,.TMGU,ASEG)   ;"Insert note segment after SEGNPRIOR from ARR
-        QUIT
+        . IF ASEG>0 SET TMGRESULT=$$INSRTNTE(.TEMPNOTE,.TMGHL7MSG,.TMGU,ASEG)   ;"Insert note segment after SEGNPRIOR from ARR
+        QUIT TMGRESULT
         ;
 SUMOBXSTA(TMGHL7MSG,SEGN,OUT) ;"Get net status from OBX's after an OBR
         ;"Input: TMGHL7MSG -- the standard array holding parsed message
@@ -1072,16 +1200,51 @@ OBR2NTE(TMGHL7MSG,TMGU,STARTSEGN,ENDSEGN) ;"Convert NOTE style OBX results into 
        ;
        ;"Make a new OBX at original starting point --> "See Comments:"
        KILL TMGHL7MSG(STARTSEGN)
-       SET TMGHL7MSG(STARTSEGN)="OBX"_U_"1"_U_"NM"_U_"TMG-MULTIOBX"_TMGU(2)_"TMG MULTILINE RESULT"_U_"See comments:"
+       ;"SET TMGHL7MSG(STARTSEGN)="OBX"_U_"1"_U_"NM"_U_"TMG-MULTIOBX"_TMGU(2)_"TMG MULTILINE RESULT"_U_"See comments:"
+       NEW ID SET ID="TMG-MULTIOBX"_TMGU(2)_"TMG MULTILINE RESULT"
+       SET TMGHL7MSG(STARTSEGN)=$$MAKEOBX(.TMGU,"NM",ID,"SEE NOTES","F","")
+       SET TMGHL7MSG("B","OBX",STARTSEGN)=""
        DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,STARTSEGN)
+       ;"NOTE: could later use common code:  DO INSRTSEG(.ARR,.TMGHL7MSG,.TMGU,SEGN)
        ;
        ;"convert OBX's to NTE's
        NEW IDX SET IDX=STARTSEGN
        FOR  SET IDX=$ORDER(TMGHL7MSG(IDX)) QUIT:(IDX>ENDSEGN)  DO
-       . NEW LINE SET LINE="NTE"_U_U_$GET(TMGHL7MSG(IDX,5))   ;"5 IS REALLY 4 because 'OBX' is piece 1 here
+       . NEW LINE SET LINE="NTE"_U_"#"_U_"L"_U_$GET(TMGHL7MSG(IDX,5))   ;"5 IS REALLY 4 because 'OBX' is piece 1 here
        . KILL TMGHL7MSG(IDX),TMGHL7MSG("B","OBX",IDX)
        . SET TMGHL7MSG(IDX)=LINE
        . DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,IDX)
        . SET TMGHL7MSG("B","NTE",IDX)=""
        QUIT
        ;
+CK4NOOBX(TMGHL7MSG,SEGN,TMGU)  ;"Check (and fix) for situation where we have OBR and NTE, but no OBX
+       ;"NOTE: Real world situation: Test was cancelled d/t problem and was discussed in NTE after OBR,
+       ;"      but no OBX is sent.  So need to add an OBX with value of '(see note)'
+       ;"Result: 1^OK, or -1^Error message
+       NEW ARR,SUMARR
+       NEW TMGRESULT SET TMGRESULT="1^OK"
+       DO GETSEGAR(.TMGHL7MSG,SEGN,"OBX;NTE",.ARR,.SUMARR)
+       IF $DATA(SUMARR("OBX"))>0 GOTO CK4DN  ;"if already have OBX, no problem, jump out
+       IF $DATA(SUMARR("NTE"))=0 GOTO CK4DN  ;"If we don't even have a NTE, then will ignore OBR, so jumpt out.  
+       ;"Here we have no OBX segment, but we DO have an NTE segment.  
+       ;"So we need to insert a new OBX with a test name from OBR, with value of 'SEE NOTES'
+       NEW U SET U=TMGU(1)        
+       NEW OBRSEG SET OBRSEG=$GET(TMGHL7MSG(SEGN))
+       NEW OBRID SET OBRID=$PIECE(OBRSEG,U,5)  ;"UNIVERSAL SERVICE ID (5 instead of 4 because 'OBR' will be piece '1')
+       NEW OBRDT SET OBRDT=$PIECE(OBRSEG,U,15) ;"SPECIMEN RECEIVED DT (15 instead of 14)
+       KILL ARR SET ARR(1)=$$MAKEOBX(.TMGU,"ST",OBRID,"SEE NOTES","F",OBRDT)
+       SET TMGRESULT=$$INSRTSEG(.ARR,.TMGHL7MSG,.TMGU,SEGN)
+CK4DN  QUIT TMGRESULT
+       ;
+MAKEOBX(TMGU,VALTYPE,ID,VALUE,STATUS,DT) ;"construct an OBX segment. 
+       NEW U SET U=TMGU(1)        
+       NEW RESULT
+       SET $PIECE(RESULT,U,1)=1            ;"SET ID
+       SET $PIECE(RESULT,U,2)=VALTYPE      ;"VALUE TYPE
+       SET $PIECE(RESULT,U,3)=ID           ;"OBSERVATION IDENTIFIER
+       SET $PIECE(RESULT,U,4)=1            ;"OBSERVATION SUB-ID (typically just '1')
+       SET $PIECE(RESULT,U,5)=VALUE        ;"VALUE
+       SET $PIECE(RESULT,U,11)=STATUS      ;"STATUS = FINAL
+       SET $PIECE(RESULT,U,14)=DT          ;"DATE-TIME
+       QUIT "OBX"_U_RESULT
+       

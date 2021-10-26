@@ -112,6 +112,9 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         . . IF SEGTYPE="OBR" SET NTEARR(IDX)="NTE",$PIECE(NTEARR(IDX),TMGU(1),4)=" "  ;"e.g. 'NTE||| '
         . MERGE NTEARR=HDRNTEARR
         . SET TMGRESULT=$$STORNOTE(SUBFILE,IENS,.NTEARR)
+        NEW LRDFN SET LRDFN=+$GET(MSGINFO("LRDFN"))
+        ;"NOTE: I'm not sure line below is needed, as SLAB^LRPX is already called via FILEMSG()
+        DO FIX1PTL^TMGHL7U5(LRDFN)  ;"//kt 10/12/21 -- ensure new labs are indexed. LATER, make a more focused indexing of new labs.  
         IF +TMGRESULT<0 GOTO FMGDN
         IF $DATA(TMGHL7MSG("PDF")) DO STOREPDF^TMGLRPD1(.TMGHL7MSG,.MSGINFO)
         ;"Next, send alert that lab has been filed and is available for review.
@@ -128,7 +131,7 @@ FILEMSG(TMGENV,TMGHL7MSG) ;"FILE HL7 MESSAGE INTO LAB DATA FILE (63)
         NEW NODE SET NODE=$PIECE(ALERTSTR,"^",4)
         NEW SUPPRESS SET SUPPRESS=1  ;"Don't send if duplicate
         NEW TEMP SET TEMP=$$ALERT^TMGLRWU2(PROV,TMGDFN,DT,LEVEL,NODE,SUPPRESS)  ;"Send the alert
-        IF +TEMP'>0 SET TMGRESULT=TEMP
+        IF +TEMP<0 SET TMGRESULT=TEMP
 FMGDN   QUIT TMGRESULT
         ;
 GETSUBMSG(TMGHL7MSG,OBRIDX,SUBMSGARR) ;

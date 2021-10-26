@@ -42,7 +42,7 @@ ZWRITE(NAME) ;
   ;" Number of subscripts in the original name 
   NEW ORIGQL SET ORIGQL=$QLENGTH(NAME)
   ;
-  ;" Write base IF it exists 
+  ;" Write base if it exists 
   IF $DATA(@NAME)#2 W NAME,"=",$$FORMAT(@NAME),!
   ;" $QUERY through the name. 
   ;" Stop when we are out. 
@@ -76,7 +76,7 @@ ZWR2ARR(NAME,OUTREF) ;"//kt added this function
   QUIT 
   ;
 FORMAT(V) ;
-  ;"Add quotes, replace control characters IF necessary; 
+  ;"Add quotes, replace control characters if necessary; 
   ;"Public Function
   ;
   ;"If numeric, nothing to do. 

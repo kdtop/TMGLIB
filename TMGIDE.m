@@ -52,8 +52,8 @@ TMGIDE ;TMG/kst/A debugger/tracer for GT.M ;9/6/17
  ;"Trim(S,TrimCh)
  ;"Substitute(S,Match,NewValue)
  ;"REPLACE(IN,SPEC)
- ;"DebugWrite(tmgDbgIndent,s,AddNewline)
- ;"DebugIndent(tmgDbgIndentForced)
+ ;"DEBUGWRITE(tmgDbgIndent,s,AddNewline)
+ ;"DEBUGINDENT(tmgDbgIndentForced)
  ;"$$ArrayDump(ArrayP,TMGIDX,indent)
  ;"ExpandLine(Pos)
  ;"CREF(X)
@@ -851,7 +851,7 @@ KeyPress(wantChar,waitTime)
 
 
 
-DebugWrite(tmgDbgIndent,s,AddNewline)
+DEBUGWRITE(tmgDbgIndent,s,AddNewline)
         ;"NOTE: Duplicate of function in TMGIDEDEBUG
         ;"PUBLIC FUNCTION
         ;"Purpose: to WRITE debug output.  Having the proc separate will allow
@@ -880,7 +880,7 @@ DebugWrite(tmgDbgIndent,s,AddNewline)
         QUIT
 
 
-DebugIndent(tmgDbgIndent,Forced)
+DEBUGINDENT(tmgDbgIndent,Forced)
         ;"NOTE: Duplicate of function in TMGIDEDEBUG
         ;"PUBLIC FUNCTION
         ;"Purpose: to provide a unified indentation for debug messages
@@ -892,8 +892,8 @@ DebugIndent(tmgDbgIndent,Forced)
         IF ($GET(TMGIDEDEBUG,0)=0)&(Forced=0) QUIT
         NEW i
         FOR i=1:1:tmgDbgIndent DO
-        . IF Forced DO DebugWrite(tmgDbgIndent,"  ")
-        . ELSE  DO DebugWrite(tmgDbgIndent,". ")
+        . IF Forced DO DEBUGWRITE(tmgDbgIndent,"  ")
+        . ELSE  DO DEBUGWRITE(tmgDbgIndent,". ")
         QUIT
 
 
@@ -940,15 +940,15 @@ AD1     IF $DATA(ArrayP)=0 GOTO ADDone
         SET indent=$GET(indent,0)
         NEW SavIndex SET SavIndex=TMGIDX
 
-        DO DebugIndent(tmgDbgIndent)
+        DO DEBUGINDENT(tmgDbgIndent)
 
         IF indent>0 DO
         . FOR TMGi=1:1:indent-1 DO
         . . NEW s SET s=""
         . . IF $GET(indent(TMGi),-1)=0 SET s="  "
         . . ELSE  SET s="| "
-        . . DO DebugWrite(tmgDbgIndent,s)
-        . DO DebugWrite(tmgDbgIndent,"}~")
+        . . DO DEBUGWRITE(tmgDbgIndent,s)
+        . DO DEBUGWRITE(tmgDbgIndent,"}~")
 
         IF TMGIDX'="" DO
         . IF $DATA(@ArrayP@(TMGIDX))#10=1 DO
@@ -957,16 +957,16 @@ AD1     IF $DATA(ArrayP)=0 GOTO ADDone
         . . IF $LENGTH(s)'=$LENGTH($$TRIM^XLFSTR(s)) set s=""""_s_""""  ;"//kt 9/6/17
         . . NEW qt SET qt=""
         . . IF +TMGIDX'=TMGIDX SET qt=""""
-        . . DO DebugWrite(tmgDbgIndent,qt_TMGIDX_qt_" = "_s,1)
+        . . DO DEBUGWRITE(tmgDbgIndent,qt_TMGIDX_qt_" = "_s,1)
         . ELSE  DO
-        . . DO DebugWrite(tmgDbgIndent,TMGIDX,1)
+        . . DO DEBUGWRITE(tmgDbgIndent,TMGIDX,1)
         . SET ArrayP=$name(@ArrayP@(TMGIDX))
         ELSE  DO
-        . ;"DO DebugWrite(tmgDbgIndent,ArrayP_"(*)",0)
-        . DO DebugWrite(tmgDbgIndent,ArrayP,0)
+        . ;"DO DEBUGWRITE(tmgDbgIndent,ArrayP_"(*)",0)
+        . DO DEBUGWRITE(tmgDbgIndent,ArrayP,0)
         . IF $DATA(@ArrayP)#10=1 DO
-        . . DO DebugWrite(0,"="_$GET(@ArrayP),0)
-        . DO DebugWrite(0,"",1)
+        . . DO DEBUGWRITE(0,"="_$GET(@ArrayP),0)
+        . DO DEBUGWRITE(0,"",1)
 
         SET TMGIDX=$ORDER(@ArrayP@(""))
         IF TMGIDX="" GOTO ADDone
@@ -980,15 +980,15 @@ AD1     IF $DATA(ArrayP)=0 GOTO ADDone
         . SET TMGIDX=$ORDER(@ArrayP@(TMGIDX))
 
         ;"Put in a blank space at end of subbranch
-        DO DebugIndent(tmgDbgIndent)
+        DO DEBUGINDENT(tmgDbgIndent)
 
         IF 1=0,indent>0 DO
         . FOR TMGi=1:1:indent-1 DO
         . . NEW s SET s=""
         . . IF $GET(indent(TMGi),-1)=0 SET s="  "
         . . ELSE  SET s="| "
-        . . DO DebugWrite(tmgDbgIndent,s)
-        . DO DebugWrite(tmgDbgIndent," ",1)
+        . . DO DEBUGWRITE(tmgDbgIndent,s)
+        . DO DEBUGWRITE(tmgDbgIndent," ",1)
 
 ADDone
         QUIT result

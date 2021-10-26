@@ -11,7 +11,7 @@ TMGHL76R ;TMG/kst-HL7 transformation engine processing ;4/11/19, 3/24/21
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
- ;"NOTE: this is code for working with labs from **[GCHE lab]**
+ ;"NOTE: this is code for working with labs from **[GCHE lab]** <-- actually, I think this should be GCHE RAD
  ;"NOTE: GCHE is Greeneville Community Hospital EAST (formally 'Laughlin')
  ;"      I am making a separate XForm file because new GCHE Epic system will likely be different. 
  ;"      FYI -- Pathgroup code is in TMGHL73
@@ -249,6 +249,9 @@ PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additi
 FIXRPT(TMGHL7MSG,TMGU) ;"
         ;"Purpose: to covert form of EPIC radiology report messages into that previously
         ;"         handled for Laughlin radiology
+        IF $$CHK4OBGWCG^TMGHL7U2("",.TMGU) DO   ;"test based from TMGMSG, in glocal scope
+        . IF $GET(TMGHL7MSG("STAGE"))'="FINAL" QUIT
+        . DO FIXOBGWCGRPT(.TMGHL7MSG,.TMGU)
         NEW ARRAY,ARRI SET ARRI=0
         NEW OBRFOUND,OBXROUND,DONE SET (OBRFOUND,OBXFOUND,DONE)=0
         NEW STATUS SET STATUS=""
@@ -274,16 +277,84 @@ FIXRPT(TMGHL7MSG,TMGU) ;"
         . . IF $GET(TMGHL7MSG("PO",SEGNUM))=SEGNUM KILL TMGHL7MSG("PO",SEGNUM)
         . ELSE  IF OBRFOUND,OBXFOUND SET DONE=1
         . IF OBRFOUND,OBXFOUND,DONE DO
-        . . DO PUSHARRAY(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM)
+        . . DO PUSHARRAY(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM,STATUS)
         . . SET TMGHL7MSG("PO",NTEINSERTNUM)=NTEINSERTNUM
         . . SET (OBRFOUND,OBXFOUND,DONE)=0
         . . SET STATUS=""
         . . SET ARRI=0 KILL ARRAY
-        IF $DATA(ARRAY) DO PUSHARRAY(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM)
+        IF $DATA(ARRAY) DO PUSHARRAY(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM,STATUS)
         QUIT
         ;
-PUSHARRAY(TMGHL7MSG,TMGU,ARRAY,SEGNUM) ;" <-- this differs from PUSHARRAY^TMGHL74R
-        NEW DIV1 SET DIV1=$GET(TMGU(1),"~")
+FIXOBGWCGRPT(TMGHL7MSG,TMGU)  ;"Fix crazy US reports coming from GCHE OB group (GCHW OB WCG)
+        ;"Note: Some of the report is in NTE segments after OBR, and some of report
+        ;"      is in OBX segments.  
+        ;"To make like other RAD reports, should be : OBX|#|ST|&IMP|1| abcdefg text...  
+        NEW ARRAY,ARRI SET ARRI=0
+        NEW OBRFOUND,OBXROUND,DONE SET (OBRFOUND,OBXFOUND,DONE)=0
+        NEW STATUS SET STATUS=""
+        NEW NTEINSERTNUM SET NTEINSERTNUM=0
+        NEW SEGNUM SET SEGNUM=0
+        FOR  SET SEGNUM=$ORDER(TMGHL7MSG(SEGNUM)) QUIT:SEGNUM'>0  DO
+        . NEW SEGNAME SET SEGNAME=$GET(TMGHL7MSG(SEGNUM,"SEG"))
+        . IF (OBRFOUND=0) DO  QUIT
+        . . IF SEGNAME="OBR" DO
+        . . . SET OBRFOUND=1 QUIT
+        . IF OBRFOUND,(OBXFOUND=0),SEGNAME="NTE" DO
+        . . NEW LINE SET LINE=$GET(TMGHL7MSG(SEGNUM,3))
+        . . SET ARRI=ARRI+1,ARRAY(ARRI)=LINE
+        . . KILL TMGHL7MSG(SEGNUM)
+        . . KILL TMGHL7MSG("RESULT",SEGNUM)
+        . . KILL TMGHL7MSG("B","NTE",SEGNUM)
+        . . IF $GET(TMGHL7MSG("PO",SEGNUM))=SEGNUM KILL TMGHL7MSG("PO",SEGNUM)
+        . IF OBRFOUND,SEGNAME="OBX" DO
+        . . IF OBXFOUND=0,$DATA(ARRAY)>0 DO
+        . . . SET ARRI=ARRI+1,ARRAY(ARRI)=" "
+        . . . SET ARRI=ARRI+1,ARRAY(ARRI)=" ---------------------- "
+        . . . SET ARRI=ARRI+1,ARRAY(ARRI)=" "
+        . . SET OBXFOUND=1
+        . . IF NTEINSERTNUM=0 SET NTEINSERTNUM=SEGNUM
+        . . NEW ID SET ID=$GET(TMGHL7MSG(SEGNUM,3))
+        . . FOR  QUIT:($EXTRACT(ID,1)'=TMGU(2))  SET ID=$EXTRACT(ID,2,$LENGTH(ID))
+        . . NEW VAL SET VAL=$GET(TMGHL7MSG(SEGNUM,5))
+        . . NEW UNITS SET UNITS=$GET(TMGHL7MSG(SEGNUM,6))
+        . . NEW LINE SET LINE=ID_": "_VAL_" "_UNITS
+        . . SET ARRI=ARRI+1,ARRAY(ARRI)=LINE
+        . . IF STATUS="" SET STATUS=$GET(TMGHL7MSG(SEGNUM,11))
+        . . KILL TMGHL7MSG(SEGNUM)
+        . . KILL TMGHL7MSG("RESULT",SEGNUM)
+        . . KILL TMGHL7MSG("B","OBX",SEGNUM)
+        . . IF $GET(TMGHL7MSG("PO",SEGNUM))=SEGNUM KILL TMGHL7MSG("PO",SEGNUM)
+        . ELSE  IF OBRFOUND,OBXFOUND SET DONE=1
+        . IF OBRFOUND,OBXFOUND,DONE DO
+        . . DO PUSHA4OB(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM,STATUS)
+        . . SET TMGHL7MSG("PO",NTEINSERTNUM)=NTEINSERTNUM
+        . . SET (OBRFOUND,OBXFOUND,DONE)=0
+        . . SET STATUS=""
+        . . SET ARRI=0 KILL ARRAY
+        IF $DATA(ARRAY) DO PUSHA4OB(.TMGHL7MSG,.TMGU,.ARRAY,NTEINSERTNUM)
+        QUIT
+PUSHA4OB(TMGHL7MSG,TMGU,ARRAY,SEGNUM,STATUS) ;
+        NEW DIV1 SET DIV1=$GET(TMGU(1),"|")
+        NEW DIV3 SET DIV3=$GET(TMGU(3),"~")
+        NEW INC SET INC=1
+        NEW STR SET STR=""
+        NEW ARRI SET ARRI=0
+        FOR  SET ARRI=$ORDER(ARRAY(ARRI)) QUIT:ARRI'>0  DO
+        . NEW LINE SET LINE=$GET(ARRAY(ARRI))
+        . SET LINE="OBX"_DIV1_ARRI_DIV1_"ST"_DIV1_"&IMP"_DIV1_"1"_DIV1_LINE
+        . SET $PIECE(LINE,DIV1,11+1)=STATUS
+        . SET TMGHL7MSG(SEGNUM)=LINE
+        . NEW LASTPOIDX SET LASTPOIDX=$ORDER(TMGHL7MSG("PO",""),-1) 
+        . SET TMGHL7MSG("PO",LASTPOIDX+1)=SEGNUM
+        . FOR  QUIT:($DATA(TMGHL7MSG(SEGNUM+INC))=0)  SET INC=INC/10
+        . SET SEGNUM=SEGNUM+INC
+        SET (OBRFOUND,OBXFOUND,DONE)=0        
+        KILL ARRAY
+        DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU)
+        QUIT
+        ;
+PUSHARRAY(TMGHL7MSG,TMGU,ARRAY,SEGNUM,STATUS) ;
+        NEW DIV1 SET DIV1=$GET(TMGU(1),"|")
         NEW DIV3 SET DIV3=$GET(TMGU(3),"~")
         NEW STR SET STR=""
         NEW ARRI SET ARRI=0
@@ -292,10 +363,10 @@ PUSHARRAY(TMGHL7MSG,TMGU,ARRAY,SEGNUM) ;" <-- this differs from PUSHARRAY^TMGHL7
         . SET STR=STR_$GET(ARRAY(ARRI))
         NEW SEG SET SEG="OBX"_DIV1_DIV1_DIV1_"R^REPORT^L"_DIV1_DIV1_STR
         SET $PIECE(SEG,DIV1,11+1)=STATUS SET STATUS=""
-        SET TMGHL7MSG(NTEINSERTNUM)=SEG
+        SET TMGHL7MSG(SEGNUM)=SEG
         SET (OBRFOUND,OBXFOUND,DONE)=0
-        NEW LASTPOIDX SET LASTPOIDX=$ORDER(TMGHL7MSG("PO",""),-1) ;" <-- this differs from PUSHARRAY^TMGHL74R
-        SET TMGHL7MSG("PO",LASTPOIDX+1)=NTEINSERTNUM  ;" <-- this differs from PUSHARRAY^TMGHL74R
+        NEW LASTPOIDX SET LASTPOIDX=$ORDER(TMGHL7MSG("PO",""),-1) 
+        SET TMGHL7MSG("PO",LASTPOIDX+1)=SEGNUM 
         KILL ARRAY
         DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU)
         QUIT

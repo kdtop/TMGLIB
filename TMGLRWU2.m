@@ -43,7 +43,7 @@ OR(LRTYPE,LRDFN,LRSS,LRIDT,LRUID,LRXQA,LRTST,SUPPRESS)    ;" Send OR (CPRS) noti
   ;"           LRXQA  = recipient array, e.g. LRXQA(168)=""
   ;"           LRTST  = test IEN60 ^ Name of test being alerted ^ parent test ien60
   ;"           SUPPRESS = Optional. Default is 0. If 1, will suppress if duplicate alert
-  ;"Result: 1^Alert Sent, or -1^Error
+  ;"Result: 1^Alert Sent, or 0^OK, or -1^Error
   NEW TMGDFN,LRMSG,LRPREFIX,LRX,LRY         
   SET SUPPRESS=+$GET(SUPPRESS)
   NEW LRIENS   ;"a string to pass to EN^ORB3
@@ -188,7 +188,7 @@ ALERT(RECIP,TMGDFN,FMDT,LEVEL,NODE,SUPPRESS)  ;"Send Alert.  Wrapper for OR() ab
   ;"       SUPPRESS -- Optional. Default is 0. If value is 1, alert will be
   ;"                 checked against existing alerts for user and not sent
   ;"                 if duplicate
-  ;"Result:  1^OK, or -1^Error message
+  ;"Result:  1^OK, or 0^OK, or -1^Error message
   NEW TMGRESULT SET TMGRESULT="1^OK"
   SET SUPPRESS=+$GET(SUPPRESS)
   SET TMGDFN=$GET(TMGDFN) IF TMGDFN'>0 DO  GOTO ALRTDN
@@ -242,7 +242,7 @@ ALRTDN ;
   ;
 RPCALERT(OUT,RECIP,TMGDFN,FMDT,LEVEL,NODE)  ;"RPC for sending Alert.  Wrapper for ALERT() above
   ;"RPC NAME -- 'TMG CPRS LAB ALERT'
-  ;"Input: OUT -- PASSED BY REFERENCE.  AN OUT PARAMETER.  Format: OUT(0)=1^OK, or -1^Error message
+  ;"Input: OUT -- PASSED BY REFERENCE.  AN OUT PARAMETER.  Format: OUT(0)=1^OK, or 0^OK, or -1^Error message
   ;"       RECIP -- IEN200, or for multiple recipients, use RECIP(IEN200)=""
   ;"       TMGDFN -- IEN in 2
   ;"       FMDT -- The date of the labs, in Fileman format (not IDT or RDT)

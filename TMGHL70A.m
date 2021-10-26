@@ -21,7 +21,7 @@ TMGHL70A ;TMG/kst-Installation/config tools for POC HL7 processing ;03/12/11, 2/
  ;" API - Private Functions
  ;"=======================================================================
  ;"CHKHLMAP(TMGENV,ONESET,TMGMAP) -- CHECK HL7 MESSAGE FOR MAPPING PROBLEMS: order vs results. 
- ;"FIXMAPS(TMGENV,TMGMAP) --fix mapping problems.
+ ;"SPLFIXES(TMGENV,TMGHL7MSG,TMGMAP) --fix mapping problems.
  ;"FIXHL7SPEC(TMGENV,TMGMAP) -- Fix Missing HL7-Spec
  ;"FIX1SPEC(TMGENV,TMGMAP) -- Fix 1 Missing HL7-Spec
  ;"AIMISMATCH(TMGENV,TMGMAP) -- handle missing entries in AUTO INSTRUMENT file.
@@ -38,7 +38,7 @@ TMGHL70A ;TMG/kst-Installation/config tools for POC HL7 processing ;03/12/11, 2/
  ;" Note: this uses Linux functionality.
  ;"=======================================================================
  ;
-TESTMAP(TMGENV,TMGTESTMSG,TMGHL7MSG) ;"Test code mappings for POC setup
+TESTMAP(TMGENV,TMGTESTMSG,TMGHL7MSG) ;"Traditional test code mappings for POC setup, and offer some special fixes.  
         ;"This code is derived from: PRINT^LA7PCFG
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
@@ -60,7 +60,7 @@ TESTMAP(TMGENV,TMGTESTMSG,TMGHL7MSG) ;"Test code mappings for POC setup
         . WRITE "  are encountered, you will be prompted to add them to",!
         . WRITE "  the system before continuing.",!
         . WRITE "Transform message now" DO YN^DICN WRITE !
-        . IF %=1 DO TESTPARS^TMGHL70(.TMGTESTMSG,.TMGHL7MSG)  ;"Sets up TMGHL7MSG
+        . IF %=1 DO TESTPARS^TMGHL70(.TMGENV,.TMGTESTMSG,.TMGHL7MSG)  ;"Sets up TMGHL7MSG
         IF %=-1 GOTO TMPDN
         ;
         NEW DIC,LA7624,X,Y
@@ -121,7 +121,7 @@ TMPFX   SET %=1
         . SET %=1
         . ;"WRITE !,"Try fixing specific problems anyway" DO YN^DICN WRITE !
         IF %=-1 GOTO TMPDN
-        IF ($DATA(TMGMAP))!(%=1) DO FIXMAPS(.TMGENV,.TMGMAP) ;
+        IF ($DATA(TMGMAP))!(%=1) DO SPLFIXES(.TMGENV,.TMGHL7MSG,.TMGMAP) ;
 TMPDN   QUIT
         ;
 CHKHLMAP(TMGENV,ONESET,TMGMAP) ;"CHECK HL7 MESSAGE FOR MAPPING PROBLEMS: order vs results. 
@@ -156,14 +156,15 @@ CHKHLMAP(TMGENV,ONESET,TMGMAP) ;"CHECK HL7 MESSAGE FOR MAPPING PROBLEMS: order v
         IF '$DATA(TMGMAP("ACCESSION","RESULT WITHOUT ORDER")) SET TMGRESULT=1        
 CHLMDN  QUIT
         ;
-FIXMAPS(TMGENV,TMGMAP) ;
+SPLFIXES(TMGENV,TMGHL7MSG,TMGMAP) ;" SPECIAL FIXES. 
         ;"Purpose: To fix mapping problems.
         ;"NOTE: may use TMGHL7MSG via global scope        
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
         ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
         ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)        
-        ;"           TMGENV(<other entries>)= etc.              
+        ;"           TMGENV(<other entries>)= etc.
+        ;"       TMGHL7MSG
         ;"       TMGMAP -- Pass by REFERENCE
         ;
         KILL TMGUSERINPUT,TMGMNU
@@ -396,7 +397,7 @@ FIX1AIR(TMGENV,TMGMAP) ;
         IF IEN62D4'>0 DO  GOTO F1ADN
         . SET TMGRESULT="-1^Unable to get AUTO INSTRUMENT to use."
         NEW TEMP SET TEMP=$ORDER(^LAB(62.4,+IEN62D4,3,"TMGTEST",+IEN60,"")) ;"Already added.
-        IF TEMP>0 DO  GOTO F1ADN
+        IF TEMP>0 GOTO F1ADN
         NEW TESTNAME SET TESTNAME=$GET(TMGMAP("TEST NAME"))
         IF TESTNAME="" DO  GOTO F1ADN
         . SET TMGRESULT="-1^Name of lab test missing."

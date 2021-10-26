@@ -181,15 +181,19 @@ FHL1 ;
 FHL2 ;
   IF $GET(OPTION("NO MOVE")) GOTO FHL4 
   ;"SET TEMPRESULT=$$MOVE(+TMGRESULT,FPNAME,.DONEPATH,$GET(OPTION("HL7 DATE")))
-  SET TEMPRESULT=$$MOVE(+TMGRESULT,.OPTION)
+  IF $$PTNOTFOUND^TMGHL7E(TMGRESULT),$$IGNORPT^TMGHL7E(TMGRESULT) DO 
+  . SET TEMPRESULT=$$MOVE(2,.OPTION)  ;"2 means move to discard folder. //kt 7/6/21
+  . SET TMGRESULT=1  ;"clear error state
+  ELSE  DO
+  . SET TEMPRESULT=$$MOVE(+TMGRESULT,.OPTION)
   IF TEMPRESULT'>0 DO
   . DO SETALERT(TMGRESULT,.TMGENV,.OPTION)
   . IF +TMGRESULT=1 SET TMGRESULT=TEMPRESULT
   . ELSE  SET TMGRESULT=TMGRESULT_" AND ALSO "_$PIECE(TEMPRESULT,"^",2,99)
 FHL3 ;  
   IF $GET(OPTION("NO META")) GOTO FHLDN
-  IF $$PTNOTFOUND^TMGHL7E(TMGRESULT),$$IGNORPT^TMGHL7E(TMGRESULT) DO  GOTO FHLDN
-  . SET TMGRESULT=1  ;"clear error state
+  ;"//kt 7/6/21 IF $$PTNOTFOUND^TMGHL7E(TMGRESULT),$$IGNORPT^TMGHL7E(TMGRESULT) DO  GOTO FHLDN
+  ;" . SET TMGRESULT=1  ;"clear error state
   SET TEMPRESULT=$$MAKEMETA(+TMGRESULT,FPNAME,.DONEPATH,.OPTION,.IEN772,.IEN773)
 FHL4 ;  
   IF (TMGRESULT'>0),(TEMPRESULT'>0) DO
@@ -242,6 +246,8 @@ HLMSGIMPORT(TMGMSG,NOALERT,OPTION,TMGENV)  ;" PARSE, then XFORM, then FILE
   NEW TMGHL7MSG,TMGU,ADFN
   NEW TMGRESULT SET TMGRESULT=1
   SET NOALERT=+$GET(NOALERT)
+  IF $DATA(TMGENV)=0 SET TMGRESULT=$$SETUPENV^TMGHL7U(.TMGMSG,.TMGENV)  ;"//kt 8/6/21    
+  IF TMGRESULT<0 GOTO HLI3ERR  ;"//kt 8/6/21
   IF +$GET(OPTION("GUI")) SET NOALERT=1
   SET TMGRESULT=$$HL7PROCESS(.TMGHL7MSG,.TMGENV,.TMGMSG,.OPTION) ;"PARSE, then XFORM
   NEW HL7DT SET HL7DT=$GET(TMGHL7MSG(1,7))
@@ -350,6 +356,7 @@ SETALERT(TMGRESULT,TMGENV,OPTION) ;"Send error alert for HL7 message
   IF $$PTNOTFOUND^TMGHL7E(TMGRESULT),$$IGNORPT^TMGHL7E(TMGRESULT) GOTO ALTDN
   IF $$DIRSETUP(-1,.OPTION) ;"Set up OPTION vars to be saved for use during alert processing.
   IF $$DIRSETUP(1,.OPTION)  ;"Set up OPTION vars to be saved for use during alert processing.
+  IF $$DIRSETUP(2,.OPTION)  ;"Set up OPTION vars to be saved for use during alert processing.
   NEW IEN22720 SET IEN22720=+$GET(TMGENV("IEN 22720"))
   ;"//kt 1/13/21 -- IF IEN22720'>0 GOTO ALTDN   ;"No way to send error message, so just leave
   NEW IEN772 SET IEN772=$GET(TMGENV("IEN 772"))
@@ -370,8 +377,12 @@ SETALERT(TMGRESULT,TMGENV,OPTION) ;"Send error alert for HL7 message
 ALTDN  ;
   QUIT 
   ;
-MOVE(SUCCESS,OPTION)  ;"Move HL7 messages to destination folders    
-  ;"INPUT: SUCCESS--  Value >0: store in success folder, otherwise store in failed folder
+MOVE(MODE,OPTION)  ;"Move HL7 messages to destination folders    
+  ;"INPUT: MODE:   -1 --> store in failed folder 
+  ;"                0 --> store in LOG folder.  
+  ;"                1 --> store in success folder
+  ;"                2 --> store in discard folder
+  ;"                3 --> stored in split folder.  
   ;"       OPTION("FILEPATHNAME") -- full filepathname of source HL7 file 
   ;"       OPTION("DONEPATH") -- Optional.  If provided, then specifies root of folder to moved completed messages
   ;"       OPTION("HL7DATE")  -- HL7 date of message, if "", then filled with NOW
@@ -381,10 +392,10 @@ MOVE(SUCCESS,OPTION)  ;"Move HL7 messages to destination folders
   ;"       OPTION("FAILURE STORE FNAME") -- OPTIONAL
   NEW TMGRESULT SET TMGRESULT="1^OK"
   NEW OUTNAME,OUTPATH  
-  NEW STR SET STR=$SELECT(SUCCESS>0:"SUCCESS",1:"FAILURE")
+  NEW STR SET STR=$PIECE($$MODENAME(MODE),"^",1)
   SET OUTPATH=$GET(OPTION(STR_" STORE FPATH"))
   SET OUTNAME=$GET(OPTION(STR_" STORE FNAME"))
-  IF (OUTPATH="")!(OUTNAME="") SET TMGRESULT=$$DIRSETUP(.SUCCESS,.OPTION,.OUTPATH,.OUTNAME)
+  IF (OUTPATH="")!(OUTNAME="") SET TMGRESULT=$$DIRSETUP(.MODE,.OPTION,.OUTPATH,.OUTNAME)
   IF TMGRESULT<1 GOTO MVDN
   NEW FILEPATHNAME SET FILEPATHNAME=$GET(OPTION("FILEPATHNAME"))
   HANG 1  ;"for some reason seems to be needed.  
@@ -398,9 +409,11 @@ MVDN ;
   QUIT TMGRESULT
   ; 
 DIRSETUP(MODE,OPTION,OUTPATH,OUTNAME)  ;"Determine destination folders for HL7 move    
-  ;"INPUT: MODE--  1 --> store in success folder,
-  ;"               0 --> store in LOG folder.  
-  ;"               -1 --> store in failed folder
+  ;"INPUT: MODE:   -1 --> store in failed folder 
+  ;"                0 --> store in LOG folder.  
+  ;"                1 --> store in success folder
+  ;"                2 --> store in discard folder
+  ;"                3 --> stored in split folder.  
   ;"       OPTION("FILEPATHNAME")  -- full filepathname of source HL7 file 
   ;"       OPTION("DONEPATH") -- Optional.  If provided, then specifies root of folder to moved completed messages
   ;"       OPTION("HL7DATE")  -- HL7 date of message, if "", then filled with NOW
@@ -414,14 +427,30 @@ DIRSETUP(MODE,OPTION,OUTPATH,OUTNAME)  ;"Determine destination folders for HL7 m
   DO SPLITFPN^TMGIOUTL(FILEPATHNAME,.OUTPATH,.OUTNAME,"/")
   SET OUTPATH=$$DESTFLDR(MODE,FILEPATHNAME,.DONEPATH,.HL7DATE)
   IF +OUTPATH<0 SET TMGRESULT=OUTPATH GOTO MVSUDN
-  NEW STR SET STR=$SELECT(MODE=1:"SUCCESS",MODE=0:"LOG",1:"FAILURE")
+  ;"NEW STR SET STR=$SELECT(MODE=1:"SUCCESS",MODE=0:"LOG",1:"FAILURE")
+  NEW STR SET STR=$PIECE($$MODENAME(MODE),"^",1)
   SET OPTION(STR_" STORE FPATH")=OUTPATH
   SET OPTION(STR_" STORE FNAME")=OUTNAME
 MVSUDN  ;
   QUIT TMGRESULT
   ;
-MAKEMETA(SUCCESS,FNAME,DONEPATH,OPTION,IEN772,IEN773)  ;"Store metadata about source HL7 file in TMG HL7 MESSAGE STORAGE
-  ;"INPUT: SUCCESS--  Value >0: store in success folder, otherwise store in failed folder
+MODENAME(MODE) ;"Convert mode number to names
+  NEW FLDRARR  
+  SET FLDRARR(-1)="FAILURE^Failed_Messages"
+  SET FLDRARR(0)="LOG^LOG"
+  SET FLDRARR(1)="SUCCESS^Processed"
+  SET FLDRARR(2)="DISCARD^Discarded"
+  SET FLDRARR(3)="SPLIT^Processed/Split_Messages"
+  NEW RESULT SET RESULT=$GET(FLDRARR(MODE))
+  IF RESULT="" SET RESULT=$GET(FLDRARR(-1))
+  QUIT RESULT
+  ;
+MAKEMETA(MODE,FNAME,DONEPATH,OPTION,IEN772,IEN773)  ;"Store metadata about source HL7 file in TMG HL7 MESSAGE STORAGE
+  ;"INPUT: MODE--  -1 --> store in failed folder 
+  ;"                0 --> store in LOG folder.  
+  ;"                1 --> store in success folder
+  ;"                2 --> store in discard folder
+  ;"                3 --> stored in split folder.  
   ;"       FNAME -- full filepathname of source HL7 file 
   ;"       DONEPATH -- Optional.  If provided, then specifies root of folder to moved completed messages
   ;"       OPTION --  PASS BY REFERENCE. See HL7PROCESS for description
@@ -437,7 +466,7 @@ MAKEMETA(SUCCESS,FNAME,DONEPATH,OPTION,IEN772,IEN773)  ;"Store metadata about so
   NEW HL7DATE SET HL7DATE=$GET(OPTION("HL7 DATE")) 
   IF HL7DATE="" DO  GOTO MKMTDN  
   . SET TMGRESULT="-1^Unable to find HL7 DATE in OPTION variable."
-  SET OUTPATH=$$DESTFLDR(SUCCESS,FNAME,.DONEPATH,HL7DATE)
+  SET OUTPATH=$$DESTFLDR(MODE,FNAME,.DONEPATH,HL7DATE)
   IF +OUTPATH<0 SET TMGRESULT=OUTPATH GOTO MKMTDN
   NEW ADFN SET ADFN=$GET(OPTION("DFN")) IF ADFN'>0 DO  GOTO MKMTDN
   . SET TMGRESULT="-1^Unable to find DFN in OPTION variable."
@@ -447,12 +476,12 @@ MAKEMETA(SUCCESS,FNAME,DONEPATH,OPTION,IEN772,IEN773)  ;"Store metadata about so
 MKMTDN  ;
   QUIT TMGRESULT
   ;
-  
 DESTFLDR(MODE,FNAME,DONEPATH,HL7DATE)  ;
-  ;"INPUT: MODE--  1 --> store in success folder,
-  ;"               0 --> store in LOG folder.  
-  ;"               -1 --> store in failed folder
-  ;"               "SPLIT" --> stored in split folder.  
+  ;"INPUT: MODE--  -1 --> store in failed folder 
+  ;"                0 --> store in LOG folder.  
+  ;"                1 --> store in success folder
+  ;"                2 --> store in discard folder
+  ;"                3 --> stored in split folder.  
   ;"       FNAME -- full filepathname of source HL7 file 
   ;"       DONEPATH -- Optional.  If provided, then specifies root of folder to moved completed messages
   ;"       HL7DATE  -- Optional.  HL7 date of message.  Default is NOW
@@ -464,7 +493,9 @@ DESTFLDR(MODE,FNAME,DONEPATH,HL7DATE)  ;
   DO SPLITFPN^TMGIOUTL(FNAME,.OUTPATH,.OUTNAME,"/")
   IF $GET(DONEPATH)'="" SET OUTPATH=DONEPATH
   IF $EXTRACT(OUTPATH,$LENGTH(OUTPATH))'="/" SET OUTPATH=OUTPATH_"/"
-  NEW DESTFOLDER SET DESTFOLDER=$SELECT(MODE=1:"Processed",MODE=0:"LOG",MODE="SPLIT":"Processed/Split_Messages",1:"Failed_Messages")
+  ;"NEW DESTFOLDER SET DESTFOLDER=$SELECT(MODE=1:"Processed",MODE=0:"LOG",MODE="SPLIT":"Processed/Split_Messages",1:"Failed_Messages")
+  NEW DESTFOLDER SET DESTFOLDER=$PIECE($$MODENAME(MODE),"^",2) 
+  IF DESTFOLDER="" SET DESTFOLDER=$GET(FLDRARR(-1))
   SET DESTFOLDER=DESTFOLDER_"/"_YEAR_"/"_MONTH_"/"
   SET OUTPATH=OUTPATH_DESTFOLDER
   NEW TMGRESULT SET TMGRESULT=$$ENSURDIR^TMGKERNL(OUTPATH)
@@ -532,7 +563,7 @@ HL7CHECKSPLIT(OPTION) ;" Check for mulitple patients in 1 HL7 message
  . . ;"DO SAVEMSGACTUAL^TMGHL7U2(FPATH,FNAME,.ARRAYTOSAVE)
  . SET TMGRESULT="-1^SPLIT"
  . NEW OPTION2 MERGE OPTION2=OPTION
- . DO MOVE("SPLIT",.OPTION2)
+ . DO MOVE(3,.OPTION2)
 HLCKSPDN ;
  QUIT TMGRESULT
  ;"
@@ -607,7 +638,7 @@ APPENDLOG(OPTION,ENTRYSTR) ;"Append log file to add Entrystr
   NEW HANDLE SET HANDLE="TMGLOGHANDLE-"_$J
   NEW PATH
   DO DIRSETUP(0,.OPTION,.PATH)
-  NEW DTSTR SET DTSTR=$$FMTE^XLFDT($$NOW^XLFDT,"5ZP")
+  NEW DTSTR SET DTSTR=$$FMTE^XLFDT($$NOW^XLFDT,"5ZPS")
   NEW MSG SET MSG=DTSTR_": "_ENTRYSTR
   NEW CMD SET CMD="echo '"_MSG_"' >> "_PATH_"LOG.txt"
   SET TMGRESULT=$$LINUXCMD^TMGKERNL(CMD)

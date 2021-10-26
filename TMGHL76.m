@@ -120,7 +120,8 @@ ORC13  ;"Purpose: Process empty ORC message, field 13
 OBR     ;"Purppse: setup for OBR fields.
         ;"Uses TMGHL7MSG,TMGSEGN,TMGU in global scope
         IF $GET(TMGHL7MSG("STAGE"))="PRE" DO  QUIT
-        . DO HNDUPOBX^TMGHL72(.TMGHL7MSG,TMGSEGN,.TMGU)
+        . NEW TEMP SET TEMP=$$HNDUPOBX^TMGHL72(.TMGHL7MSG,TMGSEGN,.TMGU)
+        . IF TEMP<0 SET TMGXERR=$PIECE(TEMP,"^",2,99)   
         DO OBR^TMGHL72        
         QUIT
         ;
@@ -213,6 +214,10 @@ OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifi
         QUIT
         ;
 OBX5    ;"Purpose: To transform the OBX segment, field 5 -- Observation value
+        ;"Note: GCHE is occasionally sending results in pieces (e.g. ">^20")
+        ;"      This puts piece 1 and 2 together
+        IF TMGVALUE[TMGU(2) DO
+        . SET TMGVALUE=$PIECE(TMGVALUE,TMGU(2),1)_$PIECE(TMGVALUE,TMGU(2),2)
         DO OBX5^TMGHL72
         QUIT
         ;

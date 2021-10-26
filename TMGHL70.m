@@ -1,7 +1,7 @@
 TMGHL70 ;TMG/kst-Installation/config tools for POC HL7 processing ;11/14/16, 5/18/21
               ;;1.0;TMG-LIB;**1**;03/12/11
  ;
- ;"TMG POC-UTILITY FUNCTIONS
+ ;"TMG POC-UTILITY FUNCTIONS 
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
@@ -22,13 +22,13 @@ TMGHL70 ;TMG/kst-Installation/config tools for POC HL7 processing ;11/14/16, 5/1
  ;"=======================================================================
  ;" API - Private Functions
  ;"=======================================================================
- ;"UTILITY(TMGENV,INDENTN) --HANDLE/SHOW UTILITY MENU
+ ;"UTILITY(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) --HANDLE/SHOW UTILITY MENU
  ;"TESTPARS(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) -- add one test to system, so it's result can be accepted into VistA
  ;"PRSMSH(LINE,ARRAY) -- Parse MSH segment  DEPRECIATED
- ;"MAPMENU(TMGENV,INDENTN) -- show Mapping menu, and interact with user...
- ;"VMPCK(TMGENV)  -- VIEW MAP, PICKING TYPE TO VIEW. 
+ ;"MAPMENU(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) -- show Mapping menu, and interact with user...
+ ;"VMPCK(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN)  -- VIEW MAP, PICKING TYPE TO VIEW. 
  ;"VIEWMNLT(TMGENV,NLT) -- VIEW NATIONAL LABORATORY TEST (NLT) MAPPING. 
- ;"VIEWMAP(TMGENV,TESTID) -- Show maping between lab code and LABORATORY TEST entry.
+ ;"VIEWMAP(TMGENV,TESTID,TMGTESTMSG,TMGHL7MSG,INDENTN) -- Show maping between lab code and LABORATORY TEST entry.
  ;
  ;"=======================================================================
  ;"Dependancies
@@ -77,7 +77,7 @@ M1      KILL TMGUSERINPUT,TMGMNU
         ;
         IF TMGUSERINPUT="TestParse" DO TESTPARS(.TMGENV,.TMGTESTMSG,.TMGHL7MSG,INDENTN+2) GOTO M1
         IF TMGUSERINPUT="PasteMsg" DO LOADMSG^TMGHL7U2(.TMGTESTMSG) GOTO M1
-        IF TMGUSERINPUT="UtilMenu" DO UTILITY(.TMGENV,INDENTN+2) GOTO M1
+        IF TMGUSERINPUT="UtilMenu" DO UTILITY(.TMGENV,.TMGTESTMSG,.TMGHL7MSG,INDENTN+2) GOTO M1
         IF TMGUSERINPUT="FileMenu" DO FILEMENU(.TMGTESTMSG,INDENTN+2) GOTO M1
         IF TMGUSERINPUT="XFRMMenu" DO SETUP^TMGHL7S(.TMGENV,.TMGTESTMSG,INDENTN+2) GOTO M1
         IF TMGUSERINPUT="TryWithDebugger" DO DEBUGTRY(.TMGTESTMSG,.TMGENV) GOTO M1
@@ -86,7 +86,7 @@ M1      KILL TMGUSERINPUT,TMGMNU
         . KILL ^TMG("TMP","TMGHL70","IEN 68.2")
         . KILL ^TMG("TMP","TMGHL70","IEN 62.4")
         ;"IF TMGUSERINPUT="EditTest" DO EDITTEST GOTO M1
-        IF TMGUSERINPUT="MapMenu" DO MAPMENU(.TMGENV,INDENTN+2) GOTO M1
+        IF TMGUSERINPUT="MapMenu" DO MAPMENU(.TMGENV,.TMGTESTMSG,.TMGHL7MSG,INDENTN+2) GOTO M1
         IF TMGUSERINPUT="LRWU5" DO ^LRWU5 GOTO M1
         IF TMGUSERINPUT="Dump" DO ASKDUMP^TMGDEBU3 GOTO M1
         IF TMGUSERINPUT="^" GOTO SUDN
@@ -96,12 +96,14 @@ M1      KILL TMGUSERINPUT,TMGMNU
 SUDN    WRITE "Quitting.  Goodbye",!
         QUIT
         ;
-UTILITY(TMGENV,INDENTN) ;"HANDLE/SHOW UTILITY MENU
+UTILITY(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) ;"HANDLE/SHOW UTILITY MENU
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
         ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
         ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)        
         ;"           TMGENV(<other entries>)= etc.              
+        ;"           TMGTESTMSG,
+        ;"           TMGHL7MSG,
         ;"       INDENTN -- the number of spaces to indent the menu display
         ;"Result: none
         NEW TMGUSERINPUT,TMGMNU,TMGMNUI,TMGTEMP
@@ -123,7 +125,7 @@ UT1     KILL TMGUSERINPUT,TMGMNU
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
         KILL TMGMNU ;"Prevent from cluttering variable table during debug run
         ;
-        IF TMGUSERINPUT="MapMenu" DO MAPMENU(.TMGENV,INDENTN+2) GOTO UT1
+        IF TMGUSERINPUT="MapMenu" DO MAPMENU(.TMGENV,.TMGTESTMSG,.TMGHL7MSG,INDENTN+2) GOTO UT1
         IF TMGUSERINPUT="LRWU5" DO ^LRWU5 GOTO UT1
         IF TMGUSERINPUT="LRWU6" DO EDITEDN^TMGHL70D GOTO UT1
         IF TMGUSERINPUT="AddAtomic" SET TMGTEMP=$$ADDATOMIC^TMGHL70C() GOTO UT1
@@ -244,46 +246,57 @@ DEBUGTRY(TMGTESTMSG,TMGENV)  ;"Try processing message via debugger.
         IF $$TRYAGAN2^TMGHL7E(.TMGTESTMSG,1,.TMGENV)  ;"ignore results
         QUIT
         ;
-MAPMENU(TMGENV,INDENTN) ;
+MAPMENU(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) ;
         ;"Purpose: show Mapping menu, and interact with user...
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
         ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
         ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)        
-        ;"           TMGENV(<other entries>)= etc.              
+        ;"           TMGENV(<other entries>)= etc.
+        ;"       TMGTESTMSG
+        ;"       TMGHL7MSG
         ;"       INDENTN -- the number of spaces to indent the menu display
         ;"Result: none
         NEW TMGUSERINPUT,TMGMNU,TMGMNUI
 MMM1    SET TMGMNUI=0
         SET TMGMNU(-1,"INDENT")=INDENTN
         SET TMGMNU(TMGMNUI)="Check, Fix, Edit Mapping of tests",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="Check/Fix mapping of tests"_$CHAR(9)_"CheckMap",TMGMNUI=TMGMNUI+1
-        SET TMGMNU(TMGMNUI)="POC mapping display of tests"_$CHAR(9)_"ShowMap",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Show map of 1 test"_$CHAR(9)_"VIEWMAP",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Remove mapping of 1 test"_$CHAR(9)_"DelMap",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="View arbitrary record in file."_$CHAR(9)_"Dump",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Traditional map, some special fixes"_$CHAR(9)_"SpecialMap",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="VA standard lab mapping display"_$CHAR(9)_"ShowOldMap",TMGMNUI=TMGMNUI+1
         ;
         WRITE !
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
         KILL TMGMNU ;"Prevent from cluttering variable table during debug run
         ;
-        IF TMGUSERINPUT="CheckMap" DO TESTMAP^TMGHL70A(.TMGENV,.TMGTESTMSG,.TMGHL7MSG) GOTO MMM1
-        IF TMGUSERINPUT="ShowMap" DO PRINT^LA7PCFG GOTO MMM1
-        IF TMGUSERINPUT="DelMap" DO DELMAP^TMGHL70D(.TMGENV) GOTO MMM1
-        IF TMGUSERINPUT="VIEWMAP" DO VMPCK(.TMGENV,INDENTN) GOTO MMM1
+        IF TMGUSERINPUT="SpecialMap" DO TESTMAP^TMGHL70A(.TMGENV,.TMGTESTMSG,.TMGHL7MSG) GOTO MMM1
+        IF TMGUSERINPUT="ShowOldMap" DO PRINT^LA7PCFG GOTO MMM1
+        IF TMGUSERINPUT="DelMap" DO DELMAP^TMGHL70D(.TMGENV,.TMGTESTMSG,.TMGHL7MSG) GOTO MMM1
+        IF TMGUSERINPUT="VIEWMAP" DO VMPCK(.TMGENV,.TMGTESTMSG,.TMGHL7MSG,INDENTN) GOTO MMM1
         IF TMGUSERINPUT="Dump" DO ASKDUMP^TMGDEBU3 GOTO MMM1
         IF TMGUSERINPUT="^" GOTO MMDN
         IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
         GOTO MMM1
 MMDN    QUIT
         ;
-VMPCK(TMGENV,INDENTN)  ;"VIEW MAP, PICKING TYPE TO VIEW. 
+VMPCK(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN)  ;"VIEW MAP, PICKING TYPE TO VIEW. 
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
         ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
         ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)        
-        ;"           TMGENV(<other entries>)= etc.              
+        ;"           TMGENV(<other entries>)= etc.
+        ;"       TMGTESTMSG
+        ;"       TMGHL7MSG
+        ;"       INDENTN -- the number of spaces to indent the menu display
         ;"Result: none
+        ;
+        ;"TO DO.....  Allow working with already-parsed TMGHL7MSG.
+        ;"        And if no data, then offer to parse and create now
+        ;"        This is because some of the HL7 messages have crazy test codes that will
+        ;"        get fixed prior to mapping to actual tests....
+        ;
         NEW TMGUSERINPUT,TMGMNU,TMGMNUI
 VMPM1   KILL TMGMNUI SET TMGMNUI=0
         SET TMGMNU(-1,"INDENT")=INDENTN
@@ -294,14 +307,14 @@ VMPM1   KILL TMGMNUI SET TMGMNUI=0
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
         KILL TMGMNU ;"Prevent from cluttering variable table during debug run
         ;
-        IF TMGUSERINPUT="FromLab" DO VIEWMAP(.TMGENV) GOTO VMPM1
-        IF TMGUSERINPUT="NLTMap" DO VIEWMNLT(.TMGENV) GOTO VMPM1
+        IF TMGUSERINPUT="FromLab" DO VIEWMAP(.TMGENV,"",.TMGTESTMSG,.TMGHL7MSG,INDENTN+2) GOTO VMPM1
+        IF TMGUSERINPUT="NLTMap" DO VIEWMNLT(.TMGENV,"",.TMGTESTMSG,.TMGHL7MSG,INDENTN+2) GOTO VMPM1
         IF TMGUSERINPUT="^" GOTO VMPDN
         IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
         GOTO VMPM1
 VMPDN   QUIT
         ;        
-VIEWMNLT(TMGENV,NLT)   ;"VIEW NATIONAL LABORATORY TEST (NLT) MAPPING. 
+VIEWMNLT(TMGENV,NLT,TMGTESTMSG,TMGHL7MSG,INDENTN)   ;"VIEW NATIONAL LABORATORY TEST (NLT) MAPPING. 
         ;"Purpose: View mapping from NLT code (used during actual filing of lab)
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
@@ -310,6 +323,9 @@ VIEWMNLT(TMGENV,NLT)   ;"VIEW NATIONAL LABORATORY TEST (NLT) MAPPING.
         ;"           TMGENV(<other entries>)= etc.              
         ;"       NLT -- Optional.  If not provided, then user is prompted for value.
         ;"              This is WKLD CODE (e.g. "81172.0000"), which is 1 field in file 64 (WKLD CODE)
+        ;"       TMGTESTMSG
+        ;"       TMGHL7MSG  (not yet used)
+        ;"       INDENTN -- the number of spaces to indent the menu display (not yet used)
         ;"Result: none
         SET IEN62D4=TMGENV("IEN 62.4")
         SET NLT=$GET(NLT)
@@ -339,7 +355,7 @@ VIEWMNLT(TMGENV,NLT)   ;"VIEW NATIONAL LABORATORY TEST (NLT) MAPPING.
 VMNLTDN DO PRESS2GO^TMGUSRI2
         QUIT
         ;        
-VIEWMAP(TMGENV,TESTID) ;
+VIEWMAP(TMGENV,TESTID,TMGTESTMSG,TMGHL7MSG,INDENTN) ;
         ;"Purpose: Show maping between lab code and LABORATORY TEST entry.
         ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
         ;"           TMGENV("PREFIX") -- e.g. "LMH"
@@ -347,7 +363,10 @@ VIEWMAP(TMGENV,TESTID) ;
         ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)                
         ;"           TMGENV(<other entries>)= etc.              
         ;"       TESTID -- Optional.  If not provided, then user is prompted for value. 
-        ;"Note: uses globally-scoped vars" TMGLABPREFIX, IEN62D4, IEN68D2, TMGTESTMSG
+        ;"       TMGTESTMSG
+        ;"       TMGHL7MSG  (not yet used)
+        ;"       INDENTN -- the number of spaces to indent the menu display (not yet used)
+        ;"Note: uses globally-scoped vars" TMGLABPREFIX, IEN62D4, IEN68D2
         NEW TMGZZ SET TMGZZ=0
         IF TMGZZ=1 DO
         . KILL TMGENV
@@ -356,12 +375,13 @@ VIEWMAP(TMGENV,TESTID) ;
         . KILL ^TMG("TMP","VIEWMAP^TMGHL70")
         . MERGE ^TMG("TMP","VIEWMAP^TMGHL70","TMGENV")=TMGENV 
         NEW X,Y,IEN60,IEN61,IEN62,IEN64,TEMP
-        NEW TESTNAME,%,VACODE,NEWIEN60,IEN62D41,SYN60,SYNONYM,TMGRESULT
+        NEW TEST,TESTNAME,%,VACODE,NEWIEN60,IEN62D41,SYN60,SYNONYM,TMGRESULT
         SET TESTID=$GET(TESTID)
-VM1     IF TESTID="" DO
+VM1     SET TEST=TESTID
+        IF TESTID="" DO
         . IF $DATA(TMGTESTMSG) DO
         . . NEW TMGU MERGE TMGU=TMGENV("TMGU")
-        . . NEW TEST SET TEST=$$GETTESTFROM(.TMGTESTMSG,.TMGU) ;"GET LAB TEST FROM TEST HL7 MESSAGE
+        . . SET TEST=$$GETTESTFROM(.TMGTESTMSG,.TMGHL7MSG,.TMGU) ;"GET LAB TEST FROM TEST HL7 MESSAGE
         . . ;"sample return: 1989-3^Vitamin D 25-Hydroxy^LN'  //kt changed 6/5/20.  Had returned just TestID before.
         . . SET TESTID=$PIECE(TEST,TMGU(2),1)
         . . ;"NOTE: To fix in future.  Needs to also try looking up by TESTNAME, not just TESTID.  This is
@@ -376,7 +396,8 @@ VM1     IF TESTID="" DO
         IF $DATA(TMGENV) ZWRITE TMGENV(*)
         WRITE "-----",!
         NEW ARR
-        SET TMGRESULT=$$LMAPAPI^TMGHL7U(.TMGENV,TESTID,.ARR) ;"Get actual mapping
+        ;"SET TMGRESULT=$$LMAPAPI^TMGHL7U(.TMGENV,TESTID,.ARR) ;"Get actual mapping
+        SET TMGRESULT=$$LMAPAPI^TMGHL7U(.TMGENV,TEST,.ARR) ;"Get actual mapping   //KT 8/26/21
         DO
         . WRITE "-----",!
         . WRITE "Using this mapping array (from $$LMAPAPI^TMGHL7U):",!
@@ -426,17 +447,25 @@ VM3     SET %=2
         . WRITE !
 VMDN    QUIT
         ;
-GETTESTFROM(TESTMSG,TMGU) ;"GET TEST ID&NAME FROM TEST HL7 MESSAGE
+GETTESTFROM(TESTMSG,TMGHL7MSG,TMGU) ;"GET TEST ID&NAME FROM TEST HL7 MESSAGE
         ;"Input: TESTMSG -- PASS BY REFERENCE.  FORMAT:
         ;"          TESTMSG(#)=<TEXT>, E.g. TESTMSG(133)= "NTE|1|L|Interpretation of Vitamin D 25 OH:|"
+        ;"       TMGHL7MSG -- PASS BY REFERENCE.  Parsed message array.  
         ;"       TMGU -- ARRAY WITH DIVIDER INFO, E.G. 
         ;"       TMGU(1)="|"
         ;"       TMGU(2)="^"
         ;"       TMGU(3)="~"
         ;"       TMGU(4)="\"
         ;"       TMGU(5)="&"
+        ;"NOTE: Uses TMGENV in global scope.  
         ;"Result: returns lab or "" if none chosen.    e.g., if user picks:
-        ;"         Vitamin D 25-Hydroxy (ID: 1989-3), then '1989-3^Vitamin D 25-Hydroxy^LN' returned.
+        ;"         Vitamin D 25-Hydroxy (ID: 1989-3), then '1989-3^Vitamin D 25-Hydroxy^LN' returned.        
+        IF $DATA(TMGHL7MSG)=0 DO
+        . NEW % SET %=1
+        . WRITE "HL7 Message should be parsed and transformed before checking mapping.",!
+        . WRITE "Transform now" DO YN^DICN WRITE !
+        . IF %'=1 QUIT
+        . DO TESTPARS(.TMGENV,.TMGTESTMSG,.TMGHL7MSG)                
         NEW MENU,TMGUSERINPUT,MENUCT SET MENUCT=0
         SET MENU(0)="Select lab result from test message to show mapping."
         NEW TMGRESULT SET TMGRESULT=""
@@ -445,10 +474,20 @@ GETTESTFROM(TESTMSG,TMGU) ;"GET TEST ID&NAME FROM TEST HL7 MESSAGE
         . NEW LINE SET LINE=$GET(TESTMSG(IDX)) QUIT:LINE=""
         . NEW TYPE SET TYPE=$PIECE(LINE,TMGU(1),1)
         . IF TYPE'="OBX" QUIT
-        . NEW LAB SET LAB=$PIECE(LINE,TMGU(1),4) QUIT:LAB=""
+        . NEW LAB SET LAB=$PIECE(LINE,TMGU(1),4) 
         . NEW ID SET ID=$PIECE(LAB,TMGU(2),1)
         . NEW LABNAME SET LABNAME=$PIECE(LAB,TMGU(2),2)
-        . SET MENUCT=MENUCT+1,MENU(MENUCT)=LABNAME_" (ID: "_ID_")"_$CHAR(9)_LAB
+        . IF (LAB'=""),(ID'=""),(LABNAME'="") SET MENUCT=MENUCT+1,MENU(MENUCT)=LABNAME_" (ID: "_ID_")"_$CHAR(9)_LAB
+        . NEW ARR MERGE ARR=TMGHL7MSG(IDX,"RESULT","PREMAP") QUIT:$DATA(ARR)=0
+        . NEW TESTID SET TESTID=$GET(ARR("TESTID"))
+        . NEW TESTNAME SET TESTNAME=$GET(ARR("TESTNAME"))
+        . NEW ALTTESTID SET ALTTESTID=$GET(ARR("ALT TESTID"))
+        . NEW ALTTESTNAME SET ALTTESTNAME=$GET(ARR("ALT TESTNAME"))
+        . IF TESTID'=""   SET MENUCT=MENUCT+1,MENU(MENUCT)=" (TESTID: "_TESTID_")"_$CHAR(9)_TESTID
+        . IF TESTNAME'="" SET MENUCT=MENUCT+1,MENU(MENUCT)=" (TESTNAME: "_TESTNAME_")"_$CHAR(9)_TESTNAME
+        . IF ALTTESTID'=""   SET MENUCT=MENUCT+1,MENU(MENUCT)=" (ALT TESTID: "_ALTTESTID_")"_$CHAR(9)_ALTTESTID
+        . IF ALTTESTNAME'="" SET MENUCT=MENUCT+1,MENU(MENUCT)=" (ALT TESTNAME: "_ALTTESTNAME_")"_$CHAR(9)_ALTTESTNAME
+        . 
         SET MENUCT=MENUCT+1,MENU(MENUCT)="Manual entry of a lab code (e.g. OSMOC)"_$CHAR(9)_"<MANUAL>" 
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.MENU,"^")
         IF TMGUSERINPUT="<MANUAL>" DO
@@ -476,15 +515,19 @@ GETCFG(HL7INST,HL7APP) ;"DEPRECIATED
         QUIT IEN22720
         ;
 GETCFG2(MSH,TMGU,HL7INST,HL7APP) ;
-        ;"Purpose: To get TMGH HL7 MESSAGE TRANSFORM SETTINGS 
+        ;"Purpose: To get TMG HL7 MESSAGE TRANSFORM SETTINGS 
         ;"Input: MSH -- the MSH segment of the HL7 message
         ;"       TMGU -- the array with delimeters
         ;"       HL7INST -- an OUT PARAMETER
         ;"       HL7APP -- an OUT PARAMETER.  
-        ;"Result: IEN in 22720 or -1^message if not found or problem.        
-        SET HL7INST=$PIECE($PIECE(MSH,TMGU(1),4),TMGU(2),1) IF HL7INST="" SET HL7INST="?"
+        ;"Result: IEN in 22720 or -1^message if not found or problem.
+        ;"note -- There seems to be similarity between this code and MSH2IENA^TMGHL7U2 ??Combine at some point??
+        ;"SET HL7INST=$PIECE($PIECE(MSH,TMGU(1),4),TMGU(2),1) ;"//IF HL7INST="" SET HL7INST="?"
+        SET HL7INST=$PIECE(MSH,TMGU(1),4)
         IF $$XFRMFACILITY^TMGHL7U2(.HL7INST,.TMGU) ;"ignore result  //kt 1/14/21. Added TMGU 5/18/21
-        SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1) IF HL7APP="" SET HL7APP="Epic"
+        SET HL7APP=$PIECE($PIECE(MSH,TMGU(1),3),TMGU(2),1)
+        IF $$XFRMAPP^TMGHL7U2(.HL7APP,.TMGU)  ;"ignore result
+        ;"IF HL7APP="" SET HL7APP="Epic"
         NEW MSGTYPE SET MSGTYPE=$PIECE($PIECE(MSH,TMGU(1),9),TMGU(2),1)
         NEW IEN22720 SET IEN22720=0
         NEW FOUND SET FOUND=0

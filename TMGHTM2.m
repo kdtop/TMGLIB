@@ -50,9 +50,9 @@ PROCESS(HTMLIO,CALLBACKFN)  ;"Parse HTML array into HTML DOM, then call CALLBACK
   NEW ERR SET ERR=$$PARSHTML^TMGEWD01(.HTML,DOMNAME)
   IF ERR'="" SET TMGRESULT="-1^"_ERR GOTO PROCDN
   NEW CODE SET CODE="DO "_CALLBACKFN_"("""_DOMNAME_""",.ERR)"
-  DO  
-  . NEW $ETRAP SET $ETRAP="SET TMGRESULT=""-1^Error with callback function"",! set $etrap="""",$ecode="""""
-  . XECUTE CODE
+  ;"DO  
+  NEW $ETRAP SET $ETRAP="SET TMGRESULT=""-1^Error with callback function"" set $etrap="""",$ecode="""""
+  XECUTE CODE
   IF +TMGRESULT<0 GOTO PROCDN
   IF ERR'="" SET TMGRESULT="-1^"_ERR GOTO PROCDN
   ;"Turn DOM back into HTML for output. 

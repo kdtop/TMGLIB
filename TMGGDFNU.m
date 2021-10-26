@@ -76,7 +76,7 @@ VALIDSSN(NUM)  ;"Is NUM a valid SSN?
   IF (TEMP="111111111")!(TEMP="333333333") DO  GOTO VSSDN
   . SET TMGRESULT="-1^Invalid number. Got ["_NUM_"]"  
   NEW G1 SET G1=$EXTRACT(TEMP,1,3)
-  IF "^000^666^900^"["^"_G1_"^" DO  GOTO VSSDN
+  IF "^000^666^900^"[("^"_G1_"^") DO  GOTO VSSDN
   . SET TMGRESULT="-1^Invalid first 3 digits.  Got ["_NUM_"]"
   NEW G2 SET G2=$EXTRACT(TEMP,4,5)
   IF G2="00" DO  GOTO VSSDN

@@ -220,7 +220,10 @@ GETVALS(PTID,LAB,OUT,OPTION) ;"GET VALUES FOR LAB TEST 60
         . NEW ZNODE SET ZNODE=$GET(^LR(LRDFN,"CH",RT,+FLD63D04))
         . NEW VALUE SET VALUE=$PIECE(ZNODE,"^",1)
         . NEW FLAG SET FLAG=$PIECE(ZNODE,"^",2)
-        . IF (FLAG="H")!(FLAG="L")!(FLAG="HH")!(FLAG="LL") SET VALUE=VALUE_FLAG ;"4/6/20  elh added critical flags (HH and LL)
+        . IF (FLAG="H")!(FLAG="L")!(FLAG="HH")!(FLAG="LL") DO  ;"SET VALUE=VALUE_FLAG ;"4/6/20  elh added critical flags (HH and LL)
+        . . ;"ADDED CHECK FOR TEXT IN 7/1/21
+        . . IF VALUE'=+$G(VALUE) SET VALUE=VALUE_"("_FLAG_")"
+        . . ELSE  SET VALUE=VALUE_FLAG
         . SET OUT(IEN60,FMDT)=VALUE
         . SET FOUND=FOUND+1
         . IF WANTRAW SET OUT(IEN60,FMDT,"ZN")=ZNODE

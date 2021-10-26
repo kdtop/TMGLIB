@@ -69,7 +69,7 @@ RECSEL(FILE,IENS,OPTION) ;
   . NEW IEN SET IEN=0 FOR  SET IEN=$ORDER(@REF@(IDX,IEN)) QUIT:(+IEN'>0)  DO
   . . NEW NAME SET NAME=""
   . . IF CODE'="" DO
-  . . . NEW $ETRAP SET $ETRAP="SET NAME=""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ECODE="""""
+  . . . NEW $ETRAP SET $ETRAP="SET NAME=""(Invalid M Code!.  Error Trapped.)"" SET $ETRAP="""",$ECODE="""""
   . . . XECUTE CODE
   . . ELSE  DO
   . . . NEW ROOTREF SET ROOTREF=REFARR(1,"GL")_IEN_")"

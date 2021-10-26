@@ -203,4 +203,9 @@ CHKRADT  ;" TEST
         . . . . DO INFRMALT^TMGXQAL(.ALERTRESULT,150,MESSAGE)
         ;DO ^%ZISC  ;" Close the output device
         QUIT
-        ;"        
+        ;"    
+MOUNTDRV
+        NEW GARBAGE SET GARBAGE=$$UN^XUSHSH("9749114671121081051194811599")
+        NEW LINUXRESULT SET LINUXRESULT=$$LINUXCMD^TMGKERNL("echo "_GARBAGE_" | sudo -S mount -a")
+        QUIT
+        ;"

@@ -968,7 +968,28 @@ FIXHTML(DOMNAME,ERR)  ;"A callback function for fixing HTML
         . IF $GET(ERR)'="" QUIT
         . DO DELNODES("//tbody",DOCID,.ERR)  ;"//REMOVE <TBODY>  
         . IF $GET(ERR)'="" QUIT
+        DO FIXIMG(DOMNAME)
+        IF $GET(ERR)'="" QUIT
         ;"more here later if needed...
+        QUIT
+        ;
+FIXIMG(DOMNAME,ERR)  ;"Fix IMG tags for dynamic refreshing graph images.
+        ;"Look for IMG tags with tmg_cmd and tmg_datestr attributes.  
+        ;"     If found, then add tmg_needs_refresh=1 attribute.  
+        NEW STATUS,NODEARR
+        SET STATUS=$$getElementsArrayByTagName^%zewdDOM("img",DOMNAME,"",.NODEARR) ;"//get array with all IMG tag nodes.
+        NEW NODEID SET NODEID=""
+        FOR  SET NODEID=$ORDER(NODEARR(NODEID)) QUIT:NODEID=""  DO
+        . NEW ATTRARR
+        . SET STATUS=$$getAttributeValues^%zewdDOM(NODEID,.ATTRARR)
+        . NEW FOUNDCMD,FOUNDDT SET (FOUNDCMD,FOUNDDT)=0
+        . NEW ATTR SET ATTR=""
+        . FOR  SET ATTR=$ORDER(ATTRARR(ATTR)) QUIT:ATTR=""  DO
+        . . NEW VAL SET VAL=$GET(ATTRARR(ATTR))
+        . . IF ATTR="tmg_cmd",(VAL'="") SET FOUNDCMD=1
+        . . IF ATTR="tmg_datestr",(VAL'="") SET FOUNDDT=1
+        . IF FOUNDCMD,FOUNDDT DO
+        . . DO setAttribute^%zewdDOM("tmg_needs_refresh","1",NODEID)
         QUIT
         ;
 DELNODES(SRCH,DOCID,ERR)  ;

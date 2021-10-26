@@ -244,7 +244,7 @@ XECCODE(TMGCODE,TMGVALUE,TMGNUM) ;
         . ;"SET $ETRAP="SET TMGXERR=""Error trapped executing code: '""_TMGCODE_""' "
         . ; SET $ETRAP=$ETRAP_"$ZSTATUS=""_$ZSTATUS_""; $ECODE=""_$ECODE "
         . ;"SET $ETRAP=$ETRAP_"SET $ETRAP="""",$ECODE="""" "
-        . DO TMGLOG^HLCSTCP1("In XECODE^TMGHL7X: about to execute code: ["_TMGCODE_"]")
+        . ;"DO TMGLOG^HLCSTCP1("In XECODE^TMGHL7X: about to execute code: ["_TMGCODE_"]")
         . XECUTE TMGCODE
         . ;"DO TMGLOG^HLCSTCP1("In XECODE^TMGHL7X: Safe return from: ["_TMGCODE_"]")
         IF $DATA(TMGXERR) SET TMGRESULT="-1^"_TMGXERR

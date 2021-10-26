@@ -582,3 +582,110 @@ SCAN4MAM ;" Cycle through all mammogram consults
         SET TMGRESULT=$$NSUREHAS^TMGPXRU1("PENDMATCHES","HF.TMG MAMMOGRAM/IMAGING ORDERED")
 MRPTDN  QUIT
         ;
+TESTORDER
+        NEW ORIFN SET ORIFN="346728;1"
+        N Y S ORPDAD=$O(^OR(100,ORIFN,2,0)) 
+        D TEXT^ORQ12(.Y,ORIFN_$S($G(OACTION):";"_OACTION,1:"")) 
+        DO FIXORDER^TMGFIX3(.Y)
+        ZWR Y
+        QUIT
+        ;"
+FIXORDER(ORDERARR)  ;"
+        ;"Purpose; This function formats the orders, taking in the array for
+        ;          the lab order, in ORDERARR, and then changes it.
+        ;"         It currently breaks the tests out, if commas are found,
+        ;"         into their own line items. 
+        ;"NOTE: This can be called in multiple places. 
+        ;"      For printing, it can be called from the "CODE FOR SETTING
+        ;"              VARIABLE" field in the field definition, of file 100.22
+        ;"      Currently, this is set on the ORDER TEXT (IEN 1010) in OE/RR
+        ;"              PRINT FIELDS. Which looks like this:
+        ;"       "N Y S ORPDAD=$O(^OR(100,ORIFN,2,0)) D TEXT^ORQ12(.Y,O
+        ;"         RIFN_$S($G(OACTION):";"_OACTION,1:"")) DO FIXORDER^TMGFIX3(.Y) M ^TMP("ORP:",$J)
+        ;"         =Y S OROOT="^TMP(""ORP:"",$J)"  Replace )) DO With )) MERGE ^TMG("FIXORDER")=Y DO" 
+        ;"      ALSO, if we ever want to change the way the lab order is
+        ;"         displayed and printed, then you can wedge a line inside TEXT^ORQ12,
+        ;"         which is the function that returns the order text
+        NEW PREFIX SET PREFIX="  [ ]" ;" <- This will be the prefix for all 
+        NEW IDX SET IDX=0
+        NEW ORIGARR MERGE ORIGARR=ORDERARR
+        KILL ORDERARR
+        NEW OUTIDX SET OUTIDX=1
+        NEW FOUNDTEST SET FOUNDTEST=0
+        NEW TESTSORDERED SET TESTSORDERED=""  ;"Get all the tests
+        FOR  SET IDX=$O(ORIGARR(IDX)) QUIT:IDX'>0  DO  ;"<-- cycle through each line of the order
+        . NEW LINE SET LINE=$G(ORIGARR(IDX))
+        . IF LINE["TESTS ORDERED:" SET FOUNDTEST=1
+        . IF FOUNDTEST=1 DO  ;"Once we are inside the test section, keep adding each line until we have them all
+        . . SET TESTSORDERED=TESTSORDERED_LINE
+        . . IF ($$TRIM^XLFSTR(LINE)=".")!(LINE["DIAG:") DO  ;"The test section ends with either a period or the diag
+        . . . NEW DIAGSTR SET DIAGSTR=""
+        . . . IF LINE["DIAG:" DO   ;"Pull the diag out to be added later
+        . . . . SET DIAGSTR="DIAG: "_$P(TESTSORDERED,"DIAG:",2)
+        . . . . SET TESTSORDERED=$P(TESTSORDERED,"DIAG:",1)
+        . . . SET FOUNDTEST=0 
+        . . . NEW RADTEST,CARDIOTEST
+        . . . ;"Separate will split the tests out
+        . . . SET TESTSORDERED=$TR(TESTSORDERED,".",",")
+        . . . DO SEPARATE(.ORDERARR,.OUTIDX,.TESTSORDERED,PREFIX,.RADTEST,.CARDIOTEST)
+        . . . ;"If ordered, add in the rad and cardio tests afterward
+        . . . IF ($D(RADTEST))!($D(CARDIOTEST)) DO ADDOTHER(.ORDERARR,.ORDIDX,.RADTEST,.CARDIOTEST,PREFIX)
+        . . . ;"If we found a diag string, add back here
+        . . . IF DIAGSTR'="" SET ORDERARR(OUTIDX)=".",OUTIDX=OUTIDX+1,LINE=DIAGSTR
+        . . . SET ORDERARR(OUTIDX)=LINE,OUTIDX=OUTIDX+1
+        . ELSE  DO
+        . . SET ORDERARR(OUTIDX)=LINE,OUTIDX=OUTIDX+1
+        IF (FOUNDTEST=1)&(TESTSORDERED'="") DO  ;"THIS IS TO CATCH NON STANDARD ORDERS. I don't think it is necessary though
+        . NEW RADTEST,CARDIOTEST
+        . DO SEPARATE(.ORDERARR,.OUTIDX,.TESTSORDERED,PREFIX,.RADTEST,.CARDIOTEST)
+        . IF ($D(RADTEST))!($D(CARDIOTEST))!($D(DIAG)) DO ADDOTHER(.ORDERARR,.ORDIDX,.RADTEST,.CARDIOTEST,PREFIX)
+        . SET ORDERARR(OUTIDX)=".",OUTIDX=OUTIDX+1
+        QUIT
+        ;"
+SEPARATE(ORDERARR,OUTIDX,LINE,PREFIX,RADTEST,CARDIOTEST)  ;"
+        ;"This function goes through the line and breaks out any tests. Also
+        ;"    it will add a break at the section title (e.g. TESTS ORDERED:) 
+        IF LINE["TESTS ORDERED:" SET ORDERARR(OUTIDX)="LAB TESTS ORDERED:",OUTIDX=OUTIDX+1,LINE=$P(LINE,"TESTS ORDERED:",2,999)
+        IF LINE'["," DO  QUIT
+        . SET ORDERARR(OUTIDX)=PREFIX_$$TRIM^XLFSTR(LINE),OUTIDX=OUTIDX+1
+        . SET LINE=""
+        NEW TEST SET TEST=$$TRIM^XLFSTR($P(LINE,",",1))
+        IF TEST["RADIOLOGY:" SET RADTEST($P(TEST,"RADIOLOGY:",2))=""
+        ELSE  IF TEST["CARDIO:" SET CARDIOTEST($P(TEST,"CARDIO:",2))=""                
+        ELSE  DO
+        . IF $$TRIM^XLFSTR(TEST)'="" DO
+        . . SET ORDERARR(OUTIDX)=PREFIX_TEST,OUTIDX=OUTIDX+1
+        SET LINE=$P(LINE,",",2,999)
+        IF LINE["," DO SEPARATE(.ORDERARR,.OUTIDX,.LINE,PREFIX,.RADTEST,.CARDIOTEST)
+        ELSE  DO
+        . IF $$TRIM^XLFSTR(LINE)'="" DO
+        . . IF LINE["RADIOLOGY:" SET RADTEST($P(LINE,"RADIOLOGY:",2))=""
+        . . ELSE  IF LINE["CARDIO:" SET CARDIOTEST($P(LINE,"CARDIO:",2))=""
+        . . ELSE  DO
+        . . . SET ORDERARR(OUTIDX)=PREFIX_$$TRIM^XLFSTR(LINE),OUTIDX=OUTIDX+1
+        . . . SET LINE=""
+        QUIT
+       ;"
+ADDOTHER(ORDERARR,ORDIDX,RADTEST,CARDIOTEST,PREFIX)
+        NEW TESTNAME
+        IF $D(RADTEST) DO
+        . SET ORDERARR(OUTIDX)="",OUTIDX=OUTIDX+1
+        . SET ORDERARR(OUTIDX)="RADIOLOGY:",OUTIDX=OUTIDX+1
+        . SET TESTNAME=""
+        . FOR  SET TESTNAME=$O(RADTEST(TESTNAME)) QUIT:TESTNAME=""  DO
+        . . SET ORDERARR(OUTIDX)=PREFIX_TESTNAME,OUTIDX=OUTIDX+1
+        IF $D(CARDIOTEST) DO
+        . SET ORDERARR(OUTIDX)="",OUTIDX=OUTIDX+1
+        . SET ORDERARR(OUTIDX)="CARDIOLOGY:",OUTIDX=OUTIDX+1
+        . SET TESTNAME=""
+        . FOR  SET TESTNAME=$O(CARDIOTEST(TESTNAME)) QUIT:TESTNAME=""  DO
+        . . SET ORDERARR(OUTIDX)=PREFIX_TESTNAME,OUTIDX=OUTIDX+1
+        ;"IF $D(DIAG) DO
+        ;". SET ORDERARR(OUTIDX)="",OUTIDX=OUTIDX+1
+        ;". SET ORDERARR(OUTIDX)="DIAG:",OUTIDX=OUTIDX+1
+        ;". SET TESTNAME=""
+        ;". FOR  SET TESTNAME=$O(DIAG(TESTNAME)) QUIT:TESTNAME=""  DO
+        ;". . SET ORDERARR(OUTIDX)=TESTNAME,OUTIDX=OUTIDX+1
+        QUIT
+        ;"
+

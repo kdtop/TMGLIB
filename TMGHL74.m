@@ -138,10 +138,11 @@ ORC13  ;"Purpose: Process empty ORC message, field 13
 OBR     ;"Purppse: setup for OBR fields.
         ;"Uses TMGHL7MSG,TMGSEGN,TMGU in global scope
         IF $GET(TMGHL7MSG("STAGE"))="PRE" DO  QUIT
-        . DO HNDUPOBX^TMGHL72(.TMGHL7MSG,TMGSEGN,.TMGU)
+        . NEW TEMP SET TEMP=$$HNDUPOBX^TMGHL72(.TMGHL7MSG,TMGSEGN,.TMGU)
+        . IF TEMP<0 SET TMGXERR=$PIECE(TEMP,"^",2,99)   
         DO OBR^TMGHL72
-        
         QUIT
+        ;
 OBR4    ;"Purpose: To transform the OBR segment, field 4
         IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
         DO OBR4^TMGHL72

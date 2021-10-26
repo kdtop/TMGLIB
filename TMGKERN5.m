@@ -69,7 +69,8 @@ SMSSEND(ARRAY,STORE,LIVE) ;"SEND SMS MESSAGES via FTP BATCH
   IF RESULT=0 DO  GOTO SMSSDN
   . SET RESULT="-1^Unable to store message file to HFS file '"_FNAME_"'"  
   NEW P SET P="temp"
-  NEW HOOKCMD SET HOOKCMD="sms_upload_msg -f="_FNAME
+  ;"NEW HOOKCMD SET HOOKCMD="sms_upload_msg -f="_FNAME   7/20/21
+  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_upload_msg.py -f="_FNAME
   IF LIVE=0 DO
   . SET HOOKCMD=HOOKCMD_" --test"
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
@@ -134,7 +135,8 @@ SMSSEND1(NUMBER,MSG,TMGDFN) ;"SEND SMS MESSAGE VIA HTTP REQUEST
   IF $EXTRACT(NUMBER)'="1" GOTO SMSSDN0  ;"FILE ERROR OR NOT?
   NEW P SET P="temp"
   NEW HOOKCMD
-  SET HOOKCMD="sms_send_msg -n="_NUMBER_" -m='"_MSG_"'"
+  ;"SET HOOKCMD="sms_send_msg -n="_NUMBER_" -m='"_MSG_"'"   7/20/21
+  SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_send_msg.py -n="_NUMBER_" -m='"_MSG_"'"   
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P
   NEW LINEIN,ID,%,ERROR
@@ -175,7 +177,8 @@ SMSGET(DELFILE) ;
   ;"        in the middle of the night.
   NEW ID,DATE,TIME,MOBILENUM,TEXT SET (ID,DATE,TIME,MOBILENUM,TEXT)="?"
   NEW P SET P="temp"
-  NEW HOOKCMD SET HOOKCMD="sms_download_msg"
+  ;"NEW HOOKCMD SET HOOKCMD="sms_download_msg"  7/20/21
+  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_download_msg.py"
   IF +$GET(DELFILE)=1 SET HOOKCMD=HOOKCMD_" -d"
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P
@@ -212,7 +215,8 @@ GETSMSID(DELFILE) ;"GET SMS MESSAGE ID OF MESSAGES BY FTP BATCH
   ;"      wait 10 minutes before running this function.
   NEW ID,MOBILENUM SET (ID,MOBILNUM)=""
   NEW P SET P="temp"
-  NEW HOOKCMD SET HOOKCMD="sms_batch_id -f='"_$$COMFILE()_"'"
+  ;"NEW HOOKCMD SET HOOKCMD="sms_batch_id -f='"_$$COMFILE()_"'"  7/20/21
+  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_batch_id.py -f='"_$$COMFILE()_"'"
   IF +$GET(DELFILE)=1 SET HOOKCMD=HOOKCMD_" -d"
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P
@@ -423,7 +427,7 @@ SMSRPT    ;" Print report for received SMS messages
   ;"Input -- none
   ;"Output -- Report printed to s121
   ;"Result -- none  
-  IF '$DATA(^TMG("TMP","SMS")) QUIT
+  ;"IF '$DATA(^TMG("TMP","SMS")) QUIT
   NEW %ZIS,IOP
   SET IOP="S121-LAUGHLIN-LASER"
   DO ^%ZIS  ;"standard device call
@@ -485,3 +489,4 @@ RPCDN ;
 JOBSEND()
   DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
   QUIT
+  

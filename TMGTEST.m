@@ -147,4 +147,154 @@ TestRandom2() ;
   for  set i=$ORDER(array(i)) quit:i=""  do
   . write "For index ",i,", value was",array(i),!
   quit
+
+
+CHECKRX
+  NEW CT SET CT=0
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(^PSDRUG(IEN)) QUIT:IEN'>0  DO
+  . NEW ZN SET ZN=$GET(^PSDRUG(IEN,0))
+  . NEW W SET W=$GET(^PSDRUG(IEN,"WARN"))
+  . NEW OLDWARN SET OLDWARN=($PIECE(ZN,"^",8)'="")
+  . NEW NEWWARN SET NEWWARN=($PIECE(W,"^",1)'="")
+  . IF (OLDWARN=0)&(NEWWARN=0) QUIT
+  . NEW WARN SET WARN=$$DRUG^PSSWRNA(IEN,0)
+  . SET CT=CT+1
+  . WRITE CT," (",IEN,") ",$P(ZN,"^",1)," --> ",WARN,!
+  QUIT
+
   
+ArrayDump(ZZARRAYP,TMGIDX,INDENT)
+        ;"NOTE: Similar to ARRDUMP^TMGMISC3
+        ;"PUBLIC FUNCTION
+        ;"Purpose: to get a custom version of GTM's "zwr" command
+        ;"Input: Uses global scope var tmgDbgIndent (if defined)
+        ;"        ZZARRAYP: NAME of global to display, i.e. "^VA(200)"
+        ;"        TMGIDX: initial index (i.e. 5 IF wanting to start with ^VA(200,5)
+        ;"        INDENT: spacing from left margin to begin with. (A number.  Each count is 2 spaces)
+        ;"          OPTIONAL: indent may be an array, with information about columns
+        ;"                to skip.  For example:
+        ;"                INDENT=3, INDENT(2)=0 --> show | for columns 1 & 3, but NOT 2
+        ;"Result: 0=OK to continue, 1=user aborted display
+        ;
+        NEW RESULT SET RESULT=0
+        NEW $ETRAP SET $ETRAP="SET RESULT="""",$ETRAP="""",$ecode="""""
+        ;
+AD1     IF $DATA(ZZARRAYP)=0 GOTO ADDN
+        NEW ABORT SET ABORT=0
+        IF (ZZARRAYP["@") DO  GOTO:(ABORT=1) ADDN
+        . NEW ZZTEMP SET ZZTEMP=$PIECE($EXTRACT(ZZARRAYP,2,99),"@",1)
+        . IF $DATA(ZZTEMP)#10=0 SET ABORT=1
+        ;"Note: I need to do some validation to ensure ZZARRAYP doesn't have any null nodes.
+        DO
+        . NEW X SET X="SET ZBTEMP=$GET("_ZZARRAYP_")"
+        . SET X=$$UP(X)
+        . DO ^DIM ;"a method to ensure ZZARRAYP doesn't have an invalid reference.
+        . IF $GET(X)="" SET ABORT=1
+        IF ABORT GOTO ADDN
+        ;
+        SET tmgDbgIndent=$GET(tmgDbgIndent,0)
+        ;
+        NEW TMGIDEDEBUG SET TMGIDEDEBUG=1  ;"Force this function to output, even IF TMGIDEDEBUG is not defined.
+        NEW TMGIDX SET TMGIDX=$GET(TMGIDX)
+        SET INDENT=$GET(INDENT,0)
+        ;
+        DO DEBUGINDENT(tmgDbgIndent)
+        ;
+        IF INDENT>0 DO
+        . FOR TMGIDX=1:1:INDENT-1 DO
+        . . NEW STR SET STR=""
+        . . IF $GET(INDENT(TMGIDX),-1)=0 SET STR="  "
+        . . ELSE  SET STR="| "
+        . . DO DEBUGWRITE(tmgDbgIndent,STR)
+        . DO DEBUGWRITE(tmgDbgIndent,"}~")
+        ;
+        IF TMGIDX'="" DO
+        . IF $DATA(@ZZARRAYP@(TMGIDX))#10=1 DO
+        . . NEW STR SET STR=@ZZARRAYP@(TMGIDX)
+        . . IF STR="" SET STR=""""""
+        . . IF $LENGTH(STR)'=$LENGTH($$TRIM^XLFSTR(STR)) set STR=""""_STR_"""" 
+        . . NEW QT SET QT=""
+        . . IF +TMGIDX'=TMGIDX SET QT=""""
+        . . DO DEBUGWRITE(tmgDbgIndent,QT_TMGIDX_QT_" = "_STR,1)
+        . ELSE  DO
+        . . DO DEBUGWRITE(tmgDbgIndent,TMGIDX,1)
+        . SET ZZARRAYP=$NAME(@ZZARRAYP@(TMGIDX))
+        ELSE  DO
+        . DO DEBUGWRITE(tmgDbgIndent,ZZARRAYP,0)
+        . IF $DATA(@ZZARRAYP)#10=1 DO
+        . . DO DEBUGWRITE(0,"="_$GET(@ZZARRAYP),0)
+        . DO DEBUGWRITE(0,"",1)
+        ;
+        SET TMGIDX=$ORDER(@ZZARRAYP@(""))
+        IF TMGIDX="" GOTO ADDN
+        SET INDENT=INDENT+1
+        ;
+        FOR  DO  QUIT:TMGIDX=""  IF RESULT=1 GOTO ADDN
+        . NEW TEMPIDX SET TEMPIDX=$ORDER(@ZZARRAYP@(TMGIDX))
+        . IF TEMPIDX="" SET INDENT(INDENT)=0
+        . NEW TEMPINDENT MERGE TEMPINDENT=INDENT
+        . SET RESULT=$$ArrayDump(ZZARRAYP,TMGIDX,.TEMPINDENT)  ;"Call self recursively
+        . SET TMGIDX=$ORDER(@ZZARRAYP@(TMGIDX))
+        ;
+        ;"Put in a blank space at end of subbranch
+        DO DEBUGINDENT(tmgDbgIndent)
+        ;
+        IF 1=0,INDENT>0 DO
+        . FOR TMGIDX=1:1:INDENT-1 DO
+        . . NEW STR SET STR=""
+        . . IF $GET(INDENT(TMGIDX),-1)=0 SET STR="  "
+        . . ELSE  SET STR="| "
+        . . DO DEBUGWRITE(tmgDbgIndent,STR)
+        . DO DEBUGWRITE(tmgDbgIndent," ",1)
+        ;
+ADDN    QUIT RESULT
+        ;
+DEBUGWRITE(tmgDbgIndent,STR,AddNewline)
+        ;"NOTE: Duplicate of function in TMGIDEDEBUG
+        ;"PUBLIC FUNCTION
+        ;"Purpose: to WRITE debug output.  Having the proc separate will allow
+        ;"        easier dump to file etc.
+        ;"Input:tmgDbgIndent, the amount of indentation expected for output.
+        ;"        STR -- the text to write
+        ;"      AddNewline -- boolean, 1 IF ! (i.e. newline) should be written after s
+
+        ;"Relevant DEBUG values
+        ;"        cdbNone - no debug (0)
+        ;"        cdbToScrn - Debug output to screen (1)
+        ;"        cdbToFile - Debug output to file (2)
+        ;"        cdbToTail - Debug output to X tail dialog box. (3)
+        ;"Note: If above values are not defined, then functionality will be ignored.
+
+        SET TMGIDEDEBUG=$GET(TMGIDEDEBUG,0)
+        IF TMGIDEDEBUG=0 QUIT
+        IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3),$DATA(DebugFile) use DebugFile
+        WRITE STR
+        IF $GET(AddNewline)=1 DO
+        . NEW ENDSPACE SET ENDSPACE=20
+        . IF +$GET(IOM)>0,(IOM-$X)<20 SET ENDSPACE=IOM-$X
+        . NEW IDX FOR IDX=1:1:ENDSPACE WRITE " "        
+        . WRITE !
+        IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3) use $PRINCIPAL
+        QUIT
+
+
+DEBUGINDENT(tmgDbgIndent,Forced)
+        ;"NOTE: Duplicate of function in TMGIDEDEBUG
+        ;"PUBLIC FUNCTION
+        ;"Purpose: to provide a unified indentation for debug messages
+        ;"Input: tmgDbgIndent = number of indentations
+        ;"       Forced = 1 IF to indent regardless of DEBUG mode
+
+        SET Forced=$GET(Forced,0)
+
+        IF ($GET(TMGIDEDEBUG,0)=0)&(Forced=0) QUIT
+        NEW i
+        FOR i=1:1:tmgDbgIndent DO
+        . IF Forced DO DEBUGWRITE(tmgDbgIndent,"  ")
+        . ELSE  DO DEBUGWRITE(tmgDbgIndent,". ")
+        QUIT
+        
+UP(X)   ;
+        ;"Taken from UP^XLFSTR
+        QUIT $TRANSLATE(X,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ")

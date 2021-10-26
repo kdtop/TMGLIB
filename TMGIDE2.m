@@ -166,7 +166,7 @@ SP2    USE $P:(WIDTH=tmgScrWidth:NOWRAP)  ;"reset IO to the screen
        NEW tmgTempPos SET tmgTempPos=$$ConvertPos^TMGIDE(tmgIDEPos,tmgArrayName)
        IF tmgTempPos'="" SET tmgIDEPos=tmgTempPos
        ;"Don't show hidden modules (setup in TMGIDE module)
-       IF $$ShouldSkip($PIECE(tmgIDEPos,"^",2)) DO  GOTO SPDone
+       IF $$ShouldSkip($PIECE(tmgIDEPos,"^",2)) GOTO SPDone
        ;"Record trace, If not a hidden module
        IF +$GET(tmgDbgOptions("TRACE"))=1 DO RecordTrace^TMGIDE6(tmgOrigIDEPos)
        ;
@@ -422,7 +422,7 @@ HndlShow;
        . NEW tempCode
        . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
        . WRITE varName,"='"
-       . SET tempCode="do DebugWrite^TMGIDE(1,"_varName_")"
+       . SET tempCode="do DEBUGWRITE^TMGIDE(1,"_varName_")"
        . xecute tempCode
        . WRITE "'    "
        ELSE  IF varName'="" DO
@@ -448,7 +448,7 @@ HndlZWR
        . NEW tempCode
        . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
        . WRITE varName,"='"
-       . SET tempCode="do DebugWrite^TMGIDE(1,"_varName_")"
+       . SET tempCode="do DEBUGWRITE^TMGIDE(1,"_varName_")"
        . xecute tempCode
        . WRITE "'    "
        ELSE  IF varName'="" DO
@@ -1306,7 +1306,7 @@ MessageOut(Msg,timeOutTime,ignoreReply)
        . SET ^TMG("TMGIDE","CONTROLLER","MSG-OUT")=Msg
        . HANG 0.1
        IF $PIECE(result," ",1)="[RSLT]" DO
-         SET result=$PIECE(result," ",2,999)
+       . SET result=$PIECE(result," ",2,999)
        ELSE  DO
        . WRITE !,"Unexpected reply: ",result,!
        . DO PRESS2GO^TMGUSRI2

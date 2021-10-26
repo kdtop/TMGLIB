@@ -964,6 +964,32 @@ TESTREAD
         ZWR FILEARRAY
         QUIT
   
-  
+SRCH ;
+  new tmg
+  new ct set ct=0
+  new ien set ien=0
+  for  set ien=$o(^TIU(8925,ien)) quit:ien'>0  do
+  . new n0 set n0=$g(^TIU(8925,ien,0))
+  . new sd set sd=$p(n0,"^",7)
+  . if sd<3200101 quit
+  . if sd>3210701 quit
+  . new n12 set n12=$g(^TIU(8925,ien,12))
+  . if $p(n12,"^",2)'=168 quit
+  . new ttlptr set ttlptr=$p(n0,"^",1)
+  . new title set title=$p($get(^TIU(8925.1,ttlptr,0)),"^",1)
+  . new found set found=0
+  . if title="OFFICE VISIT" set found=1
+  . if title["TELEMED" set found=1
+  . if title["ACUTE" set found=1
+  . if title["COMPLETE PHYSICAL" set found=1
+  . if title["FOLLOWUP" set found=1
+  . ;set found=1
+  . if found=0 quit
+  . set ct=ct+1
+  . write ct,": ",ien," ",sd," ",title,!
+  . set tmg(title)=$get(tmg(title))+1
+  zwr tmg
+  quit
+
 
 

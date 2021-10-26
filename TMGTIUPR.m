@@ -416,10 +416,11 @@ EXPHTML(ARRTOEXP,FOLDERNAME,FILENAME,ISHTML)  ;"
    NEW EOL SET EOL=""
    IF ISHTML=0 SET EOL="<br>"
    SET HANDLE="TMGEXPORT"
-   SET PATH=FOLDERNAME_"/"
+   SET PATH=FOLDERNAME
+   IF $E(PATH,$L(PATH),$L(PATH))'="/" SET PATH=PATH_"/"
    DO OPEN^%ZISH(HANDLE,PATH,FILENAME,"W")
    IF POP DO  GOTO EHDN
-   . write "Unable to open file for writing: ",PATH,FILENAME,!
+   . ;"write "Unable to open file for writing: ",PATH,FILENAME,!
    USE IO
    NEW IDX SET IDX=0
    FOR  SET IDX=$O(ARRTOEXP(IDX)) QUIT:IDX'>0  DO
@@ -623,7 +624,7 @@ SCN2HTML(HTMLARRAY,PDFFILE,DESTFOLDER,FILECOUNT)
    ;"Purpose: Take a PDF file, split it into individual images and then
    ;"         create an HTML file to view all the images as separate pages
    NEW PDFPATH 
-   SET PDFPATH="/mnt/WinPublic/FPG Charts/"_$p(PDFFILE,"/filesystem/oldrecs/",2)
+   SET PDFPATH="/mnt/WinPrivate/FPG Charts/"_$p(PDFFILE,"/filesystem/oldrecs/",2)
    NEW LINUXCMD SET LINUXCMD="pdftoppm """_PDFPATH_""" "_DESTFOLDER_"/SCANNEDFILE"_FILECOUNT_" -png"
    NEW EXPRESULT
    SET EXPRESULT=$$LINUXCMD^TMGKERNL(LINUXCMD)

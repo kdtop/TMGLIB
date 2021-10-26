@@ -469,8 +469,11 @@ MATCHTAG(HTMLSTR,ALLOWNESTING)  ;"ENSURE MATCHING TAGS IN HTML STRING
   ;"                      '<i>hello</i><i>world</i>
   ;"Result: returns long HTML string with final results.  
   ;"NOTE!:  'currently, </i>hello<i>  will be turned into just 'hello', not considered matched.  
+  ;
+  ;"TO DO...  Fix so that <IMG ... /> tag is not removed...
+  ;
   NEW EMPTYTAGS SET EMPTYTAGS="^AREA^BASE^BR^COL^HR^IMG^INPUT^LINK^META^PARAM^KEYGEN^SOURCE^"
-  NEW KEEPOPENCLOSE SET KEEPOPENCLOSE="^P^BR^"
+  NEW KEEPOPENCLOSE SET KEEPOPENCLOSE="^P^BR^IMG^"
   SET ALLOWNESTING=+$GET(ALLOWNESTING)
   SET HTMLSTR=$GET(HTMLSTR)
   NEW ARR DO PARSBYTG(.HTMLSTR,.ARR)
@@ -483,7 +486,7 @@ MATCHTAG(HTMLSTR,ALLOWNESTING)  ;"ENSURE MATCHING TAGS IN HTML STRING
   . SET ATAG=$PIECE(ATAG,">",1)
   . NEW OPENCLOSE SET OPENCLOSE=($EXTRACT(ATAG,$LENGTH(ATAG))="/") 
   . SET ATAG=$PIECE(ATAG," ",1)
-  . IF OPENCLOSE,KEEPOPENCLOSE'[("^"_ATAG_"^") KILL ARR(IDX) QUIT  ;"Ignore/delete <U /> but keep <BR /> and <P />
+  . IF OPENCLOSE,KEEPOPENCLOSE'[("^"_ATAG_"^") KILL ARR(IDX) QUIT  ;"Ignore/delete <U /> but keep <BR /> and <P /> and <IMG />
   . NEW CLOSING SET CLOSING=($EXTRACT(ATAG,1)="/")
   . IF CLOSING SET ATAG=$$TRIM^XLFSTR($PIECE(ATAG,"/",2))
   . IF EMPTYTAGS[("^"_ATAG_"^") QUIT  ;"ignore empty tags -- shouldn't be match to closers.

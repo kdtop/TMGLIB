@@ -101,3 +101,60 @@ GETNMDOB(TMGHL7MSG) ;"GET PATIENT NAME AND DOB FROM TMGHL7MSG ARRAY
   IF DOB'="" SET RESULT=RESULT_" ("_$$GETDOB(.TMGHL7MSG)_")"
   QUIT RESULT
   ;  
+SAVEALIAS(TMGDFN,NAME,DOB,SEX,SSN) ;"Create mapping between erroneous HL7 patient info and VistA patient
+  ;" Input: TMGDFN -- Patient DFN
+  ;"        NAME   -- Name as provided in HL7 message
+  ;"        DOB    -- DOB as provided in HL7 message, converted to FMDT format
+  ;"        SEX    -- Sex as provided in HL7 message
+  ;"        SSN    -- SSN as provided in HL7 message, hyphens optional
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  SET TMGDFN=+$GET(TMGDFN)
+  SET NAME=$GET(NAME) IF NAME="" DO  GOTO SADN
+  . SET TMGRESULT="-1^Name not provided."
+  NEW COUNT SET COUNT=0
+  SET DOB=$GET(DOB) IF DOB'="" SET COUNT=COUNT+1
+  SET SEX=$GET(SEX) IF SEX'="" SET COUNT=COUNT+1
+  SET SSN=$TRANSLATE($GET(SSN),"-","") IF SSN'="" SET COUNT=COUNT+1
+  IF COUNT<2 DO  GOTO SADN
+  . SET TMGRESULT="-1^Did not get two elements of DOB, sex, SSN."
+  NEW PRIORMATCH SET PRIORMATCH=$$ALIAS2DFN(NAME,DOB,SEX,SSN)
+  IF PRIORMATCH>0 GOTO SADN
+  NEW TMGFDA,TMGMSG
+  IF $DATA(^TMG(22720.7,TMGDFN))>0 GOTO SA2
+  NEW TMGIEN SET TMGIEN(1)=TMGDFN
+  SET TMGFDA(22720.7,"+1,",.01)=TMGDFN
+  DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO SADN
+  . SET TMGRESULT="-1^"_$$GETERSTR^TMGDEBU2(.TMGMSG)
+  KILL TMGIEN
+SA2 ;  
+  SET TMGFDA(22720.71,"+1,"_TMGDFN_",",.01)=NAME
+  IF DOB'="" SET TMGFDA(22720.71,"+1,"_TMGDFN_",",.02)=DOB
+  IF SEX'="" SET TMGFDA(22720.71,"+1,"_TMGDFN_",",.03)=SEX
+  IF SSN'="" SET TMGFDA(22720.71,"+1,"_TMGDFN_",",.04)=SSN
+  DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO SADN
+  . SET TMGRESULT="-1^"_$$GETERSTR^TMGDEBU2(.TMGMSG)
+SADN ;
+  QUIT TMGRESULT
+  ;
+ALIAS2DFN(NAME,DOB,SEX,SSN) ;" Get VistA DFN from erroneous HL7 alias
+  ;" INPUT: NAME   -- Name as provided in HL7 message
+  ;"        DOB    -- DOB as provided in HL7 message, converted to FMDT format
+  ;"        SEX    -- Sex as provided in HL7 message
+  ;"        SSN    -- SSN as provided in HL7 message, hyphens optional
+  ;"RESULT: Returns DFN of patient with HL7 alias matching provided HL7 info.   
+  ;"NOTE: There must be an exact match for DFN to be returned
+  NEW TMGRESULT SET TMGRESULT=0
+  SET SSN=$TRANSLATE($GET(SSN),"-","")
+  NEW TMGDFN SET TMGDFN=0
+  FOR  SET TMGDFN=$ORDER(^TMG(22720.7,"TMGNAME",NAME,TMGDFN)) QUIT:(TMGDFN'>0)!(TMGRESULT>0)  DO
+  . NEW SUBIEN SET SUBIEN=0
+  . FOR  SET SUBIEN=$ORDER(^TMG(22720.7,"TMGNAME",NAME,TMGDFN,SUBIEN)) QUIT:(SUBIEN'>0)!(TMGRESULT>0)  DO
+  . . NEW ZN SET ZN=$GET(^TMG(22720.7,TMGDFN,1,SUBIEN,0))
+  . . NEW DBDOB SET DBDOB=$PIECE(ZN,"^",2)
+  . . NEW DBSEX SET DBSEX=$PIECE(ZN,"^",3)
+  . . NEW DBSSN SET DBSSN=$PIECE(ZN,"^",4)
+  . . IF (DBDOB'=DOB)!(DBSEX'=SEX)!(DBSSN'=SSN) QUIT
+  . . SET TMGRESULT=TMGDFN
+  QUIT TMGRESULT

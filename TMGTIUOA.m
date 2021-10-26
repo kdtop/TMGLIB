@@ -26,13 +26,13 @@ GETPTBP(TMGDFN)  ;"Return patient's blood pressure readings
 GETPULSE(TMGDFN)  ;"Return patient's pulse readings
  ;"Purpose: Return patient's pulse readings as a TIU Object
  ;"
- NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","P",4," <- ")
+ NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","P",4," <- ",1)
  QUIT TMGRESULT
  ;"
 GETPOX(TMGDFN)  ;"Return patient's pulse oxymetry - for Inline Table
  ;"Purpose: Return patient's POx readings as a TIU Object
  ;"
- NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","PO2",4," <- ")
+ NEW TMGRESULT SET TMGRESULT=$$TREND^TMGGMRV1(TMGDFN,"T","PO2",4," <- ",1)
  QUIT TMGRESULT
  ;"
 GETPOXDT(TMGDFN,TIU)  ;"Return patient's pulse oxymetry - with dates for each one

@@ -183,9 +183,11 @@ EXFM1        WRITE "CURRENT CODE: ",TMGCODE,!
         DO PRESS2GO^TMGUSRI2
 EXFMDN        QUIT
         ;
-DELMAP(TMGENV)  ; 
+DELMAP(TMGENV,TMGTESTMSG,TMGHL7MSG)  ;"DELETE MAPPING 
         ;"Purpose: remove maping between lab code and LABORATORY TEST entry.
         ;"Input: TMGENV -- Environment array.  See definition elsewhere. 
+        ;"       TMGTESTMSG (not yet used)
+        ;"       TMGHL7MSG (not yet used)
         ;"Note: uses globally-scoped vars" TMGLABPREFIX
         ;"NOTE:  Future fix needed!!
         ;"  this removes maping between TESTID and IEN60.  However, it should ALSO ensure

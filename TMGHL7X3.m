@@ -25,7 +25,7 @@ TMGHL7X3 ;TMG/kst-HL7 transformation engine utilities ;10/20/15
  ;"=======================================================================
  ;"Dependancies
  ;"=======================================================================
- ;"
+ ;" 
  ;"=======================================================================
 GETDD(OUT)  ;"Get 'Data dictionary' for HL7 fields
   ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER
@@ -73,7 +73,7 @@ HL7DD  ;
   ;;"PID-3^Patient Identifier List^CX^ repeating
   ;;"PID-4^Alternate Patient ID - PID^CX^optional^repeating
   ;;"PID-5^Patient Name^XPN^ repeating
-  ;;"PID-6^Mother’s Maiden Name^XPN^optional^repeating  
+  ;;"PID-6^Motherï¿½s Maiden Name^XPN^optional^repeating  
   ;;"PID-7^Date/Time Of Birth^TS^optional
   ;;"PID-8^Sex^IS^optional
   ;;"PID-9^Patient Alias^XPN^optional^repeating
@@ -173,7 +173,7 @@ HL7DD  ;
   ;;"OBR-36^Scheduled Date/Time^TS^optional
   ;;"OBR-37^Number of Sample Containers^NM^optional
   ;;"OBR-38^Transport Logistics of Collected Sample^CE^optional^repeating
-  ;;"OBR-39^Collector’s Comment^CE^optional^repeating
+  ;;"OBR-39^Collectorï¿½s Comment^CE^optional^repeating
   ;;"OBR-40^Transport Arrangement Responsibility^CE^optional
   ;;"OBR-41^Transport Arranged^ID^optional
   ;;"OBR-42^Escort Required^ID^optional

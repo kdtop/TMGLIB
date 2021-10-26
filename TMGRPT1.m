@@ -89,7 +89,7 @@ MAMMORPT
        ;"Purpose: Show report of outstanding consults and extract schedule date from them.
        ;"Results: None, but report created.
        NEW MammoIEN SET MammoIEN=+$ORDER(^GMR(123.5,"B","MAMMOGRAM",""))
-       IF MammoIEN'>0 DO  GOTO MRPTDn
+       IF MammoIEN'>0 GOTO MRPTDn
        NEW BoneDesIEN SET BoneDesIEN=+$ORDER(^GMR(123.5,"B","BONE DENSITY",""))
        IF BoneDesIEN'>0 DO  GOTO MRPTDn       
        . WRITE "Can't locate record for MAMMOGRAM report.  Aborting.",!
@@ -301,7 +301,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        ; date from them. (All except mammograms)
        ;"Results: None, but report created.
        SET MAKENOTES=+$GET(MAKENOTES)
-       SET RECORDS=$GET(RECORDS)
+       SET RECORDS=+$GET(RECORDS)
        NEW MammoIEN SET MammoIEN=+$ORDER(^GMR(123.5,"B","MAMMOGRAM",""))
        NEW BoneDensIEN SET BoneDensIEN=+$ORDER(^GMR(123.5,"B","BONE DENSITY",""))
        IF MammoIEN'>0 DO  GOTO CNSTDn
@@ -334,6 +334,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        . IF IEN=MammoIEN QUIT
        . IF IEN=BoneDensIEN QUIT
        . SET ORDERTYPE=$PIECE($GET(^GMR(123.5,IEN,0)),"^",1)
+       . IF (RECORDS=0)&(ORDERTYPE["PSYCHIATRY") QUIT
        . FOR  SET idx=+$ORDER(^GMR(123,"C",IEN,idx)) QUIT:(idx'>0)  do
        . . NEW s
        . . NEW znode SET znode=$GET(^GMR(123,idx,0))
@@ -395,6 +396,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        ;"SET endDate=3190107
        FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
        . IF (RECORDS>0)&(dueDate>endDate) QUIT
+       . IF (RECORDS=0)&(future=1) QUIT
        . IF (dueDate>NowDate)&(future=0) do
        . . SET future=1
        . . WRITE "-----------------------------------------------------------------------------",!
@@ -1042,8 +1044,153 @@ NEWAPPT  ;"single use function that can be deleted if no longer needed
        . . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," (",$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3),1),") VISIT ON ",$$EXTDATE^TMGDATE(THISDT,1),!
        DO ^%ZISC  ;" Close the output device
        QUIT
-
-
+       ;"
+CNSLTRPT2() ;
+       ;"Purpose: Show report of outstanding consults and extract schedule
+       ; date from them. (All except mammograms)
+       ;"Results: None, but report created.
+       SET RECORDS=+$GET(RECORDS)
+       NEW MammoIEN SET MammoIEN=+$ORDER(^GMR(123.5,"B","MAMMOGRAM",""))
+       NEW BoneDensIEN SET BoneDensIEN=+$ORDER(^GMR(123.5,"B","BONE DENSITY",""))
+       IF MammoIEN'>0 DO  GOTO CNSTDn
+       . WRITE "Can't locate record for MAMMOGRAM report.  Aborting.",!
+       NEW ComplIEN SET ComplIEN=+$ORDER(^ORD(100.01,"B","COMPLETE",""))
+       IF ComplIEN'>0 DO  GOTO CNSTDn
+       . WRITE "Can't find record for COMPLETE status.  Aborting.",!
+       NEW DCIEN SET DCIEN=+$ORDER(^ORD(100.01,"B","DISCONTINUED",""))
+       NEW CANCELIEN SET CANCELIEN=+$ORDER(^ORD(100.01,"B","CANCELLED",""))
+       NEW X,Y DO NOW^%DTC NEW NowDate SET NowDate=X
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO CSPDn
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       ;
+       WRITE !
+       WRITE "************************************************************",!
+       WRITE "              Outstanding consults report",!
+       WRITE "                     " SET Y=X DO DD^%DT WRITE Y,!
+       WRITE "          Please deliver this report to the nurse",!
+       WRITE "************************************************************",!
+       WRITE "                                            (From TMGRPT1.m)",!!
+       NEW idx SET idx=""
+       NEW IEN SET IEN=0
+       NEW matches
+       NEW ORDERTYPE
+       FOR  SET IEN=+$ORDER(^GMR(123,"C",IEN)) QUIT:(IEN'>0)  DO
+       . IF IEN=MammoIEN QUIT
+       . IF IEN=BoneDensIEN QUIT
+       . SET ORDERTYPE=$PIECE($GET(^GMR(123.5,IEN,0)),"^",1)
+       . IF (RECORDS=0)&(ORDERTYPE["PSYCHIATRY") QUIT
+       . FOR  SET idx=+$ORDER(^GMR(123,"C",IEN,idx)) QUIT:(idx'>0)  do
+       . . NEW s
+       . . NEW znode SET znode=$GET(^GMR(123,idx,0))
+       . . NEW status SET status=$PIECE(znode,"^",12)
+       . . IF status=ComplIEN QUIT
+       . . IF status=DCIEN QUIT
+       . . IF status=CANCELIEN QUIT
+       . . NEW Y SET Y=$PIECE(znode,"^",7)  ;"date of request
+       . . DO DD^%DT SET s=Y
+       . . NEW PtIEN SET PtIEN=+$PIECE(znode,"^",2)
+       . . IF PtIEN'=0 do
+       . . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)_"-"_PtIEN
+       . . ELSE  do
+       . . . SET s=s_"^"_"?? Patient Name not found.  Record # "_idx_" in file #123"
+       . . IF s["ZZ" QUIT
+       . . ;"Now scan for appt scheduled date
+       . . NEW idxWP SET idxWP=0
+       . . NEW found SET found=0
+       . . FOR  SET idxWP=+$ORDER(^GMR(123,idx,20,idxWP)) QUIT:(idxWP'>0)!found  do
+       . . . NEW line SET line=$GET(^GMR(123,idx,20,idxWP,0)) QUIT:line=""
+       . . . IF line'["An appointment has been scheduled" QUIT
+       . . . SET found=1
+       . . . SET line=$GET(^GMR(123,idx,20,idxWP+1,0))
+       . . . NEW apptDate
+       . . . if line["*" do
+       . . . . SET apptDate=$PIECE(line,"*",2)
+       . . . else  do
+       . . . . set apptDate=$$TRIM^XLFSTR(line)
+       . . . SET apptDate=$$UP^XLFSTR(apptDate)
+       . . . IF apptDate["DAY " DO
+       . . . . SET apptDate=$P(apptDate,"DAY ",2)
+       . . . IF apptDate[" at " do
+       . . . . SET apptDate=$p(apptDate," at ",1)_"@"_$p(apptDate," at ",2)
+       . . . IF $P(apptDate,"@",2)="" SET apptDate=$P(apptDate,"@",1)
+       . . . SET Y=$$FMDate^TMGFMUT(apptDate)
+       . . . NEW FMDate SET FMDate=Y
+       . . . IF Y>0 do
+       . . . . DO DD^%DT  ;"standardize date
+       . . . ELSE  do
+       . . . . SET Y=apptDate
+       . . . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
+       . . . SET s=s_"^"_Y_"^"_ORDERTYPE
+       . . . SET matches(ORDERTYPE,FMDate,s)=""
+       ;
+       NEW future SET future=0
+       NEW dueDate,RESULT,SENT,QUESTION,endDate
+       NEW X1,X2,X
+       SET X1=NowDate,X2=1
+       DO C^%DTC
+       IF RECORDS>0 SET dueDate=X
+       ELSE  SET dueDate=""
+       SET X1=X,X2=7
+       DO C^%DTC
+       SET endDate=X+.999999
+       ;"SET NowDate=3181231
+       ;"SET endDate=3190107
+       SET ORDERTYPE=""
+       FOR  SET ORDERTYPE=$ORDER(matches(ORDERTYPE)) QUIT:(ORDERTYPE="")  DO
+       . SET dueDate=""
+       . FOR  SET dueDate=$ORDER(matches(ORDERTYPE,dueDate),1) QUIT:(dueDate="")  do
+       . . IF (dueDate>NowDate) QUIT
+       . . NEW s SET s=""
+       . . FOR  SET s=$Order(matches(ORDERTYPE,dueDate,s)) QUIT:s=""  do
+       . . . WRITE $P(s,"^",4),?18,"Appt Date: ",$p(s,"^",3),?50,$p($p(s,"^",2),"-",1),?57,! ;""Made: ",$p($p(s,"^",1),"@",1),!
+CNST2Dn 
+       DO ^%ZISC  ;" Close the output device    
+       QUIT
+	;
+CHKSCHED()  ;"  Check the next 4 weeks to see if that date has less that 10 patients. If so print report listing dates
+       NEW BEGDT,ENDDT
+       NEW X,Y DO NOW^%DTC SET BEGDT=X
+       SET ENDDT=$$ADDDAYS^TMGDATE(31)
+       NEW ARRAY,SCHEDULE
+       DO GETSCHED^TMGPXR03(.ARRAY,BEGDT,ENDDT,"A")  ;"GET ACTIVE 
+       NEW DFN,DATETIME
+       SET DFN=0
+       FOR  SET DFN=$O(ARRAY(DFN)) QUIT:DFN'>0  DO
+       . SET DATETIME=0
+       . FOR  SET DATETIME=$O(ARRAY(DFN,DATETIME)) QUIT:DATETIME=""  DO
+       . . NEW DAY SET DAY=$P(DATETIME,".",1)
+       . . SET SCHEDULE(DAY)=+$G(SCHEDULE(DAY))+1
+       NEW WARNDAYS
+       SET DATETIME=0
+       FOR  SET DATETIME=$O(SCHEDULE(DATETIME)) QUIT:DATETIME'>0  DO
+       . IF $G(SCHEDULE(DATETIME))<11 SET WARNDAYS(DATETIME)=$G(SCHEDULE(DATETIME))
+       IF '$D(WARNDAYS) QUIT
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO CSPDn
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       SET DATETIME=0
+       WRITE !
+       WRITE "***************************************************************",!
+       WRITE "   Office days in the next 4 weeks with less than 11 patients",!
+       WRITE "                   " SET Y=X DO DD^%DT WRITE Y,!
+       WRITE "           Please deliver this report to the reception",!
+       WRITE "***************************************************************",!
+       WRITE "                                            (From TMGRPT1.m)",!!
+       FOR  SET DATETIME=$O(WARNDAYS(DATETIME)) QUIT:DATETIME'>0  DO
+       . WRITE $$EXTDATE^TMGDATE(DATETIME)," has ",$G(WARNDAYS(DATETIME))," patients",!
+       DO ^%ZISC  ;" Close the output device  
+       QUIT
+       ;"
+       
 
 
 

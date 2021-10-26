@@ -211,7 +211,7 @@ FTIU
         . . WRITE " -- FIXED",!
         . NEW SAME SET SAME=1
         . NEW j SET j=0
-        . FOR  SET j=$o(^TIU(8925,IEN,"TEMP",j)) QUIT:(+j'>0)!(SAME=0)
+        . FOR  SET j=$o(^TIU(8925,IEN,"TEMP",j)) QUIT:(+j'>0)!(SAME=0)  DO
         . . IF $G(^TIU(8925,IEN,"TEMP",j,0))'=$G(^TIU(8925,IEN,"TEXT",j,0)) SET SAME=0
         . WRITE " --> SAME=",SAME
         . IF SAME KILL ^TIU(8925,IEN,"TEMP") WRITE "  FIXED."
@@ -946,3 +946,20 @@ FIXMAG ;
   . . WRITE IEN,": ","MOVED ",FNAME," -> ",FNAME3,!
   QUIT
   ;
+FINDMEDS ;  ;"SCAN ALL PATIENTS AND SEE IF THEY HAVE ACTIVE MEDS.
+  NEW ADFN SET ADFN=0
+  NEW USER SET USER=168
+  NEW VIEW SET VIEW=1
+  NEW UPDATE SET UPDATE=1
+  NEW CT SET CT=0
+  FOR  SET ADFN=$ORDER(^DPT(ADFN)) QUIT:ADFN'>0  DO
+  . NEW ARR
+  . DO ACTIVE^ORWPS(.ARR,ADFN,USER,1,1) ; retrieve active inpatient & outpatient meds
+  . KILL ARR(0)
+  . SET CT=CT+1
+  . ;"//IF CT#100 WRITE "."
+  . IF $DATA(ARR)=0 QUIT
+  . NEW ZN SET ZN=$GET(^DPT(ADFN,0))
+  . WRITE !,"DFN=",ADFN," ",$PIECE(ZN,"^",1),!
+  . ZWR ARR
+  QUIT

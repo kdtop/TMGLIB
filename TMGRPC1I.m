@@ -51,7 +51,7 @@ MACRO(TMGRESULT,TMGIN) ;
         NEW INPUTSAVE MERGE INPUTSAVE=TMGIN
         DO
         . NEW CODE SET CODE="DO "_TAG_"^"_ROUTINE_"(.TMGRESULT,.TMGIN,.SELECTION)"
-        . NEW $ETRAP SET $ETRAP="SET TMGRESULT(0)=""ERROR executing ['"_CODE_"'] "",! SET $ETRAP="""",$ECODE="""""
+        . NEW $ETRAP SET $ETRAP="SET TMGRESULT(0)=""ERROR executing ['"_CODE_"'] "" SET $ETRAP="""",$ECODE="""""
         . XECUTE CODE
         SET TMGRESULT(0)=$G(TMGRESULT(0),"-1")_"^"_SELECTION
         ;"

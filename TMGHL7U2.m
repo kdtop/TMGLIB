@@ -23,6 +23,7 @@ TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ;3/7/18, 5/22/18, 4/26/19
  ;"MKHLMARR(MSGARRAY,MSH,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
  ;"MKHLMAR2(MSGARRAY,IEN772,IEN773) --Take input message array, and create a NEW HL7 message
  ;"STUBHL7M(MSH,IEN772,IEN773) --Create stub records in 772, 773
+ ;"XFRMAPP(APP,TMGU) -- Transform sending application before any processing is done.
  ;"XFRMFACILITY(FACILITY,TMGU) -- transform sending facility before any processing is done. 
  ;"FROM772(IEN772,IEN773,MSGARRAY) --FILL MSGARRAY FROM FILES 772 & 773
  ;"FROM772H(IEN772,IEN773,MSGARRAY,MSH) -- FILL MSGARRAY+MSH FROM FILES 772 & 773
@@ -216,19 +217,72 @@ MKHLMAR2(MSGARRAY,IEN772,IEN773)  ;"Take input message array, and create a NEW H
         SET TMGRESULT=$$MKHLMARR(.ARR,MSH,.IEN772,.IEN773)  ;"MAKE HL7 MESSAGE FROM ARRAY  (2 records, 1 each in 772, 773)
         QUIT TMGRESULT
         ;   
+XFRMAPP(APP,TMGU) ;"Transform sending application before any processing is done.
+        ;"Input: APP -- an IN AND OUT PARAMETER
+        ;"       TMGU -- Array with section delimiters
+        ;"NOTE: Access TMGMSG via global scope.  
+        ;"RESULT: 1 if modified, 0 if no change.  
+        NEW RESULT SET RESULT=0
+        SET APP=$PIECE(APP,TMGU(2),1)
+        IF $$CHK4OBGWCG(.APP,.TMGU)=1 SET RESULT=1 GOTO XFRMADN 
+        NEW SHOULDMAP SET SHOULDMAP=0
+        ;"Can add tests for should map here, see XFRMFACILITY code
+        IF APP="" SET SHOULDMAP=1
+        IF SHOULDMAP DO
+        . SET APP="Epic"  ;"Epic -> labs ;  EPIC -> Radiology
+        . SET RESULT=1
+        IF APP="" DO  ;"IF BLANK ASSUME GCHE
+        . SET APP="GCHE"
+        . SET RESULT=1
+XFRMADN ;        
+        QUIT RESULT
+        ;
+CHK4OBGWCG(APP,TMGU) ;"check for bad message from GCHW OB WCG
+        ;"Input: APP -- an IN AND OUT PARAMETER
+        ;"       TMGU -- Array with section delimiters
+        ;"NOTE: Uses TMGMSG via global scope.  
+        ;"RESULT: 1 if modified, 0 if no change.  
+        NEW RESULT SET RESULT=0
+        IF APP'="" GOTO CHK4OBDN
+        NEW ORCIDX SET ORCIDX=0
+        NEW OBRIDX SET OBRIDX=0
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(TMGMSG(IDX)) QUIT:(IDX'>0)!((ORCIDX>0)&(OBRIDX>0))  DO
+        . NEW LINE SET LINE=$GET(TMGMSG(IDX)) QUIT:LINE=""
+        . NEW SEG SET SEG=$EXTRACT(LINE,1,3)
+        . IF SEG="ORC" SET ORCIDX=IDX
+        . IF SEG="OBR" SET OBRIDX=IDX
+        NEW ORCLINE SET ORCLINE=$GET(TMGMSG(ORCIDX)) IF ORCLINE="" GOTO CHK4OBDN
+        NEW PROCLOC SET PROCLOC=$PIECE(ORCLINE,TMGU(1),14)  ;"Line still has SEG, so shifts ORC.13 to 14th piece
+        SET PROCLOC=$PIECE(PROCLOC,TMGU(2),1)
+        IF PROCLOC'="GCHW OBG WCG" GOTO CHK4OBDN
+        NEW OBRLINE SET OBRLINE=$GET(TMGMSG(OBRIDX)) IF OBRLINE="" GOTO CHK4OBDN
+        NEW ORDERID SET ORDERID=$PIECE(OBRLINE,TMGU(1),5) IF ORDERID="" GOTO CHK4OBDN  ;"Line still has SEG, so shifts OBR.4 to 5th piece
+        IF ORDERID["US NON-OB TRANSVAGINAL" SET RESULT=1
+        IF RESULT=1 DO
+        . SET APP="EPIC"  ;"<-- this signals a RADIOLOGY study.          
+CHK4OBDN ;        
+        QUIT RESULT
+        ;        
 XFRMFACILITY(FACILITY,TMGU) ;"Transform sending facility before any processing is done.
         ;"NOTE: With Epic, I have started getting messages from hospital all through
         ;"     the network.  I think all messages will use same code names etc,
         ;"     so I will map them all to a generic hospital name.
         ;"Input: FACILITY -- an IN AND OUT PARAMETER
         ;"       TMGU -- Array with section delimiters
+        ;"NOTE: Access TMGMSG via global scope.  
         ;"RESULT: 1 if modified, 0 if no change.  
         NEW RESULT SET RESULT=0
+        NEW ORIG SET ORIG=FACILITY
+        NEW P2 SET P2=$PIECE(FACILITY,TMGU(2),2)
         SET FACILITY=$PIECE(FACILITY,TMGU(2),1)
+        IF (FACILITY=+FACILITY),(P2'=""),(P2'=+P2) DO  ;"Real world example: 101034^WMA^FACEDIABBR
+        . SET FACILITY=P2
         NEW SHOULDMAP SET SHOULDMAP=0
         IF "^GCHW^BRMC^BHMA^HVMC^WCS^WMA^JCMC^BHMS^WDR^"[FACILITY SET SHOULDMAP=1
         IF "^IPCHH^IPCH^HCMH^FWCH^SSH^GCHE^JCMCZ^UCH^TRH^"[FACILITY SET SHOULDMAP=1
-        IF "^JMHZ^"[FACILITY SET SHOULDMAP=1        
+        IF "^JMHZ^SSHZ^WH^SN^MRMC^"[FACILITY SET SHOULDMAP=1    
+        IF "^101077^101001^101034^"[FACILITY SET SHOULDMAP=1            
         IF FACILITY="" SET SHOULDMAP=1
         IF SHOULDMAP DO
         . SET FACILITY="BALLADNETWORK"
@@ -236,6 +290,7 @@ XFRMFACILITY(FACILITY,TMGU) ;"Transform sending facility before any processing i
         IF (FACILITY="") DO  ;"IF BLANK ASSUME GCHE
         . SET FACILITY="GCHE"
         . SET RESULT=1
+XFRMFDN ;        
         QUIT RESULT
         ;
 XFRMEVENT(EVENT) ;"
@@ -273,9 +328,13 @@ MSH2IENA(MSH,INFO) ;"MSH HEADER TO IEN INFO ARRAY
         ;"           INFO("IEN22720")=IEN22720
         ;"           INFO("IEN22720","NAME")=name
         ;"Result: 1^OK, or -1^Error Message
+        ;"note -- There seems to be similarity between this code and GETCFG2^TMGHL70 ??Combine at some point??
         ;
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW TMGU DO SUTMGU^TMGHL7X2(.TMGU,$EXTRACT(MSH,4),$EXTRACT(MSH,5,8))
+        NEW APP SET APP=$PIECE(MSH,TMGU(1),3)
+        IF $$XFRMAPP(.APP,.TMGU) DO
+        . SET $PIECE(MSH,TMGU(1),3)=APP
         NEW FACILITY SET FACILITY=$PIECE(MSH,TMGU(1),4)
         IF $$XFRMFACILITY(.FACILITY,.TMGU) DO
         . SET $PIECE(MSH,TMGU(1),4)=FACILITY
