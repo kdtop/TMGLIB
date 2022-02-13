@@ -1,4 +1,4 @@
-TMGUSRI6 ;TMG/kst/USER INTERFACE API FUNCTIONS ;8/30/17
+TMGUSRI6 ;TMG/kst/USER INTERFACE API FUNCTIONS ;8/30/17, 2/7/22
          ;;1.0;TMG-LIB;**1**;02/2/2014
  ;
  ;"TMG USER INTERFACE API FUNCTIONS
@@ -26,19 +26,21 @@ TMGUSRI6 ;TMG/kst/USER INTERFACE API FUNCTIONS ;8/30/17
  ;"DEPENDENCIES: TMGUSRI5         
  ;"=======================================================================
  ;
-EDITBOX(INITVAL,WIDTH,FILLCH,X,Y)  ;"Edit box for editing strings
+EDITBOX(INITVAL,WIDTH,FILLCH,X,Y,MAXSTRLEN)  ;"Edit box for editing strings
   ;"INPUT: INITVAL -- OPTIONAL.  This is the initial value.  Default is ""
   ;"       WIDTH -- This is the width of the edit field.  Default is 40   
   ;"       FILLCH -- OPTIONAL.  DEFAULT IS " "
   ;"           If is "_", then a line is shown for edit field
   ;"       X -- OPTION. X position for editing at given position on screen
   ;"       Y -- OPTION. Y position for editing at given position on screen
+  ;"       MAXSTRLEN -- OPTIONAL.  Max allow length for input
   ;"Result: Returns edited value of string
   NEW OPTION 
   SET OPTION("WIDTH")=$GET(WIDTH)
   SET OPTION("FILLCH")=$GET(FILLCH)
   IF $GET(X)>0 SET OPTION("X")=X
   IF $GET(Y)>0 SET OPTION("Y")=Y
+  IF $GET(MAXSTRLEN)>0 SET OPTION("MAX STR LEN")=MAXSTRLEN
   QUIT $$EDITBOX2(.INITVAL,.OPTION)
   ;           
 EDITBOX2(INITVAL,OPTION)  ;"Edit box for editing strings
@@ -52,6 +54,7 @@ EDITBOX2(INITVAL,OPTION)  ;"Edit box for editing strings
   ;"          OPTION("ON-UP")="Q"  -- quits on UP keystroke
   ;"          OPTION("ON-DN")="Q"  -- quits on DOWN keystroke
   ;"          OPTION("ON-<other keystroke name")="Q" -- quit on other stroke.  
+  ;"          OPTION("MAX STR LEN") -- OPTIONAL.  Maximal length of string.  
   ;"Output: OPTION("ESCKEY") holds last escape keystroke encountered.  
   ;"Result: Returns edited value of string
   NEW WIDTH SET WIDTH=+$GET(OPTION("WIDTH")) SET:(WIDTH'>0) WIDTH=40
@@ -60,6 +63,8 @@ EDITBOX2(INITVAL,OPTION)  ;"Edit box for editing strings
   NEW HOMEX,HOMEY,USEY SET USEY=$DATA(OPTION("Y"))
   SET HOMEX=+$GET(OPTION("X")) IF HOMEX'>0 SET HOMEX=$X+1
   SET HOMEY=+$GET(OPTION("Y")) IF HOMEY'>0 SET HOMEY=$Y
+  NEW MAXSTRL SET MAXSTRL=+$GET(OPTION("MAX STR LEN"))
+  IF MAXSTRL=0 SET MAXSTRL=999999999  ;"a really long string 
   NEW DRAWIDX SET DRAWIDX=1
   NEW CPOS SET CPOS=$LENGTH(VAL)+1  ;"Abs position in text
   NEW INPUT,STRA,STRB,CH,DONE,ABORT SET (DONE,ABORT)=0
@@ -93,6 +98,8 @@ LOOP ;
   . IF ESCKEY="CR" SET DONE=1 QUIT
   . IF ESCKEY="TAB" SET DONE=1 QUIT
   . IF ESCKEY="BACKSPC" DO  QUIT
+  . . IF $X=HOMEX DO  QUIT  ;"//kt 2/4/22
+  . . . WRITE $CHAR(7) ;"issues a beep sound
   . . SET STRA=$EXTRACT(STRA,1,$LENGTH(STRA)-1)     
   . . SET VAL=STRA_CH_STRB
   . . SET CPOS=CPOS-1,SCRNCPOS=SCRNCPOS-1
@@ -128,9 +135,11 @@ LOOP ;
   . IF $GET(OPTION("ON-"_ESCKEY))="Q" DO  QUIT
   . . SET DONE=1
   ELSE  DO
+  . IF $LENGTH(VAL)'<MAXSTRL DO  QUIT    ;"//kt 2/4/22   
+  . . WRITE $CHAR(7) ;"issues a beep sound 
   . SET VAL=STRA_INPUT_CH_STRB
   . SET CPOS=CPOS+1
-  . IF CPOS>WIDTH SET DRAWIDX=DRAWIDX+1
+  . IF (CPOS>WIDTH),($LENGTH(VAL)<MAXSTRL) SET DRAWIDX=DRAWIDX+1
   IF 'DONE GOTO LOOP
 EBDN  ;
   IF ABORT SET VAL=""

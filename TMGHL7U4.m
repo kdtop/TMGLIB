@@ -304,11 +304,16 @@ SELHL7(SELARR,OPTION,TMGDFN)  ;"Browse to select patient HL7 messages
   IF DELTAYR<1 GOTO SELHL2
   NEW IDX SET IDX=0
   SET MENU(0)="Select option:"
+  NEW T FOR T="1W","1M","3M","6M" DO
+  . NEW STR SET STR=$SELECT(T="1W":"1 week",T="1M":"1 month",T="3M":"3 months",T="6M":"6 months",1:"??")
+  . SET IDX=IDX+1,MENU(IDX)="Scan last "_STR_" of HL7 messages"_$C(9)_T
   NEW YR FOR YR=1:1:DELTAYR DO
   . SET IDX=IDX+1,MENU(IDX)="Scan last "_YR_" year"_$SELECT(YR>1:"s",1:"")_" of HL7 messages"_$C(9)_YR
   SET IDX=IDX+1,MENU(IDX)="Quit"_$C(9)_"^"
   SET USERPICK=$$MENU^TMGUSRI2(.MENU)  
   IF USERPICK="^" GOTO SELHLDN
+  IF +USERPICK'=USERPICK DO
+  . NEW T SET T=USERPICK SET USERPICK=$SELECT(T="1W":1/52,T="1M":1/12,T="3M":3/12,T="6M":6/12,1:1)
   SET TMGDT=$$FMADD^XLFDT($$NOW^XLFDT,-USERPICK*365,0,0,1)
   WRITE !,"Scanning from ",$$FMTE^XLFDT(TMGDT,"D")," to present",!
   ;"Count again for smaller range.    
@@ -345,6 +350,31 @@ SELHL2 ;
   IF $DATA(SELARR)=0 DO  QUIT
   . IF $GET(OPTION("VERBOSE")) WRITE "No messages selected. Aborting.",!
 SELHLDN ;  
+  QUIT
+  ;
+GETMETA(RESULT,TMGDFN,SDT,EDT,EXCLUDEADT)  ;"Get metadata IEN's for lab messages
+  ;"INPUT: RESULT, PASS BY REFERENCE.  Format as below
+  ;"       TMGDFN -- patient IEN
+  ;"       SDT -- FMDT format.  Starting time to search for labs.  INCLUSIVE
+  ;"       EDT -- FMDT format.  Sending time to search for labs.  INCLUSIVE 
+  ;"       EXCLUDEADT -- optional.  DEFAULT = 1.  If true ADT's are excluded. 
+  ;"RESULT: none.  Output in RESULT array.  Format:
+  ;"            RESULT(DFN,DT,SUBIEN)=IENS^DT^test names
+  SET SDT=+$GET(SDT)
+  SET EDT=+$GET(EDT) IF EDT'>0 SET EDT="9999999"
+  SET EXCLUDEADT=+$GET(EXCLUDEADT,1)
+  NEW TMGDT SET TMGDT=SDT-0.0000005  ;"backup up time just before SDT
+  FOR  SET TMGDT=$ORDER(^TMG(22720.5,TMGDFN,1,"B",TMGDT)) QUIT:TMGDT'>0  DO
+  . NEW SUBIEN SET SUBIEN=0
+  . FOR  SET SUBIEN=$ORDER(^TMG(22720.5,TMGDFN,1,"B",TMGDT,SUBIEN)) QUIT:SUBIEN'>0  DO
+  . . NEW IENS SET IENS=SUBIEN_","_TMGDFN_","
+  . . NEW ARR,TEMP,TESTNAMES SET TESTNAMES=""
+  . . SET TEMP=$$GETINFO(IENS,.ARR)
+  . . IF TEMP<1 QUIT
+  . . IF EXCLUDEADT=1,($GET(ARR("MESSAGE TYPE"))["ADT") QUIT
+  . . SET TESTNAMES=$GET(ARR("TEST NAMES"))
+  . . NEW INFO SET INFO=IENS_"^"_TMGDT_"^"_TESTNAMES
+  . . SET RESULT(TMGDFN,TMGDT,SUBIEN)=INFO
   QUIT
   ;
 PICK1(SELARR) ;"Pick 1 message from SELARR

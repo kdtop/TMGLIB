@@ -26,8 +26,9 @@ TMGRST02 ;TMG/kst/REST web service; 3/3/15
  ;       
 R(RESULT,ARGS) ; GET Mumps Routine   ;"Modified from R^%W0
   ;"Input: RESULT -- PASSED BY REFRENCE. AN OUT PARAMETER.  Format:
+  ;"         RESULT="^TMP(123)"  123 will vary. 
   ;"         RESULT("mime")=mime type
-  ;"         RESULT(#)=<line of result>
+  ;"         @RESULT(#)=<line of result>
   ;"       ARGS 
   ;"NOTE: uses HTTPREQ in global scope.
   NEW TMGRST2 SET TMGRST2=0
@@ -38,6 +39,7 @@ R(RESULT,ARGS) ; GET Mumps Routine   ;"Modified from R^%W0
   ELSE  DO
   . KILL ^TMG("TMP","TMGRST02")
   . MERGE ^TMG("TMP","TMGRST02","ARGS")=ARGS
+  . MERGE ^TMG("TMP","TMGRST02","RESULT")=RESULT
   . MERGE ^TMG("TMP","TMGRST02","HTTPREQ")=HTTPREQ
   ;
   NEW TMGINDENTLEN SET TMGINDENTLEN=2  ;"Will be used in global scope by event handlers below
@@ -320,3 +322,21 @@ GTLNKBDY(OUT,LINKS)  ;"ADD LINKS TO HTML PAGE
   FOR  SET ALINK=$ORDER(LINKS(ALINK)) QUIT:ALINK=""  DO
   . DO ADDLN(.OUT,ALINK_"<P>")
   QUIT
+  ;
+TESTHELLO(RESULT,ARGS) ; HELLO WORLD
+  ;"Input: RESULT -- PASSED BY REFRENCE. AN OUT PARAMETER.  Format:
+  ;"         RESULT="^TMP(123)"  123 will vary. 
+  ;"         @RESULT("mime")=mime type
+  ;"         @RESULT(#)=<line of result>
+  ;"       ARGS -- not used.  
+  ;
+  SET RESULT=$NAME(^TMP($J))
+  KILL @RESULT
+  ;
+  NEW OUT SET OUT(1)="Hello world!"
+  ;
+  SET RESULT("mime")="text/html; charset=utf-8 kt"
+  MERGE @RESULT=OUT
+  ;
+  QUIT
+  ;

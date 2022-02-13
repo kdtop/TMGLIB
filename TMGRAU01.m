@@ -97,14 +97,15 @@ REG2 ;"
   . NEW SUBSUBIEN SET SUBSUBIEN=0
   . NEW IEN70D03 SET IEN70D03=0
   . NEW FOUND SET FOUND=0
+  . ;"EDDIE -- COMMENTED THIS OUT TO SEE IF THIS TEST WAS CAUSING THE ISSUE
   . ;"See if study has already been registered (i.e. reprocessing HL7 message)
-  . FOR  SET IEN70D03=$ORDER(^RADPT(RADFN,"DT",RDT,"P",IEN70D03)) QUIT:(IEN70D03'>0)!(FOUND>0)  DO
-  . . NEW ZN SET ZN=$GET(^RADPT(RADFN,"DT",RDT,"P",IEN70D03,0))
-  . . SET FOUND=($PIECE(ZN,"^",2)=PROCIEN) QUIT:'FOUND
-  . . IF RADPROV>0 SET FOUND=($PIECE(ZN,"^",15)=RADPROV) QUIT:'FOUND
-  . . IF PROV>0 SET FOUND=($PIECE(ZN,"^",14)=PROV) QUIT:'FOUND
-  . . SET CASENUM=$PIECE(ZN,"^",1)
-  . . SET SUBSUBIEN=IEN70D03
+  . ;"FOR  SET IEN70D03=$ORDER(^RADPT(RADFN,"DT",RDT,"P",IEN70D03)) QUIT:(IEN70D03'>0)!(FOUND>0)  DO
+  . ;". NEW ZN SET ZN=$GET(^RADPT(RADFN,"DT",RDT,"P",IEN70D03,0))
+  . ;". SET FOUND=($PIECE(ZN,"^",2)=PROCIEN) QUIT:'FOUND
+  . ;". IF RADPROV>0 SET FOUND=($PIECE(ZN,"^",15)=RADPROV) QUIT:'FOUND
+  . ;". IF PROV>0 SET FOUND=($PIECE(ZN,"^",14)=PROV) QUIT:'FOUND
+  . ;". SET CASENUM=$PIECE(ZN,"^",1)
+  . ;". SET SUBSUBIEN=IEN70D03
   . IF 'FOUND DO  QUIT:(+TMGRESULT<0)
   . . NEW IENS SET IENS="+1,"_SUBIEN_","_RADFN_","
   . . SET TMGFDA(70.03,IENS,.01)="N"  ;"CASE NUMBER.  Input XFrm should change this.  Must be 'N' to be non-interactive
@@ -424,7 +425,6 @@ TML1 ;
 ADR2DONE ;
   QUIT
   ;
-
 DELRAD(IENS)  ;"Delete a radiology study.  
   ;"PURPOSE: Remove from REGISTERED EXAMS in file 70, and also remove linked report file 74
   ;"Input: IENS -- an IENS for 70.03 (inside, 70.02, inside 70)
@@ -447,6 +447,22 @@ DELRAD(IENS)  ;"Delete a radiology study.
 DLRDDN ;  
   QUIT TMGRESULT
   ;  
+  ;"BELOW IS A REDIRECTION FROM CN^RAREG1
+DUP	;Check to prevent use of same case number/date pair ;ch
+	; both short and long case numbers will be checked for duplicates 091500
+	S RADTE99=$S('$D(RADTE):"",1:$E(RADTE,4,5)_$E(RADTE,6,7)_$E(RADTE,2,3))		
+	I '$D(^RADPT("AE",RAX)),'$D(^RADPT("ADC",RADTE99_"-"_RAX)) G DUPQ
+	; also check ADC xref while searching for next available number 08/15/00
+	; note2: even though the current available case number is being
+	;        stored, the next free case number for future use will be
+	;        found and stored later, see note1 above     091300
+	SET ^TMG("TMGRAU01","RAJ")=RAJ
+	SET ^TMG("TMGRAU01","RADTE99")=RADTE99
+	SET ^TMG("TMGRAU01","RAX")=RAX
+	SET ^TMG("TMGRAU01","RATYPE")=RATYPE
+	F RAJ=(^RA(79.2,RATYPE,"CN")+1):1 I '$D(^RADPT("AE",RAJ)),'$D(^RADPT("ADC",RADTE99_"-"_RAJ)) S ^("CN")=RAJ_"^"_$P(^RA(79.2,RATYPE,"CN"),"^",2) S RAX=+^RA(79.2,RATYPE,"CN") Q
+DUPQ	K RADTE99 Q
+	;  
  ;"===================================================================================================== 
 TEST  ;
   ;"CREATE A TEST ARRAY TO TRY FILING OF REPORTS

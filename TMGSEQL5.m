@@ -53,15 +53,19 @@ IMPCPTS() ;"IMPORT SEQUEL CPT EXPORT FILE CPT_By_Patient.csv
   ;"      we use here doesn't return errors.  It just jobs off the save attempt
   ;"      We could use a lower-level API to get back the potential errors if
   ;"      we want to refactor code.
+  DO LOGIMPM("BEGINNING ENCOUNTER IMPORT")
+  NEW TMGORWSFG SET TMGORWSFG=1
   NEW TMGARRAY
   DO LCSV2ARR^TMGIOUT4("/mnt/WinServer/CPT_By_Patient.csv","TMGARRAY")
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(TMGARRAY(IDX)) QUIT:+IDX'>0  DO
   . NEW ENTRY MERGE ENTRY=TMGARRAY(IDX)
+  . DO LOGIMPM("PROCESSING LINE #"_IDX)
   . NEW TMGRESULT SET TMGRESULT=$$PROCESS1(.ENTRY)
   . IF +TMGRESULT>-1 QUIT
   . ;"SEND ERROR ALERT HERE...   
-  . WRITE TMGRESULT,!  ;"TEMP!!  
+  . WRITE TMGRESULT,!  ;"TEMP!!
+  DO LOGIMPM("COMPLETED ENCOUNTER IMPORT")
   QUIT
   ;     
 PROCESS1(ONELINE) ;"Process one line from the CSV file.  
@@ -537,4 +541,9 @@ FD2 ;
   ;"Do anything additional here. 
 FDDN ;  
   QUIT TMGRESULT
-  
+  ;"
+LOGIMPM(MESSAGE)
+  NEW X DO NOW^%DTC
+  SET ^TMG("TMG ENCOUNTER IMPORT",%,MESSAGE)=""
+  QUIT
+  ;"

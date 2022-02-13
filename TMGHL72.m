@@ -101,7 +101,7 @@ TMGHL72 ;TMG/kst-HL7 transformation engine processing ;4/11/19, 3/24/21, 4/26/21
  ;
 XMSG    ;"Purpose: Process entire message before processing segments
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, HLREC
-        KILL TMGLASTOBR4,TMGLASTOBX3,TMGOBXCOUNT,TMGINFO ;"//kt 4/15/21
+        KILL TMGLASTOBR4,TMGLASTOBR4XF,TMGLASTOBX3,TMGOBXCOUNT,TMGINFO ;"//kt 4/15/21
         ;
         NEW X,Y
         IF $GET(IEN62D4)>0 GOTO XMSGB
@@ -315,6 +315,7 @@ OBR4    ;"Purpose: To transform the OBR segment, field 4
         NEW VACODE SET VACODE=$GET(TMGINFO("VACODE"))
         IF VACODE="" SET TMGXERR="In OBR4.TMGHL72: OBR setup code didn't fire to setup TMGINFO(""VACODE"")."
         SET TMGVALUE=$P(VACODE,"^",1)_TMGU(2)_$P(VACODE,"^",2)_TMGU(2)_"99VA64"
+        SET TMGLASTOBR4XF=TMGVALUE
 OBR4DN  QUIT
         ;
 OBR15   ;"Transform Secimen source
@@ -1201,7 +1202,12 @@ OBR2NTE(TMGHL7MSG,TMGU,STARTSEGN,ENDSEGN) ;"Convert NOTE style OBX results into 
        ;"Make a new OBX at original starting point --> "See Comments:"
        KILL TMGHL7MSG(STARTSEGN)
        ;"SET TMGHL7MSG(STARTSEGN)="OBX"_U_"1"_U_"NM"_U_"TMG-MULTIOBX"_TMGU(2)_"TMG MULTILINE RESULT"_U_"See comments:"
-       NEW ID SET ID="TMG-MULTIOBX"_TMGU(2)_"TMG MULTILINE RESULT"
+       NEW ID 
+       SET ID="TMG-MULTIOBX"_TMGU(2)_"TMG MULTILINE RESULT"   ;"first option
+       IF $PIECE($GET(TMGLASTOBR4),TMGU(2),1)'="",$PIECE($GET(TMGLASTOBR4),TMGU(2),2)'="" DO
+       . SET ID=$PIECE($GET(TMGLASTOBR4),TMGU(2),1,2)   ;"next better option
+       IF $PIECE($GET(TMGLASTOBR4XF),TMGU(2),1)'="",$PIECE($GET(TMGLASTOBR4XF),TMGU(2),2)'="" DO
+       . SET ID=$PIECE(TMGLASTOBR4XF,TMGU(2),1,2)   ;"best option.  
        SET TMGHL7MSG(STARTSEGN)=$$MAKEOBX(.TMGU,"NM",ID,"SEE NOTES","F","")
        SET TMGHL7MSG("B","OBX",STARTSEGN)=""
        DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,STARTSEGN)

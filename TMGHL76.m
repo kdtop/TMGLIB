@@ -78,7 +78,7 @@ MSG    ;"Purpose: Process entire message before processing segments
         ;
 MSG2    ;"Purpose: Process entire message after processing segments
         DO MSG2^TMGHL74 
-        KILL TMGLASTOBR4,TMGLASTOBX3,TMGOBXCOUNT
+        KILL TMGLASTOBR4,TMGLASTOBR4XF,TMGLASTOBX3,TMGOBXCOUNT
         QUIT
         ;
 MSH3    ;"Purpose: Process MSH segment, FLD 4 (Sending Application)

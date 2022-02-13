@@ -85,7 +85,7 @@ ISADT(TMGHL7MSG)  ;"Test if message is an HL7 ADT message
         ;
 MSG     ;"Purpose: Process entire message before processing segments
         DO XMSG^TMGHL72 
-        KILL TMGLASTOBR4,TMGLASTOBX3,TMGOBXCOUNT
+        KILL TMGLASTOBR4,TMGLASTOBR4XF,TMGLASTOBX3,TMGOBXCOUNT
         QUIT
         ;
 MSG2    ;"Purpose: Process entire message after processing segments

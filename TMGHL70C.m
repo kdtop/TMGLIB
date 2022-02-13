@@ -120,7 +120,87 @@ AA0     WRITE !,INDENTSTR,"Before ",$SELECT(HINTNAME'="":HINTNAME,1:"the NEW tes
         SET FLD63D04=$PIECE(TMGTEMP,"^",1)
         SET NEWTESTNAME=$PIECE(TMGTEMP,"^",2)
         ; 
-        IF $LENGTH(TESTNAME)'>7 SET PRINTNAME=TESTNAME GOTO AA3
+        WRITE !,!,INDENTSTR,"OK.  Now add to LABORATORY TEST.",!        
+        SET PRINTNAME=$$GETPRTNAME(TESTNAME,INDENTN)
+        IF +PRINTNAME=-1 SET TMGRESULT=PRINTNAME GOTO AADN
+AA3     SET IEN60=$$ADD60(NEWTESTNAME,PRINTNAME,FLD63D04,.TMGENV) ;"not interactive
+        IF +IEN60'>0 DO  GOTO AADN
+        . SET TMGRESULT=IEN60
+        SET TMGRESULT=IEN60
+        WRITE !,!,INDENTSTR,"OK.  Newly added test should be available to use.",!
+AADN    QUIT TMGRESULT
+        ;
+GETPRTNAME(TESTNAME,INDENTN) ;"Get PRINT NAME for TEST NAME
+        ;"Input: TESTNAME -- Name of test to get print name for
+        ;"       INDENTN -- [OPTIONAL] Number of spaces to indent
+        ;"Result: Returns PRINT NAME, or -1^error if problem or abort.
+        ;"NOTE: This value will be stored in field 51 in file 60.  
+        ;"NOTE: The index for these values is ^LAB(60,"D",
+        ;"NOTE: PRINT NAMES should be unique.
+        ;"NOTE: This code is used as the default test heading in cumulative lab test reports
+        NEW TMGRESULT SET TMGRESULT=""
+        SET INDENTN=+$GET(INDENTN)
+        NEW INDENTSTR SET INDENTSTR="" 
+        IF INDENTN>0 SET INDENTSTR=$JUSTIFY(" ",INDENTN)
+        NEW TMGMNU,TMGUSERINPUT,MNUNUM        
+        SET TESTNAME=$GET(TESTNAME,"?")
+        NEW PRINTNAME SET PRINTNAME=""
+        NEW AUTONAME SET AUTONAME=""
+        IF $LENGTH(TESTNAME)'>7 SET TMGRESULT=TESTNAME GOTO GPRNDN
+        ;"Split TESTNAME into an array of words. 
+        NEW ARR,ARRI,STR,IDX,CH
+        SET ARRI=1,STR=""
+        FOR IDX=1:1:$LENGTH(TESTNAME) DO
+        . SET CH=$EXTRACT(TESTNAME,IDX)
+        . IF " /-.;,"[CH DO
+        . . IF STR'="" SET ARR(ARRI)=STR,STR="",ARRI=ARRI+1
+        . ELSE  DO
+        . . SET STR=STR_CH
+        IF STR'="" SET ARR(ARRI)=STR,STR=""
+        ;"Now, assemble name from first few letters of each word.         
+        IF ARRI>7 SET ARRI=7  ;"truncate if > 7 words.  
+        NEW LPI SET LPI=7\ARRI  ;"LPI means LETTERS PER INDEX (of array)
+        NEW EXTRA SET EXTRA=7#ARRI  ;"remainder
+        SET PRINTNAME=""
+        FOR IDX=1:1:ARRI DO
+        . NEW NUM SET NUM=LPI
+        . IF EXTRA>0 SET NUM=NUM+EXTRA,EXTRA=0
+        . SET AUTONAME=AUTONAME_$EXTRACT(ARR(IDX),1,NUM)
+        ;"Now ensure name not chosen before
+        NEW ABORT SET ABORT=0
+        NEW NUM SET NUM=1
+        FOR  QUIT:($DATA(^LAB(60,"D",AUTONAME))=0)!ABORT  DO  
+        . NEW ANAME SET ANAME=$EXTRACT(AUTONAME,1,7-$LENGTH(NUM))_NUM
+        . IF $DATA(^LAB(60,"D",ANAME))=0 SET AUTONAME=ANAME QUIT
+        . SET NUM=NUM+1
+        . IF NUM=9999999 SET ABORT=1        
+GPN0    ;
+        IF +TMGRESULT=-1 GOTO GPNDN
+        KILL TMGUSERINPUT,TMGMNU
+        SET TMGMNU(-1,"INDENT")=INDENTN
+        SET TMGMNU(0)="Pick option for test PRINT NAME"
+        SET TMGMNU(0,1)="TEST NAME: "_TESTNAME
+        IF ABORT SET TMGMNU(0,2)="NOTE: unable to auto-generate name"
+        SET MNUNUM=1
+        IF ABORT=0 SET TMGMNU(MNUNUM)="USE '"_AUTONAME_"'"_$CHAR(9)_"AUTO",MNUNUM=MNUNUM+1
+        IF (PRINTNAME'=""),(PRINTNAME'=AUTONAME) SET TMGMNU(MNUNUM)="USE '"_PRINTNAME_"'"_$CHAR(9)_"PRINTNAME",MNUNUM=MNUNUM+1
+        SET TMGMNU(MNUNUM)="Enter CUSTOM name"_$CHAR(9)_"CUSTOM",MNUNUM=MNUNUM+1
+        WRITE !
+        SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"1")
+        KILL TMGMNU ;"Prevent from cluttering variable table during debug run
+        IF TMGUSERINPUT="AUTO" DO  GOTO GPNDN
+        . SET TMGRESULT=AUTONAME
+        IF TMGUSERINPUT="PRINTNAME" DO  GOTO GPNDN
+        . SET TMGRESULT=PRINTNAME
+        IF TMGUSERINPUT="^" DO  GOTO GPNDN
+        . SET TMGRESULT="-1^User aborted"  ;"default to failure
+        IF TMGUSERINPUT="CUSTOM" DO  GOTO GPNDN:(PRINTNAME["^"),GPN0
+        . WRITE INDENTSTR,"Cursor keys enabled.",!
+        . WRITE INDENTSTR SET PRINTNAME=$$EDITBOX^TMGUSRI6("",7,"_",0,0,7)
+        GOTO GPN0
+GPNDN   ;        
+        QUIT TMGRESULT
+        ;"OLD METHOD BELOW.  Delete later...
 AA1     WRITE !,!,INDENTSTR,"OK.  Now add to LABORATORY TEST.",!
 AA2     WRITE INDENTSTR,"Enter a name to use as display code for test for:",!
         WRITE INDENTSTR," ",HINTNAME,!  
@@ -135,12 +215,7 @@ AA2     WRITE INDENTSTR,"Enter a name to use as display code for test for:",!
         WRITE INDENTSTR,"Use '",PRINTNAME,"': " SET %=1 DO YN^DICN WRITE !
         IF %=-1 SET TMGRESULT="-1^User aborted" GOTO AADN
         IF %=2 GOTO AA2        
-AA3     SET IEN60=$$ADD60(NEWTESTNAME,PRINTNAME,FLD63D04,.TMGENV) ;"not interactive
-        IF +IEN60'>0 DO  GOTO AADN
-        . SET TMGRESULT=IEN60
-        SET TMGRESULT=IEN60
-        WRITE !,!,INDENTSTR,"OK.  Newly added test should be available to use.",!
-AADN    QUIT TMGRESULT
+GPRNDN  QUIT PRINTNAME        
         ;
 PKADDDN(NAME,DONEMSG,INDENTN) ;"PICK/ADD DATA NAME
         ;"Purpose: 

@@ -859,15 +859,23 @@ PTHSCOPD(TMGDFN,TEST,DATE,DATA,TEXT)  ;
 PTHASTOP(TMGDFN,TOPICNAME)  ;"DOES THIS PATIENT HAS TOPIC
         NEW TMGRESULT SET TMGRESULT=0
         SET TOPICNAME=$$UP^XLFSTR(TOPICNAME)
-        NEW IEN22719 SET IEN22719=0
-        FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719)) QUIT:IEN22719'>0  DO
+        NEW IEN22719 SET IEN22719=9999999
+        NEW FOUNDOFFNOTE SET FOUNDOFFNOTE=0  ;"10/28/21 ONLY USE LAST OFFICE NOTE
+        FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719),-1) QUIT:(IEN22719'>0)!(FOUNDOFFNOTE=1)  DO
+        . NEW NOTEIEN SET NOTEIEN=$P($G(^TMG(22719,IEN22719,0)),"^",1);"10/28/21
+        . NEW NOTETYPE SET NOTETYPE=$P($G(^TIU(8925,NOTEIEN,0)),"^",1);"10/28/21
+        . SET OFFICENOTE=$P($G(^TIU(8925.1,NOTETYPE,"TMGH")),"^",1);"10/28/21
+        . IF OFFICENOTE="Y" SET FOUNDOFFNOTE=1  ;"10/28/21
         . NEW TOPICTEXT SET TOPICTEXT=""
+        . NEW TOPICCNT SET TOPICCNT=0
         . FOR  SET TOPICTEXT=$ORDER(^TMG(22719,IEN22719,2,"B",TOPICTEXT)) QUIT:TOPICTEXT=""  DO
+        . . SET TOPICCNT=TOPICCNT+1
         . . NEW UPTOPIC SET UPTOPIC=$$UP^XLFSTR(TOPICTEXT)
         . . IF UPTOPIC[TOPICNAME DO
         . . . ;"SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
         . . . ;"IF TOPICDATE>DATE SET DATE=TOPICDATE
         . . . SET TMGRESULT=1
+        . IF TOPICCNT=0 SET FOUNDOFFNOTE=0  ;"DON'T INCLUDE IF LAST ON DIDN'T HAVE TOPICS (COULD BE ROS)
         QUIT TMGRESULT
         ;"
 PTASTHMA(TMGDFN,TEST,DATE,DATA,TEXT)  ;
@@ -1001,6 +1009,39 @@ LDCTSMKR(TMGDFN,TEST,DATE,DATA,TEXT) ;
         . . . . SET FOUND=1
 LDDN    QUIT
         ;"
+CURSMOKR(TMGDFN,TEST) ;
+        ;"Purpose: Determine IF patient is currently a smoker or has quit in
+        ;"         the last 15 years
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0
+        NEW TMGSMKRIEN
+        NEW TMGQSIEN  ;"was TMGQUITSMOKINGIEN
+        SET TMGSMKRIEN=+$ORDER(^AUTTHF("B","TMG TOBACCO EVERYDAY USER",0))
+        SET TMGQSIEN=+$ORDER(^AUTTHF("B","TMG TOBACCO FORMER USER",0))
+        IF (TMGSMKRIEN'>0)!(TMGQSIEN'>0) GOTO CURSDN
+        NEW HFARRAY,FOUND,HFDATE,HFTYPEIEN,HFIEN
+        DO GETHFGRP(.TMGDFN,765,.HFARRAY)
+        SET HFDATE=9999999,FOUND=0,HFIEN=0
+        FOR  SET HFDATE=$ORDER(HFARRAY(HFDATE),-1) QUIT:(HFDATE'>0)!(FOUND=1)  DO
+        . FOR  SET HFIEN=$ORDER(HFARRAY(HFDATE,HFIEN)) QUIT:(HFIEN'>0)  DO
+        . . IF HFIEN=TMGSMKRIEN DO
+        . . . SET TEST=1
+        . . . SET FOUND=1
+        . . IF HFIEN=TMGQSIEN DO
+        . . . ;"SET DATE=HFDATE,TEST=1
+        . . . ;"since we found this, first we can assume patient quit and go no further
+        . . . SET FOUND=1
+CURSDN    QUIT
+        ;"        
 GETHFGRP(TMGDFN,HFGROUPIEN,TMGRESULTARR)  ;"Return health factors for a patient by a given hf group
         ;"Purpose:
         ;"Input:
@@ -1303,7 +1344,26 @@ NEEDSP23(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
         . IF DMTEST=1 DO
         . . SET TEST=1
         . . SET DATE=$$TODAY^TMGDATE
-        . . SET WHY="Patient is between 18 and 65 ("_AGE_") and is diabetic."
+        . . SET WHY="Patient is between 18 and 65 ("_AGE_") and is diabetic"
+        . NEW COPDTEST,COPDDATE,COPDDATA,COPDTEXT
+        . DO PTHSCOPD(TMGDFN,.COPDTEST,.COPDDATE,.COPDDATA,.COPDTEXT)  ;
+        . IF COPDTEST=1 DO
+        . . SET TEST=1
+        . . SET DATE=$$TODAY^TMGDATE
+        . . IF WHY="" DO
+        . . . SET WHY="Patient is between 18 and 65 ("_AGE_") and has COPD"
+        . . ELSE  DO
+        . . . SET WHY=WHY_" and has COPD"
+        . NEW SMOKETEST
+        . DO CURSMOKR(TMGDFN,.SMOKETEST)  ;
+        . IF SMOKETEST=1 DO
+        . . SET TEST=1
+        . . SET DATE=$$TODAY^TMGDATE
+        . . IF WHY="" DO
+        . . . SET WHY="Patient is between 18 and 65 ("_AGE_") and is a current smoker"
+        . . ELSE  DO
+        . . . SET WHY=WHY_" and is a current smoker"
+        IF WHY'="" SET WHY=WHY_"."
         QUIT
 P23RESVL(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
         ;"PURPOSE: WILL BE TRUE IF THE PATIENT'S P23 IS RESOLVED.
@@ -1515,7 +1575,8 @@ PTCKD2(TMGDFN,TEST,DATE,DATA,TEXT)  ;" Determines the patient's CKD
         NEW CKDSTAGE,CKDNUM,CKDLINE SET CKDLINE=$$CKDSTAGE(TMGDFN)
         SET CKDSTAGE=$P(CKDLINE," = ",2)
         SET CKDNUM=+$G(CKDSTAGE)
-        IF (CKDNUM>3)!(CKDSTAGE["3b") DO
+        ;"IF (CKDNUM>3)!(CKDSTAGE["3b") DO ;"changed per Dr Dee 11/22/21
+        IF CKDNUM>2 DO
         . SET TEST=1
         . SET DATE=$$TODAY^TMGDATE
         . SET WHY=CKDLINE        
@@ -2041,3 +2102,24 @@ LIPIDTOP(TMGDFN,TEST,DATE,DATA,TEXT)   ;
         SET WHY=$$LDLISHI(.TMGDFN,.TEST,.DATE,.DATA,.TEXT)        
         QUIT WHY
         ;"        
+BMICOHRT(TMGDFN,TEST,DATE,DATA,TEXT)       
+        ;"Purpose: Return whether patient's BMI is between 35-39.9
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0,DATE=0
+        NEW BMI SET BMI=$$BMI^TMGTIUOJ(TMGDFN)
+        SET BMI=+$GET(BMI)
+        IF BMI'>0 QUIT 
+        IF (BMI>34.9)&(BMI<40) DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"

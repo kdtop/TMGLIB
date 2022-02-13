@@ -143,7 +143,7 @@ ONEVITAL(TMGDFN,TIU,TYPE,HTMLWRAP)    ;
         . IF PTAGE<18 DO ADDPCTLE^TMGTIUO3(.RESULT,"BMI",BMI,PTAGE,GENDER)
         . IF (PTAGE>17)&((TYPE="ALL")!(TYPE["CMT")) SET RESULT=RESULT_$$BMICOMNT^TMGTIUO4(BMI,PTAGE,IDEALWTS) ;"BMI COMMENT
         IF (TYPE["WT")!(TYPE="ALL") DO  ;"Wt done in two parts
-        . IF $GET(OLDEXCLD("Wt"))=1 QUIT
+        . ;" don't exclude Delta per Dr. Dee  11/23/21  IF $GET(OLDEXCLD("Wt"))=1 QUIT
         . NEW WTDELTA SET WTDELTA=$$WTDELTA^TMGTIUO4(TMGDFN,.TIU,0,HTMLWRAP)
         . IF WTDELTA="" QUIT
         . SET RESULT=RESULT_"; "_WTDELTA
@@ -296,11 +296,12 @@ GCOLDN
         . X ^DD("DD")
         . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
         ;"
-        ;"If over 75, include message
-        NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(TMGDFN,"")  ;"
-        IF PTAGE>75 DO
-        . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)
-        . SET TMGRESULT=TMGRESULT_"** NOTE: THIS PATIENT IS OVER 75. CONSIDER DISCONTINUING. .**"
+        ;"If over 75, include message - per 10/25/21 meeting, show this every time
+        ;"NEW PTAGE SET PTAGE=$$PTAGE^TMGTIUO3(TMGDFN,"")  ;"
+        ;"IF PTAGE>75 DO
+        ;". SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)
+        ;". SET TMGRESULT=TMGRESULT_"** NOTE: THIS PATIENT IS OVER 75. CONSIDER DISCONTINUING. .**"
+        SET TMGRESULT=TMGRESULT_"** NOTE: AT 76+ YEARS OF AGE YOU CAN CONSIDER DISCONTINUING. .**"
         QUIT TMGRESULT
         ;
 GETOCCLT(TMGRESULT,TMGDFN) ;"Return dates of last iFOBTs and FOBT
@@ -315,7 +316,7 @@ GETOCCLT(TMGRESULT,TMGDFN) ;"Return dates of last iFOBTs and FOBT
         NEW RESULT,RESULTARR
         SET RESULT=$$GETTABL1^TMGTIUO6(TMGDFN,"[STUDIES]",.RESULTARR)
         SET RESULT=$GET(RESULTARR("KEY-VALUE","IFOBT"))   ;"_" [T]"
-        IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"iFOBT= "_RESULT_" [T]"_$C(13,10)_"NOTE: iFOBT satisfies on a calendar year basis only."
+        IF RESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"iFOBT= "_RESULT_" [T]"_$C(13,10)_"NOTE: iFOBT satisfies on a calendar year basis only."_$C(13,10)
         QUIT
         ;"
 FOBTNOTE(TMGRESULT,TMGDFN)  ;"Return a note if FOBT was done this year w/ result
@@ -574,6 +575,19 @@ GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         . . DO LARR2TBL(.TMGRESULT,.ARR)
         ;"write TMGRESULT
         QUIT TMGRESULT
+        ;"
+WRAPEGFR(OPTION)
+        ;"SET OPTION("DIRECT HTML INSERTION")=0
+        NEW RESULT SET RESULT=+$$TRIM^XLFSTR($P(TMGX,"=",2))
+        NEW LABEL SET LABEL=$P(TMGX," = ",1)
+        NEW VALUE SET VALUE=$P(TMGX," = ",2)
+        IF RESULT<30 DO
+        . ;"SET TMGY=$G(TMGX)_"(RESULT IS UNDER 30!!)"
+        . SET TMGY=LABEL_" = "_$$WRAPTEXT^TMGTIUOT(VALUE,"#ffa55b",.OPTION)
+        ELSE  IF RESULT<60 DO
+        . ;"SET TMGY=$G(TMGX)_"(RESULT IS UNDER 60!!)"
+        . SET TMGY=LABEL_" = "_$$WRAPTEXT^TMGTIUOT(VALUE,"#ffff99",.OPTION)
+        QUIT
         ;"
 GETPTICK(TMGDFN)  ;"Return
         NEW TMGRESULT SET TMGRESULT=""

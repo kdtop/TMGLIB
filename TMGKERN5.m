@@ -489,4 +489,13 @@ RPCDN ;
 JOBSEND()
   DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
   QUIT
-  
+  ;"
+  ;"NEW SENDING FUNCTIONS BELOW
+SENDONE(NUMBER,MESSAGE)
+  NEW P SET P="temp"
+  NEW HOOKCMD SET HOOKCMD="sh /opt/worldvista/EHR/bin/sms_send_one_msg.sh -p '"_NUMBER_"' -m '"_MESSAGE_"'"
+  OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
+  USE P
+  CLOSE P
+  USE $P
+  QUIT

@@ -534,3 +534,18 @@ GETFSTAT() ;"Process FINAL status report. <--- SUITABLE ENTRY POINT FOR TASKMAN
   DO GETFSTAT^TMGSMS04()
   QUIT
   ;  
+SMSCURL(TONUM,TOMSG)
+   NEW CURL
+   SET CURL="curl -i \ "
+   SET CURL=CURL_"-X POST \ "
+   SET CURL=CURL_"-H ""Content-Type: application/json"" \"
+   SET CURL=CURL_"-H ""Accept: application/json"" \"
+   SET CURL=CURL_"-H ""Authorization: uuLLRU7cSdymu0QQBoWi-w=="" \"
+   SET CURL=CURL_"-d '{""messages"": [{ ""channel"": ""whatsapp"", ""to"": ""14234260236""," 
+   SET CURL=CURL_"""from"": ""14236009179"", ""content"": ""Test WhatsApp Message Text"" }, {" 
+   SET CURL=CURL_"""channel"": ""sms"", ""to"": ""14234260236"", ""from"": ""14236009179"", ""content"": ""Test SMS Message Text"" }]}' \"
+   SET CURL=CURL_"-s https://platform.clickatell.com/v1/message"
+   new ok,C0CRSLT,C0CMIME
+   s C0CMIME=""
+   S ok=$$httpPOST^%zewdGTM("https://platform.clickatell.com/v1/message",.CURL,C0CMIME,.C0CRSLT,.HEADER,"",.gpl5,.C0CRHDR)
+   QUIT

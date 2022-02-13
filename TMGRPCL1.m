@@ -77,10 +77,11 @@ TSTNAMES(LABARR,CURDATE)
 FRMTDTS(INPUT,OUTPUT)
   NEW IDX SET IDX=0
   FOR  SET IDX=$O(INPUT(IDX)) QUIT:IDX'>0  DO
-  . IF $G(INPUT(IDX))'["-" DO
-  . . SET OUTPUT(IDX)=""   ;"DOESN'T NEED TO BE CONVERTED
-  . ELSE  DO
-  . . SET OUTPUT($$INTDATE^TMGDATE($P($G(INPUT(IDX)),"-",1)))=""
+  . ;"IF $G(INPUT(IDX))'["-" DO
+  . ;". SET OUTPUT(IDX)=""   ;"DOESN'T NEED TO BE CONVERTED
+  . ;"ELSE  DO
+  . ;". SET OUTPUT($$INTDATE^TMGDATE($P($G(INPUT(IDX)),"-",1)))=""
+  . SET OUTPUT($$INTDATE^TMGDATE($G(INPUT(IDX))))=""
   QUIT
   ;"
 GETREPRT(OUT,TMGDFN,ARRAY) ;"
@@ -117,7 +118,7 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   . . . ;"SET STR="LAB^"_DT_"^"_NODE_"^"_$GET(LABS("DT",DT,NODE))
   . . . NEW ROWHEAD 
   . . . IF $P($GET(LABS("DT",DT,NODE)),"^",4)'="" DO
-  . . . . SET ROWHEAD="<TR bgcolor=""#FF0000"">"
+  . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
   . . . ELSE  DO
   . . . . SET ROWHEAD="<TR>"
   . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",DT,NODE)))_"</TR>"
@@ -158,7 +159,7 @@ CAPTION(OUT,IDX,LABDATE,TMGDFN)
   QUIT
   ;"
 HEADER()
-  QUIT "<TH width=""50%"">LAB NAME</TH><TH width=""10%"">RESULT</TH><TH width=""10%"">UNITS</TH><TH width=""10%"">FLAG</TH><TH width=""10%"">REF LOW</TH><TH width=""10%"">REF HIGH</TH>"
+  QUIT "<TH width=""50%"" bgcolor=""#FAFAD4"">LAB NAME</TH><TH width=""10%"" bgcolor=""#FAFAD4"">RESULT</TH><TH width=""10%"" bgcolor=""#FAFAD4"">UNITS</TH><TH width=""10%"" bgcolor=""#FAFAD4"">FLAG</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF LOW</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF HIGH</TH>"
   ;"
 U2CELL(LINE) ;"CONVERT STRING WITH CAROT TO HTML TABLE CELL
   NEW DONE SET DONE=0
@@ -333,3 +334,102 @@ HASPDF(OUT,TMGDFN,SDT,EDT)  ;"RPC FOR HAS LAB PDF for given date range?
   DO RPCHASPDF^TMGLRPD1(.OUT,.TMGDFN,.SDT,.EDT)
   QUIT
   ;
+LABREPRT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"lab report
+        ;"RETURN HTML REPORT OF LAB RESULTS
+        ;"Purpose: Entry point, as called from CPRS REPORT system
+        ;"Input: ROOT -- Pass by NAME.  This is where output goes
+        ;"       TMGDFN -- Patient DFN ; ICN for foriegn sites
+        ;"       ID --
+        ;"       ALPHA -- Start date (lieu of DTRANGE)
+        ;"       OMEGA -- End date (lieu of DTRANGE)
+        ;"       DTRANGE -- # days back from today
+        ;"       REMOTE --
+        ;"       MAX    --
+        ;"       ORFHIE --
+        ;"Result: None.  Output goes into @ROOT
+        NEW TMGDEBUG SET TMGDEBUG=0
+        IF TMGDEBUG=0 DO
+        . SET ^TMP("LABREPORT","TMGDFN")=TMGDFN
+        . SET ^TMP("LABREPORT","ID")=ID
+        . SET ^TMP("LABREPORT","ALPHA")=ALPHA
+        . SET ^TMP("LABREPORT","OMEGA")=OMEGA
+        . SET ^TMP("LABREPORT","DTRANGE")=DTRANGE
+        ELSE  DO
+        . SET TMGDFN=$G(^TMP("LABREPORT","TMGDFN"))
+        . SET ID=$G(^TMP("LABREPORT","ID"))
+        . SET ALPHA=$G(^TMP("LABREPORT","ALPHA"))
+        . SET OMEGA=$G(^TMP("LABREPORT","OMEGA"))
+        . SET DTRANGE=$G(^TMP("LABREPORT","DTRANGE"))
+        NEW SDT,EDT,LABS,OPTION
+        SET SDT=+$G(ALPHA)
+        SET EDT=+$G(OMEGA) IF EDT'>0 SET EDT="9999999"       
+        DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)
+        NEW IDX SET IDX=2
+        
+        SET @ROOT@(0)="<!DOCTYPE html>"
+        SET @ROOT@(1)="<html><head><title>Page Title</title></head><body><font size=""2"">"
+        ;"SET OUT(2)="<table BORDER=1>"
+        NEW DT SET DT=99999999
+        NEW STR
+        FOR  SET DT=$ORDER(LABS("DT",DT),-1) QUIT:(DT="")  DO
+        . NEW DAY SET DAY=$P(DT,".",1)
+        . IF (DAY<SDT)!(DAY>EDT) QUIT
+        . ;"SET OUT(IDX)="<TABLE BORDER=2 WIDTH=""600"">",IDX=IDX+1
+        . ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(DT)_"</B></CAPTION>",IDX=IDX+1
+        . ;"SET OUT(IDX)=$$HEADER(),IDX=IDX+1
+        . NEW SETHEAD SET SETHEAD=0
+        . NEW NODE SET NODE=""
+        . NEW COMMENT SET COMMENT=""
+        . NEW COUNT SET COUNT=0
+        . FOR  SET NODE=$ORDER(LABS("DT",DT,NODE)) QUIT:(NODE="")  DO
+        . . IF +NODE=NODE DO
+        . . . IF SETHEAD=0 DO
+        . . . . IF IDX>2 DO
+        . . . . . SET @ROOT@(IDX)="<p style=""page-break-before: always"">",IDX=IDX+1
+        . . . . DO CAPTION2(.ROOT,.IDX,DT,TMGDFN)
+        . . . . SET SETHEAD=1
+        . . . ;"SET STR="LAB^"_DT_"^"_NODE_"^"_$GET(LABS("DT",DT,NODE))
+        . . . NEW ROWHEAD 
+        . . . IF $P($GET(LABS("DT",DT,NODE)),"^",4)'="" DO
+        . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
+        . . . ELSE  DO
+        . . . . SET ROWHEAD="<TR bgcolor=""#FCFCED"">"
+        . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",DT,NODE)))_"</TR>"
+        . . . SET COUNT=COUNT+1
+        . . . SET @ROOT@(IDX)=STR,IDX=IDX+1
+        . . ELSE  IF NODE="COMMENT" DO
+        . . . NEW JDX SET JDX=0
+        . . . FOR  SET JDX=$ORDER(LABS("DT",DT,"COMMENT",JDX)) QUIT:+JDX'>0  DO
+        . . . . ;"SET STR="LAB^"_DT_"^COMMENT^"_JDX_"^"_$GET(LABS("DT",DT,"COMMENT",JDX))
+        . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<BR>"
+        . . . . SET COMMENT=COMMENT_$GET(LABS("DT",DT,"COMMENT",JDX))
+        . . . . ;"SET OUT(IDX)=STR,IDX=IDX+1     
+        . IF (COMMENT'="")&(COUNT>0) DO
+		. . SET @ROOT@(IDX)="<tr bgcolor=""#FAFAD4""><td colspan=""6""><font face=""Consolas"">"_COMMENT_"</font></td></tr>",IDX=IDX+1
+		. ;"SET OUT(3)=$G(ARRAY(1))
+		. SET @ROOT@(IDX)="</td></tr></table><BR>",IDX=IDX+1
+		SET @ROOT@(IDX)="</font></body></html>" 
+		QUIT
+		;"
+CAPTION2(OUT,IDX,LABDATE,TMGDFN)
+  NEW NAME,DOB,AGE,DT
+  SET LABDATE=$P(LABDATE,".",1)
+  SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+  SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3))
+  K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+  SET @OUT@(IDX)="<DIV align left>",IDX=IDX+1
+  ;"WIDTH=""600""SET @OUT@(IDX)="<TABLE width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
+  SET @OUT@(IDX)="<TABLE WIDTH=""600"" border=""0"" cellspacing=""0""",IDX=IDX+1
+  SET @OUT@(IDX)="cellpadding=""1"" style=""background-color:gray"">",IDX=IDX+1
+  SET @OUT@(IDX)="<TR valign=""bottom"" align=""left"">",IDX=IDX+1
+  SET @OUT@(IDX)="<TD nowrap><B>Patient: "_NAME_"</B></TD>",IDX=IDX+1
+  SET @OUT@(IDX)="<TD nowrap><B>DOB: "_DOB_"</B></TD>",IDX=IDX+1
+  SET @OUT@(IDX)="<TD nowrap><B>Age: "_AGE,IDX=IDX+1
+  SET @OUT@(IDX)="</B></TD>",IDX=IDX+1
+  SET @OUT@(IDX)="</TR></TABLE></DIV><HR>",IDX=IDX+1
+  SET @OUT@(IDX)="<TABLE BORDER=1 WIDTH=""600"">",IDX=IDX+1
+  SET @OUT@(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(LABDATE)_"</B></CAPTION>",IDX=IDX+1
+  SET @OUT@(IDX)=$$HEADER(),IDX=IDX+1
+  QUIT
+  ;"		
+        

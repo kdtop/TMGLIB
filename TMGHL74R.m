@@ -132,7 +132,7 @@ OBR     ;"Purppse: setup for OBR fields.
         QUIT
         ;
 OBR4    ;"Purpose: To transform the OBR segment, field 4  'UNIVERSAL SERVICE ID'
-        ;"Uses TMGU,TMGEXAMIDX,TMGSEGN in global scope
+        ;"Uses TMGU,TMGEXAMIDX,TMGSEGN,TMGVALUE,TMGLASTOBR4XF in global scope
         ;"Example of input in TMGVALUE: 'BONDE^BONE DENSITOMETRY^^WDC'
         NEW TMGFDA,TMGMSG,TMGIEN,ZN
         NEW INST SET INST=71  ;"HARD CODED TO LAUGHLIN IEN IN FILE #4
@@ -179,7 +179,8 @@ OBR4B   SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"PROC")=PROCIEN
         . SET TMGXERR="Missing CPT: File# 71, record# "_PROCIEN_", field# 9, does not contain CPT code.  Please fix."
         SET CPT=$PIECE($GET(^ICPT(CPTIEN,0)),"^",1)
         SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"CPT")=CPT
-OBR4DN  QUIT
+OBR4DN  SET TMGLASTOBR4XF=TMGVALUE
+        QUIT
         ;
 OBR7    ;"Purpose: To transform the OBR segment, field 7  'OBSERVATION DATE TIME'
         IF TMGVALUE'>0 DO  ;"For some reason Epic is not providing an observation time.  
