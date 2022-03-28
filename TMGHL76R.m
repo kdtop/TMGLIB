@@ -215,6 +215,19 @@ SUORL   ;"Purpose: Setup TMGINFO("ORL") and TMGINFO("LOC") and TMGINFO("INSTNAME
         QUIT
         ;
 PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additional clinical history) sections
+        NEW SRCH SET SRCH="^HISTORY^,HISTORY:^^FINDINGS^TECHNIQUE:^CLINICAL INFORMATION:^"
+        SET SRCH=SRCH_"COMPARISON:^FINDINGS:^CONCLUSION:^IMPRESSION:^INTERPRETATION SUMMARY^ASSESSMENT:^"  
+        NEW JDX FOR JDX=1:1:$LENGTH(SRCH,"^") DO
+        . NEW MATCH SET MATCH=$PIECE(SRCH,"^",JDX) QUIT:MATCH=""
+        . NEW TEMP,IDX SET IDX=0
+        . FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:+IDX'>0  DO
+        . . NEW S SET S=$GET(ARR(IDX))
+        . . IF S'[("^"_MATCH_"^") QUIT
+        . . NEW COUNT SET COUNT=$LENGTH(S,MATCH)-1
+        . . SET TEMP(MATCH)=$GET(MATCH)+COUNT
+        . . SET TEMP=$GET(TEMP)+COUNT 
+        ;"At this point, should have TEMP(<search term>)=<instance count), and TEMP=total count.          
+        ;
         NEW SECTION SET SECTION="RPT"
         NEW OUTIDX SET OUTIDX=1
         NEW IDX SET IDX=0
@@ -223,17 +236,40 @@ PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additi
         . NEW UP SET UP=$$TRIM^XLFSTR($$UP^XLFSTR(S))
         . NEW PARTB SET PARTB=""
         . NEW DIV SET DIV=""
-        . IF UP="HISTORY"           SET SECTION="HX",S="HISTORY:"
-        . ELSE  IF UP["HISTORY:"    SET SECTION="HX"
-        . ELSE  IF UP="FINDINGS"    SET SECTION="RPT",S="FINDINGS:"
-        . ELSE  IF UP["TECHNIQUE:"  SET SECTION="RPT"        
-        . ELSE  IF UP["CLINICAL INFORMATION:" SET SECTION="HX"        
-        . ELSE  IF UP["COMPARISON:" SET SECTION="RPT"                
-        . ELSE  IF UP["FINDINGS:"   SET SECTION="RPT"
-        . ELSE  IF UP["CONCLUSION:" SET SECTION="IMP",DIV="CONCLUSION:"
-        . ELSE  IF UP["IMPRESSION:" SET SECTION="IMP",DIV="IMPRESSION:"
-        . ELSE  IF UP["INTERPRETATION SUMMARY" SET SECTION="IMP",DIV="INTERPRETATION SUMMARY"
-        . ELSE  IF S["ASSESSMENT:"  SET SECTION="IMP",DIV="ASSESSMENT:"
+        . ;
+        . ;"IF (UP="HISTORY"),$GET(TEMP("HISTORY"))<2            SET SECTION="HX",S="HISTORY:"
+        . ELSE  IF $$SECTT2(UP,"HISTORY",.TEMP,.SECTION,"HX") SET S="HISTORY:"
+        . ;
+        . ;"ELSE  IF (UP["HISTORY:"),$GET(TEMP("HISTORY:"))<2    SET SECTION="HX"
+        . ELSE  IF $$SECTTEST(UP,"HISTORY:",.TEMP,.SECTION,"HX")
+        . ;
+        . ;"ELSE  IF (UP="FINDINGS"),$GET(TEMP("FINDINGS"))<2    SET SECTION="RPT",S="FINDINGS:"
+        . ELSE  IF $$SECTT2(UP,"FINDINGS",.TEMP,.SECTION,"RPT") SET S="FINDINGS:"
+        . ;
+        . ;"ELSE  IF (UP["TECHNIQUE:"),$GET(TEMP("TECHNIQUE:"))<2  SET SECTION="RPT"        
+        . ELSE  IF $$SECTTEST(UP,"TECHNIQUE:",.TEMP,.SECTION,"RPT")
+        . ;
+        . ;"ELSE  IF UP["CLINICAL INFORMATION:" SET SECTION="HX"        
+        . ELSE  IF $$SECTTEST(UP,"CLINICAL INFORMATION:",.TEMP,.SECTION,"HX")
+        . ;
+        . ;"ELSE  IF UP["COMPARISON:" SET SECTION="RPT"                
+        . ELSE  IF $$SECTTEST(UP,"COMPARISON:",.TEMP,.SECTION,"RPT")
+        . ;
+        . ;"ELSE  IF UP["FINDINGS:"   SET SECTION="RPT"
+        . ELSE  IF $$SECTTEST(UP,"FINDINGS:",.TEMP,.SECTION,"RPT")
+        . ;
+        . ;"ELSE  IF UP["CONCLUSION:" SET SECTION="IMP",DIV="CONCLUSION:"
+        . ELSE  IF $$SECTTEST(UP,"CONCLUSION:",.TEMP,.SECTION,"IMP") SET DIV="CONCLUSION:"
+        . ;
+        . ;"ELSE  IF UP["IMPRESSION:" SET SECTION="IMP",DIV="IMPRESSION:"
+        . ELSE  IF $$SECTTEST(UP,"IMPRESSION:",.TEMP,.SECTION,"IMP") SET DIV="IMPRESSION:"
+        . ;
+        . ;"ELSE  IF UP["INTERPRETATION SUMMARY" SET SECTION="IMP",DIV="INTERPRETATION SUMMARY"
+        . ELSE  IF $$SECTTEST(UP,"INTERPRETATION SUMMARY",.TEMP,.SECTION,"IMP") SET DIV="INTERPRETATION SUMMARY"
+        . ;
+        . ;"ELSE  IF S["ASSESSMENT:"  SET SECTION="IMP",DIV="ASSESSMENT:"
+        . ELSE  IF $$SECTTEST(UP,"ASSESSMENT:",.TEMP,.SECTION,"IMP") SET DIV="ASSESSMENT:"
+        . ;
         . ;"ELSE  IF S["IMPRESSION"   SET SECTION="IMP",DIV="IMPRESSION"   
         . IF DIV'="" DO
         . . DO CLEAVSTR^TMGSTUT2(.S,DIV,.PARTB,1)
@@ -245,7 +281,21 @@ PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additi
         . IF OUTIDX=1,S="" QUIT
         . SET OUT(SECTION,OUTIDX)=S,OUTIDX=OUTIDX+1        
         QUIT
-        ;        
+        ;   
+SECTTEST(UP,LABEL,ARR,SECTION,SECTVAL) ;"Test is UP[LABEL
+        NEW RESULT SET RESULT=0
+        IF (UP[LABEL),($GET(ARR(LABEL))<2) DO
+        . IF $GET(SECTVAL)'="" SET SECTION=SECTVAL
+        . SET RESULT=1
+        QUIT RESULT
+        ;
+SECTT2(UP,LABEL,ARR,SECTION,SECTVAL) ;"Test is UP=LABEL
+        NEW RESULT SET RESULT=0
+        IF (UP=LABEL),($GET(ARR(LABEL))<2) DO
+        . IF $GET(SECTVAL)'="" SET SECTION=SECTVAL
+        . SET RESULT=1
+        QUIT RESULT
+        ;
 FIXRPT(TMGHL7MSG,TMGU) ;"
         ;"Purpose: to covert form of EPIC radiology report messages into that previously
         ;"         handled for Laughlin radiology

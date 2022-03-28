@@ -117,7 +117,7 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   . . . . SET SETHEAD=1
   . . . ;"SET STR="LAB^"_DT_"^"_NODE_"^"_$GET(LABS("DT",DT,NODE))
   . . . NEW ROWHEAD 
-  . . . IF $P($GET(LABS("DT",DT,NODE)),"^",4)'="" DO
+  . . . IF ($P($GET(LABS("DT",DT,NODE)),"^",4)'="")&($P($GET(LABS("DT",DT,NODE)),"^",4)'="N") DO
   . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
   . . . ELSE  DO
   . . . . SET ROWHEAD="<TR>"

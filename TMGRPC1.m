@@ -229,8 +229,12 @@ AUTOSIGN(RESULT,DOCIEN) ;
         ;". SET RESULT(0)=1
         ;". DO SEND^TIUALRT(DOCIEN)
         ;
-        ;"New code     9/3/15
         IF '$DATA(^TIU(8925.1,TITLEIEN,"TMG1","B",AuthorIEN)) DO  GOTO ASDone
+        . ;"elh adding code to try and figure out why some notes don't have assigned patients  2/14/22
+        . NEW PATIENT SET PATIENT=+$P($G(^TIU(8925,DOCIEN,0)),"^",2)
+        . IF PATIENT'>0 DO
+        . . ZSHOW "*":^TMP("AUTOSIGN",$J,DOCIEN)
+        . ;"end 2/14/22 addition
         . SET RESULT(0)=1
         . DO SEND^TIUALRT(DOCIEN)
         ;"

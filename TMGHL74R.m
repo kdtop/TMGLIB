@@ -219,6 +219,20 @@ OBX5    ;"Purpose: To transform the OBX segment, field 5 -- Observation value
         ;
 PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additional clinical history) sections
         ;"Note: for now, HX will not be split out.
+        ;"NOTE: We had situation where we got report that was 3 reports concatinated, each with its own impression
+        ;"      So will look for this situation, and if multiple impressions found, will just leave all in RPT section.  
+        NEW SRCH SET SRCH="^IMPRESSION:^ASSESSMENT:^IMPRESSION^"
+        NEW JDX 
+        FOR JDX=1:1:$LENGTH(SRCH,"^") DO
+        . NEW MATCH SET MATCH=$PIECE(SRCH,"^",JDX) QUIT:MATCH=""
+        . NEW TEMP,IDX SET IDX=0
+        . FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:+IDX'>0  DO
+        . . NEW S SET S=$GET(ARR(IDX))
+        . . IF S'[MATCH QUIT
+        . . NEW COUNT SET COUNT=$LENGTH(S,MATCH)-1
+        . . SET TEMP(MATCH)=$GET(MATCH)+COUNT
+        . . SET TEMP=$GET(TEMP)+COUNT 
+        ;"At this point, should have TEMP(<search term>)=<instance count), and TEMP=total count.          
         NEW SECTION SET SECTION="RPT"
         NEW OUTIDX SET OUTIDX=1
         NEW IDX SET IDX=0
@@ -226,6 +240,7 @@ PARSRPT(OUT,ARR)  ;"Split report into RPT (report), IMP (impression), HX (additi
         . NEW S SET S=$GET(ARR(IDX))
         . NEW PARTB SET PARTB=""
         . IF SECTION="RPT" DO
+        . . IF $GET(TEMP)>1 QUIT
         . . NEW UP SET UP=$$UP^XLFSTR(S)
         . . NEW DIV SET DIV=""
         . . IF UP["IMPRESSION:" SET DIV="IMPRESSION:"

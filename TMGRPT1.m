@@ -1190,6 +1190,13 @@ CHKSCHED()  ;"  Check the next 4 weeks to see if that date has less that 10 pati
        DO ^%ZISC  ;" Close the output device  
        QUIT
        ;"
+TEST
+   DO TEST1
+   QUIT
+   ;"
+TEST1
+   QUIT "YES"
+   ;"
        
 
 

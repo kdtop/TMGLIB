@@ -189,11 +189,17 @@ HNDLERR(ERRMODE) ;
   . IF $$ALIASLOOKUP(.TEMP,.TMGHL7MSG)=0 QUIT
   . SET TMGHNDLERR("SSN")=$GET(TEMP("SSN"))
   . SET TMGHNDLERR("DFN")=$GET(TEMP("DFN"))
+  . DO WRITEALIAS^TMGHL7U3(.TEMP) WRITE !
   . NEW % SET %=1 
   . WRITE "Success matching HL7 patient --> VistA patient via alias.",!
   . WRITE "Reprocess H7 message with found patient" DO YN^DICN WRITE !
+  . IF %=1 SET TMGSRCH=1 QUIT
+  . IF %=-1 QUIT
+  . SET %=2
+  . WRITE "Delete this stored link" DO YN^DICN WRITE !
   . IF %'=1 QUIT
-  . SET TMGSRCH=1  
+  . NEW ARESULT SET ARESULT=$$KILLALIAS^TMGHL7U3(.TEMP)
+  . IF ARESULT'>0 WRITE !,"ERROR: ",$PIECE(ARESULT,"^",2,99),!
   ;
 M2  ;
   KILL TMGUSERINPUT,TMGMNU,TMPERR
@@ -294,6 +300,13 @@ ALIASLOOKUP(OUT,TMGHL7MSG) ;"Find a VistA patient to match (erroneous) patient i
   ;"                OUT("SSN")=matched patient SSN
   ;"                OUT("DFN")=matched patient DFN
   ;"                OUT("DOB")=matched patient DOB  
+  ;"                OUT("INPUT","NAME")=NAME
+  ;"                OUT("INPUT","DOB")=DOB
+  ;"                OUT("INPUT","SEX")=SEX                    
+  ;"                OUT("INPUT","SSN")=SSN
+  ;"                OUT("MATCH","DFN")=TMGDFN
+  ;"                OUT("MATCH","IEN22720.7")=TMGDFN
+  ;"                OUT("MATCH","IENS")=SUBIEN_","_TMGDFN_","   -- IENS in file 22720.7
   ;"       TMGHL7MSG -- The HL7 message
   ;"Result: 1 if patient found, 0 if no patient found
   NEW TMGRESULT SET TMGRESULT=0
@@ -302,12 +315,13 @@ ALIASLOOKUP(OUT,TMGHL7MSG) ;"Find a VistA patient to match (erroneous) patient i
   NEW DOB SET DOB=$GET(PTINFO("FMDT"))
   NEW SEX SET SEX=$GET(PTINFO(8))
   NEW SSN SET SSN=$GET(PTINFO(19))
-  NEW TMGDFN SET TMGDFN=$$ALIAS2DFN^TMGHL7U3(NAME,DOB,SEX,SSN)
+  NEW TMGDFN,INFO SET TMGDFN=$$ALIAS2DFN^TMGHL7U3(NAME,DOB,SEX,SSN,.INFO)
   IF TMGDFN>0 DO
   . NEW ZN SET ZN=$GET(^DPT(TMGDFN,0))
   . SET OUT("SSN")=$P(ZN,"^",9)
   . SET OUT("DFN")=TMGDFN
   . SET OUT("DOB")=$P(ZN,"^",3)
+  . MERGE OUT=INFO
   . SET TMGRESULT=1  
   QUIT TMGRESULT
   ;

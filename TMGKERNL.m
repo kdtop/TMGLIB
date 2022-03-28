@@ -20,7 +20,7 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 12/2/20
  ;"$$FileSize(FullNamePath)  -- return the size of the file, in bytes.
  ;"$$TIME(FORMAT)  --Get time from host OS
  ;"$$TIME2()  ;Get high resolution time
- ;"$$FSTAT(OUT,FPNAME,PARAMS) -- provide generic access to linux stat command.
+ ;"FSTAT(OUT,FPNAME,PARAMS) -- provide generic access to linux stat command.
  ;"$$FDIFF(OUT,FPNAME1,FPNAME2,PARAMS) -- generic access to linux diff command.
  ;"$$VIMDIFF(FPNAME1,FPNAME2,PARAMS) --FILES vimdiff command 
  ;"$$ADIFF(OUT,ARR1,ARR2,PARAMS)  -- use diff command on 2 arrays

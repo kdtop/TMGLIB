@@ -1410,6 +1410,98 @@ ATDn
   DO ^%ZISC  ;" Close the output device
   QUIT
   ;"
+APTTIME2(BDATE,EDATE)    ;"
+  ;"This function will calculate the wait times for a given time period.
+  NEW %ZIS,IOP
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  IF POP DO  GOTO AT2Dn
+  . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+  USE IO
+  WRITE !
+  WRITE "************************************************************",!
+  WRITE "               VISIT TIMES FOR APPOINTMENTS FROM ",!
+  WRITE "               ",$$EXTDATE^TMGDATE(BDATE)," TO ",$$EXTDATE^TMGDATE(EDATE),!
+  WRITE "************************************************************",!
+  WRITE "                                            (From TMGRPT2.m)",!!
+  NEW DATE SET DATE=$P(BDATE,".",1)
+  NEW DAYNUM,DAYTOT,RPTNUM,RPTTOT  ;"Used to report totals
+  SET (DAYNUM,DAYTOT,RPTNUM,RPTTOT)=0
+  SET EDATE=$P(EDATE,".",1)_".9999"
+  NEW THISDAY SET THISDAY=0
+  WRITE "PATIENT NAME",!
+  WRITE ?2,"CHECK-IN",?15,"CHECK-OUT",?26,"FIRST TIMER",?39,"LAST TIMER",?54,"NOTE START",?67,"NOTE SIGN",!
+  FOR  SET DATE=$O(^TMG(22723,"DT",DATE)) QUIT:(DATE>EDATE)!(DATE'>0)  DO
+  . NEW TMGDFN SET TMGDFN=0
+  . IF THISDAY'=$P(DATE,".",1) DO
+  . . SET THISDAY=$P(DATE,".",1)
+  . . IF DAYNUM>0 DO
+  . . . WRITE "  *AVERAGE WAIT FOR THIS DAY: ",$J(DAYTOT/DAYNUM,9,2)," MINUTES",!,!
+  . . WRITE "-------- DATE: ",$$EXTDATE^TMGDATE(THISDAY)," --------",!
+  . . SET DAYNUM=0,DAYTOT=0
+  . FOR  SET TMGDFN=$O(^TMG(22723,"DT",DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+  . . NEW SUBIEN SET SUBIEN=0
+  . . FOR  SET SUBIEN=$O(^TMG(22723,"DT",DATE,TMGDFN,SUBIEN)) QUIT:SUBIEN'>0  DO
+  . . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",DATE,TMGDFN,SUBIEN))
+  . . . IF STATUS="C" QUIT
+  . . . NEW ZN,CHKIN,CHKOUT,DIFF
+  . . . SET ZN=$G(^TMG(22723,TMGDFN,1,SUBIEN,0))
+  . . . SET CHKIN=+$P(ZN,"^",8),CHKOUT=+$P(ZN,"^",9)
+  . . . IF (CHKIN'>0)!(CHKOUT'>0) QUIT
+  . . . ;"
+  . . . ;"This section will review the note created for the visit
+  . . . NEW NOTEDT,NOTEDIFF,NOTESIGN
+  . . . SET NOTEDT=$O(^TIU(8925,"ZTMGPTDT",TMGDFN,CHKIN))
+  . . . NEW NOTEIEN 
+  . . . IF NOTEDT'="" SET NOTEIEN=$O(^TIU(8925,"ZTMGPTDT",TMGDFN,NOTEDT,0))
+  . . . IF NOTEDT[$P(CHKIN,".",1) DO
+  . . . . SET NOTEDT=$J(NOTEDT,7,4)
+  . . . . SET CHKIN=$J(CHKIN,7,4)
+  . . . . SET CHKOUT=$J(CHKOUT,7,4)
+  . . . . ;"WRITE CHKIN," - ",NOTEDT," - ",CHKOUT," = "
+  . . . . SET NOTEDIFF=$$TIMEDIFF^TMGDATE(NOTEDT,CHKIN)
+  . . . . SET NOTESIGN=$P($G(^TIU(8925,NOTEIEN,15)),"^",1)
+  . . . . ;"WRITE NOTEDIFF,!
+  . . . ELSE  DO
+  . . . . SET NOTEDIFF="??"
+  . . . . SET NOTEDT="NOT ON DOS"
+  . . . . SET NOTESIGN="NOT ON DOS"
+  . . . ;"
+  . . . ;"This section will get timer values
+  . . . NEW BTIME,ETIME
+  . . . NEW TIMEIDX,THISTIME
+  . . . SET (TIMEIDX,ETIME)=0,BTIME=9999999
+  . . . FOR  SET TIMEIDX=$O(^TMG(22747,"C",TMGDFN,TIMEIDX)) QUIT:TIMEIDX'>0  DO
+  . . . . SET THISTIME=$P($G(^TMG(22747,TIMEIDX,0)),"^",4)
+  . . . . IF $P(THISTIME,".",1)'=THISDAY QUIT
+  . . . . ;"SET THISTIME=$P(THISTIME,".",2)
+  . . . . IF THISTIME<BTIME SET BTIME=THISTIME
+  . . . . IF THISTIME>ETIME SET ETIME=THISTIME
+  . . . SET BTIME=$$EXTDATE^TMGDATE(BTIME)
+  . . . SET BTIME=$P(BTIME,"@",2)
+  . . . SET ETIME=$$EXTDATE^TMGDATE(ETIME)
+  . . . SET ETIME=$P(ETIME,"@",2)
+  . . . ;"
+  . . . SET DIFF=$$TIMEDIFF^TMGDATE(CHKOUT,CHKIN)
+  . . . NEW NOTE2CHKOUT 
+  . . . IF NOTEDIFF="??" DO
+  . . . . SET NOTE2CHKOUT="??"
+  . . . ELSE  DO
+  . . . . SET NOTE2CHKOUT=DIFF-NOTEDIFF
+  . . . ;"WRITE $P($G(^DPT(TMGDFN,0)),"^",1),?25,NOTEDIFF," MINS",?45,NOTE2CHKOUT," MINS",?65,DIFF," MINS",!
+  . . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1),!
+  . . . SET CHKIN=$$EXTDATE^TMGDATE(CHKIN),CHKOUT=$$EXTDATE^TMGDATE(CHKOUT),NOTEDT=$$EXTDATE^TMGDATE(NOTEDT)
+  . . . SET NOTESIGN=$$EXTDATE^TMGDATE(NOTESIGN)
+  . . . SET CHKIN=$P(CHKIN,"@",2),CHKOUT=$P(CHKOUT,"@",2),NOTEDT=$P(NOTEDT,"@",2),NOTESIGN=$P(NOTESIGN,"@",2)
+  . . . WRITE ?2,CHKIN,?15,CHKOUT,?26,BTIME,?39,ETIME,?54,NOTEDT,?67,NOTESIGN,!
+  . . . SET DAYNUM=DAYNUM+1,DAYTOT=DAYTOT+DIFF,RPTNUM=RPTNUM+1,RPTTOT=RPTTOT+DIFF
+  IF DAYNUM>0 DO
+  . WRITE "  *AVERAGE WAIT FOR THIS DAY: ",$J(DAYTOT/DAYNUM,9,2)," MINUTES",!,!
+  WRITE "  ****AVERAGE WAIT PER PATIENT: ",$J(RPTTOT/RPTNUM,9,2)," MINUTES",!
+AT2Dn
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"  
 MISOVCHG(BDATE,EDATE)  ;"Print appts that don't have corresponding OV
   ;"charges
   NEW DATE SET DATE=$P(BDATE,".",1)

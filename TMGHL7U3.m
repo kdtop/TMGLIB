@@ -138,12 +138,42 @@ SA2 ;
 SADN ;
   QUIT TMGRESULT
   ;
-ALIAS2DFN(NAME,DOB,SEX,SSN) ;" Get VistA DFN from erroneous HL7 alias
+KILLALIAS(INFO)  ;"Remove alias info, as found by ALIAS2DFN
+  ;"INPUT:  INFO -- array as created by ALIAS2DFN:
+  ;"          INFO("INPUT","NAME")=NAME
+  ;"          INFO("INPUT","DOB")=DOB
+  ;"          INFO("INPUT","SEX")=SEX                    
+  ;"          INFO("INPUT","SSN")=SSN
+  ;"          INFO("MATCH","DFN")=TMGDFN
+  ;"          INFO("MATCH","IEN22720.7")=TMGDFN
+  ;"          INFO("MATCH","IENS")=SUBIEN_","_TMGDFN_","   -- IENS in file 22720.7
+  ;"RESULTS:  1^OK, or -1^Error message
+  NEW IEN SET IEN=$GET(INFO("MATCH","IEN22720.7"))
+  NEW IENS SET IENS=$GET(INFO("MATCH","IENS"))
+  NEW TMGFDA SET TMGFDA(22720.71,IENS,.01)="@"
+  NEW TMGMSG
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  DO FILE^DIE("E","TMGFDA","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO KADN
+  . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)  
+KADN ;  
+  QUIT TMGRESULT
+  ;
+ALIAS2DFN(NAME,DOB,SEX,SSN,OUT) ;" Get VistA DFN from erroneous HL7 alias
   ;" INPUT: NAME   -- Name as provided in HL7 message
   ;"        DOB    -- DOB as provided in HL7 message, converted to FMDT format
   ;"        SEX    -- Sex as provided in HL7 message
   ;"        SSN    -- SSN as provided in HL7 message, hyphens optional
-  ;"RESULT: Returns DFN of patient with HL7 alias matching provided HL7 info.   
+  ;"        OUT    -- PASS BY REFERENCE, an OUT PARAMETER.  Optional.  
+  ;"RESULT: Returns DFN of patient with HL7 alias matching provided HL7 info.
+  ;"        If match found, then OUT is filled as follows:
+  ;"          OUT("INPUT","NAME")=NAME
+  ;"          OUT("INPUT","DOB")=DOB
+  ;"          OUT("INPUT","SEX")=SEX                    
+  ;"          OUT("INPUT","SSN")=SSN
+  ;"          OUT("MATCH","DFN")=TMGDFN
+  ;"          OUT("MATCH","IEN22720.7")=TMGDFN
+  ;"          OUT("MATCH","IENS")=SUBIEN_","_TMGDFN_","   -- IENS in file 22720.7
   ;"NOTE: There must be an exact match for DFN to be returned
   NEW TMGRESULT SET TMGRESULT=0
   SET SSN=$TRANSLATE($GET(SSN),"-","")
@@ -157,4 +187,28 @@ ALIAS2DFN(NAME,DOB,SEX,SSN) ;" Get VistA DFN from erroneous HL7 alias
   . . NEW DBSSN SET DBSSN=$PIECE(ZN,"^",4)
   . . IF (DBDOB'=DOB)!(DBSEX'=SEX)!(DBSSN'=SSN) QUIT
   . . SET TMGRESULT=TMGDFN
+  . . SET OUT("INPUT","NAME")=NAME
+  . . SET OUT("INPUT","DOB")=DOB
+  . . SET OUT("INPUT","SEX")=SEX
+  . . SET OUT("INPUT","SSN")=SSN
+  . . SET OUT("MATCH","DFN")=TMGDFN
+  . . SET OUT("MATCH","IEN22720.7")=TMGDFN
+  . . SET OUT("MATCH","IENS")=SUBIEN_","_TMGDFN_","
   QUIT TMGRESULT
+  ;
+WRITEALIAS(INFO) ;"Write out alias match info, as found by ALIAS2DFN. 
+  ;"INPUT:  INFO -- array as created by ALIAS2DFN:
+  ;"          INFO("INPUT","NAME")=NAME
+  ;"          INFO("INPUT","DOB")=DOB
+  ;"          INFO("INPUT","SEX")=SEX                    
+  ;"          INFO("INPUT","SSN")=SSN
+  ;"          INFO("MATCH","DFN")=TMGDFN
+  ;"          INFO("MATCH","IEN22720.7")=TMGDFN
+  ;"          INFO("MATCH","IENS")=SUBIEN_","_TMGDFN_","   -- IENS in file 22720.7
+  WRITE "ALIAS INPUT:",!
+  WRITE "  ",INFO("INPUT","NAME")," DOB=",$$FMTE^XLFDT(INFO("INPUT","DOB"))," SEX=",INFO("INPUT","SEX"),!
+  NEW DFN SET DFN=$GET(INFO("MATCH","DFN"))
+  IF DFN'>0 WRITE "(NO MATCH FOUND)",! QUIT
+  WRITE "MATCHED TO VISTA PATIENT:",!
+  WRITE " --> ",$$DFN2STR^TMGGDFN(DFN),!  
+  QUIT

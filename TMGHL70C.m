@@ -100,7 +100,7 @@ ADDATOMIC(NAME,INDENTN,MODE) ;
         WRITE !
         WRITE INDENTSTR,"===========================================",!
         WRITE INDENTSTR,"Add a New LABORATORY TEST"
-        IF NAME'="" WRITE ": """,HINTNAME,""""
+        IF NAME'="" WRITE ": ",HINTNAME
         IF $GET(MODE)="R" GOTO AA0 ;"Never add dataname for OBR tests.  Can add later if same name found in OBX segment
         NEW TMGPANEL,% SET %=2
         WRITE !

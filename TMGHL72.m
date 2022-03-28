@@ -102,6 +102,7 @@ TMGHL72 ;TMG/kst-HL7 transformation engine processing ;4/11/19, 3/24/21, 4/26/21
 XMSG    ;"Purpose: Process entire message before processing segments
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, HLREC
         KILL TMGLASTOBR4,TMGLASTOBR4XF,TMGLASTOBX3,TMGOBXCOUNT,TMGINFO ;"//kt 4/15/21
+        KILL TMGLASTOBX,TMGLASTOBR ;"//kt 3/10/22        
         ;
         NEW X,Y
         IF $GET(IEN62D4)>0 GOTO XMSGB
@@ -151,6 +152,7 @@ XMDN    QUIT
 XMSG2   ;"Purpose: Process entire message after processing segments
         KILL IEN62D4,TMGLASTOBX,TMGNTEADD
         KILL TMGEXAMIDX,TMGINFO  ;"//kt 4/15/21
+        KILL TMGLASTOBR4,TMGLASTOBR4XF,TMGLASTOBX3,TMGOBXCOUNT,TMGLASTOBX,TMGLASTOBR ;"//kt 3/10/22
         QUIT
         ;
 XMSG2B  ;        
@@ -271,8 +273,9 @@ XORC13  ;"Purpose: Process empty ORC message, field 13
         QUIT
         ;
 OBR     ;"Purpose: setup for OBR fields.
-        ;"Input: Uses globally scoped vars: TMGVALUE, TMGENV, TMGHL7MSG, TMGSEGN, TMGINFO
+        ;"Input: Uses globally scoped vars: TMGVALUE, TMGENV, TMGHL7MSG, TMGSEGN, TMGINFO, TMGLASTOBR
         ;
+        SET TMGLASTOBR("SEGN")=TMGSEGN
         IF $GET(TMGHL7MSG("STAGE"))="PRE" QUIT
         ;
         NEW TMGRESULT SET TMGRESULT=$$CK4NOOBX^TMGHL72(.TMGHL7MSG,TMGSEGN,.TMGU)  ;"Check (and fix) for situation where have OBR and NTE, but no OBX
@@ -350,6 +353,9 @@ OBR16   ;"Transform Ordering provider.
 OBX     ;"Purpose: to transform the entire OBX segment before any fields are processed
         ;"Uses TMGSEGN, that is set up in from TMGHL7X* code before calling here.
         SET TMGLASTOBX("SEGN")=TMGSEGN  ;"Will be killed in MSG2^TMHL72
+        NEW LOBR SET LOBR=+$GET(TMGLASTOBR("SEGN"))
+        IF $GET(TMGHL7MSG("IGNORE","OBR",LOBR))>0 DO  ;"If ignoring an OBR group, then ignore corresponding OBX's 
+        . SET TMGHL7MSG("IGNORE","OBX",TMGSEGN)=1
         QUIT
         ;"note: Later I may apply this to all messages.  But I will first test with just OBX^TMGHL76"
         ;"//kt 5/19/21 mod ---

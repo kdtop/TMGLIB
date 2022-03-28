@@ -123,7 +123,7 @@ HTML2TXT(ARRAY,LISUB) ;
   . . SET NEXTTAG="" SET P=+$ORDER(SORTPOS(0)) IF P>0 SET NEXTTAG=$ORDER(SORTPOS(P,""))
   . . IF NEXTTAG'="",NEXTTAG'[">" DO  ;"//handle open tags (tags that might have properties)
   . . . NEW P1 SET P1=$FIND(LINESTR,NEXTTAG)-$LENGTH(NEXTTAG) IF P1'>0 QUIT
-  . . . NEW P2 SET P2=+$FIND(LINESTR,">")-1 IF P2'>0 QUIT
+  . . . NEW P2 SET P2=+$FIND(LINESTR,">",P1)-1 IF P2'>0 QUIT  ;"2/15/22 elh added P1 as third parameter to set the start position properly (it was starting at 0)
   . . . SET NEXTTAG=$EXTRACT(LINESTR,P1,P2)
   . . IF NEXTTAG'="" SET PARTA=$PIECE(LINESTR,NEXTTAG,1),PARTB=$PIECE(LINESTR,NEXTTAG,2,999)
   . . ELSE  SET PARTA=LINESTR,PARTB=""

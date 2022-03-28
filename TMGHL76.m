@@ -78,7 +78,7 @@ MSG    ;"Purpose: Process entire message before processing segments
         ;
 MSG2    ;"Purpose: Process entire message after processing segments
         DO MSG2^TMGHL74 
-        KILL TMGLASTOBR4,TMGLASTOBR4XF,TMGLASTOBX3,TMGOBXCOUNT
+        KILL TMGIGNOREOBR
         QUIT
         ;
 MSH3    ;"Purpose: Process MSH segment, FLD 4 (Sending Application)
@@ -136,6 +136,11 @@ OBR4    ;"Purpose: To transform the OBR segment, field 4
         DO OBR4^TMGHL72
         QUIT
         ;
+OBR11   ;"Purpose: To transform the OBR segment, field 11
+        IF TMGVALUE="Historical" DO
+        . SET TMGHL7MSG("IGNORE","OBR")=TMGSEGN
+        QUIT
+        ;
 OBR14   ;"Transform the Specimen taken DT
         ;
         IF TMGVALUE="" DO
@@ -148,6 +153,8 @@ OBR15   ;"Transform Secimen source
         QUIT
         ;
 OBR16   ;"Transform Ordering provider.
+        IF TMGVALUE["^PROVIDER^HISTORICAL^" DO
+        . SET TMGHL7MSG("IGNORE","OBR",TMGSEGN)=1
         DO OBR16^TMGHL72
         QUIT
         ;

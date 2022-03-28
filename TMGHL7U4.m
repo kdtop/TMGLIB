@@ -1,4 +1,4 @@
-TMGHL7U4 ;TMG/kst-HL7 utility functions ; 3/6/18, 3/24/21
+TMGHL7U4 ;TMG/kst-HL7 utility functions ; 3/6/18, 3/27/21
               ;;1.0;TMG-LIB;**1**;3/6/18
  ;
  ;"TMG HL7 UTILITY FUNCTIONS 
@@ -20,10 +20,12 @@ TMGHL7U4 ;TMG/kst-HL7 utility functions ; 3/6/18, 3/24/21
  ;"SCANLAUGHLN -- Scan Laughlin folder for HL7 messages to process
  ;"PICKSCAN -- Scan arbitrary folder for HL7 messages to process 
  ;"SCANDIR(PATH) --Scan specified folder for HL7 messages to process
+ ;"GETMDATA(OUT,ADFN,SDT,EDT,FILTERBAD) -- API to get metadata from file 22720.5 (TMG HL7 MESSAGE STORAGE)
  ;
  ;"=======================================================================
  ;" API - Private Functions
  ;"=======================================================================
+ ;"TESTGMD() -- Test caller for GETMDATA()
  ;"FINDNULLPATH  -- find errors from older runs
  ;"HNDL1FIL(PATH,FNAME)  
  ;"MAKEREC(TMGDFN,TMGDT,PATH,FNAME,IEN772,IEN773,OPTION) 
@@ -41,6 +43,71 @@ TMGHL7U4 ;TMG/kst-HL7 utility functions ; 3/6/18, 3/24/21
  ;"=======================================================================
  ;"=======================================================================
  ;
+TESTGMD() ;"Test caller for GETMDATA()
+  NEW TMG DO GETMDATA^TMGHL7U4(.TMG,164,3220300,,1) ZWR TMG
+  QUIT
+  ;
+GETMDATA(OUT,ADFN,SDT,EDT,FILTERBAD)  ;"API to get metadata from file 22720.5 (TMG HL7 MESSAGE STORAGE)
+ ;"INPUT: OUT -- PASS BY REFERENCE, AND OUT PARAMETER.  Format as below
+ ;"       ADFN -- patient IEN
+ ;"       SDT -- Beginning of date range to retrieve.  FM Format.  OPTIONAL.  Default is 0.
+ ;"       EDT -- End of date range to retrieve.  FM Format.  OPTIONAL.  Default is 999999999
+ ;"       FILTERBAD -- OPTIONAL.  If 1, then each metadata is filtered out if file does not exist on server HFS.
+ ;"RESULTS: None. OUT is modified.  Format:
+ ;"    OUT(#)=<storage node 0> <-- holds all data at time of this API creation. 
+ ;"           Piece #1 = DATE OF MESSAGE 
+ ;"           Piece #2 = PATH            
+ ;"           Piece #3 = FILE NAME       
+ ;"           Piece #4 = LINK to file #772 (HL7 MESSAGE TEXT)        
+ ;"           Piece #5 = LINK to file #773  (HL7 MESSAGE ADMINISTRATION) <-- header information etc.      
+ ;"           Piece #6 = ADDED DATE      
+ ;"     e.g. OUT(123)="3180306^/mnt/WinServer/PathgroupHL7/Processed/2013/08/^12C2054522LAB130826123421.txt^^^3180306.192044"
+ ;"          OUT(456)= ...
+ ;
+ SET SDT=+$GET(SDT) 
+ SET EDT=+$GET(EDT) IF EDT=0 SET EDT=999999999
+ SET FILTERBAD=+$GET(FILTERBAD)
+ SET ADFN=+$GET(ADFN)
+ IF SDT>0 SET SDT=SDT-0.00000001  ;"Backup up so $order() will get first SDT entry
+ NEW ADT SET ADT=SDT
+ FOR  SET ADT=$ORDER(^TMG(22720.5,"DT",ADT)) QUIT:((ADT>EDT)!(ADT=""))  DO
+ . NEW SUBIEN SET SUBIEN=0
+ . FOR  SET SUBIEN=$ORDER(^TMG(22720.5,"DT",ADT,ADFN,SUBIEN)) QUIT:SUBIEN'>0  DO
+ . . NEW NODE SET NODE=$GET(^TMG(22720.5,ADFN,1,SUBIEN,0)) QUIT:NODE=""
+ . . NEW PATH,FNAME SET PATH=$PIECE(NODE,"^",2),FNAME=$PIECE(NODE,"^",3)
+ . . IF FILTERBAD,($$ISFILE^TMGKERNL(PATH_FNAME)=0) QUIT ;"Don't return metadata if file not found on HFS
+ . . SET OUT(SUBIEN)=NODE
+ QUIT
+ ; 
+GTHL7LST(OUT,ADFN,SDT,EDT,FILTERADT)  ;"RPC: TMG CPRS LAB HL7 LIST
+ ;"INPUT: OUT -- PASS BY REFERENCE, AND OUT PARAMETER.  Format as below
+ ;"       ADFN -- patient IEN
+ ;"       SDT -- Beginning of date range to retrieve.  FM Format.  OPTIONAL.  Default is 0.
+ ;"       EDT -- End of date range to retrieve.  FM Format.  OPTIONAL.  Default is 999999999
+ ;"       FILTERADT -- OPTIONAL.  If 1, then ADT messages are filtered out of the result set
+ ;"RESULTS: None. OUT is modified.  Format:
+ ;"    OUT(#)=<storage node 0> <-- holds all data at time of this API creation. 
+ ;"           Piece #1 = DATE OF MESSAGE 
+ ;"           Piece #2 = PATH            
+ ;"           Piece #3 = FILE NAME       
+ ;"           Piece #4 = LINK to file #772 (HL7 MESSAGE TEXT)        
+ ;"           Piece #5 = LINK to file #773  (HL7 MESSAGE ADMINISTRATION) <-- header information etc.      
+ ;"           Piece #6 = ADDED DATE      
+ ;"     e.g. OUT(123)="3180306^/mnt/WinServer/PathgroupHL7/Processed/2013/08/^12C2054522LAB130826123421.txt^^^3180306.192044"
+ ;"          OUT(456)= ...
+ NEW RESULTARR
+ SET FILTERADT=+$G(FILTERADT)
+ DO GETMDATA(.RESULTARR,ADFN,SDT,EDT,1)
+ IF FILTERADT=1 DO
+ . NEW RESULTIDX SET RESULTIDX=0
+ . FOR  SET RESULTIDX=$O(RESULTARR(RESULTIDX)) QUIT:RESULTIDX'>0  DO
+ . . NEW LINE SET LINE=$G(RESULTARR(RESULTIDX))
+ . . IF $P(LINE,"^",3)["ADT_" QUIT
+ . . SET OUT(RESULTIDX)=LINE
+ . ELSE  DO
+ . . MERGE OUT=RESULTARR
+ QUIT
+ ;"
 SCANPATHGRP ;
   DO SCANDIR("/mnt/WinServer/PathgroupHL7/Processed")
   QUIT

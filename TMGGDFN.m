@@ -1,4 +1,4 @@
-TMGGDFN  ;TMG/kst-Get A Patient's IEN (DFN) ; 3/1/16, 6/7/18
+TMGGDFN  ;TMG/kst-Get A Patient's IEN (DFN) ; 6/7/18, 3/10/22
    ;;1.0;TMG-LIB;**1**;06/04/08;Build 7
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -26,7 +26,8 @@ TMGGDFN  ;TMG/kst-Get A Patient's IEN (DFN) ; 3/1/16, 6/7/18
  ;"$$LMH2DFN(LMHMRN) -- Return DFN from Laughlin hospital MR Num
  ;"$$EXTRLKUP(ENTRY,INTENSITY) ;
  ;"FINDPAT(TMGRESULT,SEQNUM,NAME,DOB) -- Entry point for TMG CPRS FIND PATIENT DFN
- ;
+ ;"DFN2ARR(DFN,OUT) --Get patient info into array  
+ ;"DFN2STR(DFN,FORMAT) -- Get an external display of patient.    
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
@@ -644,4 +645,84 @@ FINDPAT(TMGRESULT,SEQNUM,NAME,DOB) ;"Entry point for TMG CPRS FIND PATIENT DFN
   SET ENTRY(22701)=$G(SEQNUM)
   SET TMGRESULT=$$LOOKUPPAT(.ENTRY)  
   QUIT
-  ;"
+  ;"  
+DFN2ARR(DFN,OUT)  ;"Get patient info into array  
+  ;"INPUT -- DFN -- patient IEN in file 2
+  ;"         OUT -- PASS BY REFERENCE, an OUT PARAMETER.  Format:
+  ;"           OUT(.01)=PatientName
+  ;"           OUT(.02)=Sex
+  ;"           OUT(.03)=DOB
+  ;"           OUT(.09)=SSNUM
+  ;"           OUT(22700)=PatientNUM
+  ;"           OUT(22701)=SEQUELNUM
+  ;"           OUT(.111)=ADDRESS 1
+  ;"           OUT(.112)=ADDRESS 2
+  ;"           OUT(.114)=CITY
+  ;"           OUT(.115)=STATE
+  ;"           OUT(.116)=ZIP
+  ;"         The above field NUMBERS are ALSO passed out as field NAMES
+  ;"           OUT("NAME" = DOE,JOHN
+  ;"           OUT("SEX" = MALE
+  ;"           OUT("DATE OF BIRTH" = 01/19/2001
+  ;"           OUT("SOCIAL SECURITY NUMBER" = ##########
+  ;"           OUT("TMG MEDIC ACCOUNT NUMBER" = ###
+  ;"           OUT("TMG SEQUEL ACCOUNT NUMBER" = ######
+  ;"           OUT("STREET ADDRESS [LINE 1]" = 742 DRIVE
+  ;"           OUT("STREET ADDRESS [LINE 2]" = ""
+  ;"           OUT("CITY" = SMALLVILLE
+  ;"           OUT("STATE" = MA
+  ;"           OUT("ZIP CODE" = 02180
+  ;"Results: 1^OK, OR -1^Error message
+  NEW TMGRESULT SET TMGRESULT="1^OK" ;"default
+  NEW FIELDS,TMGOUT,TMGMSG
+  SET FIELDS=".01;.02;.03;.09;22700;22701;.111;.112;.114;.115;.116"
+  NEW IENS SET IENS=DFN_","
+  DO GETS^DIQ(2,IENS,FIELDS,"E","TMGOUT","TMGMSG")
+  DO GETS^DIQ(2,IENS,FIELDS,"ER","TMGOUT","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO D2ADN
+  . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)  
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(TMGOUT(2,IENS,IDX)) QUIT:IDX=""  DO
+  . SET OUT(IDX)=$GET(TMGOUT(2,IENS,IDX,"E"))
+D2ADN ;        
+  QUIT TMGRESULT
+  ;
+DFN2STR(DFN,FORMAT)  ;"Get an external display of patient.     
+  ;"INPUT: DFN -- patient IEN in file 2
+  ;"       FORMAT.  OPTIONAL.  Default is "[NAME] ([DOB]) [SEX]"  (case sensitive)
+  ;"         Note: [xxxx] is a tag that will be filled with data.  
+  ;"               The [ and ] characters are thus reserved.  May use \[ and \[ to include in output
+  ;"         Supported tags (case sensitive): 
+  ;"           ["NAME"],["SEX"],["DOB"],["SSN"]
+  ;"           ["ADDR1"],["ADDR2"],["CITY"],["STATE"],["ZIP"]
+  ;"           ["MEDIC"],["SEQUEL"]
+  NEW MAP,RESULT
+  SET MAP("NAME")="NAME"
+  SET MAP("SEX")="SEX"
+  SET MAP("DOB")="DATE OF BIRTH"
+  SET MAP("SSN")="SOCIAL SECURITY NUMBER"
+  SET MAP("MEDIC")="TMG MEDIC ACCOUNT NUMBER"
+  SET MAP("SEQUEL")="TMG SEQUEL ACCOUNT NUMBER"
+  SET MAP("ADDR1")="STREET ADDRESS [LINE 1]"
+  SET MAP("ADDR2")="STREET ADDRESS [LINE 2]"
+  SET MAP("CITY")="CITY"
+  SET MAP("STATE")="STATE"
+  SET MAP("ZIP")="ZIP CODE"
+  IF $GET(FORMAT)="" SET FORMAT="[NAME] ([DOB]) [SEX]"
+  SET FORMAT=$$REPLSTR^TMGSTUT3(FORMAT,"\[","##{1##")
+  SET FORMAT=$$REPLSTR^TMGSTUT3(FORMAT,"\]","##{2##")
+  NEW INFO,TEMP SET TEMP=$$DFN2ARR(DFN,.INFO)  ;"Get patient info into array  
+  IF TEMP'>0 DO  GOTO D2STDN
+  . SET RESULT=$PIECE(TEMP,"^",2,99)
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(MAP(IDX)) QUIT:IDX=""  DO
+  . NEW SRCH SET SRCH="["_IDX_"]"
+  . IF FORMAT'[SRCH QUIT
+  . NEW FLD SET FLD=$GET(MAP(IDX))
+  . SET VALUE=$GET(INFO(FLD))
+  . SET FORMAT=$$REPLSTR^TMGSTUT3(FORMAT,SRCH,VALUE)
+  SET FORMAT=$$REPLSTR^TMGSTUT3(FORMAT,"##{1##","[")
+  SET FORMAT=$$REPLSTR^TMGSTUT3(FORMAT,"##{2##","]") 
+  SET RESULT=FORMAT
+D2STDN ;
+  QUIT RESULT

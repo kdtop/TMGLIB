@@ -200,7 +200,7 @@ GETINFO(TMGDFN,ARR,FLDS) ;"Get needed patient info
   D KVAR^VADPT
   Q
   ;"
-APPTRECS()  ;"
+APPTRECS(SDT,EDT,RANGE)  ;"
   ;"Purpose: To generate a report with records needed for today's visit
   NEW %ZIS
   SET %ZIS("A")="Enter Output Device: "
@@ -212,9 +212,13 @@ APPTRECS()  ;"
   ;"
   NEW APPTARRAY,HEADER,LINES
   SET HEADER=0
-  NEW SDT,EDT
-  SET SDT=$$TODAY^TMGDATE+0.00001
-  SET EDT=$$TODAY^TMGDATE+0.999999
+  SET RANGE=$G(RANGE)
+  SET SDT=$G(SDT)
+  IF SDT="" DO
+  . SET SDT=$$TODAY^TMGDATE+0.00001
+  . SET RANGE="TODAY'S SCHEDULE"
+  SET EDT=$G(EDT)
+  IF EDT="" SET EDT=$$TODAY^TMGDATE+0.999999
   DO APPT4DT^TMGSMS05(SDT,EDT,.APPTARRAY,1)
   ;"
   NEW DATE,TMGDFN,LINE SET DATE=0,LINE=1
@@ -240,7 +244,7 @@ APPTRECS()  ;"
   . . IF HEADER=0 DO
   . . . WRITE !
   . . . WRITE "****************************************************************",!
-  . . . WRITE "              MEDICAL RECORDS NEEDED FOR TODAY'S SCHEDULE",!
+  . . . WRITE "              MEDICAL RECORDS NEEDED FOR ",RANGE,!
   . . . WRITE "                            " WRITE $$TODAY^TMGDATE(1),!
   . . . WRITE "               Please deliver this report to MEDICAL RECORDS",!
   . . . WRITE "****************************************************************",!
@@ -254,6 +258,22 @@ APPTRECS()  ;"
   . . WRITE !
 ARDN
   DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+NWAPTREC
+  NEW SDT,EDT,DONE,I
+  SET SDT=$$TODAY^TMGDATE,DONE=0
+  FOR I=1:1 QUIT:(DONE=1)!(I>8)  DO
+  . SET SDT=$$ADDDAYS^TMGDATE(1,SDT)
+  . NEW X SET X=SDT DO DW^%DTC
+  . IF X="MONDAY" SET DONE=1
+  SET EDT=SDT,DONE=0
+  FOR I=1:1 QUIT:(DONE=1)!(I>8)  DO
+  . SET EDT=$$ADDDAYS^TMGDATE(1,EDT)
+  . NEW X SET X=EDT DO DW^%DTC
+  . IF X="FRIDAY" SET DONE=1
+  NEW RANGE SET RANGE=$$EXTDATE^TMGDATE(SDT)_" TO "_$$EXTDATE^TMGDATE(EDT)_"'S SCHEDULE"
+  DO APPTRECS(SDT,EDT,RANGE)
   QUIT
   ;"
 CONSULTS(TMGDFN,ARRAY,X)  ;"
