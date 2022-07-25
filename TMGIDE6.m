@@ -19,6 +19,8 @@ TMGIDE6 ;TMG/kst/GT/M debugger Code Coloration & Utils ;11/11/15
  ;"MarkupLine(line,Options) -- add markup tags that will allow coloration.
  ;"EditColors -- Enable Edit Colors
  ;"DelBreaks -- edit and delete breakpoints
+ ;"ShowColorBox -- Shows a grid with all color FG and BG combinations.  
+
  ;"------------------------------------------------------------
  ;"PRIVATE API
  ;"------------------------------------------------------------
@@ -543,7 +545,7 @@ ECDn
        QUIT
        ;
        ;
-TestColors
+TestColors ;
        DO InitColors
        NEW tmgMode
        FOR tmgMode="Highlight","HighExecPos","BkPos","HighBkPos","SPECIAL","NORM","LABEL","CMD","FN","MOD","IFN","STR","PC","#" do
@@ -552,8 +554,32 @@ TestColors
        . DO SetColors^TMGIDE2("Reset")
        . WRITE !
        QUIT
-
-
+       ;
+ShowColorBox ;
+       ;"NOTE: COLORBOX^TMGTERM is actually better than this function.
+       WRITE !
+       WRITE "Horizontal is Background color numbers",!
+       WRITE "Vertical is Foreground color numbers",!
+       NEW FG,BG
+       FOR FG=-1:1:15 DO
+       . FOR ROW=1,2 DO
+       . . IF FG=-1 DO 
+       . . . WRITE "  "
+       . . IF FG>-1 DO
+       . . . DO VTATRIB^TMGTERM(0)
+       . . . IF ROW=1 WRITE "  " QUIT
+       . . . WRITE $$RJ^XLFSTR(FG,2,"0")
+       . . FOR BG=0:1:15 DO
+       . . . IF FG=-1 DO  QUIT
+       . . . . IF ROW=1 DO  QUIT
+       . . . . . WRITE $SELECT(BG<10:" 0",1:" 1")
+       . . . . ELSE  WRITE " ",BG#10
+       . . . DO VCOLORS^TMGTERM(FG,BG)
+       . . . WRITE $SELECT(ROW=1:"@#",1:"AZ")
+       . . WRITE !
+       DO VTATRIB^TMGTERM(0)
+       QUIT
+       ;
 DelBreaks ;
        NEW Menu,UsrSlct,ct,Found,zbS
 

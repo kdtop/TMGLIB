@@ -149,11 +149,11 @@ GETPRTNAME(TESTNAME,INDENTN) ;"Get PRINT NAME for TEST NAME
         IF $LENGTH(TESTNAME)'>7 SET TMGRESULT=TESTNAME GOTO GPRNDN
         ;"Split TESTNAME into an array of words. 
         NEW ARR,ARRI,STR,IDX,CH
-        SET ARRI=1,STR=""
+        SET ARRI=0,STR=""
         FOR IDX=1:1:$LENGTH(TESTNAME) DO
         . SET CH=$EXTRACT(TESTNAME,IDX)
         . IF " /-.;,"[CH DO
-        . . IF STR'="" SET ARR(ARRI)=STR,STR="",ARRI=ARRI+1
+        . . IF STR'="" SET ARRI=ARRI+1,ARR(ARRI)=STR,STR=""   ;"//kt changed 6/20/22
         . ELSE  DO
         . . SET STR=STR_CH
         IF STR'="" SET ARR(ARRI)=STR,STR=""

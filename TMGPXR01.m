@@ -12,7 +12,7 @@ TMGPXR01 ;TMG/kst/TMG reminder stuff ;7/26/12, 2/2/14, 3/24/21
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
  ;"=======================================================================
- ;" API -- Public Functions.
+ ;" API -- Public Functions
  ;"=======================================================================
  ;"DOB(TMGDFN,TEST,DATE,DATA,TEXT) -- Return information about the date of birth for the patient
  ;"ACTIVEPT(TMGDFN,TEST,DATE,DATA,TEXT) -- Return IF patient is an active patient (recent activity)
@@ -281,7 +281,7 @@ ADVCPEDN(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         QUIT LAST
         ;"
 ADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
-        ;"Purpose: To detmine if the patient is a BCBS Advantage patient
+        ;"Purpose: To detmine if the patient is an Advantage patient
         ;"         
         SET TEST=0
         SET DATE=0
@@ -295,11 +295,61 @@ ADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         NEW INSIDX SET INSIDX=0
         FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
         . NEW THISIEN SET THISIEN=$G(^DPT(TMGDFN,.312,INSIDX,0))
+        . IF +$P($G(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)'=1 QUIT
         . SET THISIEN=$P(THISIEN,"^",1)
         . IF $D(INSARRAY(THISIEN)) DO
         . . SET TEST=1
         QUIT
         ;"
+MEDCARPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To detmine if the patient is a Medicare patient
+        ;"         
+        SET TEST=0
+        SET DATE=0
+        NEW INSARRAY
+        SET INSARRAY(+$ORDER(^DIC(36,"B","MEDICARE",0)))=""
+        ;"IF BCBSAIEN'>0 GOTO BCDN
+        NEW INSIDX SET INSIDX=0
+        FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+        . NEW THISIEN SET THISIEN=$G(^DPT(TMGDFN,.312,INSIDX,0))
+        . IF +$P($G(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)'=1 QUIT
+        . SET THISIEN=$P(THISIEN,"^",1)
+        . IF $D(INSARRAY(THISIEN)) DO
+        . . SET TEST=1
+        QUIT
+        ;"        
+IGNADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To detmine if the patient's CPE is turned off this year
+        ;" 
+        DO HFTHISYR(TMGDFN,.TEST,.DATE,"TMG BCBS ADV WELLNESS IGNORE 1 YR")
+        QUIT
+        ;"
+IGNMAMMO(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To detmine if the patient's MAMMO is turned off this year
+        ;" 
+        DO HFTHISYR(TMGDFN,.TEST,.DATE,"TMG MAMMOGRAM/IMAGING GYN MANAGING")
+        QUIT
+        ;"        
+HFTHISYR(TMGDFN,TEST,DATE,HFNAME)  ;"
+        ;"Purpose: To detmine if the patient has a HF assigned this year
+        ;"      alerts TEST and DATE
+        SET TEST=0
+        SET DATE=0
+        NEW FIRSTDT SET FIRSTDT=$$FIRSTYR^TMGDATE()
+        NEW IGNOREIEN SET IGNOREIEN=+$ORDER(^AUTTHF("B",HFNAME,0))
+        IF IGNOREIEN'>0 QUIT
+        NEW HFIEN SET HFIEN=0    
+        FOR  SET HFIEN=$ORDER(^AUPNVHF("C",TMGDFN,HFIEN)) QUIT:(+HFIEN'>0)!(TEST=1)  DO
+        . NEW CURHFIEN SET CURHFIEN=$PIECE($GET(^AUPNVHF(HFIEN,0)),"^",1)
+        . IF CURHFIEN=IGNOREIEN DO
+        . . NEW VISITIEN SET VISITIEN=$PIECE($GET(^AUPNVHF(HFIEN,0)),"^",3)
+        . . NEW CURHFDATE
+        . . SET CURHFDATE=$P($G(^AUPNVSIT(VISITIEN,0)),"^",1)
+        . . IF CURHFDATE>FIRSTDT DO
+        . . . SET TEST=1
+        . . . SET DATE=CURHFDATE
+        QUIT
+        ;"        
 A1CISDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"Purpose: To detmine if the patient is a DM range A1C
         ;"         Returns reason why now.
@@ -757,7 +807,7 @@ APNEAPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . . NEW TOPICDATE SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
         . . . IF TOPICDATE>DATE SET DATE=TOPICDATE
         . . . SET TEST=1
-         . . . SET WHY="[WHY] PATIENT HAS SLEEP APNEA TOPIC"
+         . . . SET WHY="[WHY] PATIENT HAS SLEEP APNEA TOPIC. LAST DISCUSSED ON "_$$EXTDATE^TMGDATE(TOPICDATE,1)
 CPAPDN  QUIT WHY
         ;"
 PULSEOX(TMGDFN,TEST,DATE,DATA,TEXT)  ;
@@ -991,7 +1041,7 @@ LDCTSMKR(TMGDFN,TEST,DATE,DATA,TEXT) ;
         NEW X,X1,X2,DATETOTEST
         DO NOW^%DTC
         SET X1=X
-        SET X2=15*365 ;"15 YEARS
+        SET X2=-(15*365) ;"15 YEARS
         DO C^%DTC
         SET DTTOTEST=X
         ;"
@@ -1327,6 +1377,18 @@ HASPNEUM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         . . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
+HASSHGIX(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"PURPOSE: Check to see if patient has had 2 or more Shingrix
+        SET TEST=0,DATE=0
+        NEW IDX SET IDX=0
+        NEW COUNT SET COUNT=0
+        FOR  SET IDX=$O(^AUPNVIMM("C",TMGDFN,IDX)) QUIT:IDX'>0  DO
+        . NEW IMMIEN SET IMMIEN=$P($G(^AUPNVIMM(IDX,0)),"^",1)
+        . IF IMMIEN'=612007 QUIT
+        . SET COUNT=COUNT+1
+        IF COUNT>1 SET TEST=1,DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"
 NEEDSP23(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"  
         ;"PURPOSE: WILL BE TRUE IF THE PATIENT IS BETWEEN 19-64 AND DIABETIC
         ;"         OR 65+
@@ -1496,7 +1558,39 @@ ANCCALC(TMGDFN)  ;"CALCULATE ABSOLUTE NEUTROPHIL COUNT
        SET TMGRESULT="ANC = "_CALC_" ("_$$EXTDATE^TMGDATE(WDT)_")"
 ANCDN
        QUIT TMGRESULT
-       ;"
+       ;"       
+ANCCALC2(TMGDFN)  ;"CALCULATE ABSOLUTE NEUTROPHIL COUNT
+       NEW TMGRESULT SET TMGRESULT=""
+       NEW NDT,NVAL,BDT,BVAL,WDT,WVAL,CALC
+       NEW NUM
+       FOR NUM=1:1:3  DO
+       . DO GETNLAB(TMGDFN,5076,.NDT,.NVAL,NUM)       
+       . NEW FAILREASON SET FAILREASON=""
+       . ;"IF NDT'>0 SET FAILREASON="Neutrophil%"
+       . SET NDT=$P(NDT,".",1)
+       . DO GETNLAB(TMGDFN,5926,.BDT,.BVAL,NUM)
+       . ;"IF BDT'>0 DO
+       . ;". "IF FAILREASON'="" SET FAILREASON=FAILREASON_", "
+       . ;". "SET FAILREASON=FAILREASON_"Band%"
+       . SET BDT=$P(BDT,".",1)
+       . DO GETNLAB(TMGDFN,1,.WDT,.WVAL,NUM)
+       . ;"IF WDT'>0 DO  GOTO ANCDN
+       . ;". IF FAILREASON'="" SET FAILREASON=FAILREASON_", "
+       . ;". SET FAILREASON=FAILREASON_"WBC"
+       . ;"IF FAILREASON'="" DO  GOTO ANCDN
+       . ;". SET TMGRESULT="ANC = Cannot calculate: No "_FAILREASON_" found"
+       . SET WDT=$P(WDT,".",1)
+       . ;"IF NDT'=WDT DO  GOTO ANCDN
+       . ;". SET TMGRESULT="ANC = Cannot calculate: Last Neutro%, and WBC not done on same day"
+       . IF NDT'=BDT SET BVAL=0  ;"IF THE BANDS ARE OLD, SET TO 0
+       . IF (NVAL>0)&(WVAL>0) DO
+       . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_", "
+       . . SET CALC=((NVAL+BVAL)*(WVAL*1000))/100_" ("_$$EXTDATE^TMGDATE(WDT)_")"
+       . . SET TMGRESULT=TMGRESULT_CALC
+       SET TMGRESULT="ANC = "_TMGRESULT
+ANCDN2
+       QUIT TMGRESULT
+       ;"       
 ALCCALC(TMGDFN)  ;"CALCULATE ABSOLUTE LYMPHOCYTE COUNT
        NEW TMGRESULT SET TMGRESULT="ALC = Cannot calculate: unknown reason"
        NEW LDT,LVAL,WDT,WVAL
@@ -1518,7 +1612,34 @@ ALCCALC(TMGDFN)  ;"CALCULATE ABSOLUTE LYMPHOCYTE COUNT
        SET TMGRESULT="ALC = "_CALC_" ("_$$EXTDATE^TMGDATE(WDT)_")"
 ALCDN
        QUIT TMGRESULT
-       ;"       
+       ;" 
+ALCCALC2(TMGDFN)  ;"CALCULATE ABSOLUTE LYMPHOCYTE COUNT
+       NEW TMGRESULT SET TMGRESULT=""
+       NEW EDT,EVAL,WDT,WVAL,CALC
+       NEW NUM
+       FOR NUM=1:1:3  DO
+       . DO GETNLAB(TMGDFN,5077,.EDT,.EVAL,NUM)       
+       . NEW FAILREASON SET FAILREASON=""
+       . IF EDT'>0 SET FAILREASON="Eosinophil%"
+       . SET EDT=$P(EDT,".",1)
+       . DO GETNLAB(TMGDFN,1,.WDT,.WVAL,NUM)
+       . ;"IF WDT'>0 DO  GOTO AECDN
+       . ;". IF FAILREASON'="" SET FAILREASON=FAILREASON_", "
+       . ;". SET FAILREASON=FAILREASON_"WBC"
+       . ;"IF FAILREASON'="" DO  GOTO AECDN
+       . ;". SET TMGRESULT="AEC = Cannot calculate: No "_FAILREASON_" found"
+       . SET WDT=$P(WDT,".",1)
+       . ;"IF EDT'=WDT DO  GOTO AECDN
+       . ;". SET TMGRESULT="AEC = Cannot calculate: Last Eosinophil%, and WBC not done on same day"
+       . ;"NEW CALC
+       . IF (WVAL>0)&(EVAL>0) DO
+       . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_", "
+       . . SET CALC=(WVAL*1000*EVAL)/100_" ("_$$EXTDATE^TMGDATE(WDT)_")"
+       . . SET TMGRESULT=TMGRESULT_CALC
+       SET TMGRESULT="ALC = "_TMGRESULT
+ALCDN2
+       QUIT TMGRESULT
+       ;"
 AECCALC(TMGDFN)  ;"CALCULATE ABSOLUTE EOSINOPHIL COUNT
        NEW TMGRESULT SET TMGRESULT="AEC = Cannot calculate: unknown reason"
        NEW EDT,EVAL,WDT,WVAL
@@ -1540,7 +1661,34 @@ AECCALC(TMGDFN)  ;"CALCULATE ABSOLUTE EOSINOPHIL COUNT
        SET TMGRESULT="AEC = "_CALC_" ("_$$EXTDATE^TMGDATE(WDT)_")"
 AECDN
        QUIT TMGRESULT
-       ;"            
+       ;"         
+AECCALC2(TMGDFN)  ;"CALCULATE ABSOLUTE EOSINOPHIL COUNT
+       NEW TMGRESULT SET TMGRESULT=""
+       NEW EDT,EVAL,WDT,WVAL,CALC
+       NEW NUM
+       FOR NUM=1:1:3  DO
+       . DO GETNLAB(TMGDFN,5079,.EDT,.EVAL,NUM)       
+       . NEW FAILREASON SET FAILREASON=""
+       . IF EDT'>0 SET FAILREASON="Eosinophil%"
+       . SET EDT=$P(EDT,".",1)
+       . DO GETNLAB(TMGDFN,1,.WDT,.WVAL,NUM)
+       . ;"IF WDT'>0 DO  GOTO AECDN
+       . ;". IF FAILREASON'="" SET FAILREASON=FAILREASON_", "
+       . ;". SET FAILREASON=FAILREASON_"WBC"
+       . ;"IF FAILREASON'="" DO  GOTO AECDN
+       . ;". SET TMGRESULT="AEC = Cannot calculate: No "_FAILREASON_" found"
+       . SET WDT=$P(WDT,".",1)
+       . ;"IF EDT'=WDT DO  GOTO AECDN
+       . ;". SET TMGRESULT="AEC = Cannot calculate: Last Eosinophil%, and WBC not done on same day"
+       . ;"NEW CALC
+       . IF (WVAL>0)&(EVAL>0) DO
+       . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_", "
+       . . SET CALC=(WVAL*1000*EVAL)/100_" ("_$$EXTDATE^TMGDATE(WDT)_")"
+       . . SET TMGRESULT=TMGRESULT_CALC
+       SET TMGRESULT="AEC = "_TMGRESULT      
+AECDN2
+       QUIT TMGRESULT
+       ;"          
 GETLLAB(TMGDFN,LABIEN,DATE,VALUE)  ;"
        ;"GET THE LAST DATE AND VALUE OF PROVIDED LAB
        ;"DATE AND VALUE ARE PASSED BY REF
@@ -1553,6 +1701,20 @@ GETLLAB(TMGDFN,LABIEN,DATE,VALUE)  ;"
        IF DATE>0 SET VALUE=$GET(RESULTS(LABNAME,DATE))
        QUIT
        ;"
+GETNLAB(TMGDFN,LABIEN,DATE,VALUE,NUMBACK)  ;"
+       ;"GET THE N# (FROM LAST) DATE AND VALUE OF PROVIDED LAB
+       ;"DATE AND VALUE ARE PASSED BY REF
+       NEW RESULTS
+       SET DATE=9999999,VALUE=0
+       DO GETVALS^TMGLRR01(TMGDFN_"^2",LABIEN,.RESULTS)   ;
+       NEW LABNAME SET LABNAME="1"
+       SET LABNAME=$O(RESULTS(LABNAME))
+       NEW NUM
+       FOR NUM=1:1:NUMBACK  DO
+       . SET DATE=+$O(RESULTS(LABNAME,DATE),-1)
+       IF DATE>0 SET VALUE=$GET(RESULTS(LABNAME,DATE))
+       QUIT
+       ;"            
 LUPUS(TMGDFN)  ;"RETURN IF PATIENT IS AT RISK OF LUPIS BASED ON MEDS
        ;"As of right now, there is only one med to check for. If more are
        ;"    added then this will have to be rewritten.
@@ -2018,7 +2180,34 @@ LSTCTORD(TMGDFN)  ;"
         . . SET TMGRESULT=TMGRESULT_Y
         . SET COUNT=COUNT+1
         IF TMGRESULT="" SET TMGRESULT="No ordered HF found."
-        SET TMGRESULT="Date last Low Dose CT was ordered = "_TMGRESULT        
+        SET TMGRESULT="Date last Low Dose CT was ordered = "_TMGRESULT     
+        ;"
+        ;"GET RAD PROCEDURE DATES
+        ;"Pull data from bone density radiology studies
+        NEW RADFN SET RADFN=+$$ENSRADFN^TMGRAU01(.TMGDFN)
+        NEW LDTESTDATES SET LDTESTDATES=""
+        NEW TESTCOUNT SET TESTCOUNT=0
+        NEW CCTDATES SET CCTDATES=""
+        IF RADFN>0 DO
+        . NEW RADDT SET RADDT=0
+        . FOR  SET RADDT=$O(^RADPT(RADFN,"DT",RADDT)) QUIT:(RADDT'>0)!(TESTCOUNT>3)  DO
+        . . NEW IEN70D03 SET IEN70D03=0
+        . . FOR  SET IEN70D03=$O(^RADPT(RADFN,"DT",RADDT,"P",IEN70D03)) QUIT:IEN70D03'>0  DO
+        . . . NEW ZN SET ZN=$GET(^RADPT(RADFN,"DT",RADDT,"P",IEN70D03,0))
+        . . . NEW PROCIEN SET PROCIEN=$PIECE(ZN,"^",2)
+        . . . NEW PROCNAME SET PROCNAME=$P($G(^RAMIS(71,PROCIEN,0)),"^",1)
+        . . . IF (PROCNAME["CT CHEST")!(PROCNAME["CT LOW DOSE") DO
+        . . . . SET TESTCOUNT=TESTCOUNT+1
+        . . . . NEW FMDATE SET FMDATE=9999999-$P(RADDT,".",1)
+        . . . . IF PROCNAME["CT CHEST" DO
+        . . . . . IF CCTDATES'="" SET CCTDATES=CCTDATES_", "
+        . . . . . SET CCTDATES=CCTDATES_$$EXTDATE^TMGDATE(FMDATE,1)
+        . . . . IF PROCNAME["CT LOW DOSE" DO
+        . . . . . IF LDTESTDATES'="" SET LDTESTDATES=LDTESTDATES_", "
+        . . . . . SET LDTESTDATES=LDTESTDATES_$$EXTDATE^TMGDATE(FMDATE,1)
+        IF LDTESTDATES'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"  Low Dose CT Dates: "_LDTESTDATES_" [RAD]"
+        IF CCTDATES'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"  Chest CT Dates: "_CCTDATES_" [RAD]"
+        ;"
         QUIT TMGRESULT 
         ;"
 NEGIFOBT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"

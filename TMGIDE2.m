@@ -119,6 +119,7 @@ STEPTRAP(tmgIDEPos,tmgMsg)
         ;"            5=Data watch (monitor data watches, don't show code)
         ;"           -1=QUIT
        
+       NEW InitZSTEPOff set InitZSTEPOff=($GET(tmgMsg)=1)
        NEW tmgdbgTruth SET tmgdbgTruth=$TEST   ;"save initial value of $TEST
        IF $DATA(tmgDbgJumpToBrkPos) DO  
        . DO RelBreakpoint(tmgDbgJumpToBrkPos)
@@ -127,7 +128,7 @@ STEPTRAP(tmgIDEPos,tmgMsg)
        NEW tmgDbgResult SET tmgDbgResult=1  ;"1=step into, 2=step over
        NEW tmgDbgNakedRef SET tmgDbgNakedRef=$$LGR^TMGIDE ;"save naked reference
        SET tmgDbgHangTime=+$GET(tmgDbgHangTime,0.25)
-       
+       ;
        IF $GET(tmgRunMode)="" DO  ;"Happens if code clears variable table, e.g. ^XUP
        . SET tmgRunMode=$GET(^TMG("TMGIDE",$J,"RUNMODE"),1) ;"//kt 1/7/15
        IF ("1234"[tmgRunMode)&(+$GET(tmgDbgOptions("VARTRACE"))=1) DO
@@ -160,7 +161,6 @@ STEPTRAP(tmgIDEPos,tmgMsg)
 SP2    USE $P:(WIDTH=tmgScrWidth:NOWRAP)  ;"reset IO to the screen
        SET tmgBlankLine=" "
        FOR tmgTempI=1:1:tmgScrWidth-1 SET tmgBlankLine=tmgBlankLine_" "
-
        NEW tmgRelPos SET tmgRelPos=tmgIDEPos
        NEW tmgOrigIDEPos SET tmgOrigIDEPos=tmgIDEPos
        NEW tmgTempPos SET tmgTempPos=$$ConvertPos^TMGIDE(tmgIDEPos,tmgArrayName)
@@ -177,13 +177,21 @@ SP2    USE $P:(WIDTH=tmgScrWidth:NOWRAP)  ;"reset IO to the screen
        ;"Part of the problem is recognizing the breakpoint position.  Sometimes
        ;"   tmgIDEPos (derived from $ZPOS) is different than the address stored
        ;"   for breakpoints (or viewable via ZSHOW "B").  See EquivalentBreakpoint(pos1, pos2) 
-       ;"   which needs to be implemented.  
+       ;"   which needs to be implemented.
+       ;"UPDATE: Tenatively working, as of 7/10/22, if not problems delete all these comments later....
        NEW tmgStpSkip SET tmgStpSkip=0
-       IF $$IsBreakpoint(tmgIDEPos) DO  ;"GOTO:(tmgStpSkip=1) SPDone
-       . NEW ifS SET ifS=$$GetBrkCond(tmgIDEPos) IF ifS="" QUIT
-       . NEW $ETRAP SET $ETRAP="WRITE ""ERROR in breakpoint condition code."",! QUIT"
-       . IF (@ifS=0) SET tmgStpSkip=1
-       . IF @ifS WRITE "Condition FOUND!!" ;"do PRESS2GO^TMGUSRI2
+       NEW zzAtBkPt set zzAtBkPt=$$IsBreakpointFlex() 
+       ;"IF zzAtBkPt,InitZSTEPOff DO  GOTO:(tmgStpSkip=1) SPDone
+       IF zzAtBkPt DO  GOTO:(tmgStpSkip=1) SPDone
+       . ;"WRITE !,"AT BREAKPOINT",!
+       . NEW ifS SET ifS=$$GetBrkCondFlex() IF ifS="" QUIT
+       . ;"WRITE !,"ifS=",ifS,!
+       . NEW zzBkPtTest SET zzBkPtTest=$$EvalBkPtCode(ifS)
+       . ;"WRITE "$$EvalBkPtCode(ifS)=",zzBkPtTest,!
+       . IF zzBkPtTest=1 QUIT  ;"User Test code ==> $TEST=1, so let breakpoint stand, don't continue running full speed 
+       . SET tmgStpSkip=1
+       . SET tmgMsg=0  ;"ensure $ZSTEP is not turned back on, i.e. continue running.  
+       . SET tmgStepMode="DONE"
        ;
        DO VCUSAV2^TMGTERM
        NEW tmgCsrOnBreakline SET tmgCsrOnBreakline=0
@@ -236,8 +244,18 @@ SPDone ;"Finish up and return to GTM execution
        IF (tmgDbgNakedRef'["""""")&(tmgDbgNakedRef'="") DO   ;"If holds "" index, skip over
        . NEW discard SET discard=$GET(@tmgDbgNakedRef) ;"restore naked reference.
        IF tmgdbgTruth ;"This will restore initial value of $TEST
+       ;
        QUIT tmgDbgResult
+       ;
  ;"============================================================================
+EvalBkPtCode(zzCode) ;
+       NEW zzBkPtTest SET zzBkPtTest=0 
+       DO
+       . NEW $ETRAP set $ETRAP="write ""(Invalid M Code!.  Error Trapped.)"",! set $ETRAP="""",$ECODE="""""
+       . XECUTE zzCode
+       . SET zzBkPtTest=$TEST
+       QUIT zzBkPtTest
+       ; 
 SetRunMode(Value,Option) ;"//kt 1/7/15
        IF ($GET(Option)=1),($GET(tmgRunMode)=4) QUIT  ;"When hopping, don't drop to step mode
        SET tmgRunMode=Value
@@ -258,7 +276,9 @@ CmdPrompt
        . DO CUU^TMGTERM(2)
        . IF tmgCsrOnBreakline=1 DO
        . . NEW ifS SET ifS=$$GetBrkCond($$RelConvertPos^TMGIDE(tmgRelPos,tmgViewOffset,tmgArrayName))
-       . . IF ifS'="" WRITE "Breakpoint test: [",ifS,"]",!
+       . . IF ifS="" quit
+       . . NEW zzBkPtTest SET zzBkPtTest=$$EvalBkPtCode(ifS) 
+       . . WRITE "Breakpoint test: [",ifS,"] --> [",zzBkPtTest,"]",!
        . WRITE "}"
        . DO EvalWatches
        . SET $X=1
@@ -539,8 +559,6 @@ HndlQuit  ;
 HndlDone ;
        ;"Purpose: To turn off the debugger, allowing program to continue full speed.
        ;"Globally-scoped vars uses: tmgDbgResult, tmgStepMode
-       ;"WRITE "Preparing to haul ass through this code",!
-       ;"DO PRESS2GO^TMGUSRI2
        IF +$GET(tmgDbgRemoteJob) DO
        . NEW temp SET temp=$$MessageOut("DONE")
        . SET tmgStepMode="DONE"
@@ -619,9 +637,13 @@ HndlBrowse ;
 HndlBrkCond ;
        ;"Purpose: Handle option to browse conditional break
        NEW tmgTpLine
-       WRITE "Enter an IF condition.  Examples: 'A=1'  or '$$FN1^MOD(A)=2'",!
-       READ "Enter IF condition (^ to cancel, @ to delete): ",tmgTpLine:$GET(DTIME,3600),!
-       IF (tmgTpLine="^") QUIT
+       WRITE "Enter CODE to set $TEST condition.  Examples: 'IF A=1'  or 'IF $$FN1^MOD(A)=2'",!
+       WRITE "If execution result=1, breakpoint will stop execution.  Otherwise skips.",!
+       ;"READ "Enter IF condition (^ to cancel, @ to delete): ",tmgTpLine:$GET(DTIME,3600),!
+       WRITE "Enter IF condition (^ to cancel, @ to delete): ",!
+       NEW ifS SET ifS=$$GetBrkCondFlex()
+       SET tmgTpLine=$$EDITBOX^TMGUSRI6(ifS,80,"_")
+       IF (tmgTpLine["^") QUIT
        NEW brkPos SET brkPos=$$RelConvertPos^TMGIDE(tmgRelPos,tmgViewOffset,tmgArrayName)
        DO SetBrkCond(brkPos,tmgTpLine)
        QUIT
@@ -999,8 +1021,8 @@ SetColors(tmgMode)
        NEW ref SET ref=$name(^TMG("TMGIDE",$J,"COLORS"))
        IF $DATA(@ref)=0 DO
        . DO InitColors^TMGIDE6
-       IF tmgMode="Reset" DO
-       . DO VTATRIB^TMGTERM(0) GOTO SCDn  ;"reset colors
+       IF tmgMode="Reset" DO  GOTO SCDn
+       . DO VTATRIB^TMGTERM(0)   ;"reset colors
        NEW colorSet MERGE colorSet=@ref@(tmgMode) ;"Get colors for mode
        NEW fg SET fg=$GET(colorSet("fg"),15)
        NEW bg SET bg=$GET(colorSet("bg"),15)
@@ -1061,6 +1083,15 @@ ToggleBreakpoint(pos,condition)
         . DO SetBreakpoint(pos,.condition)
         QUIT
 
+IsBreakpointFlex() ;
+        NEW p1 SET p1=$GET(tmgIDEPos)
+        NEW p2 SET p2=$GET(tmgOrigIDEPos)        
+        NEW zzAtBkPt set zzAtBkPt=$$IsBreakpoint(p1) 
+        ;"WRITE "$$IsBreakpoint(tmgIDEPos)=",zzAtBkPt,!
+        if zzAtBkPt=0 set zzAtBkPt=$$IsBreakpoint(p2) 
+        ;"WRITE "$$IsBreakpoint(tmgOrigIDEPos)=",zzAtBkPt,!
+        QUIT zzAtBkPt
+        ;
 IsBreakpoint(pos)
         ;"Purpose: to determine IF position is a breakpoint pos
 
@@ -1140,8 +1171,17 @@ SetBrkCond(pos,condition)
         IF $$IsBreakpoint(pos)=0 DO SetBreakpoint(pos)
         QUIT
 
-
-GetBrkCond(pos)
+GetBrkCondFlex() ;
+        NEW ifS 
+        SET ifS=$$GetBrkCond(tmgIDEPos)
+        ;"WRITE "$$GetBrkCond(tmgIDEPos)=",ifS,!
+        IF ifS="" SET ifS=$$GetBrkCond($$RelConvertPos^TMGIDE(tmgIDEPos,tmgViewOffset,tmgArrayName)) do
+        . ;"WRITE "$$GetBrkCond($$RelConvertPos^TMGIDE(tmgIDEPos... =",ifS,!
+        IF ifS="" SET ifS=$$GetBrkCond($$RelConvertPos^TMGIDE(tmgRelPos,tmgViewOffset,tmgArrayName)) do       
+        . ;"WRITE "$$GetBrkCond($$RelConvertPos^TMGIDE(tmgRelPos... =",ifS,!
+        QUIT ifS
+        ;
+GetBrkCond(pos) ;
         ;"Purpose: A standardized GET for condition.
         ;"Results: returns condition code, or ""
         NEW result SET result=""

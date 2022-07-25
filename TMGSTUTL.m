@@ -717,7 +717,7 @@ IsNumeric(s)
         ;"Purpose: To deterimine IF word s is a numeric
         ;"      Examples of numeric words:
         ;"              10,  N-100,  0.5%,   50000UNT/ML
-        ;"      the test will be IF the word contains any digit 0-9
+        ;"      the test will be if the word contains any digit 0-9
         ;"Results: 1 IF is a numeric word, 0 IF not.
         ;
         ;"NOTE: 8/11/13 -- SEE ALSO $$ISNUM^TMGSTUT3.  Doesn't DO same test, however

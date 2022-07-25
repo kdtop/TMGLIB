@@ -1,4 +1,4 @@
-TMGDBAP3 ;TMG/kst/SACC-compliant DB APT utilities ;9/23/17, 3/18/21
+TMGDBAP3 ;TMG/kst/SACC-compliant DB APT utilities ;9/23/17, 7/7/22
          ;;1.0;TMG-LIB;**1,17**;07/12/05
   ;  
   ;"TMG DB API UTILITIES
@@ -29,6 +29,7 @@ TMGDBAP3 ;TMG/kst/SACC-compliant DB APT utilities ;9/23/17, 3/18/21
   ;"$$ISSUBFIL(FILE) -- Returns if file is a subfile
   ;"$$HASREC(FILE,IENS) --Return if file (or subfile) has any records
   ;"$$REC1(BFILE,IENS) -- Return 1st IEN of file or subfile, or 0 if none
+  ;"$$PARENTFILE(SUBFILE) -- return parent file, given subfile number  
   ;"$$SFUPFLD(SUBFILE) --'SUBFILE UP FIELD'.  Return field in parent that holds given subfile
   ;"SFUPARR(OUT,SUBFILE) --Return an array of subfile info up to root.
   ;
@@ -328,6 +329,10 @@ REC1(FILE,IENS) ;"RETURN 1ST IEN IN FILE OR SUBFILE, OR 0 IF NONE.
   IF OROOT="" QUIT 0
   NEW CROOT SET CROOT=$$CREF^DILF(OROOT)
   QUIT $ORDER(@CROOT@(0))
+  ;
+PARENTFILE(SUBFILE) ;"return parent file, given subfile number
+  NEW PARENTFILE SET PARENTFILE=+$GET(^DD($GET(SUBFILE),0,"UP"))
+  QUIT PARENTFILE
   ;
 SFUPFLD(SUBFILE)  ;"'SUBFILE UP FIELD':  RETURN FIELD IN PARENT THAT HOLDS GIVEN SUBFILE.
   ;"Results: 0^0^0 if not found, 

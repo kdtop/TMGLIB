@@ -75,6 +75,7 @@ ST(Option,Msg)
         ;"              Option("HFSNAME")=FilePathNameOnHFS
         ;"              Option("FORCE CONT LOAD")=1 <-- IF not given, then load won't continue
         ;"              Option("INTERACTIVE")=1 IF 1 then direct user input asked IF needed
+        ;"              Option("Dos2Unix")=1.  Optional.  Default=1.  If 1, then Dos2Unix is run on file before opening.  
         ;"       Msg -- PASS BY REFERENCE, an OUT PARAMETER.
         ;"              Errors are stored in Msg("ERROR",x)=Message
         ;"                                   Msg("ERROR")=count of last error
@@ -94,6 +95,10 @@ ST(Option,Msg)
         IF Y="" DO  GOTO STDone
         . DO AddMsg^TMGPAT2("No host file system filename provided!",1,.Msg)
         . S XPDQUIT=1
+        IF $GET(Option("Dos2Unix"),1)=1 DO
+        . NEW TEMP SET TEMP=$$Dos2Unix^TMGKERNL
+        . IF TEMP=0 QUIT  ;"success
+        . SET Msg(Msg)="Error attempting Dos2Unix "_Y,Msg=Msg+1
         S %ZIS="",%ZIS("HFSNAME")=Y,%ZIS("HFSMODE")="R",IOP="HFS"
         D ^%ZIS
         I POP do

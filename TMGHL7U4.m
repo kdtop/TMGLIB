@@ -20,7 +20,9 @@ TMGHL7U4 ;TMG/kst-HL7 utility functions ; 3/6/18, 3/27/21
  ;"SCANLAUGHLN -- Scan Laughlin folder for HL7 messages to process
  ;"PICKSCAN -- Scan arbitrary folder for HL7 messages to process 
  ;"SCANDIR(PATH) --Scan specified folder for HL7 messages to process
- ;"GETMDATA(OUT,ADFN,SDT,EDT,FILTERBAD) -- API to get metadata from file 22720.5 (TMG HL7 MESSAGE STORAGE)
+ ;"GETMDATA(OUT,ADFN,SDT,EDT,OPTION) -- API to get metadata from file 22720.5 (TMG HL7 MESSAGE STORAGE)
+ ;"GTHL7LST(OUT,ADFN,SDT,EDT,FILTER) -- RPC: TMG CPRS LAB HL7 LIST
+ ;"GTHL7MSG(OUT,PATH,FILE,HTML) - retrieve HL7 message into array, in HTML format (optional)
  ;
  ;"=======================================================================
  ;" API - Private Functions
@@ -47,12 +49,13 @@ TESTGMD() ;"Test caller for GETMDATA()
   NEW TMG DO GETMDATA^TMGHL7U4(.TMG,164,3220300,,1) ZWR TMG
   QUIT
   ;
-GETMDATA(OUT,ADFN,SDT,EDT,FILTERBAD)  ;"API to get metadata from file 22720.5 (TMG HL7 MESSAGE STORAGE)
+GETMDATA(OUT,ADFN,SDT,EDT,OPTION)  ;"API to get metadata from file 22720.5 (TMG HL7 MESSAGE STORAGE)
  ;"INPUT: OUT -- PASS BY REFERENCE, AND OUT PARAMETER.  Format as below
  ;"       ADFN -- patient IEN
  ;"       SDT -- Beginning of date range to retrieve.  FM Format.  OPTIONAL.  Default is 0.
  ;"       EDT -- End of date range to retrieve.  FM Format.  OPTIONAL.  Default is 999999999
- ;"       FILTERBAD -- OPTIONAL.  If 1, then each metadata is filtered out if file does not exist on server HFS.
+ ;"       OPTION -- optional switches:
+ ;"         OPTION("FILTERBAD")=1  -- OPTIONAL.  If 1, then each metadata is filtered out if file does not exist on server HFS.
  ;"RESULTS: None. OUT is modified.  Format:
  ;"    OUT(#)=<storage node 0> <-- holds all data at time of this API creation. 
  ;"           Piece #1 = DATE OF MESSAGE 
@@ -66,7 +69,7 @@ GETMDATA(OUT,ADFN,SDT,EDT,FILTERBAD)  ;"API to get metadata from file 22720.5 (T
  ;
  SET SDT=+$GET(SDT) 
  SET EDT=+$GET(EDT) IF EDT=0 SET EDT=999999999
- SET FILTERBAD=+$GET(FILTERBAD)
+ NEW FILTERBAD SET FILTERBAD=+$GET(OPTION("FILTERBAD"))
  SET ADFN=+$GET(ADFN)
  IF SDT>0 SET SDT=SDT-0.00000001  ;"Backup up so $order() will get first SDT entry
  NEW ADT SET ADT=SDT
@@ -74,17 +77,23 @@ GETMDATA(OUT,ADFN,SDT,EDT,FILTERBAD)  ;"API to get metadata from file 22720.5 (T
  . NEW SUBIEN SET SUBIEN=0
  . FOR  SET SUBIEN=$ORDER(^TMG(22720.5,"DT",ADT,ADFN,SUBIEN)) QUIT:SUBIEN'>0  DO
  . . NEW NODE SET NODE=$GET(^TMG(22720.5,ADFN,1,SUBIEN,0)) QUIT:NODE=""
- . . NEW PATH,FNAME SET PATH=$PIECE(NODE,"^",2),FNAME=$PIECE(NODE,"^",3)
+ . . NEW PATH SET PATH=$PIECE(NODE,"^",2)
+ . . NEW FNAME SET FNAME=$PIECE(NODE,"^",3)
  . . IF FILTERBAD,($$ISFILE^TMGKERNL(PATH_FNAME)=0) QUIT ;"Don't return metadata if file not found on HFS
  . . SET OUT(SUBIEN)=NODE
  QUIT
  ; 
-GTHL7LST(OUT,ADFN,SDT,EDT,FILTERADT)  ;"RPC: TMG CPRS LAB HL7 LIST
+GTHL7LST(OUT,ADFN,SDT,EDT,FILTER)  ;"RPC: TMG CPRS LAB HL7 LIST
  ;"INPUT: OUT -- PASS BY REFERENCE, AND OUT PARAMETER.  Format as below
  ;"       ADFN -- patient IEN
  ;"       SDT -- Beginning of date range to retrieve.  FM Format.  OPTIONAL.  Default is 0.
  ;"       EDT -- End of date range to retrieve.  FM Format.  OPTIONAL.  Default is 999999999
- ;"       FILTERADT -- OPTIONAL.  If 1, then ADT messages are filtered out of the result set
+ ;"       FILTER  -- OPTIONAL.  PASS BY REFERENCE.  Optional switches.  Examples 
+ ;"              Changing this from below to this (for ease from RPC):
+ ;"                 ADT^RAD^LAB with each being 0 or 1 with 1 filtering. 0 will be assumed.
+ ;"             FILTER("ADT")=1  filter out ADT messages
+ ;"             FILTER("RAD")=1  filter out RAD messages
+ ;"             FILTER("LAB")=1  filter out LAB messages
  ;"RESULTS: None. OUT is modified.  Format:
  ;"    OUT(#)=<storage node 0> <-- holds all data at time of this API creation. 
  ;"           Piece #1 = DATE OF MESSAGE 
@@ -96,16 +105,61 @@ GTHL7LST(OUT,ADFN,SDT,EDT,FILTERADT)  ;"RPC: TMG CPRS LAB HL7 LIST
  ;"     e.g. OUT(123)="3180306^/mnt/WinServer/PathgroupHL7/Processed/2013/08/^12C2054522LAB130826123421.txt^^^3180306.192044"
  ;"          OUT(456)= ...
  NEW RESULTARR
- SET FILTERADT=+$G(FILTERADT)
- DO GETMDATA(.RESULTARR,ADFN,SDT,EDT,1)
- IF FILTERADT=1 DO
+ ;"NEW FILTERADT SET FILTERADT=+$GET(FILTER("ADT"))
+ ;"NEW FILTERLAB SET FILTERLAB=+$GET(FILTER("LAB"))
+ ;"NEW FILTERRAD SET FILTERRAD=+$GET(FILTER("RAD"))
+ NEW FILTERADT SET FILTERADT=+$PIECE($GET(FILTER),"^",1)
+ NEW FILTERRAD SET FILTERRAD=+$PIECE($GET(FILTER),"^",2)
+ NEW FILTERLAB SET FILTERLAB=+$PIECE($GET(FILTER),"^",3)
+ NEW FILTER SET FILTER=FILTERLAB!FILTERADT!FILTERRAD
+ SET EDT=$$ADDDAYS^TMGDATE(1,EDT)
+ NEW OPTION SET OPTION("FILTERBAD")=1
+ DO GETMDATA(.RESULTARR,ADFN,SDT,EDT,.OPTION)
+ IF FILTER=1 DO
  . NEW RESULTIDX SET RESULTIDX=0
- . FOR  SET RESULTIDX=$O(RESULTARR(RESULTIDX)) QUIT:RESULTIDX'>0  DO
- . . NEW LINE SET LINE=$G(RESULTARR(RESULTIDX))
- . . IF $P(LINE,"^",3)["ADT_" QUIT
+ . FOR  SET RESULTIDX=$ORDER(RESULTARR(RESULTIDX)) QUIT:RESULTIDX'>0  DO
+ . . NEW LINE SET LINE=$GET(RESULTARR(RESULTIDX))
+ . . ;"note: this is specific to file-naming formats from Ballad hospital system.
+ . . NEW FNAME SET FNAME=$PIECE(LINE,"^",3)
+ . . NEW PATH SET PATH=$PIECE(LINE,"^",2)
+ . . IF FILTERADT,FNAME["ADT_" QUIT
+ . . IF FILTERADT,FNAME["ToppenbergADT" QUIT   
+ . . IF FILTERRAD,PATH["Laughlin",FNAME["RAD_" QUIT   
+ . . ;"IF FILTERLAB,PATH["Laughlin",FNAME["LAB_" QUIT   ;"NOTE: Will need to filter both ballad and NON-Ballad names for labs.
+ . . IF FILTERLAB,PATH["Laughlin",FNAME["LAB" QUIT   ;"NOTE: Will need to filter both ballad and NON-Ballad names for labs.
+ . . IF FILTERLAB,PATH["Pathgroup" QUIT   ;"NOTE: Will need to filter both ballad and NON-Ballad names for labs.
  . . SET OUT(RESULTIDX)=LINE
- . ELSE  DO
- . . MERGE OUT=RESULTARR
+ ELSE  DO
+ . MERGE OUT=RESULTARR
+ QUIT
+ ;"
+GTHL7MSG(OUT,PATH,FILE,HTML)  ;"retrieve HL7 message into array, in HTML format (optional)
+ ;"INPUT:  OUT -PASS BY REFERANCE, AN OUT PARAMETER.   
+ ;"        PATH - path of file, with trailing divider
+ ;"        FILE - filename of file to retrieve.
+ ;"        HTML - OPTIONAL.  Default is 1.  If 1 then wrapped in HTMl tabs. 
+ ;"RESULT: none.  
+ ;"OUTPUT: OUT is filled.  Format:  OUT(#)=<line of hl7 message>
+ ;
+ ;"SET OUT(0)="PATH IS "_PATH
+ ;"SET OUT(1)="FILE IS "_FILE
+ NEW RESULT,TMGMSG,MSH
+ SET HTML=+$GET(HTML,1)
+ SET RESULT=$$LOADHL7^TMGHL7U2(PATH_FILE,.TMGMSG,.MSH)
+ ;
+ NEW INIDX SET INIDX=0
+ NEW OUTIDX SET OUTIDX=1
+ FOR  SET INIDX=$O(TMGMSG(INIDX)) QUIT:INIDX'>0  DO
+ . IF $PIECE($GET(TMGMSG(INIDX)),"|",1)="ZEF" QUIT  ;"filter out encoded pdf segments. 
+ . SET OUT(OUTIDX)=$GET(TMGMSG(INIDX)),OUTIDX=OUTIDX+1
+ IF HTML DO
+ . SET OUT(0)="<HTML><PRE>"
+ . SET OUT(OUTIDX)="</PRE></HTML>"
+ QUIT
+ ;"
+REPROCES(OUT,PATH,FILE)  ;"Send one message back through to be processed
+ NEW OPTION SET OPTION("NO MOVE")=1
+ SET OUT=$$HLFILEIMPORT^TMGHL71(PATH,FILE,,.OPTION)
  QUIT
  ;"
 SCANPATHGRP ;

@@ -1,4 +1,4 @@
-TMGUSRIF ;TMG/kst/USER INTERFACE API FUNCTIONS ;4/24/19, 8/26/19
+TMGUSRIF ;TMG/kst/USER INTERFACE API FUNCTIONS ;7/6/22
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG USER INTERFACE API FUNCTIONS
@@ -25,6 +25,8 @@ TMGUSRIF ;TMG/kst/USER INTERFACE API FUNCTIONS ;4/24/19, 8/26/19
  ;"NOCOLEN(TEXT) ;"Length with {{color tags}} stripped
  ;"SETCOLOR(LABEL,OPTION)
  ;"PARSCOLR(TEXT,TEXTA)
+ ;"HASCOLOR(TEXT) ;" determine if string has {{color tags}} 
+ ;"STRIPCOLOR(TEXT) ;"Strip out {{color tags}}
  ;
  ;"=======================================================================
  ;"=======================================================================
@@ -75,6 +77,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"          OPTION("MULTISEL")=1 -- will allow user to multi-select items.  
   ;"                 Toggle status: [INSERT] key or [+] key, or [SPACE] key as a first character  
   ;"                 CTRL-A key will toggle select status of all items.  
+  ;"          OPTION("HIGHLINE")=<line number>  OPTIONAL.  Default=5.  This is line cursor is on initially. 
   ;"          ---- events ----
   ;"          OPTION("ON SELECT")="FnName^Module" -- code to call based on user input.  E.g. DO FnName^Module(TMGPSCRLARR,.OPTION,.INFO)
   ;"               ?? IMPLEMENT ??
@@ -102,7 +105,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"                TMGPSCRLARR and OPTION are the same data received by this function
   ;"                  -- thus OPTION can be used to can other custom information.
   ;"                INFO has extra info as outlined above.
-  ;"              If functions may SET a globally-scoped var named TMGSCLRMSG to communicate back
+  ;"              Functions may set a globally-scoped var named TMGSCLRMSG to communicate back
   ;"                      IF TMGSCLRMSG="^" then Scroller will exit
   ;"Result: none
   ;
@@ -111,7 +114,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   NEW NEEDREFRESH,INFO
   NEW BUILDCMD SET BUILDCMD=""
   SET TOPLINE=1                                                            
-  SET HIGHLINE=5
+  SET HIGHLINE=$GET(OPTION("HIGHLINE"),5)
   NEW TMGSCLRMSG SET TMGSCLRMSG=""
   SET LASTSCRNW=-1
   ;
@@ -168,8 +171,9 @@ DRAW  ;
   SET SPACELINE="" SET $PIECE(SPACELINE," ",SCRNW)=" "
   SET DISPHT=SCRNH-SIZEHDR-SIZEFTR
   IF TOPLINE>ENTRYCT SET TOPLINE=ENTRYCT
-  IF TOPLINE=0,ENTRYCT>0 SET TOPLINE=1  ;"//kt 8/26/19
+  IF TOPLINE=0,ENTRYCT>0 SET TOPLINE=1  
   IF HIGHLINE>ENTRYCT SET HIGHLINE=ENTRYCT
+  IF HIGHLINE-DISPHT>TOPLINE SET TOPLINE=HIGHLINE-DISPHT+2  ;"//kt 7/6/22
   ;
   DO HOME^TMGTERM
   IF $DATA(OPTION("HEADER")) DO
@@ -419,10 +423,10 @@ PARSCOLR(TEXT,TEXTA)  ;
   ;"Example:  Input TEXT  = 'This is {{HIGH}}something{{NORM}} to see.'
   ;"          Output TEXT = 'something{{NORM}} to see.'
   ;"          Output TEXTA = 'This is '
-  ;"            function result = 'NORM'
+  ;"            function result = 'HIGH'
   ;"Input: TEXT -- PASS BY REFERENCE
   ;"         TEXTA -- PASS BY REFERENCE, and OUT PARAMETER
-  ;"Result: the color name inside brackets.
+  ;"Result: the color name inside brackets, e.g. 'HIGH'
   NEW STR,RESULT
   SET STR=TEXT
   SET TEXTA=$PIECE(STR,"{{",1)
@@ -431,6 +435,19 @@ PARSCOLR(TEXT,TEXTA)  ;
   SET TEXT=$PIECE(STR,"}}",2,99)
   QUIT RESULT
   ;
+HASCOLOR(TEXT)  ;
+  NEW TEMP SET TEMP=$$PARSCOLR(TEXT)
+  QUIT (TEMP'="")
+  ;
+STRIPCOLOR(TEXT) ;"Strip out {{color tags}}
+  ;"Input: TEXT.  Input text.  E.g. 'This is {{HIGH}}something{{NORM}} to see.'
+  ;"Result: 'This is something to see.'
+  NEW TEMP SET TEMP=TEXT
+  NEW COLOR,TEXTA
+  FOR  DO  QUIT:TEXTA=""
+  . SET COLOR=$$PARSCOLR(.TEMP,.TEXTA)
+  . SET TEMP=TEXTA_TEMP
+  QUIT TEMP
  ;"=====================================================
  ;"Test code below
  ;"=====================================================

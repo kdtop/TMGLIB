@@ -280,14 +280,20 @@ PREPOBR(INFO,OBRARR,FILEARR,DATESUSED,NEWDATES) ;"prepair array for LRWRITE from
         SET OBSDATETIME=+$$HL72FMDT^TMGHL7U3(OBSDATETIME)
         NEW USEUNQ SET USEUNQ=1
         IF USEUNQ=1 SET OBSDATETIME=$$UNIQUEDT(OBSDATETIME,.DATESUSED,.NEWDATES) ;
-        SET FILEARR(.01)=OBSDATETIME  ;"<-- DATE/TIME SPECIMEN TAKEN      was: -- $E(TEMPDATE,5,6)_"/"_$E(TEMPDATE,7,8)_"/"_$E(TEMPDATE,1,4) 
-        SET FILEARR(.02)=0  ;"DATE INEXACT 0=NO
+        DO ADDVALUE(.FILEARR,.01,"",OBSDATETIME) ;"<-- DATE/TIME SPECIMEN TAKEN
+        ;"SET FILEARR(.01)=OBSDATETIME  ;"<-- DATE/TIME SPECIMEN TAKEN      was: -- $E(TEMPDATE,5,6)_"/"_$E(TEMPDATE,7,8)_"/"_$E(TEMPDATE,1,4) 
+        DO ADDVALUE(.FILEARR,.02,"",0) ;"DATE INEXACT 0=NO
+        ;"SET FILEARR(.02)=0  ;"DATE INEXACT 0=NO
         NEW RECEIVEDDATETIME SET RECEIVEDDATETIME=$GET(OBRARR(14))  ;"14 = Specimen Received Date/Time
         SET RECEIVEDDATETIME=$$HL72FMDT^TMGHL7U3(RECEIVEDDATETIME)  ;"This doesn't need to be made unique...
-        SET FILEARR(.03)=RECEIVEDDATETIME ;"<-- DATE REPORT COMPLETED    was: -- $E(TEMPDATE,5,6)_"/"_$E(TEMPDATE,7,8)_"/"_$E(TEMPDATE,1,4)
-        SET FILEARR(.04)="`"_DUZ
-        SET FILEARR(.05)="`"_$GET(OBRARR(15,4))  ;"specimen
-        SET FILEARR(.112)="`"_INFO("LOCATION IEN")  ;"originally SET up in XORC13^TMGHL73
+        DO ADDVALUE(.FILEARR,.03,"",RECEIVEDDATETIME) ;"<-- DATE REPORT COMPLETED
+        ;"SET FILEARR(.03)=RECEIVEDDATETIME ;"<-- DATE REPORT COMPLETED    was: -- $E(TEMPDATE,5,6)_"/"_$E(TEMPDATE,7,8)_"/"_$E(TEMPDATE,1,4)
+        DO ADDVALUE(.FILEARR,.04,"`",DUZ)            
+        ;"SET FILEARR(.04)="`"_DUZ
+        DO ADDVALUE(.FILEARR,.05,"`",$GET(OBRARR(15,4)))  ;"specimen            
+        ;"SET FILEARR(.05)="`"_$GET(OBRARR(15,4))  ;"specimen
+        DO ADDVALUE(.FILEARR,.112,"`",$GET(INFO("LOCATION IEN")))  ;"originally SET up in XORC13^TMGHL73          
+        ;"SET FILEARR(.112)="`"_INFO("LOCATION IEN")  ;"originally SET up in XORC13^TMGHL73
         ;
         SET INFO("ORDER NLT")=$PIECE($GET(OBRARR("ORDER","IEN64")),"^",2)
         GOTO POBRDN ;"<--- remove later
@@ -296,6 +302,22 @@ PREPOBR(INFO,OBRARR,FILEARR,DATESUSED,NEWDATES) ;"prepair array for LRWRITE from
         NEW ORDERNLT SET ORDERNLT=$PIECE($GET(OBRARR("ORDER","IEN64")),"^",2)
         SET FILEARR("CUSTOM",3,1)=ORDERNLT
 POBRDN  QUIT TMGRESULT
+        ;
+ADDVALUE(FILEARR,FLDNUM,PREFIX,VALUE,FORCE) ;
+        ;"Purpose: to add values to FILEARR, validating during additon.  
+        ;"Input: FILEARR -- pass by reference.  The array to fill
+        ;"       FLDNUM -- the number of field (or node name) to add to array
+        ;"       PREFIX -- a value to prefix.  e.g. "`"  or null or "" if not wanted.  
+        ;"       VALUE -- the value to be added. 
+        ;"       FORCE -- OPTIONAL.  DEFAULT = 0.  If 1, then added even if VALUE=""
+        ;"Results: none.  
+        SET VALUE=$GET(VALUE)
+        SET FORCE=+$GET(FORCE)
+        SET FLDNUM=$GET(FLDNUM) QUIT:FLDNUM=""
+        SET PREFIX=$GET(PREFIX)
+        IF VALUE="",(FORCE'=1) QUIT
+        SET FILEARR(FLDNUM)=PREFIX_VALUE
+        QUIT
         ;
 UNIQUEDT(FMDT,DATESUSED,NEWDATES) ;
         ;"Purpose: To slightly change date such that date is unique
@@ -537,7 +559,7 @@ LRWRITE(TMGDFN,ARRAY,LABTYPE,FLAGS,ALERTS) ;"Store data in LAB DATA (^LR), file#
         NEW LEVEL SET LEVEL=1  ;"1->normal 2->abnormal, 3->Critical. 
         NEW AFLG SET AFLG="" FOR  SET AFLG=$ORDER(ARRAY("FLAGS",AFLG)) QUIT:(AFLG="")  DO  ;"//Note: equivalent mapping in CPRS is in TfrmLabs.GetVisibleLabs
         . NEW ALVL SET ALVL=0
-        . IF (AFLG="H")!(AFLG="L") SET ALVL=2
+        . IF (AFLG="H")!(AFLG="L")!(AFLG="A") SET ALVL=2
         . IF (AFLG="HH")!(AFLG="LL")!(AFLG="C")!(AFLG["*") SET ALVL=3
         . IF ALVL>LEVEL SET LEVEL=ALVL
         SET ALERTS(TMGDFN_"^"_DT_"^"_LEVEL_"^"_LABTYPE)=""

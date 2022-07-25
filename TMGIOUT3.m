@@ -198,6 +198,15 @@ H2ARDN  QUIT TMGRESULT
         ;
 HFS2ARFP(PATHFILENAME,REF,OPTION) ;" HFS file to Array, via FilePathName
         ;"Purpose: To provide an interface to HFS2ARR for cases when filename is not already separated from path
+        ;"Input: PATHFILENAME: for the source file, the path+filename
+        ;"       REF -- The reference to the array to be filled with RESULTs.  Format:
+        ;"              @REF@(#)=<line of text>"
+        ;"       OPTION -- [OPTIONAL].  PASS BY REFERENCE
+        ;"            OPTION("LINE-TERM")=<line_terminator_string>  e.g. $CHAR(13).  If passed normal parsing done.
+        ;"            OPTION("OVERFLOW")=<mode>.  Mode options:
+        ;"                        If 0, null or "" then overflow lines are turned into normal lines
+        ;"                        If 1 then the overflow portion is concat'd to the orig line (making length>255)
+        ;"                        If 2 then over lines are left with index values with decimal (e.g. 123.1)
         ;"Result: 0 if failure, 1 if success
         NEW PATH,FILENAME,RESULT
         DO SPLITFPN^TMGIOUTL(.PATHFILENAME,.PATH,.FILENAME)

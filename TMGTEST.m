@@ -20,9 +20,10 @@ TMGTEST ;TMG/kst/Scratch fns for programming tests ;03/25/06, 2/2/14
  SET array(2)="pear"
  SET array(3)="peach"
  DO ZWRITE^TMGZWR("array")
- NEW i,j,k
- for i=1:1:10 do  write "+"                                           
- .for j=1:1:10 do  write "^"
+ NEW i,JDX,k
+ for i=1:1:10 do  write "+" 
+ .for JDX=1:1:10 do  write "^"
+ ..WRITE !,JDX,!
  ..for k=1:1:10 do  write "%"
  ...write "*"
  ...write "^"
@@ -298,3 +299,118 @@ DEBUGINDENT(tmgDbgIndent,Forced)
 UP(X)   ;
         ;"Taken from UP^XLFSTR
         QUIT $TRANSLATE(X,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+AICONSOLE ;
+AIL1 ;
+  NEW ARR,IDX SET IDX=1
+  NEW INPUT,OUT
+  FOR  DO  QUIT:INPUT=""
+  . READ ">",INPUT WRITE !
+  . IF INPUT="" QUIT
+  . SET ARR(IDX)=INPUT,IDX=IDX+1
+  IF $DATA(ARR)'>0 GOTO AIDN
+  DO OPENAICURL(.ARR,.OUT)
+  ZWR ARR
+  ;"IF $DATA(OUT) ZWR OUT
+  W "---",!
+  IF $DATA(OUT("choices",1,"text")) WRITE OUT("choices",1,"text"),!
+  SET IDX=0
+  FOR  SET IDX=$ORDER(OUT("choices",1,"text",IDX)) QUIT:IDX'>0  DO
+  . WRITE $GET(OUT("choices",1,"text",IDX)),!
+  GOTO AIL1
+AIDN ;  
+  QUIT
+  
+        
+OPENAI ;
+  NEW ARR,OUT
+  SET ARR(1)="Tell a sarcastic joke about smashing pumpkins"
+  ;"SET ARR(1)="Q: What orbits the Earth, with sarcastic reply"
+  DO OPENAICURL(.ARR,.OUT,1)    
+  QUIT
+
+OPENAICURL(PROMPTARR,RESULT,VERBOSE)  ;
+  NEW TMGOUT,ARR,HDR,DATA,TMGERR
+  SET URL="https://api.openai.com/v1/engines/text-davinci-002/completions"
+  SET KEY=$GET(^TMG("TMP","OPENAI","KEY"))
+  ;
+  SET HDR(1)="Content-Type: application/json"
+  SET HDR(2)="Authorization: Bearer "_KEY
+  ;  
+  SET DATA("prompt")=$$ARR2STR^TMGSTUT2(.PROMPTARR,"\n")
+  SET DATA("temperature")=0.5
+  SET DATA("max_tokens")=2000
+  ;
+  DO LINUXCURL^TMGKERNL(.TMGOUT,URL,.ARR,.HDR,.DATA)
+  DO DECODE^%webjson("TMGOUT","RESULT","TMGERR")
+  ;
+  IF $GET(VERBOSE) ZWRITE RESULT
+  QUIT
+  
+  
+FIXFILES
+  NEW IDX,FILES
+  NEW DONE SET DONE=0
+  FOR IDX=1:1 DO  QUIT:DONE
+  . SET LINE=$TEXT(FNAMES+IDX^TMGTEST)
+  . IF (LINE="")!(LINE["<DONE>") SET DONE=1 QUIT
+  . WRITE LINE,!
+  . SET LINE=$PIECE(LINE,";;",2)
+  . SET FILES(LINE)=""
+  ;
+  NEW SRC SET SRC="/opt/worldvista/EHR/p/"
+  NEW DEST SET DEST="/opt/worldvista/EHR/r/"
+  NEW AFILE SET AFILE=""
+  FOR  SET AFILE=$ORDER(FILES(AFILE)) QUIT:AFILE=""  DO
+  . WRITE "Working on: ",AFILE
+  . NEW DESTFILE SET DESTFILE=DEST_AFILE
+  . NEW SRCFILE SET SRCFILE=SRC_AFILE
+  . NEW EXISTS 
+  . SET EXISTS=$$ISFILE^TMGKERNL(SRCFILE)
+  . IF EXISTS=0 WRITE "--> SKIPPING",! QUIT
+  . SET EXISTS=$$ISFILE^TMGKERNL(DESTFILE)
+  . IF EXISTS DO
+  . . DO MAKEBAKF^TMGKERNL(DESTFILE)
+  . . WRITE " --> made backup of DEST file"
+  . NEW RESULT SET RESULT=$$MOVE^TMGKERNL(SRCFILE,DESTFILE)
+  . IF RESULT>0 WRITE " --> Error moving",!
+  . ELSE  WRITE " --> MOVED",!  
+  QUIT
+  
+  
+FNAMES ;  
+  ;;DGENCDA1.m
+  ;;DGENCDA2.m
+  ;;DGENCDA.m
+  ;;DGENCD.m
+  ;;DGENCDU.m
+  ;;DGENLCD1.m
+  ;;DGENUPL1.m
+  ;;DGENUPL2.m
+  ;;DGFCPROT.m
+  ;;DGHTRTX.m
+  ;;DGPFRAL1.m
+  ;;DGPMV3.m
+  ;;DGPMVDL.m
+  ;;DGPTC1.m
+  ;;DGPTIC10.m
+  ;;DGPTODF1.m
+  ;;DGREG.m
+  ;;DGREGTZL.m
+  ;;DGRPC2.m
+  ;;DGSAUTL.m
+  ;;DPTLK.m
+  ;;EAS1125P.m
+  ;;IB20P540.m
+  ;;IVMZ7CCD.m
+  ;;VAFCAAUT.m
+  ;;VAFCPDAT.m
+  ;;VAFCPDT2.m
+  ;;VAFCPTAD.m
+  ;;VAFCQRY2.m
+  ;;VAFCRPC.m
+  ;;VAFCSB.m
+  ;;VAFCTR.m
+  ;;VAFHLZCD.m
+  ;;<DONE> 
+  

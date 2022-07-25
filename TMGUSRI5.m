@@ -80,10 +80,14 @@ RLOOP ;
   IF TERMINATORS["e" USE $I:ESCAPE
   READ *TEMP:TIMEOUT  ;"reads the ascii number of key (92, instead of 'a')
   SET TMGZB=$ZB
-  ;"WRITE "  $l(TMGZB)=",$l(TMGZB)," TMGZB=" f i=1:1:$l(TMGZB) w $ASCII($E(TMGZB,IDX)),","
+  ;" --- DEBUGGING ---
+  ;"w !,"TEMP=[",TEMP,"]",!  ;"debugging...
+  ;"WRITE "$LENGTH(TMGZB)=",$LENGTH(TMGZB)," TMGZB="    ;"debugging...
+  ;"f IDX=1:1:$l(TMGZB) w $ASCII($E(TMGZB,IDX)),","        ;"debugging...
+  ;"WRITE !   ;"debugging...
+  ;" -------------------
   IF TERMINATORS["e" USE $I:NOESCAPE
   XECUTE ^%ZOSF("EON")
-  ;"w "[",TEMP,"]"  ;"debugging...
   IF (TEMP=13) DO                        ;"RETURN KEY
   . IF (TERMINATORS["r") SET DONE=1
   . IF NUM=1 SET ESCKEY="CR",DONE=1
@@ -121,6 +125,7 @@ RLOOP ;
 FXESCTBL  ;"FIX ESC TABLE
    ;"Purpose: There is a difference between my old system and the new.  I
    ;"         don't know why, but this will fix it for me, and anyone else.
+   ;"//kt 6/9/22  Added F1 to F4.  Not sure why was missing before....
 T1 ;;$C(1))="^A"
    ;;$C(2))="^B"
    ;;$C(3))="^C"
@@ -165,6 +170,10 @@ T1 ;;$C(1))="^A"
    ;;$C(27)_"Ow")="KP7"
    ;;$C(27)_"Ox")="KP8"
    ;;$C(27)_"Oy")="KP9"
+   ;;$C(27)_"[11~")="F1"
+   ;;$C(27)_"[12~")="F2"
+   ;;$C(27)_"[13~")="F3"
+   ;;$C(27)_"[14~")="F4"
    ;;$C(27)_"[15~")="F5"
    ;;$C(27)_"[17~")="F6"
    ;;$C(27)_"[18~")="F7"

@@ -460,18 +460,30 @@ GETTESTFROM(TESTMSG,TMGHL7MSG,TMGU) ;"GET TEST ID&NAME FROM TEST HL7 MESSAGE
         ;"NOTE: Uses TMGENV in global scope.  
         ;"Result: returns lab or "" if none chosen.    e.g., if user picks:
         ;"         Vitamin D 25-Hydroxy (ID: 1989-3), then '1989-3^Vitamin D 25-Hydroxy^LN' returned.        
+        NEW TMGRESULT SET TMGRESULT=""
         IF $DATA(TMGHL7MSG)=0 DO
         . NEW % SET %=1
         . WRITE "HL7 Message should be parsed and transformed before checking mapping.",!
         . WRITE "Transform now" DO YN^DICN WRITE !
         . IF %'=1 QUIT
-        . DO TESTPARS(.TMGENV,.TMGTESTMSG,.TMGHL7MSG)                
-        NEW MENU,TMGUSERINPUT,MENUCT SET MENUCT=0
+        . DO TESTPARS(.TMGENV,.TMGTESTMSG,.TMGHL7MSG)
+        NEW MENU,TMGUSERINPUT
+        SET MENU(0)="Which message source type?"
+        SET MENU(1)="Original message (not transformed)"_$CHAR(9)_"ORIG"
+        SET MENU(2)="TRANSFORMED message"_$CHAR(9)_"XFORM"
+        SET TMGUSERINPUT=$$MENU^TMGUSRI2(.MENU,"^")
+        ;
+        NEW TEMPMSG
+        IF TMGUSERINPUT="XFORM" MERGE TEMPMSG=TMGHL7MSG        
+        IF TMGUSERINPUT="ORIG" MERGE TEMPMSG=TESTMSG
+        IF $DATA(TEMPMSG)=0 GOTO GTFDN
+        ;        
+        KILL MENU,TMGUSERINPUT
+        NEW MENUCT SET MENUCT=0
         SET MENU(0)="Select lab result from test message to show mapping."
-        NEW TMGRESULT SET TMGRESULT=""
         NEW IDX SET IDX=0
-        FOR  SET IDX=$ORDER(TESTMSG(IDX)) QUIT:IDX'>0  DO
-        . NEW LINE SET LINE=$GET(TESTMSG(IDX)) QUIT:LINE=""
+        FOR  SET IDX=$ORDER(TEMPMSG(IDX)) QUIT:IDX'>0  DO
+        . NEW LINE SET LINE=$GET(TEMPMSG(IDX)) QUIT:LINE=""
         . NEW TYPE SET TYPE=$PIECE(LINE,TMGU(1),1)
         . IF TYPE'="OBX" QUIT
         . NEW LAB SET LAB=$PIECE(LINE,TMGU(1),4) 
@@ -487,7 +499,7 @@ GETTESTFROM(TESTMSG,TMGHL7MSG,TMGU) ;"GET TEST ID&NAME FROM TEST HL7 MESSAGE
         . IF TESTNAME'="" SET MENUCT=MENUCT+1,MENU(MENUCT)=" (TESTNAME: "_TESTNAME_")"_$CHAR(9)_TESTNAME
         . IF ALTTESTID'=""   SET MENUCT=MENUCT+1,MENU(MENUCT)=" (ALT TESTID: "_ALTTESTID_")"_$CHAR(9)_ALTTESTID
         . IF ALTTESTNAME'="" SET MENUCT=MENUCT+1,MENU(MENUCT)=" (ALT TESTNAME: "_ALTTESTNAME_")"_$CHAR(9)_ALTTESTNAME
-        . 
+        ;
         SET MENUCT=MENUCT+1,MENU(MENUCT)="Manual entry of a lab code (e.g. OSMOC)"_$CHAR(9)_"<MANUAL>" 
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.MENU,"^")
         IF TMGUSERINPUT="<MANUAL>" DO
@@ -495,6 +507,7 @@ GETTESTFROM(TESTMSG,TMGHL7MSG,TMGU) ;"GET TEST ID&NAME FROM TEST HL7 MESSAGE
         . READ TMGUSERINPUT:$GET(DTIME,3600),!
         IF TMGUSERINPUT="^" SET TMGUSERINPUT=""
         SET TMGRESULT=TMGUSERINPUT
+GTFDN   ;        
         QUIT TMGRESULT
         ;
 GETCFG(HL7INST,HL7APP) ;"DEPRECIATED

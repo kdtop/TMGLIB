@@ -535,16 +535,19 @@ GETFSTAT() ;"Process FINAL status report. <--- SUITABLE ENTRY POINT FOR TASKMAN
   QUIT
   ;  
 SMSCURL(TONUM,TOMSG)
+   NEW APIKEY SET APIKEY=$P($G(^TMG(22724.1,1,2)),"^",1)  ;"GET KEY FROM DATABASE FIELD
+   NEW APINUMBER SET APINUMBER=$P($G(^TMG(22724.1,1,2)),"^",2)  ;"GET NUMBER FROM DATABASE FIELD
    NEW CURL
    SET CURL="curl -i \ "
    SET CURL=CURL_"-X POST \ "
    SET CURL=CURL_"-H ""Content-Type: application/json"" \"
    SET CURL=CURL_"-H ""Accept: application/json"" \"
-   SET CURL=CURL_"-H ""Authorization: uuLLRU7cSdymu0QQBoWi-w=="" \"
+   SET CURL=CURL_"-H ""Authorization: "_APIKEY_""" \"
    SET CURL=CURL_"-d '{""messages"": [{ ""channel"": ""whatsapp"", ""to"": ""14234260236""," 
-   SET CURL=CURL_"""from"": ""14236009179"", ""content"": ""Test WhatsApp Message Text"" }, {" 
-   SET CURL=CURL_"""channel"": ""sms"", ""to"": ""14234260236"", ""from"": ""14236009179"", ""content"": ""Test SMS Message Text"" }]}' \"
+   SET CURL=CURL_"""from"": """_APINUMBER_""", ""content"": """_TOMSG_""" }, {" 
+   SET CURL=CURL_"""channel"": ""sms"", ""to"": """_TONUM_""", ""from"": """_APINUMBER_""", ""content"": """_TOMSG_""" }]}' \"
    SET CURL=CURL_"-s https://platform.clickatell.com/v1/message"
+   W CURL,!
    new ok,C0CRSLT,C0CMIME
    s C0CMIME=""
    S ok=$$httpPOST^%zewdGTM("https://platform.clickatell.com/v1/message",.CURL,C0CMIME,.C0CRSLT,.HEADER,"",.gpl5,.C0CRHDR)

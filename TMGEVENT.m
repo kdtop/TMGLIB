@@ -113,6 +113,8 @@ GETTIME(TMGDFN,VERBOSE,SHOWMSG)  ;"
         IF SHOWMSG=1 DO
         . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>This time may include chart review before the visit, the actual patient visit, and time spent on documentation after the visit."
         . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>If any procedures were done during the visit, the time for the procedure was not included in determining the level of visit."
+        IF SHOWMSG=2 DO   ;"ONLY RETURN TIME, FOR TMG CPRS GET STARTING TIME
+        . SET TMGRESULT=TOTTIME
         QUIT TMGRESULT
         ;"
 GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
@@ -191,3 +193,9 @@ TIMESUM(TIMEARR,TMGRESULT,RESULTIDX,SUM)  ;"
         KILL TIMEARR 
         QUIT
         ;" 
+OPENTIME(TMGRESULT,TMGDFN)  ;"
+        ;"THIS IS FOR RPC "TMG GET TODAYS TIME" TO BE USED WHEN OPENING A CHART
+        ;"   SO IT CAN SET THE TIMER TO DISPLAY TODAY'S TIME UP UNTIL NOW
+        SET TMGRESULT=+$$GETTIME(TMGDFN,0,2)
+        QUIT
+        ;"

@@ -17,7 +17,7 @@ TMGIOUT2 ;TMG/kst/IO Utilities -- File browser ;05/16/09; ... 4/24/15
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"FBROWSE(OPTION,OUTPATH,OUTNAME) query the user to select a filename
+ ;"FBROWSE(OPTION,OUTPATH,OUTNAME) query the user to select a filename, either from local file system or web file server
  ;"CALLER(CODE) -- From call stack, return the location of the caller of the function
  ;"=======================================================================
  ;"Private API calls         
@@ -41,6 +41,14 @@ TEST ;
   WRITE $$FBROWSE(.OPTION)
   QUIT
   ;
+TESTURL ;
+  NEW OPTION
+  SET OPTION("MSG")="Browsing files on a web server"
+  SET OPTION("URL")="foia-vista.worldvista.org/Patches_By_Application/"
+  SET OPTION("SELECT DIR")=0
+  WRITE $$FBROWSE(.OPTION)
+  QUIT
+  ;  
 FBROWSE(OPTION,OUTPATH,OUTNAME) ;
   ;"SCOPE: PUBLIC
   ;"Purpose: To query the user, to get a filename back
@@ -48,7 +56,10 @@ FBROWSE(OPTION,OUTPATH,OUTNAME) ;
   ;"Input: OPTION [OPTIONAL].  Format as follows.  All entries are optional
   ;"           OPTION("MSG") A message to show user prior to name prompt.
   ;"                         May contain "\n" character for line wrapping.
+  ;"           OPTION("HEADER MSG",1) A message to show user in scroller header
+  ;"           OPTION("HEADER MSG",2) a 2nd line message to show user in scroller header, etc...
   ;"           OPTION("PATH") Initial default PATH
+  ;"           OPTION("URL") Initial web PATH <--- if provided, then "PATH" is ignored.  
   ;"           OPTION("NAME") Initial default filename
   ;"           OPTION("NodeDiv") The character that separates folders (e.g. "/")
   ;"                             If not supplied, then default value is "/"
@@ -69,9 +80,25 @@ FBROWSE(OPTION,OUTPATH,OUTNAME) ;
   NEW SELDIR SET SELDIR=+$GET(OPTION("SELECT DIR"))
   NEW WIDTH SET WIDTH=70     
   NEW LINE SET $PIECE(LINE,"-",WIDTH-2)="-"
-  SET OPTION("HEADER",1)="+"_LINE_"+"
+  NEW SPACES SET $PIECE(SPACES," ",WIDTH-2)=" "
+  NEW HEADERLN SET HEADERLN=1
+  SET OPTION("HEADER",HEADERLN)="+"_LINE_"+",HEADERLN=HEADERLN+1
   NEW BANNER SET BANNER="--== Please Select "_$SELECT(SELDIR:"Directory",1:"File")_" ==--"
-  SET OPTION("HEADER",2)="|"_$$CJ^XLFSTR(BANNER,WIDTH-2)_"|"
+  SET OPTION("HEADER",HEADERLN)="|"_$$CJ^XLFSTR(BANNER,WIDTH-2)_"|",HEADERLN=HEADERLN+1
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(OPTION("HEADER MSG",IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=$GET(OPTION("HEADER MSG",IDX)) KILL OPTION("HEADER MSG",IDX)
+  . NEW LEN SET LEN=$$NOCOLEN^TMGUSRIF(LINE)
+  . IF LEN>(WIDTH-2) DO
+  . . IF $$HASCOLOR^TMGUSRIF(LINE) SET LINE=$$STRIPCOLOR^TMGUSRIF(LINE) ;"strip any color tags to avoid breaking with trim
+  . . SET LINE=$EXTRACT(LINE,1,WIDTH-5)_"..."
+  . . SET LEN=$LENGTH(LINE)
+  . NEW SPN,SPN1,SPN2
+  . SET SPN=WIDTH-2-LEN
+  . SET SPN1=SPN\2
+  . SET SPN2=SPN-SPN1
+  . SET LINE="|"_$EXTRACT(SPACES,1,SPN1)_LINE_$EXTRACT(SPACES,1,SPN2)_"|"
+  . SET OPTION("HEADER",HEADERLN)=LINE,HEADERLN=HEADERLN+1
   SET OPTION("FOOTER",1)="Enter ? for help"
   DO DISPFILT(.OPTION)  ;"SET OPTION ARRAY TO PROPERLY DISPLAY CURRENT FILTERS  
   NEW FOOTIDX SET FOOTIDX=+$ORDER(OPTION("FOOTER",""),-1)+1
@@ -89,22 +116,23 @@ FBROWSE(OPTION,OUTPATH,OUTNAME) ;
   NEW STACKCALLER SET STACKCALLER=$$CALLER()
   NEW NODEDIV SET NODEDIV=$GET(OPTION("NODEDIV"),"/")
   SET OPTION("NODEDIV")=NODEDIV ;" in case it wasn't there initially
-  NEW CURDIR SET CURDIR=$GET(OPTION("PATH"))
+  NEW CURDIR SET CURDIR=$GET(OPTION("URL"))
+  IF CURDIR="" SET CURDIR=$GET(OPTION("PATH"))
   IF (CURDIR="")&($DATA(^TMG("TMP","SETTINGS","FBROWSE",STACKCALLER))) DO
   . SET CURDIR=$GET(^TMG("TMP","SETTINGS","FBROWSE",STACKCALLER))
   IF CURDIR="" SET CURDIR=NODEDIV
   SET CURDIR=$$MKTRALDV^TMGIOUTL(CURDIR,NODEDIV)
-  IF $$ISDIR^TMGKERNL(CURDIR)=0 SET CURDIR=NODEDIV
+  IF $$ISDIR(CURDIR,.OPTION)=0 SET CURDIR=NODEDIV
   ;
   NEW TMGSELECT SET TMGSELECT=""
-  NEW HEADERDIRSTR,HEADERLN
+  NEW HEADERDIRSTR
+  NEW HEADERTOP SET HEADERTOP=HEADERLN
 L1 ;
   DO LOADDIR("SCRLFILES",CURDIR,.OPTION)
   SET HEADERDIRSTR="Current Dir: "_$$MKTRALDV^TMGIOUTL(CURDIR,NODEDIV)
-  SET HEADERLN=3
   FOR  DO  QUIT:HEADERDIRSTR=""
   . IF $LENGTH(HEADERDIRSTR)'>(WIDTH-2) DO
-  . . IF HEADERLN=3 DO
+  . . IF HEADERTOP=3 DO
   . . . SET OPTION("HEADER",HEADERLN)="|"_$$CJ^XLFSTR(HEADERDIRSTR,WIDTH-2)_"|"
   . . ELSE  DO
   . . . SET OPTION("HEADER",HEADERLN)="|"_$$LJ^XLFSTR(HEADERDIRSTR,WIDTH-2)_"|"
@@ -125,13 +153,37 @@ L1 ;
   . SET USRSLCT=$$MENU^TMGUSRI2(.MENU,2)
   . WRITE #
   . IF USRSLCT="DONE" SET DONE=1
-  IF $$ISDIR^TMGKERNL(TMGSELECT) SET CURDIR=TMGSELECT GOTO L1 ;"browse into directory
+  IF $$ISDIR(TMGSELECT,.OPTION) SET CURDIR=TMGSELECT GOTO L1 ;"browse into directory
   DO SPLITFPN^TMGIOUTL(TMGSELECT,.OUTPATH,.OUTNAME,NODEDIV)
   ;
   SET ^TMG("TMP","SETTINGS","FBROWSE",STACKCALLER)=OUTPATH ;"store for future use.
 LQ ;
   WRITE # ;"clear screen
   QUIT TMGSELECT
+  ;
+ISDIR(CURDIR,OPTION) ;
+  NEW RESULT SET RESULT=""
+  IF $DATA(OPTION("URL")) DO
+  . NEW LASTCHAR SET LASTCHAR=$EXTRACT(CURDIR,$LENGTH(CURDIR))
+  . SET RESULT=(LASTCHAR="/")
+  ELSE  DO
+  . SET RESULT=$$ISDIR^TMGKERNL(CURDIR)
+  QUIT RESULT
+  ;
+GETDIR(CURDIR,PARR,OPTION) ;
+  NEW RESULT SET RESULT=""
+  IF $DATA(OPTION("URL")) DO
+  . NEW TMGTEMP
+  . DO GETWDIR^TMGKERN4(CURDIR,"TMGTEMP")
+  . NEW INDEX SET INDEX=""
+  . FOR  SET INDEX=$ORDER(TMGTEMP(INDEX)) QUIT:INDEX=""  DO
+  . . NEW LINE SET LINE=$GET(TMGTEMP(INDEX)) QUIT:LINE=""
+  . . SET LINE=$PIECE(LINE,"^",1)
+  . . SET @PARR@(LINE)=""
+  ELSE  DO
+  . NEW TEMPMASK SET TEMPMASK("*")=""
+  . IF $$LIST^%ZISH(CURDIR,"TEMPMASK",PARR)=0
+  QUIT RESULT
   ;
 LOADDIR(PARRAY,CURDIR,OPTION) ;
   ;"Purpose: load CURDIR entries into PARRAY
@@ -163,19 +215,20 @@ LOADDIR(PARRAY,CURDIR,OPTION) ;
   NEW SELDIR SET SELDIR=+$GET(OPTION("SELECT DIR"))
   SET CURDIR=$GET(CURDIR,NODEDIV)
   SET CURDIR=$$MKTRALDV^TMGIOUTL(CURDIR,NODEDIV)
-  IF $$ISDIR^TMGKERNL(CURDIR)=0 GOTO LDDN
+  IF $$ISDIR(CURDIR,.OPTION)=0 GOTO LDDN
   ;"Note: Filter/Mask would apply to directory names too, so must
   ;"      ask for list of files with mask applied **AND** also with
   ;"      a mask of '*' to be sure to get directory names
-  NEW TEMPMASK SET TEMPMASK("*")=""
-  IF $$LIST^%ZISH(CURDIR,"TEMPMASK","TMGFILES")=0 GOTO LDDN
+  DO GETDIR(CURDIR,"TMGFILES",.OPTION)
+  ;"NEW TEMPMASK SET TEMPMASK("*")=""
+  ;"IF $$LIST^%ZISH(CURDIR,"TEMPMASK","TMGFILES")=0 GOTO LDDN
   NEW INDEX SET INDEX=""
   FOR  SET INDEX=$ORDER(TMGFILES(INDEX)) QUIT:(INDEX="")  DO
   . IF ($EXTRACT(INDEX,1)=".")&(SHOWHIDDEN=0) QUIT
   . NEW FNAME,FPNAME
   . SET FNAME=INDEX
   . SET FPNAME=CURDIR_FNAME
-  . IF $$ISDIR^TMGKERNL(FPNAME) SET TEMPFILES("DIRS","<"_FNAME_">")=FPNAME
+  . IF $$ISDIR(FPNAME,.OPTION) SET TEMPFILES("DIRS","<"_FNAME_">")=FPNAME
   . ELSE  SET TEMPFILES("FILES",FNAME)=FPNAME
   ;  
   ;"//kt 7/22/15 NOTE: the filter for $$LIST^%ZISH works for like this:
@@ -283,7 +336,7 @@ HNDONCMD(PARRAY,OPTION,INFO) ;
   . IF NEWDIR=".." SET USRINPUT=".." QUIT
   . SET DONE=1
   . IF $EXTRACT(NEWDIR,1)'="/" SET NEWDIR=PATH_NEWDIR
-  . IF $$ISDIR^TMGKERNL(NEWDIR)=0 DO  QUIT
+  . IF $$ISDIR(NEWDIR,.OPTION)=0 DO  QUIT
   . . WRITE NEWDIR," is not a valid existing directory.",!
   . . DO PRESS2GO^TMGUSRI2
   . SET TMGSELECT=NEWDIR
@@ -315,7 +368,7 @@ HNDONCMD(PARRAY,OPTION,INFO) ;
   . SET TMGSELECT=$$UPPATH^TMGIOUTL(PATH)
   . SET TMGSCLRMSG="^"
   IF USRINPUT="{RIGHT}" DO  GOTO HOCDN
-  . IF $$ISDIR^TMGKERNL(RTN)=0 QUIT
+  . IF $$ISDIR(RTN,.OPTION)=0 QUIT
   . SET TMGSELECT=$GET(INFO("CURRENT LINE","RETURN"))
   . SET TMGSCLRMSG="^"
   ;"Later, I could put some stuff here to let the command line choose filters etc.

@@ -1,4 +1,4 @@
-TMGPAT2  ;TMG/kst/Patching tools Suport;09/17/08, 2/2/14
+TMGPAT2  ;TMG/kst/Patching tools Suport;09/17/08, 7/21/22
          ;;1.0;TMG-LIB;**1**;09/17/08
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -20,10 +20,11 @@ TMGPAT2  ;TMG/kst/Patching tools Suport;09/17/08, 2/2/14
  ;"GETIENS2(PATCHNAME) -- Given partial patch name, return IENS in file 22709.01
  ;"FORCEPAT -- All user to enter a patch entry
  ;"IsInstalled(PATCHNAME) -- return IF a given patch has already been installed.
- ;"ParsePATCHNAME(PATCHNAME,PCKINIT,VER,PATCHNUM,SEQNUM) -- parse a patch name into it's composit parts.
- ;"ComposePATCHNAME(PCKINIT,VER,PATCHNUM,SEQNUM) -- the opposite of ParsePATCHNAME: build up name from parts
- ;"ENSRLOCL(IENS,Info,Msg,OPTION,PCKINIT) -- Ensure files downloaded from server and stored locally
- ;"DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,Info) -- Ensure that the Patch has been downloaded from server and stored locally
+ ;"PATCHESMATCH(PATCH1,PATCH2) ;--Return 0 or 1 depending if patches are the same (equivalent)
+ ;"PRSEPATCHNAME(PATCHNAME,PCKINIT,VER,PATCHNUM,SEQNUM) -- parse a patch name into it's composit parts.
+ ;"MAKEPATCHNAME(PCKINIT,VER,PATCHNUM,SEQNUM) -- the opposite of PRSEPATCHNAME: build up name from parts
+ ;"ENSRLOCL(IENS,INFO,Msg,OPTION,PCKINIT) -- Ensure files downloaded from server and stored locally
+ ;"DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,INFO) -- Ensure that the Patch has been downloaded from server and stored locally
  ;"MakePATCHEntry(PATCHNAME,Msg) -- make pseudo-entries to show that something was processed.
  ;"AddMsg(s,IsError,Msg) -- add a message to Msg ARRAY
  ;"SHOWMSG(Msg) -- display the message array
@@ -87,7 +88,7 @@ RefreshPackge(PCKINIT,Msg,NEEDSREFRESH,PCKDIRFNAME,OPTION)
         NEW ARRAY,RESULT
         NEW VERBOSE SET VERBOSE=+$GET(OPTION("VERBOSE"),1)
         SET NEEDSREFRESH=+$GET(NEEDSREFRESH)
-        IF NEEDSREFRESH,VERBOSE WRITE "Fetching list of available "_PCKINIT_" patches from patch repository server..."
+        IF NEEDSREFRESH,VERBOSE WRITE !,"Fetching list of available "_PCKINIT_" patches from patch repository server..."
         ;"SET RESULT=$$GetPckList^TMGKERNL(PCKINIT,.ARRAY,.NEEDSREFRESH,.PCKDIRFNAME)
         SET RESULT=$$GETPATL^TMGKERN4(PCKINIT,.ARRAY,.NEEDSREFRESH,.PCKDIRFNAME)
         IF NEEDSREFRESH,VERBOSE WRITE "  DONE.",!
@@ -125,7 +126,7 @@ EPDONE  QUIT
 LOADPCKG(IEN9D4,ARRAY,PROTOCOL,Msg,SOMEADDED)
         ;"Purpose: to load info for Package info file TMG KIDS REMOTE PATCH SOURCE
         ;"Input:  IEN9D4 -- IEN in 9.4 to get patches for
-        ;"       ARRAY -- This is file with available filepaths, as returned from GetPckList
+        ;"       ARRAY -- This is file with available filepaths, as returned from GETPATL
         ;"              Format: ARRAY(0)=<header line> <-- ignored
         ;"                      ARRAY(#)=URLPATH  e.g. 'server.org/pub/download/DG/DG_53_P481.KID'
         ;"                      ARRAY(#)=URLPATH  e.g. 'server.org/pub/download/DG/DG_53_P482.KID'
@@ -346,7 +347,7 @@ GETNEXTIENS(LastPATCH,NEXTPATCHNAME)
         IF $GET(LastPATCH)="" GOTO GNPDONE
 
         NEW SEQNUM,PCKINIT,VER,PATCHNUM,SEQNUM
-        DO ParsePATCHNAME(LastPATCH,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
+        DO PRSEPATCHNAME(LastPATCH,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
         IF SEQNUM="" GOTO GNPDONE
 
         NEW IEN9D4 SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,""))
@@ -382,7 +383,7 @@ GETIENS(PATCHNAME)
         IF $GET(PATCHNAME)="" GOTO GIDONE
         NEW SEQNUM,PCKINIT,VER,PATCHNUM,SEQNUM
         NEW IEN9D4,PCKIEN,VERIEN,PATCHIEN
-        DO ParsePATCHNAME(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM) GOTO:(SEQNUM="") GIDONE
+        DO PRSEPATCHNAME(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM) GOTO:(SEQNUM="") GIDONE
         SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,"")) GOTO:(IEN9D4'>0) GIDONE
         SET PCKIEN=+$ORDER(^TMG(22709,"B",IEN9D4,"")) GOTO:(PCKIEN'>0) GIDONE
         SET VERIEN=+$ORDER(^TMG(22709,PCKIEN,1,"B",VER,""))
@@ -404,7 +405,7 @@ GETIENS2(PATCHNAME)
         IF $GET(PATCHNAME)="" GOTO GI2DONE
         NEW SEQNUM,PCKINIT,VER,PATCHNUM,SEQNUM
         NEW IEN9D4,PCKIEN,VERIEN,PATCHIEN
-        DO ParsePATCHNAME(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
+        DO PRSEPATCHNAME(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
         IF (PCKINIT="")!(VER="") GOTO GI2DONE
         SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,"")) GOTO:(IEN9D4'>0) GI2DONE
         SET PCKIEN=+$ORDER(^TMG(22709,"B",IEN9D4,"")) GOTO:(PCKIEN'>0) GI2DONE
@@ -416,10 +417,10 @@ GI2DONE
         QUIT RESULT
 
 
-ENSRLOCL(IENS,Info,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
+ENSRLOCL(IENS,INFO,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         ;"Purpose: Ensure that the files have been downloaded from server and stored locally
         ;"Input: IENS --IENS in 22709.11
-        ;"       Info --PASS BY REFERENCE, an OUT PARAMETER.
+        ;"       INFO --PASS BY REFERENCE, an OUT PARAMETER.
         ;"       Msg -- PASS BY REFERANCE, an OUT PARAMETER
         ;"              Errors are stored in Msg("ERROR",x)=Message
         ;"                                   Msg("ERROR")=COUNT of last error
@@ -428,19 +429,19 @@ ENSRLOCL(IENS,Info,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         ;"       OPTION -- optional.  Pass by reference.
         ;"              OPTION("VERBOSE")=1, means messaages also written directly to output
         ;"       PCKINIT -- Package initials
-        ;"Output: Info will be filled as follows:
-        ;"              Info("PATH")=PATH in HFS
-        ;"              Info("KID FILE")=HFS FILENAME of .KID patch
-        ;"              Info("TEXT FILE")=HFS FILENAME of .TXT accompanying patch
-        ;"              Info("TEXT ONLY")=1 IF there is a text file, but no .KIDS file
-        ;"              Info("KID URL")=URL on server for KID file
-        ;"              Info("TEXT URL")=URL on server for TXT file
+        ;"Output: INFO will be filled as follows:
+        ;"              INFO("PATH")=PATH in HFS
+        ;"              INFO("KID FILE")=HFS FILENAME of .KID patch
+        ;"              INFO("TEXT FILE")=HFS FILENAME of .TXT accompanying patch
+        ;"              INFO("TEXT ONLY")=1 IF there is a text file, but no .KIDS file
+        ;"              INFO("KID URL")=URL on server for KID file
+        ;"              INFO("TEXT URL")=URL on server for TXT file
         ;"RESULTs: 1 if OK, 0 IF problem.
 
         NEW TMGMSG,TMGDATA,TMGFDA
         NEW VERBOSE SET VERBOSE=$GET(OPTION("VERBOSE"))
         NEW RESULT SET RESULT=1  ;"default to success
-        KILL Info
+        KILL INFO
         IF $GET(IENS)="" GOTO ELDONE
         DO GETS^DIQ(22709.11,IENS,"1;1.5;2;3;4","","TMGDATA","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO  GOTO ELDONE
@@ -448,11 +449,11 @@ ENSRLOCL(IENS,Info,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         . DO AddMsg(TEMPS,1,.Msg)
         . IF VERBOSE WRITE TEMPS,!
         NEW URL SET URL=$GET(TMGDATA(22709.11,IENS,1))
-        SET Info("KID URL")=URL
+        SET INFO("KID URL")=URL
         NEW textURL SET textURL=$GET(TMGDATA(22709.11,IENS,1.5))
-        SET Info("TEXT URL")=textURL
+        SET INFO("TEXT URL")=textURL
         IF URL="" DO
-        . IF textURL'="" SET Info("TEXT ONLY")=1 QUIT
+        . IF textURL'="" SET INFO("TEXT ONLY")=1 QUIT
         . NEW TEMPS SET TEMPS="No URL found for KIDS patch or accompanying Info text file in FM File #22709.22, IENS="_IENS
         . DO AddMsg(TEMPS,1,.Msg)
         . IF VERBOSE WRITE TEMPS,!
@@ -464,12 +465,12 @@ ENSRLOCL(IENS,Info,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         . SET PATH=PATH_$$PATCHDIRNAME^TMGPAT4(PCKINIT)
         . SET PATH=$$MKTRALDV^TMGIOUTL(PATH)
         . SET TMGFDA(22709.11,IENS,2)=PATH
-        SET Info("PATH")=PATH
+        SET INFO("PATH")=PATH
         NEW FILENAME SET FILENAME=$GET(TMGDATA(22709.11,IENS,3))
         NEW textFILENAME SET textFILENAME=$GET(TMGDATA(22709.11,IENS,4))
 
         IF (FILENAME'=""),$$FILEXIST^TMGIOUTL(PATH_FILENAME) DO
-        . SET Info("KID FILE")=FILENAME
+        . SET INFO("KID FILE")=FILENAME
         ELSE  IF (URL'="") DO
         . WRITE !
         . WRITE " -------------------------------------------------------------",!
@@ -482,12 +483,12 @@ ENSRLOCL(IENS,Info,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         . IF $$FILEXIST^TMGIOUTL(PATH_FILENAME) DO
         . . IF $$Dos2Unix^TMGKERNL(PATH_FILENAME)
         . . SET TMGFDA(22709.11,IENS,3)=FILENAME
-        . . SET Info("KID FILE")=FILENAME
+        . . SET INFO("KID FILE")=FILENAME
         . ELSE  SET RESULT=0
         . IF VERBOSE WRITE !
 
         IF (textFILENAME'=""),$$FILEXIST^TMGIOUTL(PATH_textFILENAME) DO
-        . SET Info("TEXT FILE")=textFILENAME
+        . SET INFO("TEXT FILE")=textFILENAME
         ELSE  IF (textURL'="") DO
         . IF VERBOSE WRITE "Downloading TEXT file from patch repository server..."
         . WRITE !
@@ -499,7 +500,7 @@ ENSRLOCL(IENS,Info,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         . SET textFILENAME=$$FNEXTRCT^TMGIOUTL(textURL)
         . IF $$FILEXIST^TMGIOUTL(PATH_textFILENAME) DO
         . . SET TMGFDA(22709.11,IENS,4)=textFILENAME
-        . . SET Info("TEXT FILE")=textFILENAME
+        . . SET INFO("TEXT FILE")=textFILENAME
         . SET RESULT=0
         . IF VERBOSE WRITE !
 
@@ -516,7 +517,7 @@ ELDONE
         QUIT RESULT
 
 
-DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,Info)
+DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,INFO)
         ;"Purpose: Ensure that the Patch has been downloaded from server and stored locally
         ;"Input: PATCHNAME -- the name of the patch to get, e.g. ABC*12.34*1234 [SEQ #123]
         ;"       PROTOCOL -- OPTIONAL.  Default is 'ftp://'
@@ -527,16 +528,16 @@ DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,Info)
         ;"                                   Msg("ERROR")=COUNT of last error
         ;"              Message are store in Msg(x)=Message
         ;"                                   Msg=COUNT of last message+1
-        ;"       Info -- PASS BY REFERENCE, an IN and OUT PARAMETER.
-        ;"              Info("PATH")=PATH in HFS
-        ;"              Info("KID FILE")=HFS FILENAME of .KID patch
-        ;"              Info("TEXT FILE")=HFS FILENAME of .TXT accompanying patch
-        ;"              Info("TEXT ONLY")=1 IF there is a text file, but no .KIDS file
-        ;"              Info("KID URL")=URL on server for KID file
-        ;"              Info("TEXT URL")=URL on server for TXT file
-        ;"Output: Info will be filled as follows:
-        ;"              Info("PATH")=PATH in HFS
-        ;"              Info("KID FILE")=HFS FILENAME of .KID patch
+        ;"       INFO -- PASS BY REFERENCE, an IN and OUT PARAMETER.
+        ;"              INFO("PATH")=PATH in HFS
+        ;"              INFO("KID FILE")=HFS FILENAME of .KID patch
+        ;"              INFO("TEXT FILE")=HFS FILENAME of .TXT accompanying patch
+        ;"              INFO("TEXT ONLY")=1 IF there is a text file, but no .KIDS file
+        ;"              INFO("KID URL")=URL on server for KID file
+        ;"              INFO("TEXT URL")=URL on server for TXT file
+        ;"Output: INFO will be filled as follows:
+        ;"              INFO("PATH")=PATH in HFS
+        ;"              INFO("KID FILE")=HFS FILENAME of .KID patch
         ;"RESULTs: 1 if OK, 0 IF problem.
 
         NEW RESULT SET RESULT=1
@@ -544,11 +545,11 @@ DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,Info)
         NEW VERBOSE SET VERBOSE=($GET(OPTION("VERBOSE"))=1)
         SET PROTOCOL=$GET(PROTOCOL,"ftp://")
         IF PATCHNAME?2.4N1"*"1.3N.(1"."1.4N)1"*"1.4N DO
-        . DO ParsePATCHNAME(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
+        . DO PRSEPATCHNAME(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
         ELSE  IF PATCHNAME?1.4A1"_".E DO
         . SET PCKINIT=$PIECE(PATCHNAME,"_",1)
         ELSE  DO  GOTO:(RESULT=0) DLPDONE
-        . NEW TEMPNAME SET TEMPNAME=$GET(Info("TEXT FILE"))
+        . NEW TEMPNAME SET TEMPNAME=$GET(INFO("TEXT FILE"))
         . IF TEMPNAME="" SET RESULT=0 QUIT
         . IF TEMPNAME?1.4A1"_".E DO
         . . SET PCKINIT=$PIECE(TEMPNAME,"_",1)
@@ -557,11 +558,11 @@ DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,Info)
         . IF $GET(PCKINIT)="" SET RESULT=0
 
         SET RESULT=$$RefreshPackge(PCKINIT,.Msg,0,.PCKDIRFNAME) GOTO:(RESULT=0) DLPDONE
-        SET RESULT=$$FindMultPATCH^TMGPAT4(PATCHNAME,PCKINIT,.OPTION,.URL,.Info) GOTO:(RESULT=0) DLPDONE
+        SET RESULT=$$FindMultPATCH^TMGPAT4(PATCHNAME,PCKINIT,.OPTION,.URL,.INFO) GOTO:(RESULT=0) DLPDONE
 
         NEW FILENAME,PATH
         SET PATH=$GET(^TMG("KIDS","PATCH DIR"),"/tmp/")
-        SET Info("PATH")=PATH
+        SET INFO("PATH")=PATH
         SET FILENAME=$$FNEXTRCT^TMGIOUTL(URL)
         IF $$FILEXIST^TMGIOUTL(PATH_FILENAME) GOTO DLPDONE
         NEW spec SET spec("\ ")="%20"
@@ -575,7 +576,7 @@ DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,Info)
         WRITE " -------------------------------------------------------------",!
         IF $$FILEXIST^TMGIOUTL(PATH_FILENAME)=0 SET RESULT=0 GOTO DLPDONE
         IF $$Dos2Unix^TMGKERNL(PATH_FILENAME)
-        SET Info("KID FILE")=FILENAME
+        SET INFO("KID FILE")=FILENAME
 DLPDONE
         QUIT RESULT
 
@@ -719,29 +720,75 @@ IsInstalled(PATCHNAME)
         . NEW ONEPATCHNUM SET ONEPATCHNUM=$PIECE(i," ",1)
         . IF ONEPATCHNUM=PATCHNUM DO
         . . SET RESULT=1,DONE=1
-
-IIDONE
+IIDONE  ;
         QUIT RESULT
-
-
-ParsePATCHNAME(PATCHNAME,PCKINIT,VER,PATCHNUM,SEQNUM)
+        ;
+PATCHESMATCH(PATCH1,PATCH2) ;"Return 0 or 1 depending if patches are the same (equivalent)
+        NEW RESULT SET RESULT=(PATCH1=PATCH2)
+        IF RESULT>0 GOTO PTMTDN
+        NEW PCK1,VER1,PNUM1,SEQ1
+        DO PRSEPATCHNAME(PATCH1,.PCK1,.VER1,.PNUM1,.SEQ1)
+        NEW PCK2,VER2,PNUM2,SEQ2
+        DO PRSEPATCHNAME(PATCH2,.PCK2,.VER2,.PNUM2,.SEQ2)
+        ;"Now compare
+        IF PCK1'=PCK2 GOTO PTMTDN
+        IF +VER1'=+VER2,VER1>0 GOTO PTMTDN
+        IF +PNUM1'=PNUM2,PNUM1>0 GOTO PTMTDN
+        IF (+SEQ1=0)!(+SEQ2=0) SET RESULT=1 GOTO PTMTDN
+        IF +SEQ1'=+SEQ2 GOTO PTMTDN
+        SET RESULT=1
+PTMTDN  QUIT RESULT        
+        ;
+PRSEPATCHNAME(PATCHNAME,PCKINIT,VER,PATCHNUM,SEQNUM)
         ;"Purpose: to parse a patch name into it's composit parts.
         ;"Input: PATCHNAME -- the patch name to parse, e.g. ABC*12.34*1234 SEQ #123
         ;"       PCKINIT,VER,PATCHNUM,SEQNUM -- PASS BY REFERENCE, OUT PARAMETERS
-        ;"RESULTs: nONE
-        SET SEQNUM=+$PIECE(PATCHNAME,"SEQ #",2)
-        SET PATCHNAME=$PIECE(PATCHNAME," SEQ #",1)
-        SET PCKINIT=$PIECE(PATCHNAME,"*",1)
-        SET VER=$PIECE(PATCHNAME,"*",2)
-        SET PATCHNUM=$PIECE(PATCHNAME,"*",3)
+        ;"RESULTs: NONE
+        NEW DISCARD,TMGDIV SET TMGDIV="{!AN}"  ;"i.e. not alpha-numeric
+        IF $$UP^XLFSTR(PATCHNAME)[".KID" DO
+        . SET PATCHNAME=$TRANSLATE(PATCHNAME,"-","_")
+        . SET PATCHNAME=$PIECE($$UP^XLFSTR(PATCHNAME),".KID",1)
+        NEW STR SET STR=PATCHNAME
+        IF STR["SEQ" DO
+        . SET SEQNUM=$$NUMAFTERLABEL^TMGSTUT3(STR,"SEQ")
+        . NEW STRA SET STRA=$PIECE(STR,"SEQ",1)
+        . NEW STRB SET STRB=$PIECE(STR,"SEQ",2)
+        . NEW STRC SET STRC=$PIECE(STRB,SEQNUM,1)
+        . NEW STRD SET STRD=$PIECE(STRB,SEQNUM,2)
+        . SET STR=STRA_"_"_STRD
+        ELSE  SET SEQNUM=""
+        ;"NEW SEQSTR SET SEQSTR="SEQ #"
+        ;"SET SEQNUM=""
+        ;"IF PATCHNAME'[SEQSTR SET SEQSTR="SEQ#"
+        ;"IF PATCHNAME'[SEQSTR SET SEQSTR="SEQ"
+        ;"SET DISCARD=$PIECE(STR,SEQSTR,2)
+        ;"DO CLEAVSTR^TMGSTUT2(.DISCARD,.TMGDIV,.SEQNUM) 
+        ;"SET SEQNUM=$$NUMSTR^TMGSTUT3(SEQNUM)
+        ;"SET STR=$PIECE(PATCHNAME,SEQSTR,1)_"_"_$PIECE(PATCHNAME,SEQNUM,2)
+        SET PCKINIT=STR
+        SET TMGDIV="{!AN}"
+        DO CLEAVSTR^TMGSTUT2(.PCKINIT,.TMGDIV,.DISCARD) ;"TMGDIV is changed to actual chars dividing
+        SET STR=$EXTRACT(STR,$LENGTH(PCKINIT_TMGDIV)+1,$LENGTH(STR))
+        ;"SET PCKINIT=$PIECE(PATCHNAME,"*",1)
+        ;"SET VER=$PIECE(PATCHNAME,"*",2)
+        SET VER=$$NUMSTR^TMGSTUT3(STR)
+        SET STR=$EXTRACT(STR,$LENGTH(VER)+1,$LENGTH(STR))
+        SET TMGDIV="{!AN}"
+        SET DISCARD=STR DO CLEAVSTR^TMGSTUT2(.DISCARD,.TMGDIV,.STR)
+        IF STR["PAT" DO
+        . SET PATCHNUM=$$NUMAFTERLABEL^TMGSTUT3(STR,"PAT")
+        ELSE  DO
+        . SET PATCHNUM=$$NUMSTR^TMGSTUT3(STR)
+        ;"SET PATCHNUM=$PIECE(PATCHNAME,"*",3)
         QUIT
-
-ComposePATCHNAME(PCKINIT,VER,PATCHNUM,SEQNUM)
-        ;"Purpose: the opposite of ParsePATCHNAME: build up name from parts
-        NEW NewPATCH SET NewPATCH=PCKINIT_"*"_VER_"*"_PATCHNUM_" SEQ #"_SEQNUM
-        QUIT NewPATCH
-
-
+        ;
+MAKEPATCHNAME(PCKINIT,VER,PATCHNUM,SEQNUM)
+        ;"Purpose: the opposite of PRSEPATCHNAME: build up name from parts
+        NEW RESULT SET RESULT=PCKINIT_"*"_VER_"*"_PATCHNUM
+        IF $GET(SEQNUM)'="" SET RESULT=RESULT_" SEQ #"_SEQNUM
+        QUIT RESULT
+        ;
+        ;
 AddMsg(s,IsError,Msg)
         ;"Purpose: to add a message to Msg ARRAY
         ;"Input: s  -- message.  May be a string, or an array (or both) in format of:

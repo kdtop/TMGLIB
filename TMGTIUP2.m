@@ -216,7 +216,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         DO RPTAGS^TMGHTM1(.TMGHPI,"<P />","<P>")
         DO RMTAGS^TMGHTM1(.TMGHPI,"=== HPI ISSUES BELOW WERE NOT ADDRESSED TODAY ===")
         DO RMTAGS^TMGHTM1(.TMGHPI,"--&nbsp;[FOLLOWUP&nbsp;ITEMS]&nbsp;---------")
-        DO RMTAGS^TMGHTM1(.TMGHPI,"-- [FOLLOWUP ITEMS] ---------")
+        ;"DO RMTAGS^TMGHTM1(.TMGHPI,"-- [FOLLOWUP ITEMS] ---------")
         DO RPTAGS^TMGHTM1(.TMGHPI,"<LI>  <P>","<LI> ")
         DO RPTAGS^TMGHTM1(.TMGHPI,"[group ","[GROUP ")  ;"force group tags to be ucase 11/13/18
         DO RPTAGS^TMGHTM1(.TMGHPI,"[Group ","[GROUP ")
@@ -238,6 +238,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         NEW PREVFOUND SET PREVFOUND=0
         NEW SOCIALFOUND SET SOCIALFOUND=0
         NEW CONTRAFOUND SET CONTRAFOUND=0
+        NEW FOLLOWUPFOUND SET FOLLOWUPFOUND=0
         SET OPTION("GROUPING")=0
         ;"
         ;"ALLGRPS is an array containing all the groups listed in the HPI,
@@ -254,6 +255,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . IF TMGHPI[DELIMITER SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)
         . ELSE  SET TMGHPI=""
         . IF TITLE["ALLERGIES" QUIT
+        . IF $$UP^XLFSTR(TITLE)["FOLLOWUP ITEMS" QUIT
         . SET SECTION=$$TRIM^XLFSTR(SECTION)
         . DO RMTAGS^TMGHTM1(.SECTION,"</LI>")
         . IF ($$TRIMSECT(SECTION)="")!(SECTION="<P>")!(SECTION="<BR>")!(SECTION="<BR><BR>")!(SECTION="<BR></P>")!(SECTION="<U></U>:")!(SECTION=":") DO
@@ -287,6 +289,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . . IF $$UP^XLFSTR(TITLE)["PREVENT" SET PREVFOUND=1
         . . IF $$UP^XLFSTR(TITLE)["SOCIAL" SET SOCIALFOUND=1
         . . IF $$UP^XLFSTR(TITLE)["CONTRACEPTION" SET CONTRAFOUND=1
+        . . IF $$UP^XLFSTR(TITLE)["FOLLOWUP ITEMS" SET FOLLOWUPFOUND=1
         . . IF $$UP^XLFSTR(SECTION)["[GROUP" SET OPTION("GROUPING")=1
         . . IF $$UP^XLFSTR(SECTION)["(GROUP" SET OPTION("GROUPING")=1
         IF PREVFOUND=0 DO  ;"if prevention section not found, add blank one
@@ -308,6 +311,18 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . . SET ITEMARRAY("TEXT",IDX)="Contraception"
         . . SET ITEMARRAY("TEXT",IDX,1)="(data needed)"
         . . SET IDX=IDX+1
+        IF FOLLOWUPFOUND=0 DO
+        . IF DUZ'=168 QUIT    ;"ONLY FOR DR. KEVIN
+        . NEW TMGDFN SET TMGDFN=+$G(ITEMARRAY("DFN"))
+        . NEW FOLLOWUPITEMS SET FOLLOWUPITEMS=$$FUITEMS^TMGTIUO3(+$GET(TMGDFN))
+        . IF FOLLOWUPITEMS="" QUIT  ;"NOTHING FOUND SO NO TABLE NEEDED
+        . SET ITEMARRAY(IDX)="<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS
+        . SET ITEMARRAY("TEXT",IDX)="Followup Items"
+        . SET ITEMARRAY("TEXT",IDX,1)=""
+        . SET ITEMARRAY("TEXT",IDX,2)="[TABLE]"
+        . SET ITEMARRAY("TEXT",IDX,2,"TABLE")="FOLLOWUP ITEMS"
+        . SET ITEMARRAY("TEXT",IDX,2,"TEXT")=FOLLOWUPITEMS
+        . SET IDX=IDX+1 
 PRSDN   QUIT TMGRESULT
         ;
 ALLGRPS(TMGHPI,DELIMITER,GROUPARR)  ;"Return a list of all groups for a provided HPI
@@ -582,7 +597,7 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
         ;"eddie adding 10/23/18
         NEW BREAKLINE SET BREAKLINE=-1
         IF (GRPORDER="")&(AWV=0) SET GRPORDER=$$GETFIRST(.ITEMARRAY)
-        ELSE  DO ADDBREAK(.ITEMARRAY,.BREAKLINE)        
+        ELSE  IF AWV=0 DO ADDBREAK(.ITEMARRAY,.BREAKLINE)    ;"5/5/22 ADDED THE IF AWV=0 TO THE DO TO KEEP THE "NOT ADDRESSED" TAG FROM BEING DISPLAYED        
         IF GRPORDER'="" DO
         . ;"Create a sequence array based on requested grouping order
         . NEW USEDIDXARR,USEDGRPARR,GRP,LASTGRP,CT

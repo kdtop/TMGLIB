@@ -1,4 +1,4 @@
-TMGMISC3 ;TMG/kst/Misc utility librar ;9/6/17, 5/21/18  
+TMGMISC3 ;TMG/kst/Misc utility librar ;9/6/17, 7/24/22 
          ;;1.0;TMG-LIB;**1**;9/6/17
  ;
  ;"TMG USER INTERFACE API FUNCTIONS
@@ -53,7 +53,7 @@ ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
   IF $GET(X)="" GOTO ADDN
   ;  
   NEW JDX FOR JDX=1:1:INDENT-1 WRITE $SELECT($GET(INDENT(JDX),-1)=0:" ",1:"| ")
-  WRITE "}~"
+  IF INDENT>0 WRITE "}~"
   ;              
   SET TMGIDX=$GET(TMGIDX)
   IF TMGIDX'="" DO
@@ -122,3 +122,10 @@ GCD(U,V) ;"//GREATEST COMMON DENOMINATOR
   ;
   QUIT RESULT
   ;
+NOPATSEL(TMGRESULT)
+  ;"Called from RPC "TMG CPRS NO PATIENT SELECTED"
+  ;"  Returns the HTML to be displayed in wbNoPatientSelected TWebBrowser when
+  ;"       No Patient Is Currently Selected
+  SET TMGRESULT(0)="<html><body>No patient is currently selected.</body></html>"
+  QUIT
+  ;"

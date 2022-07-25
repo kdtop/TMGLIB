@@ -888,26 +888,6 @@ NATHAN
         WRITE !,"Well, hello ",NAME,!
         QUIT
 
-TSTPIPE ;
-        NEW STR
-        write "STARTING",!
-        SET P1="TESTPIPE"
-        OPEN P1:(COMMAND="wget -O - mirrors.medsphere.org/pub":NOWRAP)::"pipe"
-        NEW DONE SET DONE=0
-        FOR  DO  QUIT:($ZEOF)!($ZA'=0)!(+$DEVICE>0)!DONE
-        . NEW $ETRAP SET $ETRAP="SET DONE=1 USE $P SET $ETRAP="""" SET $ECODE="""" "
-        . ;"USE $P WRITE "$ZEOF=",$ZEOF,!
-         . USE P1
-        . READ STR:1
-        . USE $P
-        . IF STR'="" WRITE "==> ",STR,!
-        . ;"WRITE "$ZA=",$ZA,!
-        . ;"WRITE "$DEVICE=",$DEVICE,!
-        CLOSE P1
-
-
-
-
 FileSearch ;
         NEW DIR SET DIR="/opt/worldvista/EHR/r/*.m"
         NEW TAG SET TAG="PS(55,"
@@ -1011,3 +991,14 @@ WORD
   . FOR  SET LETTER2=$O(ARR2(LETTER2)) QUIT:LETTER2=""  DO
   . . WRITE LETTER1,"L",LETTER2,"ER",!
   QUIT
+  ;"
+FIZZBUZZ
+  NEW I
+  FOR I=1:1:100 DO
+  . NEW LINE SET LINE=""
+  . IF I#3=0 SET LINE="Fizz"
+  . IF I#5=0 SET LINE=LINE_"Buzz"
+  . IF LINE="" SET LINE=I
+  . WRITE LINE,!
+  QUIT
+  ;

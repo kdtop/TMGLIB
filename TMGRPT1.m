@@ -389,7 +389,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        DO C^%DTC
        IF RECORDS>0 SET dueDate=X
        ELSE  SET dueDate=""
-       SET X1=X,X2=7
+       SET X1=X,X2=6
        DO C^%DTC
        SET endDate=X+.999999
        ;"SET NowDate=3181231
@@ -1127,7 +1127,44 @@ CNSLTRPT2() ;
        . . . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
        . . . SET s=s_"^"_Y_"^"_ORDERTYPE
        . . . SET matches(ORDERTYPE,FMDate,s)=""
-       ;
+       . . . ;"
+       . . . NEW SUBX SET SUBX=1
+       . . . NEW SUBIEN SET SUBIEN=0
+       . . . FOR  SET SUBIEN=$O(^GMR(123,idx,50,SUBIEN)) QUIT:SUBIEN'>0  DO
+       . . . . NEW RESCHIEN SET RESCHIEN=2230
+       . . . . NEW TIUIEN SET TIUIEN=$G(^GMR(123,idx,50,SUBIEN,0))
+       . . . . IF TIUIEN["TIU" DO
+       . . . . . SET TIUIEN=+TIUIEN
+       . . . . . IF $P($G(^TIU(8925,TIUIEN,0)),"^",1)'=RESCHIEN QUIT
+       . . . . . NEW TEXTLINE SET TEXTLINE=0
+       . . . . . FOR  SET TEXTLINE=$O(^TIU(8925,TIUIEN,"TEXT",TEXTLINE)) QUIT:TEXTLINE'>0  DO
+       . . . . . . NEW LINE SET LINE=$G(^TIU(8925,TIUIEN,"TEXT",TEXTLINE,0))
+       . . . . . . IF LINE["New date is" DO
+       . . . . . . . NEW NEWDATE SET NEWDATE=$P($P(LINE,"<I>",2),"</B",1)
+       . . . . . . . SET matches(ORDERTYPE,FMDate,s,SUBX)="RESCHEDULED FOR: "_NEWDATE
+       . . . . . . . SET SUBX=SUBX+1
+       . . . ;"CHECK FOR UNSIGNED NOTES
+       . . . NEW UNSIGNED SET UNSIGNED=""
+       . . . NEW TIUIEN SET TIUIEN=0
+       . . . FOR  SET TIUIEN=$O(^TIU(8925,"C",PtIEN,TIUIEN)) QUIT:TIUIEN'>0  DO
+       . . . . NEW STATUS SET STATUS=$P($G(^TIU(8925,TIUIEN,0)),"^",5)
+       . . . . IF STATUS=5 DO
+       . . . . . NEW TITLE SET TITLE=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
+       . . . . . SET TITLE=$P($G(^TIU(8925.1,TITLE,0)),"^",1)
+       . . . . . SET TITLE=$P(TITLE," ",1)
+       . . . . . ;"IF TITLE["INSURANCE" QUIT
+       . . . . . ;"IF TITLE["HL7" QUIT
+       . . . . . ;"IF TITLE["HOSPITAL" QUIT
+       . . . . . ;"IF TITLE["MAMMO" QUIT
+       . . . . . SET TITLE=$E(TITLE,1,7)
+       . . . . . IF ORDERTYPE'[TITLE QUIT
+       . . . . . IF UNSIGNED[TITLE QUIT
+       . . . . . IF UNSIGNED'="" SET UNSIGNED=UNSIGNED_","
+       . . . . . SET UNSIGNED=UNSIGNED_$E(TITLE,1,7)
+       . . . IF UNSIGNED'="" DO
+       . . . . SET matches(ORDERTYPE,FMDate,s,SUBX)="UNSIGNED NOTES: "_UNSIGNED
+       . . . . SET SUBX=SUBX+1
+       ;"
        NEW future SET future=0
        NEW dueDate,RESULT,SENT,QUESTION,endDate
        NEW X1,X2,X
@@ -1148,6 +1185,9 @@ CNSLTRPT2() ;
        . . NEW s SET s=""
        . . FOR  SET s=$Order(matches(ORDERTYPE,dueDate,s)) QUIT:s=""  do
        . . . WRITE $P(s,"^",4),?18,"Appt Date: ",$p(s,"^",3),?50,$p($p(s,"^",2),"-",1),?57,! ;""Made: ",$p($p(s,"^",1),"@",1),!
+       . . . NEW SUBIDX SET SUBIDX=0
+       . . . FOR  SET SUBIDX=$Order(matches(ORDERTYPE,dueDate,s,SUBIDX)) QUIT:SUBIDX'>0  DO
+       . . . . WRITE ?18,"========>",$G(matches(ORDERTYPE,dueDate,s,SUBIDX)),!
 CNST2Dn 
        DO ^%ZISC  ;" Close the output device    
        QUIT

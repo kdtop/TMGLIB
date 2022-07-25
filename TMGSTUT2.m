@@ -1,4 +1,4 @@
-TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/15/20
+TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -21,7 +21,7 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/15/20
   ;"=======================================================================
   ;"$$CAPWORDS(S,DIV) -- Capitalize the first letter of each word in a string
   ;"$$CAP1ST(WORD)  -- Capitalize only first letter of word.
-  ;"$$CAP1STAL(SENTENCE,DIVCHS) -- Capitalize only first letter of word, for each word in sentence 
+  ;"$$CAP1STAL(SENTENCE,DIVCHS) -- Capitalize only first letter of word, for each word in sentence
   ;"CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB) ;Split string by divider
   ;"SPLITSTR(TMGTEXT,TMGWIDTH,TMGPARTB) ;Wrap string to specified width.
   ;"SETSTLEN(TMGTEXT,TMGWIDTH) ;Make string exactly TMGWIDTH in length
@@ -105,7 +105,7 @@ CAP1STAL(SENTENCE,DIVCHS)  ;"Capitalize only first letter of word, for each word
   . SET RESULT=RESULT_AWORD
   . SET TEMPS=$EXTRACT(TEMPS,$LENGTH(AWORD)+1,$LENGTH(TEMPS))        
   QUIT RESULT
-  ;        
+  ; 
 CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   ;"Purpse: To take a string, delineated by 'TMGDIV'
   ;"        and to split it into two parts: TMGTEXT and TMGPARTB
@@ -114,6 +114,9 @@ CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   ;"           Function will result in: TMGTEXT="Hello", TMGPARTB="There"
   ;"Input:  TMGTEXT - the input string **SHOULD BE PASSED BY REFERENCE.
   ;"        TMGDIV - the delineating string
+  ;"                If TMGDIV="{!AN}", then string will be divided by any string of non Alphanumeric characters
+  ;"                e.g. 'slow_*_down', then "_*_" would be used as delimiter since it is not made of alpha or numeric chars.
+  ;"                NOTE: If passed by reference, then it will be change to divider used.  
   ;"        TMGPARTB - the string to get second part **SHOULD BE PASSED BY REFERENCE.
   ;"        NCS - OPTIONAL. NCS='NotCaseSensitive'.  If 1 then TMGDIV split is not case sensitive
   ;"        OPTION -- OPTIONAL.  
@@ -121,9 +124,17 @@ CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   ;"Output: TMGTEXT and TMGPARTB will be changed
   ;"        Function will result in: TMGTEXT="Hello", TMGPARTB="There"
   ;"Result: none
-  ;"//kt 12/16 not used?? --> SET TMGINDENT=$GET(TMGINDENT,0)
   IF '$DATA(TMGTEXT) GOTO CSDONE
   IF '$DATA(TMGDIV) GOTO CSDONE
+  IF TMGDIV="{!AN}" DO  ;"Find first NON-ALPHA-NUMERIC segment and use as TMGDIV
+  . SET TMGDIV=""
+  . NEW DONE SET DONE=0
+  . NEW INDIV SET INDIV=0
+  . NEW IDX FOR IDX=1:1:$LENGTH(TMGTEXT) QUIT:DONE  DO
+  . . NEW CH SET CH=$EXTRACT(TMGTEXT,IDX)
+  . . NEW APHN SET APHN=$$ISALPHNUM^TMGSTUT3(CH)
+  . . IF INDIV=1,APHN=0 SET DONE=1 QUIT
+  . . IF APHN=0 SET INDIV=1,TMGDIV=TMGDIV_CH
   NEW TMGSAVE SET TMGSAVE=TMGTEXT
   SET NCS=+$GET(NCS)
   IF NCS=1 DO
@@ -278,10 +289,12 @@ SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX,OPTION)  ;"CleaveToArray
   ;"        ARRAY(4)="Test"
   ;"        ARRAY(CMAXNODE)=4    ;CMAXNODE="MAXNODE"
   ;"Input: TEXT - the input string -- should NOT be passed by reference.
-  ;"         DIVIDER - the delineating string
-  ;"         ARRAY - The array to receive output **SHOULD BE PASSED BY REFERENCE.
-  ;"         INITINDEX - OPTIONAL -- The index of the array to start with, I.e. 0 or 1. Default=1
-  ;"         OPTION - OPTIONAL
+  ;"       DIVIDER - the delineating string
+  ;"                If DIVIDER="{!AN}", then string will be divided by any string of non Alphanumeric characters
+  ;"                e.g. 'slow_*_down', then "_*_" would be used as delimiter since it is not made of alpha or numeric chars.    
+  ;"       ARRAY - The array to receive output **SHOULD BE PASSED BY REFERENCE.
+  ;"       INITINDEX - OPTIONAL -- The index of the array to start with, I.e. 0 or 1. Default=1
+  ;"       OPTION - OPTIONAL
   ;"              OPTION("TRIM DIV") = 1 will cause repeat dividers to be ignored like whitespace.  E.g. "cat cow    duck" gives only 3 entries.  
   ;"Output: ARRAY is changed, as outlined above
   ;"Result: none

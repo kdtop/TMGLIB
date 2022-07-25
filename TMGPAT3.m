@@ -1,4 +1,4 @@
-TMGPAT3  ;TMG/kst/Patching tools ;09/17/08, 2/2/14
+TMGPAT3  ;TMG/kst/Patching tools ;09/17/08, 2/2/14, 6/7/22
          ;;1.0;TMG-LIB;**1**;09/17/08
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -18,13 +18,14 @@ TMGPAT3  ;TMG/kst/Patching tools ;09/17/08, 2/2/14
  ;"SHOWPLST -- Entry point for Show Applied Patches
  ;"ShowPATCHES(PCKINIT,VER) -- show installed patches, using scroll box.
  ;"EditNotes -- launch an editor for editing notes about patching.
-
+ ;"CONINSTBRW -- Console for 'INSTALL' file browser.  
+ ;
  ;"=======================================================================
  ;"Private Functions
  ;"=======================================================================
- ;"PREPAvail(PARRAY,OPTION) -- prepair an array with patch status, for use with SCROLLER^TMGUSRIF
- ;"HNDONSEL(PARRAY,OPTION,Info) -- handle ON SELECT event from SCROLLER^TMGUSRIF
- ;"HNDONCMD(PARRAY,OPTION,Info) -- handle ON SELECT event from Scroller
+ ;"PREPAVAIL(PARRAY,OPTION) -- prepair an array with patch status, for use with SCROLLER^TMGUSRIF
+ ;"HNDONSEL(PARRAY,OPTION,INFO) -- handle ON SELECT event from SCROLLER^TMGUSRIF
+ ;"HNDONCMD(PARRAY,OPTION,INFO) -- handle ON SELECT event from Scroller
  ;"STORMSNG(PCKINIT,PARRAY) store the list of missing patches with the pending patches
  ;"DownPCK(PATCHNAME,OPTION,Msg) -- Given a package name, ensure all pending patches are local.
  ;"$$RPT1AVAL^TMGPAT3(PATCHNAME)
@@ -36,23 +37,23 @@ TMGPAT3  ;TMG/kst/Patching tools ;09/17/08, 2/2/14
  ;"GETAVAIL(PCKINIT,VER,PARRAY,NEEDSREFRESH,OPTION) -- return array of all patches for a given package/version
  ;"GETPLIST(PCKINIT,VER,PARRAY) -- get a list of applied patches, from PACKAGE file, into ARRAY
  ;"PREPPATCHLIST(PCKINIT,VER,pSHOWARRAY,ByPATCHNUM) -- prepair the patch list for display in scroll box.
- ;"HndOnPCmd(PARRAY,OPTION,Info) -- handle ON SELECT event from Scroller
- ;"HndOnLstSel(PARRAY,OPTION,Info) -- handle ON SELECT event from SCROLLER^TMGUSRIF for LIST PATCHES
+ ;"HndOnPCmd(PARRAY,OPTION,INFO) -- handle ON SELECT event from Scroller
+ ;"HndOnLstSel(PARRAY,OPTION,INFO) -- handle ON SELECT event from SCROLLER^TMGUSRIF for LIST PATCHES
  ;"SHOWAVAL -- Show data that tallies the available patches.
  ;"IncLineCt(lineCount,pageLen)
  ;"=======================================================================
  ;"=======================================================================
-
+ ;
  ;"NOTE: This Module should be re-written.  Rather than store the data in the global ^TMG(...
  ;"      the Fileman file 22709 should be used.  As it is now, it is a duplication of organization.
-
-NEWPACK
+ ;
+NEWPACK  ;
         ;"Purpose: Install a NEW package from ftp server.
-
+        ;
         NEW %,DIR,PCKINIT,VER,X,Y,Msg
-
+        ;
         DO LOGO^TMGPAT1
-       SET %=1
+        SET %=1
         WRITE "Install a NEW PACKAGE from patch repository server" DO YN^DICN WRITE !
         IF %'=1 GOTO NPDONE
         SET DIR(0)="F^2:4"
@@ -67,37 +68,40 @@ NEWPACK
 
         NEW ARRAY,RESULT
         WRITE "Fetching info from patch repository server..."
-        SET RESULT=$$GetPckList^TMGKERNL(PCKINIT,.ARRAY)
+        ;"SET RESULT=$$GetPckList^TMGKERNL(PCKINIT,.ARRAY)  ;GetPckList is depreciated.   rewritten for newer code....
+        SET RESULT=$$GETPATL^TMGKERN4(PCKINIT,.ARRAY)  ;"//kt 6/13/22
+
         WRITE "  DONE.",!
         IF RESULT=0 GOTO NPDONE
         NEW IEN9D4 SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,""))
         IF IEN9D4'>0 DO  GOTO NPDONE
         . DO AddMsg^TMGPAT2("Can't find PACKAGE named '"_PCKINIT_"'",1,.Msg)
-
-NPDONE
+        ;
+NPDONE  ;
         IF $$SHOWMSG^TMGPAT2(.Msg)
         WRITE "Goodbye.",!
         QUIT
-
+        ;
  ;"====================================================================
-
-CONSOLE
+        ;
+CONSOLE  ;
         NEW ARRAY,OPTION
-        DO PREPAvail("ARRAY",.OPTION)
+        DO PREPAVAIL("ARRAY",.OPTION)
         SET OPTION("FOOTER",1,1)="^ Exit"
         SET OPTION("FOOTER",1,2)="? Help"
         SET OPTION("FOOTER",1,3)="[F1] SHOW Compl"
-        SET OPTION("FOOTER",1,4)="[F3] Hx"
+        SET OPTION("FOOTER",1,4)="[F3] Hx/Avail"
         SET OPTION("FOOTER",1,5)="[F4] Downld Pak"
         SET OPTION("FOOTER",1,6)="[F5] Notes"
         SET OPTION("FOOTER",1,7)="[F6] Add Waiting"
         SET OPTION("ON SELECT")="HNDONSEL^TMGPAT3"
         SET OPTION("ON CMD")="HNDONCMD^TMGPAT3"
+        SET OPTION("ON KEYPRESS")="HNDONKP^TMGPAT3"
         WRITE #
         DO SCROLLER^TMGUSRIF("ARRAY",.OPTION)
         QUIT
-
-PREPAvail(PARRAY,OPTION)
+        ;
+PREPAVAIL(PARRAY,OPTION)
         ;"Purpose: To prepair an array with patch status, for use with SCROLLER^TMGUSRIF
         ;"Input: PARRAY -- PASS BY NAME.  ARRAY to put info into.  Prior data is killed.
         ;"       OPTION -- PASS BY REFERENCE.  Prior data is NOT killed.  See SCROLLER^TMGUSRIF for details
@@ -109,24 +113,23 @@ PREPAvail(PARRAY,OPTION)
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,Version,"PATCHES",######)=AAAA*NN.NN*NNNN SEQ #1234"
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,"FULL NAME")=PACKAGE name
         ;"Results: NONE
-
         SET PARRAY=$GET(PARRAY) GOTO:(PARRAY="") pAvDONE
         KILL @PARRAY
         NEW Hinder,Blocked
         NEW ONELine,lineCt SET lineCt=1
         NEW PCKINIT SET PCKINIT=""
-        NEW grandTotal SET grandTotal=0
+        NEW GRANDTOTAL SET GRANDTOTAL=0
         NEW hideEmpty SET hideEmpty=$GET(OPTION("HIDE EMPTY"),1)
         FOR  SET PCKINIT=$ORDER(^TMG("KIDS","PENDING PATCHES",PCKINIT)) QUIT:(PCKINIT="")  DO
-        . NEW total SET total=0
+        . NEW TOTAL SET TOTAL=0
         . NEW VER SET VER=""
         . NEW PACKAGENAME SET PACKAGENAME=$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,"FULL NAME"))
         . FOR  SET VER=$ORDER(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER)) QUIT:(+VER'>0)  DO
-        . . SET total=total+$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER))
-        . SET grandTotal=grandTotal+total
-        . IF (total=0)&(hideEmpty=1) QUIT
+        . . SET TOTAL=TOTAL+$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER))
+        . SET GRANDTOTAL=GRANDTOTAL+TOTAL
+        . IF (TOTAL=0)&(hideEmpty=1) QUIT
         . SET ONELine="("_PCKINIT_") "_PACKAGENAME_"  "
-        . SET ONELine=$$LJ^XLFSTR($EXTRACT(ONELine,1,40),40)_"--> "_$$RJ^XLFSTR(total,3)_" patches. "
+        . SET ONELine=$$LJ^XLFSTR($EXTRACT(ONELine,1,40),40)_"--> "_$$RJ^XLFSTR(TOTAL,3)_" patches. "
         . NEW temPARRAY,current,MAXVER
         . SET MAXVER=0,VER="",current=""
         . FOR  SET VER=$ORDER(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER)) QUIT:(+VER'>0)  DO
@@ -174,43 +177,47 @@ PREPAvail(PARRAY,OPTION)
         . . SET hideARRAY(COUNT)=ONELine
         . . SET @PARRAY@(lineCt,ONELine)="",lineCt=lineCt+1
 
-pAV2    SET OPTION("HEADER",1)="TMG Patch Helper--  "_grandTotal_" Patches to be installed in all packages."
+pAV2    SET OPTION("HEADER",1)="TMG Patch Helper--  "_GRANDTOTAL_" Patches to be installed in all packages."
 
 pAvDONE
         QUIT
 
-
-HNDONSEL(PARRAY,OPTION,Info)
+HNDONKP(PARRAY,OPTION,INFO)
         ;"Purpose: handle ON SELECT event from SCROLLER^TMGUSRIF
-        ;"Input: PARRAY,OPTION,Info -- see documentation in SCROLLER^TMGUSRIF
-        ;"       Info has this:
-        ;"          Info("CURRENT LINE","NUMBER")=number currently highlighted line
-        ;"          Info("CURRENT LINE","TEXT")=Text of currently highlighted line
-        ;"          Info("CURRENT LINE","RETURN")=return value of currently highlighted line
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in SCROLLER^TMGUSRIF
+        DO HNDONCMD(.PARRAY,.OPTION,.INFO)
+        QUIT
+
+HNDONSEL(PARRAY,OPTION,INFO)
+        ;"Purpose: handle ON SELECT event from SCROLLER^TMGUSRIF
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in SCROLLER^TMGUSRIF
+        ;"       INFO has this:
+        ;"          INFO("CURRENT LINE","NUMBER")=number currently highlighted line
+        ;"          INFO("CURRENT LINE","TEXT")=Text of currently highlighted line
+        ;"          INFO("CURRENT LINE","RETURN")=return value of currently highlighted line
 
         NEW PATCHNAME,PCKINIT,VER
-        SET PATCHNAME=$GET(Info("CURRENT LINE","RETURN"))
-        DO ParsePATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER)
+        SET PATCHNAME=$GET(INFO("CURRENT LINE","RETURN"))
+        DO PRSEPATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER)
         IF (PCKINIT="")&(VER="") DO  GOTO HOSDONE
         . WRITE "?? The line selected doesn't specify any command ??",!
         DO DONEXTPK^TMGPAT1(PCKINIT,VER)
-        DO PREPAvail(PARRAY,.OPTION)
-HOSDONE
+        DO PREPAVAIL(PARRAY,.OPTION)
+HOSDONE ;
         DO PRESS2GO^TMGUSRI2
         WRITE #
         QUIT
-
-HndOnLstSel(PARRAY,OPTION,Info)
+        ;
+HndOnLstSel(PARRAY,OPTION,INFO)
         ;"Purpose: handle ON SELECT event from SCROLLER^TMGUSRIF
-        ;"Input: PARRAY,OPTION,Info -- see documentation in SCROLLER^TMGUSRIF
-        ;"       Info has this:
-        ;"          Info("CURRENT LINE","NUMBER")=number currently highlighted line
-        ;"          Info("CURRENT LINE","TEXT")=Text of currently highlighted line
-        ;"          Info("CURRENT LINE","RETURN")=return value of currently highlighted line
-
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in SCROLLER^TMGUSRIF
+        ;"       INFO has this:
+        ;"          INFO("CURRENT LINE","NUMBER")=number currently highlighted line
+        ;"          INFO("CURRENT LINE","TEXT")=Text of currently highlighted line
+        ;"          INFO("CURRENT LINE","RETURN")=return value of currently highlighted line
         NEW TEXT,PATCHNAME,PCKINIT,VER,STRB
-        SET PATCHNAME=$$TRIM^XLFSTR($GET(Info("CURRENT LINE","RETURN")))
-        SET TEXT=$GET(Info("CURRENT LINE","TEXT"))
+        SET PATCHNAME=$$TRIM^XLFSTR($GET(INFO("CURRENT LINE","RETURN")))
+        SET TEXT=$GET(INFO("CURRENT LINE","TEXT"))
         SET STRB=$$TRIM^XLFSTR($PIECE(TEXT,PATCHNAME,2))
         IF STRB["(available)" DO
         . WRITE !,"Install available patch: ",PATCHNAME
@@ -219,29 +226,27 @@ HndOnLstSel(PARRAY,OPTION,Info)
         . IF %=2 QUIT
         . NEW IENS SET IENS=$$GETIENS^TMGPAT2(PATCHNAME)
         . IF IENS="" DO  QUIT
-        . . WRITE "Sorry.  Couldn't find this for some reason!"
-        . . DO PRESS2GO^TMGUSRI2
+        . . ;"WRITE "Sorry.  Couldn't find this for some reason!"
+        . . ;"DO PRESS2GO^TMGUSRI2
         . DO DOFIXMSG^TMGPAT1(IENS,"",1)
         . DO PREPPATCHLIST(TMGPCKI,TMGPVER,PARRAY,TMGSORT)
         . DO PRESS2GO^TMGUSRI2
-
+        ;
         ELSE  DO
         . WRITE !,TEXT,!
         . DO PRESS2GO^TMGUSRI2
         WRITE #
         QUIT
-
-
-HNDONCMD(PARRAY,OPTION,Info)  ;
+        ;
+HNDONCMD(PARRAY,OPTION,INFO)  ;
         ;"Purpose: handle ON SELECT event from Scroller
-        ;"Input: PARRAY,OPTION,Info -- see documentation in Scroller
-        ;"       Info has this:
-        ;"          Info("USER INPUT")=INPUT
-        ;"          Info("CURRENT LINE","NUMBER")=number currently highlighted line
-        ;"          Info("CURRENT LINE","TEXT")=Text of currently highlighted line
-        ;"          Info("CURRENT LINE","RETURN")=return value of currently highlighted line
-
-        NEW INPUT SET INPUT=$$UP^XLFSTR($GET(Info("USER INPUT")))
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in Scroller
+        ;"       INFO has this:
+        ;"          INFO("USER INPUT")=INPUT
+        ;"          INFO("CURRENT LINE","NUMBER")=number currently highlighted line
+        ;"          INFO("CURRENT LINE","TEXT")=Text of currently highlighted line
+        ;"          INFO("CURRENT LINE","RETURN")=return value of currently highlighted line
+        NEW INPUT SET INPUT=$$UP^XLFSTR($GET(INFO("USER INPUT")))
         IF INPUT["F2" DO
         . SET OPTION("FOOTER",1,3)="[F1] SHOW compl"
         . SET OPTION("HIDE EMPTY")=1
@@ -251,12 +256,12 @@ HNDONCMD(PARRAY,OPTION,Info)  ;
         . SET OPTION("FOOTER",1,3)="[F2] HIDE compl"
         . SET OPTION("HIDE EMPTY")=0
         ELSE  IF INPUT["F3" DO
-        . NEW PATCHNAME SET PATCHNAME=$GET(Info("CURRENT LINE","RETURN")) QUIT:(PATCHNAME="")
+        . NEW PATCHNAME SET PATCHNAME=$GET(INFO("CURRENT LINE","RETURN")) QUIT:(PATCHNAME="")
         . NEW PCKINIT,VER
-        . DO ParsePATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER)
+        . DO PRSEPATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER)
         . IF $$ShowPATCHES(PCKINIT,VER)
         ELSE  IF INPUT["F4" DO
-        . NEW PATCHNAME SET PATCHNAME=$GET(Info("CURRENT LINE","RETURN")) QUIT:(PATCHNAME="")
+        . NEW PATCHNAME SET PATCHNAME=$GET(INFO("CURRENT LINE","RETURN")) QUIT:(PATCHNAME="")
         . NEW OPTION SET OPTION("VERBOSE")=1
         . NEW % SET %=1
         . WRITE "Ensure that all pending patches for ",PATCHNAME," have been downloaded"
@@ -268,10 +273,10 @@ HNDONCMD(PARRAY,OPTION,Info)  ;
         . DO EditNotes
         . DO PRESS2GO^TMGUSRI2
         ELSE  IF INPUT["F6" DO  ;"Add Waiting"
-        . IF Info("CURRENT LINE","TEXT")'["-->" DO  QUIT
+        . IF INFO("CURRENT LINE","TEXT")'["-->" DO  QUIT
         . . WRITE !,"Please first select containing '-->'",!
         . . DO PRESS2GO^TMGUSRI2
-        . NEW PATCHNAME SET PATCHNAME=$GET(Info("CURRENT LINE","RETURN")) QUIT:(PATCHNAME="")
+        . NEW PATCHNAME SET PATCHNAME=$GET(INFO("CURRENT LINE","RETURN")) QUIT:(PATCHNAME="")
         . NEW PCKINIT SET PCKINIT=$PIECE(PATCHNAME,"*",1)
         . NEW % SET %=1
         . WRITE !,"Manually add a 'Waiting For' entry for ",PATCHNAME
@@ -290,25 +295,24 @@ HNDONCMD(PARRAY,OPTION,Info)  ;
         . WRITE "Enter ^ at the ':' prompt to QUIT",!
         . DO PRESS2GO^TMGUSRI2
         ELSE  IF INPUT'="" DO
-        . WRITE !,"Input ",$GET(Info("USER INPUT"))," not recognized.",!
+        . WRITE !,"Input ",$GET(INFO("USER INPUT"))," not recognized.",!
         . DO PRESS2GO^TMGUSRI2
-
-        DO PREPAvail(PARRAY,.OPTION)
+        ;
+        DO PREPAVAIL(PARRAY,.OPTION)
         WRITE #
         QUIT
-
-
+        ;
 STORMSNG(PCKINIT,PARRAY)  ;"STORE MISSING
         ;"Purpose: to store the list of missing patches with the pending patches
         KILL ^TMG("KIDS","PENDING PATCHES",PCKINIT,"WAITING FOR")
         MERGE ^TMG("KIDS","PENDING PATCHES",PCKINIT,"WAITING FOR")=@PARRAY
         QUIT
-
+        ;
 AddMissing(PCKINIT,PATCHNAME)
         ;"Purpose: Add a missing patche to pending patches
         SET ^TMG("KIDS","PENDING PATCHES",PCKINIT,"WAITING FOR",PATCHNAME)=""
         QUIT
-
+        ;
 DownPCK(PATCHNAME,OPTION,Msg)
         ;"Purpose: given a patch name, ensure all pending patches are local.
         ;"Input: PATCHNAME -- patch name, e.g. ABC*1.0*123
@@ -319,45 +323,44 @@ DownPCK(PATCHNAME,OPTION,Msg)
         ;"                                   Msg("ERROR")=COUNT of last error
         ;"              Message are store in Msg(x)=Message
         ;"                                   Msg=COUNT of last message+1
-        ;"Results: nONE
-
-        NEW PCKINIT,VER,PATCHNUM,SEQNUM,Info
-        DO ParsePATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
+        ;"Results: NONE
+        NEW PCKINIT,VER,PATCHNUM,SEQNUM,INFO
+        DO PRSEPATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
         DO SCAN41A1VER(PCKINIT,VER,90)
-        NEW total SET total=+$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER))
+        NEW TOTAL SET TOTAL=+$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER))
         NEW COUNT SET COUNT=1
         NEW PATCH SET PATCH=""
         FOR  SET PATCH=$ORDER(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER,"PATCHES",PATCH)) QUIT:(PATCH="")  DO
         . NEW PATCHNAME SET PATCHNAME=$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER,"PATCHES",PATCH))
-        . IF $GET(OPTION("VERBOSE"))=1 WRITE COUNT,"/",total,".  ---- ",PATCHNAME," ----",!
+        . IF $GET(OPTION("VERBOSE"))=1 WRITE COUNT,"/",TOTAL,".  ---- ",PATCHNAME," ----",!
         . NEW IENS SET IENS=$$GETIENS^TMGPAT2(PATCHNAME) QUIT:(IENS="")
-        . IF $$ENSRLOCL^TMGPAT2(IENS,.Info,.Msg,.OPTION,PCKINIT)=0 DO
+        . IF $$ENSRLOCL^TMGPAT2(IENS,.INFO,.Msg,.OPTION,PCKINIT)=0 DO
         . . DO AddMsg^TMGPAT2("Unable to download patch to local file system.",1,Msg)
         . SET COUNT=COUNT+1
-
+        ;
         IF $GET(OPTION("VERBOSE"))=1 DO
         . IF $$SHOWMSG^TMGPAT2(.Msg)
-
+        ;
         QUIT
-
+        ;
 RPT1AVAL(PATCHNAME)
         ;"Purpose: given a patch name (e.g. ABC*1.0*123), return pending patches.
         NEW PCKINIT,VER,PATCHNUM,SEQNUM
         NEW COUNT SET COUNT=-1
-        DO ParsePATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
+        DO PRSEPATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
         IF ($GET(PCKINIT)="")!($GET(VER)="") GOTO Rpt1DONE
         DO SCAN41A1VER(PCKINIT,VER,90)
         SET COUNT=+$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER))
-Rpt1DONE
+Rpt1DONE ;
         QUIT COUNT
-
+        ;
 RPTAVAIL(PCKINIT)
         ;"Purpose: given a package (e.g. ABC), return pending patches.
-        NEW total SET total=0
+        NEW TOTAL SET TOTAL=0
         NEW VER SET VER=""
         FOR  SET VER=$ORDER(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER)) QUIT:(+VER'>0)  DO
-        . SET total=total+$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER))
-        QUIT total
+        . SET TOTAL=TOTAL+$GET(^TMG("KIDS","PENDING PATCHES",PCKINIT,VER))
+        QUIT TOTAL
 
 RESCAN
         ;"Purpose: To show how many patches for a package are available and have not been installed yet
@@ -389,20 +392,18 @@ SCAN4NEW(MAXDays,OPTION)
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,Version,"PATCHES",######)=AAAA*NN.NN*NNNN SEQ #1234"
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,"FULL NAME")=PACKAGE name
         ;"
-        ;"Results: nONE
+        ;"Results: NONE
 
         ;"NOTE: This function should be re-written.  Rather than store the data in the global ^TMG(...
         ;"      the Fileman file 22709 should be used.  As it is now, it is a duplication of organization.
-
         SET MAXDays=+$GET(MAXDays)
         NEW PACKAGENAME SET PACKAGENAME=""
         FOR  SET PACKAGENAME=$ORDER(^DIC(9.4,"B",PACKAGENAME)) QUIT:(PACKAGENAME="")  DO
         . NEW IEN9D4 SET IEN9D4=+$ORDER(^DIC(9.4,"B",PACKAGENAME,"")) QUIT:(IEN9D4'>0)
         . NEW PCKINIT SET PCKINIT=$PIECE($GET(^DIC(9.4,IEN9D4,0)),"^",2) ;"0;2 = Package prefix
         . DO SCAN41(PCKINIT,MAXDays,.OPTION)
-
         QUIT
-
+        ;
 SCAN41(PCKINIT,MAXDays,OPTION)
         ;"Purpose: to scan ONE package and determine how many patches are pending
         ;"Input: PCKINIT -- Package Initials/prefix
@@ -415,7 +416,7 @@ SCAN41(PCKINIT,MAXDays,OPTION)
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,Version,"PATCHES",######)=AAAA*NN.NN*NNNN SEQ #1234"
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,Version,"PATCHES",######)=AAAA*NN.NN*NNNN SEQ #1234"
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,"FULL NAME")=PACKAGE name
-        ;"Results: nONE
+        ;"Results: NONE
 
         NEW IEN9D4 SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,""))
         NEW PACKAGENAME SET PACKAGENAME=""
@@ -443,7 +444,7 @@ SCAN41A1VER(PCKINIT,VER,MAXDays,OPTION)
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,Version,"PATCHES",######)=AAAA*NN.NN*NNNN SEQ #1234"
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,Version,"PATCHES",######)=AAAA*NN.NN*NNNN SEQ #1234"
         ;"          ^TMG("KIDS","PENDING PATCHES",PACKAGEInitials,"FULL NAME")=PACKAGE name
-        ;"Results: nONE
+        ;"Results: NONE
         ;"KILL ^TMG("KIDS","PENDING PATCHES",PCKINIT,"DATE REFRESHED") ;"force refresh
         IF $GET(PCKINIT)="" GOTO S41DONE
         IF $GET(VER)="" GOTO S41DONE
@@ -516,7 +517,7 @@ GETAVAIL(PCKINIT,VER,PARRAY,NEEDSREFRESH,OPTION)
         ;"       NEEDSREFRESH -- OPTIONAL.  0 IF refreshing not needed (just ensure file exists)
         ;"       OPTION -- Optional.  PASS BY REFERENCE.
         ;"                   OPTION("VERBOSE")=1 --> puts output to console
-        ;"RESULTs: nONE
+        ;"RESULTs: NONE
 
         KILL @PARRAY
         IF $$RefreshPackge^TMGPAT2(PCKINIT,.Msg,.NEEDSREFRESH,.OPTION)
@@ -634,7 +635,6 @@ ShowPATCHES(PCKINIT,VER)
         ;"Input: PCKINIT -- this is the namespace of the package to get patches for, e.g. 'DI' for fileman
         ;"       VER -- the package version
         ;"Results: 1 if OK, 0 IF error
-
         NEW TMGPCKI SET TMGPCKI=PCKINIT  ;"used in HndOnPCmd^TMGPAT3
         NEW TMGPVER SET TMGPVER=VER      ;"used in HndOnPCmd^TMGPAT3
         NEW TMGSORT SET TMGSORT=1        ;"sort by index number.  Used in HndOnPCmd^TMGPAT3
@@ -650,20 +650,22 @@ ShowPATCHES(PCKINIT,VER)
         SET OPTION("FOOTER",1,3)="[F1] "_TMGSARRAY((TMGSORT+1)#3)
         SET OPTION("FOOTER",1,4)="[F2] Fix Missing PATCH"
         SET OPTION("FOOTER",1,5)="[F3] Fix Missing SEQ"
+        SET OPTION("FOOTER",1,6)="[F4] Browse Server"
         SET OPTION("ON CMD")="HndOnPCmd^TMGPAT3"
+        SET OPTION("ON KEYPRESS")="HndOnPKP^TMGPAT3"
         SET OPTION("ON SELECT")="HndOnLstSel^TMGPAT3"
         SET OPTION("SHOW INDEX")=1
-
+        ;
         DO PREPPATCHLIST(PCKINIT,VER,"SHOWARRAY",TMGSORT)
         IF $DATA(SHOWARRAY)=0 DO
         . DO ASKVER^TMGPAT1(PCKINIT,.VER)
         . DO PREPPATCHLIST(PCKINIT,VER,"SHOWARRAY",TMGSORT)
-
+        ;
         WRITE #
         DO SCROLLER^TMGUSRIF("SHOWARRAY",.OPTION)
-
+        ;
 SPDONE  QUIT 1
-
+        ;
 PREPPATCHLIST(PCKINIT,VER,pSHOWARRAY,MODE)
         ;"Purpose: to prepair the patch list for display in scroll box.
         ;"Input: PCKINIT -- this is the namespace of the package to get patches for, e.g. 'DI' for fileman
@@ -713,15 +715,24 @@ PPL2    FOR  SET INDEX=$ORDER(ARRAY(INDEX)) QUIT:(INDEX="")  DO
         . SET SHOWI=SHOWI+1
 
 PPLDONE QUIT
-
-HndOnPCmd(PARRAY,OPTION,Info)
+        ;
+HndOnPKP(PARRAY,OPTION,INFO) ;
         ;"Purpose: handle ON SELECT event from Scroller
-        ;"Input: PARRAY,OPTION,Info -- see documentation in Scroller
-        ;"       Info has this: Info("USER INPUT")=INPUT
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in Scroller
+        ;"       INFO has this: INFO("USER INPUT")=INPUT
+        ;"NOTE: uses global-scope vars SET up in ShowPATCHES:
+        ;" TMGPCKI,TMGPVER,TMGSORT
+        DO HndOnPCmd(.PARRAY,.OPTION,.INFO) ;
+        QUIT
+        ;
+HndOnPCmd(PARRAY,OPTION,INFO) ;
+        ;"Purpose: handle ON SELECT event from Scroller
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in Scroller
+        ;"       INFO has this: INFO("USER INPUT")=INPUT
         ;"NOTE: uses global-scope vars SET up in ShowPATCHES:
         ;" TMGPCKI,TMGPVER,TMGSORT
 
-        NEW INPUT SET INPUT=$$UP^XLFSTR($GET(Info("USER INPUT")))
+        NEW INPUT SET INPUT=$$UP^XLFSTR($GET(INFO("USER INPUT")))
         IF INPUT["F1" DO
         . SET TMGSORT=(TMGSORT+1)#3
         . SET OPTION("HEADER",1)="Applied patches for package "_PCKINIT_"   "_TMGSARRAY(TMGSORT)
@@ -736,6 +747,12 @@ HndOnPCmd(PARRAY,OPTION,Info)
         . DO FXMSINIT^TMGPAT1(TMGPCKI,TMGPVER,1)
         . DO PREPPATCHLIST(TMGPCKI,TMGPVER,PARRAY,TMGSORT)
         . DO PRESS2GO^TMGUSRI2
+        ELSE  IF INPUT["F4" DO
+        . NEW OPTION
+        . SET OPTION("URL")="foia-vista.worldvista.org/Patches_By_Application/"
+        . SET OPTION("SELECT DIR")=0
+        . WRITE $$FBROWSE^TMGIOUT2(.OPTION)
+        . DO PRESS2GO^TMGUSRI2
         ELSE  IF INPUT="?" DO
         . WRITE !,"Use UP and DOWN cursor keys to scroll.",!
         . WRITE "Press F1 or F2 to change sorting",!
@@ -744,14 +761,197 @@ HndOnPCmd(PARRAY,OPTION,Info)
         . WRITE "Enter ^ at the ':' prompt when DONE",!
         . DO PRESS2GO^TMGUSRI2
         ELSE  IF INPUT'="" DO
-        . WRITE !,"Input ",$GET(Info("USER INPUT"))," not recognized.",!
+        . WRITE !,"Input ",$GET(INFO("USER INPUT"))," not recognized.",!
         . DO PRESS2GO^TMGUSRI2
-
+        ;
         WRITE #
         QUIT
-
-EditNotes
+        ;
+EditNotes  ;
         ;"Purpose: to launch an editor for editing notes about patching.
         NEW FPNAME SET FPNAME=$GET(^TMG("KIDS","PATCH DIR"),"/tmp/")_"Patch_Notes.txt"
         IF $$EditHFSFile^TMGKERNL(FPNAME)
         QUIT
+        ;
+        ;"====================================================================
+        ;
+CONINSTBRW ;  Console for "INSTALL" file browser.  
+        NEW ARRAY,OPTION,TMGOPT2
+        SET TMGOPT2("SHOW COMPLETED")=0         
+        SET TMGOPT2("SORT BY")="NAME"
+        DO PREPINSTARR("ARRAY",.OPTION,.TMGOPT2)
+        SET OPTION("FOOTER",1,1)="^ Exit"
+        SET OPTION("FOOTER",1,3)="[F1] Sort By NAME"
+        SET OPTION("FOOTER",1,4)="[F2] Sort By STATUS"
+        SET OPTION("FOOTER",1,5)="[F3] Toggle show COMPLETED"
+        SET OPTION("ON SELECT")="HNDONSEL2^TMGPAT3"
+        SET OPTION("ON CMD")="HNDONCMD2^TMGPAT3"
+        SET OPTION("ON KEYPRESS")="HNDONKP2^TMGPAT3"
+        WRITE #
+        DO SCROLLER^TMGUSRIF("ARRAY",.OPTION)
+        QUIT
+        ;
+HNDONSEL2(PARRAY,OPTION,INFO)  ;
+        ;"Purpose: handle ON SELECT event from Scroller
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in Scroller
+        ;"        INFO("USER INPUT")=INPUT
+        ;"        INFO("CMD")=User full input command so far (being built up)
+        ;
+        NEW IEN SET IEN=$GET(INFO("CURRENT LINE","RETURN"))
+        IF IEN'>0 QUIT
+        DO MANAGEINST(IEN)
+        WRITE #  ;"clear screen
+        QUIT
+        ;
+HNDONCMD2(PARRAY,OPTION,INFO)  ;
+        ;"Purpose: handle ON SELECT event from Scroller
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in Scroller
+        ;"        INFO("USER INPUT")=INPUT
+        ;"        INFO("CMD")=User full input command so far (being built up)
+        ;
+        QUIT
+        ;
+HNDONKP2(PARRAY,OPTION,INFO)  ;
+        ;"Purpose: handle ON SELECT event from Scroller
+        ;"Input: PARRAY,OPTION,INFO -- see documentation in Scroller
+        ;"        INFO("USER INPUT")=INPUT
+        ;"        INFO("CMD")=User full input command so far (being built up)
+        ;"Uses TMGOPT2 in global scope. 
+        ;
+        NEW INPUT SET INPUT=$GET(INFO("USER INPUT"))
+        NEW CMD SET CMD=$GET(INFO("CMD"))
+        IF INPUT="{F1}" DO  GOTO HKP2DN
+        . SET TMGOPT2("SORT BY")="NAME"
+        . DO PREPINSTARR(PARRAY,.OPTION,.TMGOPT2)
+        . SET INFO("USER INPUT")=""
+        IF INPUT="{F2}" DO  GOTO HKP2DN
+        . SET TMGOPT2("SORT BY")="STATUS"
+        . DO PREPINSTARR(PARRAY,.OPTION,.TMGOPT2)
+        . SET INFO("USER INPUT")=""
+        IF INPUT="{F3}" DO  GOTO HKP2DN
+        . SET TMGOPT2("SHOW COMPLETED")='$GET(TMGOPT2("SHOW COMPLETED")) 
+        . DO PREPINSTARR(PARRAY,.OPTION,.TMGOPT2)
+        . SET INFO("USER INPUT")=""
+        ELSE  DO
+        . SET TMGOPT2("MUST CONTAIN")=CMD            
+        . DO PREPINSTARR(PARRAY,.OPTION,.TMGOPT2)
+HKP2DN  ;        
+        QUIT
+        ;
+PREPINSTARR(PARRAY,OPTION,OPT2)  ;"PREP INSTALL ARRAY
+        ;"Purpose: To prepair an array with patch status, for use with SCROLLER^TMGUSRIF
+        ;"Input: PARRAY -- PASS BY NAME.  ARRAY to put info into.  Prior data is killed.
+        ;"       OPTION -- PASS BY REFERENCE.  Prior data is NOT killed.  See SCROLLER^TMGUSRIF for details
+        ;"       OPT2 -- OPTIONAL.  Options for this function
+        ;"         OPT2("SHOW LOADED")       Optional.  Default = 1.  If 1, then shown 
+        ;"         OPT2("SHOW QUEUED")       Optional.  Default = 1.  If 1, then shown 
+        ;"         OPT2("SHOW STARTED")      Optional.  Default = 1.  If 1, then shown 
+        ;"         OPT2("SHOW COMPLETED")    Optional.  Default = 1.  If 1, then shown 
+        ;"         OPT2("SHOW DEINSTALLED")  Optional.  Default = 1.  If 1, then shown 
+        ;"         OPT2("SORT BY") Optional.  "NAME" -> sort by name;  "STATUS" -> sort by status, then name
+        ;"         OPT2("PACKAGE")  Optional.  E.g. "DI".  If provided, then only patches from package shown.
+        ;"         OPT2("MUST CONTAIN") Optional.  If provided, line must contain value to be shown. Case INSENSITIVE
+        ;"                NOTE: if value contains " ", then each item (divided by space) is checked, and all must be present
+        ;"Results: NONE    
+        ;
+        SET PARRAY=$GET(PARRAY) GOTO:(PARRAY="") PIADONE
+        KILL @PARRAY
+        NEW STATUS
+        SET STATUS(0)="Loaded from Distribution"
+        SET STATUS(1)="Queued for Install"
+        SET STATUS(2)="Start of Install"
+        SET STATUS(3)="Install Completed"
+        SET STATUS(4)="De-Installed"
+        NEW DESIRED
+        IF $GET(OPT2("SHOW LOADED"),1)>0      SET DESIRED(0)=1
+        IF $GET(OPT2("SHOW QUEUED"),1)>0      SET DESIRED(1)=1    
+        IF $GET(OPT2("SHOW STARTED"),1)>0     SET DESIRED(2)=1
+        IF $GET(OPT2("SHOW COMPLETED"),1)>0   SET DESIRED(3)=1
+        IF $GET(OPT2("SHOW DEINSTALLED"),1)>0 SET DESIRED(4)=1
+        NEW PKG SET PKG=$GET(OPT2("PACKAGE"),"*")
+        NEW CONT SET CONT=$$UP^XLFSTR($GET(OPT2("MUST CONTAIN"),"*"))
+        NEW CT SET CT=1
+        NEW MODE SET MODE=$GET(OPT2("SORT BY"))
+        IF MODE="STATUS" DO
+        . NEW TEMP
+        . NEW IEN SET IEN=0
+        . FOR  SET IEN=$ORDER(^XPD(9.7,IEN)) QUIT:IEN'>0  DO
+        . . NEW ZN SET ZN=$GET(^XPD(9.7,IEN,0))
+        . . NEW ST SET ST=$PIECE(ZN,"^",9)
+        . . IF $GET(DESIRED(ST))'>0 QUIT
+        . . NEW NAME SET NAME=$PIECE(ZN,"^",1)
+        . . IF (PKG'="*"),($PIECE(NAME,"*",1)'=PKG) QUIT
+        . . SET TEMP(ST,NAME,IEN)=""
+        . NEW ST SET ST=""
+        . FOR  SET ST=$ORDER(TEMP(ST)) QUIT:ST=""  DO
+        . . NEW NAME SET NAME=""
+        . . FOR  SET NAME=$ORDER(TEMP(ST,NAME)) QUIT:NAME=""  DO
+        . . . NEW IEN SET IEN=0
+        . . . FOR  SET IEN=$ORDER(TEMP(ST,NAME,IEN)) QUIT:IEN'>0  DO
+        . . . . NEW LINE SET LINE=$GET(STATUS(ST))_": "_NAME
+        . . . . IF (CONT'="*"),($$LINECONT(LINE,CONT)=0) QUIT
+        . . . . SET @PARRAY@(CT,LINE)=IEN,CT=CT+1
+        ELSE  DO   ;"Sort by name.
+        . NEW NAME SET NAME=""
+        . FOR  SET NAME=$ORDER(^XPD(9.7,"B",NAME)) QUIT:NAME=""  DO
+        . . NEW IEN SET IEN=0
+        . . FOR  SET IEN=$ORDER(^XPD(9.7,"B",NAME,IEN)) QUIT:IEN'>0  DO
+        . . . NEW ZN SET ZN=$GET(^XPD(9.7,IEN,0))
+        . . . NEW NAME SET NAME=$PIECE(ZN,"^",1)
+        . . . NEW ST SET ST=$PIECE(ZN,"^",9)
+        . . . IF $GET(DESIRED(ST))'>0 QUIT
+        . . . IF ST'="",(ST>=0),(ST<=4) SET ST=$GET(STATUS(ST))
+        . . . IF (PKG'="*"),($PIECE(NAME,"*",1)'=PKG) QUIT
+        . . . NEW LINE SET LINE=NAME_" ("_ST_")"
+        . . . IF (CONT'="*"),($$LINECONT(LINE,CONT)=0) QUIT
+        . . . SET @PARRAY@(CT,LINE)=IEN,CT=CT+1
+        SET OPTION("HEADER",1)="TMG 'INSTALL' (#9.7) Fileman File Browser"        
+PIADONE ;
+        QUIT
+        ;
+LINECONT(LINE,CONT,DIV)  ;"Extended "Line Contains" function
+        SET DIV=$GET(DIV," ")
+        NEW UPLINE SET UPLINE=$$UP^XLFSTR(LINE)
+        SET CONT=$$UP^XLFSTR(CONT)
+        NEW RESULT SET RESULT=1  ;"default to success of contain
+        NEW IDX FOR IDX=1:1:$LENGTH(CONT,DIV) QUIT:(RESULT=0)  DO
+        . NEW PART SET PART=$PIECE(CONT,DIV,IDX)
+        . IF UPLINE'[PART SET RESULT=0
+        QUIT RESULT
+        ;
+MANAGEINST(IEN)  ;"Manage record from file 9.7 (INSTALL)
+        ;"Input: IEN -- IEN in file 9.7
+        NEW MENU,IDX,USRPICK
+MIL1    NEW ZN SET ZN=$GET(^XPD(9.7,IEN,0))
+        IF ZN="" GOTO MIDN
+        NEW NAME SET NAME=$PIECE(ZN,"^",1)
+        NEW ST SET ST=$PIECE(ZN,"^",9)
+        NEW STS SET STS="" IF ST'="",(ST>=0),(ST<=4) SET STS=$GET(STATUS(ST)) 
+        SET IDX=0  
+        KILL MENU SET MENU(IDX)="Select Option For INSTALL (File #9.7) record"
+        SET MENU(IDX,1)="INSTALL Name: '"_NAME_"'"
+        SET IDX=IDX+1,MENU(IDX)="Display Record"_$CHAR(9)_"DUMP"        
+	    NEW Y SET Y=+$G(IEN) 
+	    IF Y>0,$D(^XPD(9.7,"ASP",Y,1,Y)),$D(^XTMP("XPDI",Y)) DO
+	    . ;"NOTE: Screening code from EN1^XPDIU
+        . SET IDX=IDX+1,MENU(IDX)="Uninstall Loaded INSTALL"_$CHAR(9)_"UNINSTALL"          
+        IF ST=0,$D(^XPD(9.7,"ASP",Y,1,Y)),$D(^XTMP("XPDI",Y)) DO
+        . ;"NOTE: Screening code from EN^XPDI
+        . SET IDX=IDX+1,MENU(IDX)="Start Installation"_$CHAR(9)_"START"          
+        IF "^Install Completed^De-Installed"'["^"_STS_"^" DO
+        . SET IDX=IDX+1,MENU(IDX)="Restart Installation"_$CHAR(9)_"RESTART"  
+        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        IF USRPICK="^" GOTO MIDN  
+        IF USRPICK="DUMP" DO  GOTO MIL1
+        . DO DUMPREC^TMGDEBU3(9.7,IEN,1)
+        . DO PRESS2GO^TMGUSRI2
+        IF USRPICK="UNINSTALL" DO  GOTO MIL1
+        . DO EN1^XPDIU(IEN)
+        . DO PRESS2GO^TMGUSRI2
+        IF USRPICK="START" DO  GOTO MIL1
+        . NEW TMGXPDI1 SET TMGXPDI1=IEN  ;"Will be used in global scope by LOOK^XPDI1
+        . DO EN^XPDI
+        . DO PRESS2GO^TMGUSRI2
+        GOTO MIL1
+MIDN    ;
+        QUIT        

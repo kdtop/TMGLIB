@@ -1,4 +1,4 @@
-TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 12/2/20
+TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 7/24/22
          ;;1.0;TMG-LIB;**1**;04/24/09
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -15,6 +15,7 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 12/2/20
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
+ ;"$$DOS2UNIX(FullNamePath)  --Wrapper to mixed-case function 
  ;"$$Dos2Unix^TMGKERNL(FullNamePath)
  ;"$$Unix2Dos(FullNamePath)
  ;"$$FileSize(FullNamePath)  -- return the size of the file, in bytes.
@@ -37,14 +38,16 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 12/2/20
  ;"$$Copy^TMGKERNL(Source,Dest) ;copy file
  ;"$$MKDIR(Dir) -- provide a shell for the Linux command 'mkdir'
  ;"$$RMDIR(Dir) -- provide a shell for the Linux command 'rmdir'
+ ;"$$RMFILE(PATHFILE) -- provide a shell for the Linux command 'rm' 
  ;"$$WGET(URL,OPTIONS,DIR) Provide a shell for the linux command 'wget'
  ;"$$Convert^TMGKERNL(FPathName,NewType) -- convert a graphic image to new type
  ;"$$THUMBNAIL(PATH,SOURCEFNAME,DESTFNAME,SIZE)  ;Create thumbnail of graphic image file
  ;"$$BLACKIMG(DESTPATHFNAME,SIZE) ;Make empty black image
  ;"$$XLTLANG(Phrase,langPair) -- execute a linux OS call to convert a phrase into another spoken language
- ;"(DEPRECIATED) $$GetPckList(PCKINIT,Array,NeedsRefresh,PckDirFNAME) -- launch special linux script to get patch file list from ftp.va.gov
+ ;"$$DOWNLOADFILE(URL,DestDir,Verbose,Timeout)  -- Wrapper for mixed case function 
  ;"$$DownloadFile^TMGKERNL(URL,DestDir) -- Interact with Linux to download a file with wget
  ;"$$EditArray^TMGKERNL(ARRAY,Editor) -- interact with Linux to edit array as file on the host file system
+ ;"$$EDITHFSFILE(FILEPATHNAME,EDITOR) -- Wrapper for mixed case function.   
  ;"$$EditHFSFile^TMGKERNL(FilePathName,Editor) -- interact with Linux to edit a file on the host file system
  ;"$$EditArray^TMGKERNL(ARRAY,Editor) -- interact with Linux to edit array as file on the host file system
  ;"ZSAVE -- to save routine out to HFS
@@ -55,11 +58,15 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 12/2/20
  ;"MJOBS(array) -- execute a linux OS call to get list of all 'mumps' jobs using: 'ps -C mumps'
  ;"$$GETSCRSZ(ROWS,COLS) --query the OS and get the dimensions of the terminal window.
  ;"KILLVARS(Mask) -- Selectively KILL variables from symbol table.
+ ;"KIDSGREP(FPATHNAME,FILTER,OUT)  -- Scan HFS .KIDS file and return strings based on filter
  ;"=======================================================================
- ;"Dependancies  TMGIOUTL
+ ;"Dependancies  TMGIOUTL, %webjson*
  ;"=======================================================================
  ;"=======================================================================
  ;
+DOS2UNIX(FULLPATHNAME)  ;"Wrapper to mixed-case function
+  QUIT $$Dos2Unix(.FULLPATHNAME)  
+  ;
 Dos2Unix(FullNamePath)  ;
   ;"Purpose: To execute the unix command Dos2Unix on filename path
   ;"FullNamePath: The filename to act on.
@@ -67,10 +74,10 @@ Dos2Unix(FullNamePath)  ;
   ;"Notice!!!! The return code here is DIFFERENT from usual
   NEW RESULT SET RESULT=0
   IF $GET(FullNamePath)="" GOTO UDDone
-  NEW spec SET spec(" ")="\ "
-  SET FullNamePath=$$REPLACE^XLFSTR(FullNamePath,.spec)
+  ;" NEW spec SET spec(" ")="\ "
+  ;" SET FullNamePath=$$REPLACE^XLFSTR(FullNamePath,.spec)
   ;"new HOOKCMD SET HOOKCMD="dos2unix -q "_FullNamePath
-  NEW HOOKCMD SET HOOKCMD="fromdos "_FullNamePath
+  NEW HOOKCMD SET HOOKCMD="fromdos """_FullNamePath_""""
   ZSYSTEM HOOKCMD
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
 UDDone ;
@@ -83,9 +90,9 @@ Unix2Dos(FullNamePath)  ;
   ;"Notice!!!! The return code here is DIFFERENT from usual
   NEW RESULT SET RESULT=0
   IF $GET(FullNamePath)="" GOTO DUDone
-  NEW spec SET spec(" ")="\ "
-  SET FullNamePath=$$REPLACE^XLFSTR(FullNamePath,.spec)
-  NEW HOOKCMD SET HOOKCMD="todos "_FullNamePath
+  ;"NEW spec SET spec(" ")="\ "
+  ;"SET FullNamePath=$$REPLACE^XLFSTR(FullNamePath,.spec)
+  NEW HOOKCMD SET HOOKCMD="todos """_FullNamePath_""""
   ZSYSTEM HOOKCMD
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
 DUDone  ;
@@ -248,6 +255,47 @@ LINUXCMD(CMD,OUT)  ;"Execute command on linux system, and return output
   IF TEMP>0 SET TMGRESULT="-1^Linux error code returned: "_TEMP  
   QUIT TMGRESULT        
   ;  
+LINUXCURL(OUT,URL,ARR,HEADERS,DATA) ;"Shell to linux curl command.  
+  ;"NOTE: Will crash if resulting commend is > 255 chars  
+  ;"Input: OUT -- PASS BY REFERENCE.   An array with output from curl command
+  ;"       URL -- the URL to pass to curl
+  ;"       ARR -- PASS BY REFERENCE.  Each ARR(x) element is appended to make parameters
+  ;"       HEADERS --  PASS BY REFERENCE. OPTIONAL. Note: passed viat temp intermediate file on HFS
+  ;"          Format:  HEADERS(#)=<header line>    <--  "-H" will be added for each line.  
+  ;"       DATA -- PASS BY REFERENCE.  OPTIONAL. This DATA mumps variable will be converted
+  ;"               to json, stored in intermediate file on host file system, and passed 
+  ;"               to curl via --data-binary @... parameter 
+  ;"Result: none. 
+  NEW CMD SET CMD="curl "_URL_" --silent "
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX=""  DO
+  . SET CMD=CMD_ARR(IDX)
+  NEW DIR SET DIR="/tmp/"
+  NEW DELARR
+  NEW HEADERFPNAME SET HEADERFPNAME=""
+  IF $DATA(HEADERS) DO  
+  . SET HEADERFPNAME=$$UNIQUE^%ZISUTL(DIR_"curlHeaders.txt")
+  . NEW FPATH,FNAME
+  . DO SPLITFPN^TMGIOUTL(HEADERFPNAME,.FPATH,.FNAME) ;"split PathFileName into Path, Filename
+  . NEW RESULT SET RESULT=$$ARR2HFS^TMGIOUT3("HEADERS",FPATH,FNAME)
+  . IF RESULT'=1 QUIT
+  . SET DELARR(FNAME)=""
+  . SET CMD=CMD_" --header @"_HEADERFPNAME
+  NEW DATAFPNAME SET DATAFPNAME=""
+  IF $DATA(DATA) DO
+  . SET DATAFPNAME=$$UNIQUE^%ZISUTL(DIR_"curlData.txt")
+  . NEW FPATH,FNAME
+  . DO SPLITFPN^TMGIOUTL(DATAFPNAME,.FPATH,.FNAME) ;"split PathFileName into Path, Filename
+  . NEW TMGJSON DO ENCODE^%webjson("DATA","TMGJSON")
+  . NEW RESULT SET RESULT=$$ARR2HFS^TMGIOUT3("TMGJSON",FPATH,FNAME)
+  . IF RESULT'=1 QUIT
+  . SET DELARR(FNAME)=""
+  . SET CMD=CMD_" --data-binary @"_DATAFPNAME
+  DO LINUXCMD(CMD,.OUT)
+  IF $DATA(DELARR) DO
+  . IF $$DEL^%ZISH(DIR,$NAME(DELARR))  ;"ignore possible errors. 
+  QUIT
+ ;
 RANDOM(LOW,HI) ;"Return random number
   ;"Input: LOW -- OPTIONAL, low end of range for random number. Default = 0
   ;"       HI -- OPTIONAL, high end of range for random number.  Default = 1
@@ -395,15 +443,15 @@ MOVE(Source,Dest)  ;
   ;"Result: 0 IF no error; >0 IF error
   ;"Notice!!!! The return code here is DIFFERENT from usual
   NEW HOOKCMD,RESULT
-  NEW Srch
-  SET Srch(" ")="\ "
-  SET Source=$$REPLACE^XLFSTR(Source,.Srch)
-  SET Dest=$$REPLACE^XLFSTR(Dest,.Srch)
-  SET HOOKCMD="mv "_Source_" "_Dest
+  ;"NEW Srch
+  ;"SET Srch(" ")="\ "
+  ;"SET Source=$$REPLACE^XLFSTR(Source,.Srch)
+  ;"SET Dest=$$REPLACE^XLFSTR(Dest,.Srch)
+  SET HOOKCMD="mv """_Source_""" """_Dest_""""
   ZSYSTEM HOOKCMD
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
   QUIT RESULT
-  ;
+  ;                         
 COPY(SRC,DEST) ;
   QUIT $$Copy(.SRC,.DEST)
   ;
@@ -415,11 +463,11 @@ Copy(Source,Dest)  ;
   ;"Notice!!!! The return code here is DIFFERENT from usual
   ;
   NEW HOOKCMD,RESULT
-  NEW Srch
-  SET Srch(" ")="\ "
-  SET Source=$$REPLACE^XLFSTR(Source,.Srch)
-  SET Dest=$$REPLACE^XLFSTR(Dest,.Srch)
-  SET HOOKCMD="cp "_Source_" "_Dest
+  ;"NEW Srch
+  ;"SET Srch(" ")="\ "
+  ;"SET Source=$$REPLACE^XLFSTR(Source,.Srch)
+  ;"SET Dest=$$REPLACE^XLFSTR(Dest,.Srch)
+  SET HOOKCMD="cp """_Source_""" """_Dest_""""
   ZSYSTEM HOOKCMD
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
   QUIT RESULT
@@ -431,9 +479,9 @@ MKDIR(Dir)  ;
   ;"Notice!!!! The return code here is DIFFERENT from usual
   
   NEW HOOKCMD,RESULT
-  NEW Srch SET Srch(" ")="\ "
-  SET Dir=$$REPLACE^XLFSTR(Dir,.Srch)
-  SET HOOKCMD="mkdir "_Dir
+  ;"NEW Srch SET Srch(" ")="\ "
+  ;"SET Dir=$$REPLACE^XLFSTR(Dir,.Srch)
+  SET HOOKCMD="mkdir """_Dir_""""
   ZSYSTEM HOOKCMD
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
   QUIT RESULT
@@ -444,9 +492,25 @@ RMDIR(Dir)  ;
   ;"Result: 0 IF no error; >0 IF error
   ;"Notice!!!! The return code here is DIFFERENT from usual
   NEW HOOKCMD,RESULT
-  NEW Srch SET Srch(" ")="\ "
-  SET Dir=$$REPLACE^XLFSTR(Dir,.Srch)
-  SET HOOKCMD="rmdir "_Dir
+  ;"NEW Srch SET Srch(" ")="\ "
+  ;"SET Dir=$$REPLACE^XLFSTR(Dir,.Srch)
+  SET HOOKCMD="rmdir """_Dir_""""
+  ZSYSTEM HOOKCMD
+  SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
+  QUIT RESULT
+  ;
+RMFILE(PATHFILE) ;
+  ;"Purpose to provide a shell for the Linux command 'rm'
+  ;"Note: a platform independant version of the this could be constructed later...
+  ;"Result: 0 IF no error; >0 IF error
+  ;"Notice!!!! The return code here is DIFFERENT from usual
+  NEW HOOKCMD,RESULT                                                                                                                                  
+  ;" NEW Srch 
+  ;" SET Srch(" ")="\ "
+  ;" SET Srch("(")="\("
+  ;" SET Srch(")")="\)"                                    
+  ;" SET PATHFILE=$$REPLACE^XLFSTR(PATHFILE,.Srch)
+  SET HOOKCMD="rm """_PATHFILE_""""
   ZSYSTEM HOOKCMD
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
   QUIT RESULT
@@ -461,11 +525,15 @@ WGET(URL,OPTIONS,DIR)  ;
   ;"Results: returns the result of the wget command.  0 = no problems
   ;"         NOTE: other return values defined in linux documentation.       
   NEW HOOKCMD,RESULT
-  NEW Srch SET Srch(" ")="\ "
-  SET DIR=$$REPLACE^XLFSTR(DIR,.Srch)
-  SET HOOKCMD="cd "_DIR_" && wget"
+  ;" NEW Srch SET Srch(" ")="\ "
+  ;" SET Srch(" ")="\ "
+  ;" SET Srch("(")="\("
+  ;" SET Srch(")")="\)"
+  ;" SET DIR=$$REPLACE^XLFSTR(DIR,.Srch)
+  ;" SET URL=$$REPLACE^XLFSTR(URL,.Srch)
+  SET HOOKCMD="cd """_DIR_""" && wget"
   IF $GET(OPTIONS)'="" SET HOOKCMD=HOOKCMD_" "_OPTIONS
-  SET HOOKCMD=HOOKCMD_" "_URL
+  SET HOOKCMD=HOOKCMD_" """_URL_""""
   ZSYSTEM HOOKCMD
   SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
   QUIT RESULT
@@ -615,9 +683,9 @@ TestTrans ;
   WRITE "Back from zsystem",!
   QUIT
   ;
-GetPckList(PCKINIT,Array,NeedsRefresh,PckDirFNAME)  ;"DEPRECIATED CODE
-  QUIT $$GetPckList^TMGKERN4(.PCKINIT,.Array,.NeedsRefresh,.PckDirFNAME)
-  ;
+DOWNLOADFILE(URL,DestDir,Verbose,Timeout)  ;" Wrapper for mixed case function
+  QUIT $$DownloadFile(.URL,.DestDir,.Verbose,.Timeout)  
+  ;  
 DownloadFile(URL,DestDir,Verbose,Timeout)  ;
   ;"Purpose: Interact with Linux to download a file with wget
   ;"Input: URL -- this is the URL of the file to be downloaded, as to be passed to wget
@@ -640,6 +708,9 @@ DownloadFile(URL,DestDir,Verbose,Timeout)  ;
   NEW CmdResult SET CmdResult=$ZSYSTEM&255
   NEW RESULT SET RESULT=(CmdResult=0)
   QUIT RESULT
+  ;
+EDITHFSFILE(FILEPATHNAME,EDITOR) ;"Wrapper for mixed case funciton
+  QUIT $$EditHFSFile(.FILEPATHNAME,.EDITOR)  ;
   ;
 EditHFSFile(FilePathName,Editor)  ;
   ;"Purpose: interact with Linux to edit a file on the host file system
@@ -668,7 +739,8 @@ EditArray(ARRAY,Editor) ;"interact with Linux to edit array as file on the host 
   SET TMGRESULT=$$EditHFSFile(PATH_FNAME,.Editor)
   IF TMGRESULT'>0 GOTO EARDN
   KILL ARRAY
-  SET TMGRESULT=$$HFS2ARR^TMGIOUT3(PATH,FNAME,"ARRAY")
+  NEW OPTION SET OPTION("OVERFLOW")=1  ;"turn overflow lines into possibly LONG array lines.  
+  SET TMGRESULT=$$HFS2ARR^TMGIOUT3(PATH,FNAME,"ARRAY",.OPTION)
   IF TMGRESULT'>0 GOTO EARDN
   SET TMGRESULT=$$DELFILE^TMGIOUTL(PATH_FNAME)
 EARDN ;
@@ -711,7 +783,7 @@ MAKEBAKF(FilePathName,NodeDiv,BackFName)  ;"Make Backup File if original exists
   ;"RESULTs: none
   ;"Note: This assumes that the HFS supports filenames like FNAME-txt_1.bak,
   ;"      and length file name is not limited (e.g. not old 8.3 DOS style)
-  ;"      Also, IF backup file, then number is incremented until a filename is found that doesn't exists
+  ;"      Also, if backup file, then number is incremented until a filename is found that doesn't exists
   ;"              e.g.  /tmp/dir1/FNAME-txt_1.bak
   ;"                    /tmp/dir1/FNAME-txt_2.bak
   ;"                    /tmp/dir1/FNAME-txt_3.bak
@@ -986,3 +1058,46 @@ KILLVARS(zzMask) ;
 KVDN ;
   QUIT
  ;
+GLBOUTGREP(FPATHNAME,FILTER,OUT) ;"GLOBAL OUTPUT GREP 
+  ;"Purpose: Scan HFS file and return strings based on filter
+  ;"Input:   FPATHNAME -- The full name of the path on the HFS to file to scan
+  ;"         FILTER -- PASS BY REFERENCE.  An array of items to scan for.  Each
+  ;"              element of array will be used as pattern match (e.g. string?pattern), or
+  ;"              be used to check if string contains element.  
+  ;"              And if found, then the matching line and the following line from file will be returned
+  ;"              First node must be: "?", or "["
+  ;"            e.g. FILTER("?","3N1""-""2N1""-""4N")   pattern match to ###-##-####
+  ;"                 FILTER("?","9N")   pattern match to #######
+  ;"                 FILTER("[","GEORGE")   Check if contains to #######
+  ;"            NOTE: if any of the filter entries match then the line is saved, so they are effectively OR statements 
+  ;"         OUT  -- PASS BY REFERENCE.  Format:
+  ;"             OUT(#)=<line from file)   # will the original line number from source file.
+  ;"Results: 1^OK, or -1^Linux Error
+  NEW CMD SET CMD="cat """_FPATHNAME_""""
+  NEW P SET P="TEMP" 
+  OPEN P:(COMMAND=CMD:readonly)::"pipe" 
+  USE P
+  NEW KEEPNEXT SET KEEPNEXT=0
+  NEW LINENUM SET LINENUM=0
+  KILL OUT NEW X,IDX SET IDX=1
+  FOR   QUIT:$ZEOF  DO
+  . READ LINE IF LINE=""&$ZEOF QUIT
+  . SET LINENUM=LINENUM+1
+  . IF KEEPNEXT SET KEEPNEXT=0 SET OUT(LINENUM)=LINE QUIT
+  . NEW MATCHES SET MATCHES=0
+  . ;"NEW SUBCT SET SUBCT=0.1
+  . NEW MATCHTYPE FOR MATCHTYPE="?","[" DO
+  . . NEW PATTERN SET PATTERN=""
+  . . FOR  SET PATTERN=$ORDER(FILTER(MATCHTYPE,PATTERN)) QUIT:(PATTERN="")!MATCHES  DO
+  . . . IF MATCHTYPE="?" SET MATCHES=LINE?@PATTERN
+  . . . IF MATCHTYPE="[" SET MATCHES=LINE[PATTERN
+  . . . ;"NOTE: if line below wanted, will need to pass in an ALL variable to fill.  
+  . . . ;"SET ALL(LINENUM+SUBCT)="Pattern match of "_MATCHTYPE_" "_PATTERN_" -> "_MATCHES,SUBCT=SUBCT+0.1
+  . . . IF MATCHES=0 QUIT
+  . . . SET KEEPNEXT=1
+  . . . SET OUT(LINENUM)=LINE
+  CLOSE P USE $P
+  NEW TEMP SET TEMP=$ZSYSTEM&255  ;"get result of execution. (low byte only)
+  NEW RESULT SET RESULT=$SELECT(TEMP=0:"1^OK",1:"-1^Linux error")
+  QUIT RESULT  
+  ;

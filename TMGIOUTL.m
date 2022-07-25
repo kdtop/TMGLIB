@@ -1,4 +1,4 @@
-TMGIOUTL ;TMG/kst/IO Utilities ;03/25/06, ... 7/22/15
+TMGIOUTL ;TMG/kst/IO Utilities ;7/22/15, 6/25/22
          ;;1.0;TMG-LIB;**1**;07/12/05
  ;
  ;"TMG IO UTILITIES
@@ -17,14 +17,15 @@ TMGIOUTL ;TMG/kst/IO Utilities ;03/25/06, ... 7/22/15
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"$$FNEXTRCT^TMGIOUTL(FULLNAMEPATH,NODEDIV)
- ;"$$PATHEXTR^TMGIOUTL(FULLNAMEPATH,NODEDIV)
+ ;"$$FNEXTRCT^TMGIOUTL(FULLPATHNAME,NODEDIV)
+ ;"PATH2ARR(FULLPATHNAME,ARR,NODEDIV) -- Split a full path + filename into an array, with 1 entry for each node or file 
+ ;"$$PATHEXTR^TMGIOUTL(FULLPATHNAME,NODEDIV)
  ;"$$UPPATH^TMGIOUTL(PATH,NODEDIV) -- return a path that is one step up from current path
- ;"$$EXTNEXTR(FULLNAMEPATH,NODEDIV)-- return the extension of the file name from full path+name string
- ;"SPLITFPN^TMGIOUTL(FULLNAMEPATH,OUTNAME,OUTPATH,NODEDIV)
+ ;"$$EXTNEXTR(FULLPATHNAME,NODEDIV)-- return the extension of the file name from full path+name string
+ ;"SPLITFPN^TMGIOUTL(FULLPATHNAME,OUTNAME,OUTPATH,NODEDIV)
  ;"$$GETFNAME^TMGIOUTL(MSG,DEFPATH,DEFFNAME,NODEDIV,OUTPATH,OUTNAME,PROMPT,FILTER)
  ;"$$GETDIRNM(MSG,DEFPATH,NODEDIV,OUTPATH,PROMPT) -- query user for a directory name
- ;"$$FILEXIST^TMGIOUTL(FULLNAMEPATH)
+ ;"$$FILEXIST^TMGIOUTL(FULLPATHNAME)
  ;"PCK1FILE(PARTNAMEPATH) --For  name like 'MyFil*',  display all matches and allow user to pick one
  ;"$$DELFILE^TMGIOUTL(PATHFILENAME)
  ;"$$MKTRALDV^TMGIOUTL(PATH,NODEDIV)
@@ -39,10 +40,13 @@ TMGIOUTL ;TMG/kst/IO Utilities ;03/25/06, ... 7/22/15
  ;
  ;"=======================================================================
  ;
-FNEXTRCT(FULLNAMEPATH,NODEDIV) ;
+FNEXTRACT(FULLPATHNAME,NODEDIV) ;
+  QUIT $$FNEXTRCT(.FULLPATHNAME,.NODEDIV)
+  ;
+FNEXTRCT(FULLPATHNAME,NODEDIV) ;
   ;"SCOPE: Public
   ;"Purpose: to extract a file name from a full path+name string
-  ;"Input: FULLNAMEPATH: String to process.
+  ;"Input: FULLPATHNAME: String to process.
   ;"                e.g.: "/tmp/myfilename.txt"
   ;"        NODEDIV: [OPTIONAL] -- the character that separates folders (e.g. "/")
   ;"                IF not supplied, then default value is "/"
@@ -50,13 +54,37 @@ FNEXTRCT(FULLNAMEPATH,NODEDIV) ;
   ;"        e.g.: "myfilename.txt"
   ;
   NEW OUTPATH,OUTNAME
-  DO SPLITFPN(.FULLNAMEPATH,.OUTPATH,.OUTNAME,.NODEDIV)
+  DO SPLITFPN(.FULLPATHNAME,.OUTPATH,.OUTNAME,.NODEDIV)
   QUIT $GET(OUTNAME)
   ;
-PATHEXTR(FULLNAMEPATH,NODEDIV) ;
+PATH2ARR(FULLPATHNAME,ARR,NODEDIV)  ;"Split a full path + filename into an array, with 1 entry for each node or file
+  ;"SCOPE: Public
+  ;"Purpose: Split a full path + filename into an array, with 1 entry for each node or file
+  ;"Input: FULLPATHNAME: String to process.
+  ;"                e.g.: "/usr/local/myfilename.txt"
+  ;"       ARR -- PASS BY REFERENCE.  See Output below.
+  ;"       NODEDIV: [OPTIONAL] -- the character that separates folders (e.g. "/")
+  ;"                IF not supplied, then default value is "/"
+  ;"Result: none
+  ;"Output: ARR is filled.  Format, per example above
+  ;"          ARR(1)="/"
+  ;"          ARR(2)="usr/"
+  ;"          ARR(3)="local/"
+  ;"          ARR(4)="myfilename.txt"
+  ;
+  SET NODEDIV=$GET(NODEDIV,"/")
+  NEW L SET L=$LENGTH(FULLPATHNAME,NODEDIV)
+  NEW IDX FOR IDX=1:1:L DO
+  . NEW NODE SET NODE=$PIECE(FULLPATHNAME,NODEDIV,IDX)
+  . IF IDX=L,NODE="" QUIT
+  . IF IDX<L SET NODE=NODE_NODEDIV
+  . SET ARR(IDX)=NODE
+  QUIT
+  ;
+PATHEXTR(FULLPATHNAME,NODEDIV) ;
   ;"SCOPE: Public
   ;"Purpose: to extract a file name from a full path+name string
-  ;"Input: FULLNAMEPATH: String to process.
+  ;"Input: FULLPATHNAME: String to process.
   ;"                e.g.: "/usr/local/myfilename.txt"
   ;"        NODEDIV: [OPTIONAL] -- the character that separates folders (e.g. "/")
   ;"                IF not supplied, then default value is "/"
@@ -64,7 +92,7 @@ PATHEXTR(FULLNAMEPATH,NODEDIV) ;
   ;"        e.g.: "/usr/local/"
   ;
   NEW OUTPATH,OUTNAME
-  DO SPLITFPN(.FULLNAMEPATH,.OUTPATH,.OUTNAME,.NODEDIV)
+  DO SPLITFPN(.FULLPATHNAME,.OUTPATH,.OUTNAME,.NODEDIV)
   QUIT $GET(OUTPATH)
   ;
 UPPATH(PATH,NODEDIV) ;
@@ -86,10 +114,10 @@ UPPATH(PATH,NODEDIV) ;
   ELSE  SET RESULT=NODEDIV
   QUIT RESULT
   ;
-EXTNEXTR(FULLNAMEPATH,NODEDIV) ;
+EXTNEXTR(FULLPATHNAME,NODEDIV) ;
   ;"Purpose: to return the extension of the file name from full path+name string
   ;"         This will be everything after the last '.'
-  ;"Input: FULLNAMEPATH: String to process.
+  ;"Input: FULLPATHNAME: String to process.
   ;"                e.g.: "/usr/local/myfilename.txt"
   ;"        NODEDIV: [OPTIONAL] -- the character that separates folders (e.g. "/")
   ;"                IF not supplied, then default value is "/"
@@ -97,17 +125,17 @@ EXTNEXTR(FULLNAMEPATH,NODEDIV) ;
   ;"        e.g.: "txt"  (doesn't include '.'
   ;
   NEW RESULT
-  SET RESULT=$PIECE(FULLNAMEPATH,".",$LENGTH(FULLNAMEPATH,"."))
+  SET RESULT=$PIECE(FULLPATHNAME,".",$LENGTH(FULLPATHNAME,"."))
   QUIT RESULT
   ;
-SPLITFPN(FULLNAMEPATH,OUTPATH,OUTNAME,NODEDIV) ;"split PathFileName into Path, Filename
+SPLITFPN(FULLPATHNAME,OUTPATH,OUTNAME,NODEDIV) ;"split PathFileName into Path, Filename
   ;"SCOPE: Public
-  ;"Purpose: Take FULLNAMEPATH, and split into name and path.
-  ;"Input: FULLNAMEPATH: String to process.
+  ;"Purpose: Take FULLPATHNAME, and split into name and path.
+  ;"Input: FULLPATHNAME: String to process.
   ;"                e.g.: "/tmp/myfilename.txt"
   ;"                NOTICE: IF PASSED BY REFERENCE, WILL BE CHANGED TO FILENAME!
-  ;"        OUTNAME: MUST BE PASSED BY REFERENCE.  This is an OUT parameter
   ;"        OUTPATH: MUST BE PASSED BY REFERENCE.  This is an OUT parameter
+  ;"        OUTNAME: MUST BE PASSED BY REFERENCE.  This is an OUT parameter
   ;"        NODEDIV: [OPTIONAL] -- the character that separates folders (e.g. "/")
   ;"                IF not supplied, then default value is "/"
   ;"Output: The RESULTing file name is put into OUTNAME,
@@ -120,13 +148,13 @@ SPLITFPN(FULLNAMEPATH,OUTPATH,OUTNAME,NODEDIV) ;"split PathFileName into Path, F
   SET OUTNAME=""
   NEW PATHNODE
   SET NODEDIV=$GET(NODEDIV,"/")
-  SET FULLNAMEPATH=$GET(FULLNAMEPATH)
+  SET FULLPATHNAME=$GET(FULLPATHNAME)
 SPN1 ;
-  IF (FULLNAMEPATH[NODEDIV)=0 SET OUTNAME=FULLNAMEPATH GOTO SPNDONE
-  SET PATHNODE=$PIECE(FULLNAMEPATH,NODEDIV,1)
+  IF (FULLPATHNAME[NODEDIV)=0 SET OUTNAME=FULLPATHNAME GOTO SPNDONE
+  SET PATHNODE=$PIECE(FULLPATHNAME,NODEDIV,1)
   SET OUTPATH=OUTPATH_PATHNODE_NODEDIV
-  SET $PIECE(FULLNAMEPATH,NODEDIV,1)=""
-  SET FULLNAMEPATH=$EXTRACT(FULLNAMEPATH,2,255)
+  SET $PIECE(FULLPATHNAME,NODEDIV,1)=""
+  SET FULLPATHNAME=$EXTRACT(FULLPATHNAME,2,255)
   GOTO SPN1
 SPNDONE ;
   QUIT
@@ -183,12 +211,12 @@ GETDIRNM(MSG,DEFPATH,NODEDIV,PROMPT) ;
   SET RESULT=$$FBROWSE^TMGIOUT2(.OPTION)
   QUIT RESULT
   ;
-FILEXIST(FULLNAMEPATH) ;
+FILEXIST(FULLPATHNAME) ;
   ;"Purpose: To determine IF file exists.
-  ;"Input: FULLNAMEPATH -- the full name and path of file to test, e.g. "/tmp/myfiles/a/test.txt"
+  ;"Input: FULLPATHNAME -- the full name and path of file to test, e.g. "/tmp/myfiles/a/test.txt"
   ;"Results: 1 IF file exists (and is unique), 0 IF not
-  ;"Note: If FULLNAMEPATH indicates a directory, then 0 is returned.
-  ;"      Note IF FULLNAMEPATH contains a * pattern, that would cause multiple
+  ;"Note: If FULLPATHNAME indicates a directory, then 0 is returned.
+  ;"      Note IF FULLPATHNAME contains a * pattern, that would cause multiple
   ;"              files to be returned, then filename is not unique, and function
   ;"              will RETURN THAT IT IS NOT A (unique) FILE
   ;
@@ -197,17 +225,17 @@ FILEXIST(FULLNAMEPATH) ;
   NEW TMGFILES
   NEW RESULT SET RESULT=0
   ;
-  DO SPLITFPN(FULLNAMEPATH,.JUSTPATH,.JUSTNAME)
+  DO SPLITFPN(FULLPATHNAME,.JUSTPATH,.JUSTNAME)
   SET TMGMASK(JUSTNAME)=""
   IF $$LIST^%ZISH(JUSTPATH,"TMGMASK","TMGFILES")=1 DO
   . IF $$LISTCT^TMGMISC2("TMGFILES")=1 DO
-  . . SET RESULT='$$ISDIR^TMGKERNL(FULLNAMEPATH)
+  . . SET RESULT='$$ISDIR^TMGKERNL(FULLPATHNAME)
   QUIT RESULT
   ;
 PCK1FILE(PARTNAMEPATH) ;
   ;"Purpose: To take a name like "MyFil*", and display all matches and allow user to pick one
   ;"Input: PARTNAMEPATH -- the partial name and path of file to test, e.g. "/tmp/myfiles/a/tes*"
-  ;"Results: The FULLNAMEPATH of the chosen file (or "" IF none, or canceled)
+  ;"Results: The FULLPATHNAME of the chosen file (or "" IF none, or canceled)
   ;"              12-14-05, IF user enters "^", this is returned.
   ;
   NEW JUSTNAME,JUSTPATH

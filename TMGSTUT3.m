@@ -1,4 +1,4 @@
-TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 6/27/22
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;
@@ -31,8 +31,11 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17
   ;"$$MAKEWS(N)  -- Return a whitespace string that is n characters long
   ;"$$QTPROTCT(STR)-- Protects quotes by converting all quotes to double quotes
   ;"$$UNQTPROT(STR) --Reversed quotes protection by converting all double quotes to single quotes
+  ;"$$ISALPHNUM(CH) -- is character alphanumeric?
   ;"$$ISNUM(STR) -- Return IF STR is numeric
   ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB
+  ;"$$TRIM2NUM(STR) --Trim of anything in string up to, but not including, a number
+  ;"$$NUMAFTERLABEL(STR,LABEL) -- Return number following label. 
   ;"STRIPCMD(STR)  -- Strip command characters
   ;"$$POS(SUBSTR,S,COUNT)  ;return the beginning position of SUBSTR in S
   ;"$$POSSET(STR,SUBSTRSET,STARTPOS) --POSITION OF CHARACTER FROM SET -- different from $$POS()
@@ -290,6 +293,14 @@ UNQTPROT(STR)  ;"REVERSE QUOTE PROTECTION
   SET TEMPS=$$REPLSTR^TMGSTUT3(TEMPS,"<^@^>","""")  ;"convert origianl double quotes to singles
   QUIT TEMPS
   ;  
+ISALPHNUM(CH) ;" Test is CH is in [0..9,A..Z,a..z]
+  NEW RESULT SET RESULT=0  ;"default to failure
+  NEW A SET A=$ASCII(CH)
+  NEW NUMERIC SET NUMERIC=((A>47)&(A<58)) ;"0..9
+  NEW UPALPH  SET UPALPH=((A>64)&(A<91))  ;"A..Z
+  NEW LOALPH  SET LOALPH=((A>96)&(A<123))  ;"a..z
+  QUIT (NUMERIC!UPALPH!LOALPH)
+  ;  
 ISNUM(STR) ;" Return if STR is numeric (and a VALID numerical string.)  
   ;"NOTE:  This is different than just doing +STR.  It handles fractions and commas
   ;"Self reminder: +"9.0" --> "9" ('cardinal form')
@@ -331,6 +342,24 @@ NUMSTR(STR,PARTB)  ;"Return numeric of string, and residual back in PARTB
   . SET PARTB=$EXTRACT(NUM,LEN)_PARTB
   . SET NUM=$EXTRACT(NUM,1,LEN-1)
   QUIT NUM
+  ;
+TRIM2NUM(STR) ;"Trim of anything in string up to, but not including, a number
+  NEW DONE SET DONE=0
+  NEW RESULT SET RESULT=$GET(STR)
+  NEW CH,LEN SET LEN=$LENGTH(RESULT)
+  FOR  QUIT:(RESULT="")!(DONE)  DO
+  . SET CH=$EXTRACT(RESULT,1)
+  . IF "1234567890.+-"[CH SET DONE=1 QUIT
+  . SET RESULT=$EXTRACT(RESULT,2,LEN)
+  QUIT RESULT
+  ;
+NUMAFTERLABEL(STR,LABEL)  ;"Return number following label. It is assumed various non-alphanumeric chars will follow label, before number
+  SET LABEL=$GET(LABEL," ")
+  SET STR=$GET(STR)
+  NEW STRB SET STRB=$PIECE(STR,LABEL,2)
+  SET STRB=$$TRIM2NUM^TMGSTUT3(STRB)
+  SET STRB=$$NUMSTR(STRB)
+  QUIT STRB
   ;
 TESTISNUM ;" 
   NEW NUM

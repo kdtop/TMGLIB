@@ -194,6 +194,7 @@ DELMAP(TMGENV,TMGTESTMSG,TMGHL7MSG)  ;"DELETE MAPPING
         ;"  that the mapping between corresponding TESTNAME is removed.  
         ;"  It should allow user to pick from HL7 message (as is done for showing map), and then
         ;"  remove map for each...  TO DO...  
+        write !,"TO DO: change DELMAP^TMGHL70D such that can pick code, as in GETTESTFROM^TMGHL70",!,!
         WRITE "Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
         NEW TESTID READ TESTID:$GET(DTIME,3600),!
         IF "^"[TESTID GOTO DMDN

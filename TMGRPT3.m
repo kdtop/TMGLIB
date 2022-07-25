@@ -202,6 +202,8 @@ GETINFO(TMGDFN,ARR,FLDS) ;"Get needed patient info
   ;"
 APPTRECS(SDT,EDT,RANGE)  ;"
   ;"Purpose: To generate a report with records needed for today's visit
+  ;"NEW TEST SET TEST=1
+  ;"IF TEST=1 GOTO NOPRINT
   NEW %ZIS
   SET %ZIS("A")="Enter Output Device: "
   SET IOP="S121-LAUGHLIN-LASER"
@@ -210,6 +212,7 @@ APPTRECS(SDT,EDT,RANGE)  ;"
   . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
   use IO
   ;"
+ ;"NOPRINT  
   NEW APPTARRAY,HEADER,LINES
   SET HEADER=0
   SET RANGE=$G(RANGE)
@@ -248,13 +251,16 @@ APPTRECS(SDT,EDT,RANGE)  ;"
   . . . WRITE "                            " WRITE $$TODAY^TMGDATE(1),!
   . . . WRITE "               Please deliver this report to MEDICAL RECORDS",!
   . . . WRITE "****************************************************************",!
-  . . . WRITE "                                            (From TMGRPT1.m)",!!
+  . . . WRITE "                                            (From TMGRPT3.m)",!!
   . . . SET HEADER=1
   . . SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3))
   . . WRITE "[ ] ",$G(APPTARRAY(DATE,TMGDFN,"NAME")),?28,"(",DOB,")",?45,$$EXTDATE^TMGDATE(DATE),!
   . . SET LINE=0
   . . FOR  SET LINE=$ORDER(LINES(LINE)) QUIT:LINE'>0  DO
   . . . WRITE "        -> ",$G(LINES(LINE)),!
+  . . . NEW SUBLINE SET SUBLINE=0
+  . . . FOR  SET SUBLINE=$O(LINES(LINE,SUBLINE)) QUIT:SUBLINE'>0  DO
+  . . . . WRITE "              *NOTE ",$G(LINES(LINE,SUBLINE)),!
   . . WRITE !
 ARDN
   DO ^%ZISC  ;" Close the output device
@@ -282,6 +288,7 @@ CONSULTS(TMGDFN,ARRAY,X)  ;"
   NEW COMPIEN SET COMPIEN=+$ORDER(^ORD(100.01,"B","COMPLETE",""))
   NEW DCIEN SET DCIEN=+$ORDER(^ORD(100.01,"B","DISCONTINUED",""))
   NEW CANCELIEN SET CANCELIEN=+$ORDER(^ORD(100.01,"B","CANCELLED",""))
+  NEW RESCHIEN SET RESCHIEN=2230 
   ;"
   FOR  SET IDX=$ORDER(^GMR(123,"F",TMGDFN,IDX)) QUIT:IDX'>0  DO
   . NEW ZNODE SET ZNODE=$GET(^GMR(123,IDX,0))
@@ -290,8 +297,36 @@ CONSULTS(TMGDFN,ARRAY,X)  ;"
   . NEW ORDERTYPE SET ORDERTYPE=$PIECE($GET(^GMR(123.5,$P(ZNODE,"^",5),0)),"^",1)
   . NEW DUEDATE SET DUEDATE=$$GETDUE(IDX)
   . IF $$TODAY^TMGDATE>DUEDATE DO
+  . . NEW SUBX SET SUBX=1
+  . . NEW SUBIEN SET SUBIEN=0
   . . SET Y=DUEDATE D DD^%DT
   . . SET ARRAY(X)=ORDERTYPE_" CONSULT WAS SCHEDULED FOR "_Y
+  . . FOR  SET SUBIEN=$O(^GMR(123,IDX,50,SUBIEN)) QUIT:SUBIEN'>0  DO
+  . . . NEW TIUIEN SET TIUIEN=$G(^GMR(123,IDX,50,SUBIEN,0))
+  . . . IF TIUIEN["TIU" DO
+  . . . . SET TIUIEN=+TIUIEN
+  . . . . ;"CHECK FOR ATTACHED RESCHEDULE NOTES 
+  . . . . IF $P($G(^TIU(8925,TIUIEN,0)),"^",1)'=RESCHIEN QUIT
+  . . . . NEW TEXTLINE SET TEXTLINE=0
+  . . . . FOR  SET TEXTLINE=$O(^TIU(8925,TIUIEN,"TEXT",TEXTLINE)) QUIT:TEXTLINE'>0  DO
+  . . . . . NEW LINE SET LINE=$G(^TIU(8925,TIUIEN,"TEXT",TEXTLINE,0))
+  . . . . . IF LINE["New date is" DO
+  . . . . . . NEW NEWDATE SET NEWDATE=$P($P(LINE,"<I>",2),"</B",1)
+  . . . . . . SET ARRAY(X,SUBX)="RESCHEDULED FOR: "_NEWDATE
+  . . . . . . SET SUBX=SUBX+1
+  . . ;"CHECK FOR UNSIGNED NOTES
+  . . NEW UNSIGNED SET UNSIGNED=""
+  . . NEW TIUIEN SET TIUIEN=0
+  . . FOR  SET TIUIEN=$O(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . . NEW STATUS SET STATUS=$P($G(^TIU(8925,TIUIEN,0)),"^",5)
+  . . . IF STATUS=5 DO
+  . . . . IF UNSIGNED'="" SET UNSIGNED=UNSIGNED_","
+  . . . . NEW TITLE SET TITLE=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
+  . . . . SET TITLE=$P($G(^TIU(8925.1,TITLE,0)),"^",1)
+  . . . . SET UNSIGNED=UNSIGNED_$E(TITLE,1,15)
+  . . IF UNSIGNED'="" DO
+  . . . SET ARRAY(X,SUBX)="UNSIGNED NOTES: "_UNSIGNED
+  . . . SET SUBX=SUBX+1
   . . SET X=X+1
   QUIT
   ;"

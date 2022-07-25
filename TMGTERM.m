@@ -494,11 +494,11 @@ PICKBGC(INITVAL)   ;
   ;
 PICKCLRS(FG,BG)   ;
    ;"Purpose: prompt user to pick a FG and BG colors
-   ;"Results: returns value 0-15
+   ;"Results: returns value FG^BG, each 0-15
   DO COLORBOX()
   SET FG=$$PICK1COL("Foreground (FG)",.FG)
   SET BG=$$PICK1COL("Background (BG)",.BG)
-  QUIT
+  QUIT FG_"^"_BG
   ;
 DEMOCOLR   ;
    ;"Purpose: to WRITE a lines on the screen, showing all the color combos
