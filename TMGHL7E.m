@@ -371,7 +371,10 @@ M4 ;
   . SET DIC=2,DIC(0)="MAEQ"
   . D ^DIC
   . WRITE !
-  . IF +Y>0 SET TMGDFN=$P(Y,"^",1)
+  . IF +Y>0 DO  ;"Verify the user wants to use this patient   7/26/22
+  . . NEW % SET %=1
+  . . WRITE "Use ",$P($G(^DPT($P(Y,"^",1),0)),"^",1)," for ",HL7NAME DO YN^DICN WRITE !
+  . . IF %=1 SET TMGDFN=$P(Y,"^",1)
   ELSE  IF TMGPTINPUT'="^" DO
   . SET TMGDFN=$P(PTARRAY(TMGPTINPUT),"^",5)
   IF TMGDFN>0 DO
@@ -382,7 +385,7 @@ M4 ;
   . SET TMGRESULT=1
   . NEW % SET %=1
   . WRITE "Remember mapping of HL7 patient info to selected patient" DO YN^DICN WRITE !
-  . IF %='1 QUIT
+  . IF %'=1 QUIT
   . NEW TEMP SET TEMP=$$SAVEALIAS^TMGHL7U3(OUT("DFN"),HL7NAME,HL7DOB,HL7SEX,HL7SSN)
   . IF TEMP'>0 DO
   . . WRITE !,"ERROR saving mapping: ",$PIECE(TEMP,"^",2),!

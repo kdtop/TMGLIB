@@ -1,4 +1,4 @@
-TMGEDIT ;TMG/kst/Interface to allow use of linux editor in Fileman ;03/25/06, 2/2/14
+TMGEDIT ;TMG/kst/Interface to allow use of linux editor in Fileman ;03/25/06, 8/3/2022
          ;;1.0;TMG-LIB;**1**;7/19/08
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -32,6 +32,6 @@ EDITARR(REF,EDITOR) ;"DEPRECIATED
   QUIT
   ;
 LinuxEdit(Editor,FullPathName)  ;"DEPRECIATED
-  DO LinuxEdit^TMGKERN8(Editor,FullPathName)
+  DO LINUXEDIT^TMGKERN8(Editor,FullPathName)
   QUIT
 

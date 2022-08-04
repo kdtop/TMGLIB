@@ -1,4 +1,4 @@
-TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 7/24/22
+TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 8/3/22
          ;;1.0;TMG-LIB;**1**;04/24/09
  ;
  ;"TMG KERNEL FUNCTIONS
@@ -46,10 +46,10 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 7/24/22
  ;"$$XLTLANG(Phrase,langPair) -- execute a linux OS call to convert a phrase into another spoken language
  ;"$$DOWNLOADFILE(URL,DestDir,Verbose,Timeout)  -- Wrapper for mixed case function 
  ;"$$DownloadFile^TMGKERNL(URL,DestDir) -- Interact with Linux to download a file with wget
+ ;"$$EDITARRAY(ARRAY,EDITOR)  -- interact with Linux to edit array as file on the host file system
  ;"$$EditArray^TMGKERNL(ARRAY,Editor) -- interact with Linux to edit array as file on the host file system
  ;"$$EDITHFSFILE(FILEPATHNAME,EDITOR) -- Wrapper for mixed case function.   
  ;"$$EditHFSFile^TMGKERNL(FilePathName,Editor) -- interact with Linux to edit a file on the host file system
- ;"$$EditArray^TMGKERNL(ARRAY,Editor) -- interact with Linux to edit array as file on the host file system
  ;"ZSAVE -- to save routine out to HFS
  ;"MAKEBAKF^TMGKERNL(FilePathName,NodeDiv)  ;Make Backup File if original exists
  ;"IOCapON -- redirect IO to a HFS file, so that it can be captured.
@@ -58,6 +58,7 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 7/24/22
  ;"MJOBS(array) -- execute a linux OS call to get list of all 'mumps' jobs using: 'ps -C mumps'
  ;"$$GETSCRSZ(ROWS,COLS) --query the OS and get the dimensions of the terminal window.
  ;"KILLVARS(Mask) -- Selectively KILL variables from symbol table.
+ ;"GBLOUTGREP(FPATHNAME,FILTER,OUT) -- GLOBAL OUTPUT GREP  
  ;"KIDSGREP(FPATHNAME,FILTER,OUT)  -- Scan HFS .KIDS file and return strings based on filter
  ;"=======================================================================
  ;"Dependancies  TMGIOUTL, %webjson*
@@ -171,13 +172,18 @@ VIMDIFF(FPNAME1,FPNAME2,PARAMS)  ;"FILES vimdiff command
   ;"        FPNAME2: The second path+filename to compare
   ;"        PARAMS: (optional)  Contains command options, all in one long string.
   ;"           e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
-  ;"Result: 0 if results are the same, 1 if different, 2 if problem
-  WRITE !,!,"NOTE: entering Linux command 'vimdiff'",!
-  WRITE "To exit vimdiff, use '<esc>:qa'",!
+  ;"Result: 1^OK, or -1^ErrMsg 
+  WRITE #
+  NEW L2 SET L2="REMEMBER!!\n"
+  SET L2=L2_"(It can be hard to get out of vim!!)\n"
+  SET L2=L2_"To exit, type <ESC>:qa<ENTER>  ('qa' must be lower case letters)"
+  DO POPUPBOX^TMGUSRI2("NOTICE! Launching vimdiff",L2)
   DO PRESS2GO^TMGUSRI2
   NEW CMD SET CMD="vimdiff "_$GET(PARAMS)_" """_FPNAME1_""" """_FPNAME2_""""
   ZSYSTEM CMD
   NEW RESULT SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
+  IF RESULT=0 SET RESULT="1^OK"
+  ELSE  SET RESULT="-1^Linux Error: "_RESULT
   QUIT RESULT  
   ;
 ADIFF(OUT,ARR1,ARR2,PARAMS)  ;"use diff command on 2 arrays
@@ -212,15 +218,13 @@ VIMADIFF(ARR1,ARR2,PARAMS)  ;"use vimdiff command on 2 arrays
   ;"        ARR2: The second array to compare  Format: ARR2(#)=line of text
   ;"        PARAMS: (optional)  Contains command options, all in one long string.
   ;"           e.g. "--ignore-case"   or "-Z"   See Linux documentation for details
-  ;"Result: 0 if results are the same, 1 if different, 2 if problem, OR -1^Message  
-  NEW TMGRESULT
+  ;"Result: 1^OK, or -1^ErrMsg 
+  NEW TMGRESULT,TEMP SET TMGRESULT="1^OK"
   NEW PATH SET PATH="/tmp/"
-  NEW FNAME1 SET FNAME1=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_1.text")
-  NEW FNAME2 SET FNAME2=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_2.text")
-  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR1",PATH,FNAME1)
-  IF TMGRESULT'>0 GOTO DFDN2
-  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR2",PATH,FNAME2)
-  IF TMGRESULT'>0 GOTO DFDN2
+  NEW FNAME1 SET FNAME1=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_1.txt")
+  NEW FNAME2 SET FNAME2=$$UNIQUE^%ZISUTL("M_ARRAY_DIF_2.txt")
+  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR1",PATH,FNAME1) IF TMGRESULT'>0 GOTO DFDN2
+  SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR2",PATH,FNAME2) IF TMGRESULT'>0 GOTO DFDN2
   NEW TEMP SET TEMP=$$VIMDIFF(PATH_FNAME1,PATH_FNAME2,.PARAMS)
   NEW TEMP2 SET TEMP2=$$DELFILE^TMGIOUTL(PATH_FNAME1)
   NEW TEMP3 SET TEMP3=$$DELFILE^TMGIOUTL(PATH_FNAME2)
@@ -726,6 +730,9 @@ EditHFSFile(FilePathName,Editor)  ;
   NEW RESULT SET RESULT=(CmdResult=0)
   QUIT RESULT
   ;
+EDITARRAY(ARRAY,EDITOR)  ;"interact with Linux to edit array as file on the host file system
+  QUIT $$EditArray(.ARRAY,.EDITOR)
+  ;
 EditArray(ARRAY,Editor) ;"interact with Linux to edit array as file on the host file system
   ;"Purpose: interact with Linux to edit array as a file on the host file system
   ;"Input: ARRAY - PASS BY REFERENCE.  Format: ARRAY(#)=<line of text>
@@ -1058,7 +1065,7 @@ KILLVARS(zzMask) ;
 KVDN ;
   QUIT
  ;
-GLBOUTGREP(FPATHNAME,FILTER,OUT) ;"GLOBAL OUTPUT GREP 
+GBLOUTGREP(FPATHNAME,FILTER,OUT) ;"GLOBAL OUTPUT GREP 
   ;"Purpose: Scan HFS file and return strings based on filter
   ;"Input:   FPATHNAME -- The full name of the path on the HFS to file to scan
   ;"         FILTER -- PASS BY REFERENCE.  An array of items to scan for.  Each

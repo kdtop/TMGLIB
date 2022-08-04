@@ -1,4 +1,4 @@
-TMGPAT4  ;TMG/kst/Patching tools ;09/22/08, 2/2/14, 2/15/15
+TMGPAT4  ;TMG/kst/Patching tools ;09/22/08, 2/2/14, 8/4/2022
          ;;1.0;TMG-LIB;**1**;09/22/08
  ;
  ;"Kevin Toppenberg MD
@@ -30,7 +30,7 @@ TMGPAT4  ;TMG/kst/Patching tools ;09/22/08, 2/2/14, 2/15/15
  ;"PANALYZE(INFO,OPTION) -- look at a patch KID file and extract useful information
  ;"PGETREQPATCHES(ARRAY,INFO) -- scan ARRAY, holding KID file, and assemble list of required patches
  ;"CheckLocal(PARRAY,OPTION) -- check a KIDS for conflict with local modifications.
- ;"Chk1Routine(routine) -- see IF one routine has any local modifications.
+ ;"CHKLOCLRTN(ROUTINE) -- see IF one routine has any local modifications.
  ;
  ;"=======================================================================
  ;
@@ -441,38 +441,38 @@ CheckLocal(PARRAY,OPTION)
         ;"Results: 1 IF conflict, 0 IF OK.
         NEW RESULT SET RESULT=0
         NEW MATCHES
-        NEW routine SET routine=""
-        FOR  SET routine=$ORDER(@PARRAY@("RTN",routine)) QUIT:(routine="")  DO
+        NEW ROUTINE SET ROUTINE=""
+        FOR  SET ROUTINE=$ORDER(@PARRAY@("RTN",ROUTINE)) QUIT:(ROUTINE="")  DO
         . NEW DETAIL
-        . IF $$Chk1Routine(routine,.DETAIL,.MATCHES)=1 DO
+        . IF $$CHKLOCLRTN(ROUTINE,.DETAIL,.MATCHES)=1 DO
         . . SET RESULT=1
         . . IF $GET(OPTION("VERBOSE"))'=1 QUIT
-        . . WRITE "WARNING: Importing routine ",routine," will OVERWRITE local changes!",!
+        . . WRITE "WARNING: Importing routine ",ROUTINE," will OVERWRITE local changes!",!
         . . NEW IDX SET IDX=0
         . . FOR  SET IDX=$ORDER(DETAIL(IDX)) QUIT:IDX'>0  DO
         . . . WRITE "   Line #",IDX,".  ",$GET(DETAIL(IDX)),!
         QUIT RESULT
 
 
-Chk1Routine(routine,DETAIL,MATCHES)
+CHKLOCLRTN(ROUTINE,DETAIL,MATCHES)  ;"CHECK LOCAL ROUTINE
         ;"Purpose: to see IF one routine has any local modifications.
-        ;"Input: routine -- the routine name  e.g. XUP
+        ;"Input: ROUTINE -- the routine name  e.g. XUP
         ;"       DETAIL -- PASS BY REFERENCE, AN OUT PARAMETER.  Filled with lines with local tag.  
         ;"          DETAIL(<LINE#>)=<LINE WITH TAG>
         ;"       MATCHES -- pass by reference.  An array to hold data for matches, for faster repeat processing.  
-        ;"Results: 1 IF conflict, 0 IF OK.
+        ;"Results: 1 if conflict, 0 if OK.
         NEW RESULT SET RESULT=0
         NEW LINE SET LINE=0
         IF $DATA(MATCHES)=0 DO
         . NEW DONE SET DONE=0
-        . NEW IDX FOR IDX=1:1 DO  QUIT:DONE
+        . NEW IDX FOR IDX=1:1 DO  QUIT:(DONE)!(IDX>100)
         . . NEW TAG SET TAG=$TEXT(CKRTNDAT+IDX^TMGPAT4)
         . . IF TAG["<DONE>" SET DONE=1 QUIT
         . . SET TAG=$$UP^XLFSTR($PIECE(TAG,";;",2))
         . . SET MATCHES(TAG)=""
         NEW BLANKCT SET BLANKCT=0
         FOR  DO  QUIT:(BLANKCT>10)!RESULT
-        . NEW REF SET REF="+"_LINE_"^"_routine
+        . NEW REF SET REF="+"_LINE_"^"_ROUTINE
         . NEW STR SET STR=$$UP^XLFSTR($TEXT(@REF))
         . IF STR="" SET BLANKCT=BLANKCT+1
         . NEW ATAG SET ATAG=""
@@ -482,6 +482,7 @@ Chk1Routine(routine,DETAIL,MATCHES)
         . ;"SET RESULT=(STR["/kt")!(STR["/tmg")!(STR["/elh")!(STR["FOIA")
         . ;"IF RESULT SET DETAIL(LINE)=STR
         . SET LINE=LINE+1
+        SET RESULT=($DATA(DETAIL)>0)
         QUIT RESULT
 CKRTNDAT ;        
         ;;WorldVistA
@@ -490,5 +491,7 @@ CKRTNDAT ;
         ;;tmg
         ;;FOIA
         ;;osehra
+        ;;WVEHR
+        ;;VEFA
         ;;<DONE>
         

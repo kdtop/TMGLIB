@@ -760,6 +760,91 @@ GETDBDUE(TMGRESULT,BEGDT,ENDDT)  ;"
        SET TMGRESULT(0)=COUNT
        QUIT
        ;"
+LABS2DAY  ;"Patients scheduled for today that need blood work drawn today
+       NEW PTARRAY,TODAY,OUTARR,DATE
+       SET TODAY=$$TODAY^TMGDATE
+       DO GETSCHED^TMGPXR03(.PTARRAY,TODAY,TODAY)
+       NEW TMGDFN SET TMGDFN=0
+       FOR  SET TMGDFN=$O(PTARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+       . SET DATE=""
+       . FOR  SET DATE=$O(PTARRAY(TMGDFN,DATE)) QUIT:DATE=""  DO
+       . . NEW COMMENT SET COMMENT=$P($G(PTARRAY(TMGDFN,DATE)),"^",3)
+       . . IF COMMENT["LABS AT NEXT APPOINTMENT" DO
+       . . . SET OUTARR(DATE,TMGDFN)=COMMENT
+       IF $D(OUTARR) DO
+       . NEW %ZIS
+       . SET %ZIS("A")="Enter Output Device: "
+       . SET IOP="S121-LAUGHLIN-LASER"
+       . DO ^%ZIS  ;"standard device call
+       . IF POP DO  GOTO DEEDN
+       . . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       . use IO
+       . WRITE !
+       . WRITE "************************************************************",!
+       . WRITE "         Patients who needs labs at their appt today",!
+       . WRITE "                       ",$$EXTDATE^TMGDATE(TODAY,1),!
+       . WRITE "          Please deliver this report to reception",!
+       . WRITE "************************************************************",!
+       . WRITE "                                            (From TMGRPT1.m)",!!
+       . SET DATE=""
+       . FOR  SET DATE=$O(OUTARR(DATE)) QUIT:DATE=""  DO
+       . . SET TMGDFN=0
+       . . FOR  SET TMGDFN=$O(OUTARR(DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . . NEW HOUR,MINS
+       . . . SET HOUR=$E($P(DATE,".",2),1,2),MINS=$E($P(DATE,".",2),3,4)
+       . . . IF $L(HOUR)=1 SET HOUR=HOUR_"0"
+       . . . IF $L(MINS)=0 SET MINS="00"
+       . . . IF $L(MINS)=1 SET MINS=MINS_"0"
+       . . . WRITE HOUR,":",MINS," -> ",$P($G(^DPT(TMGDFN,0)),"^",1)," ",$G(OUTARR(DATE,TMGDFN)),!
+       . DO ^%ZISC 
+       QUIT
+       ;"  
+MISSROS   ;"TODAY'S OFFICE NOTES MISSING ROS
+       NEW TIUARR,DATE,TIUIEN
+       SET DATE=$$TODAY^TMGDATE,TIUIEN=0
+       FOR  SET DATE=$O(^TIU(8925,"D",DATE)) QUIT:DATE=""  DO
+       . SET TIUIEN=0
+       . FOR  SET TIUIEN=$O(^TIU(8925,"D",DATE,TIUIEN)) QUIT:TIUIEN'>0  DO
+       . . NEW NOTETYPE SET NOTETYPE=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
+       . . NEW OFFNOTE SET OFFNOTE=$P($G(^TIU(8925.1,NOTETYPE,"TMGH")),"^",1)
+       . . IF OFFNOTE="Y" SET TIUARR(TIUIEN)=""
+       NEW MISSEDARR,TODAY SET TODAY=$$TODAY^TMGDATE
+       SET TIUIEN=0
+       FOR  SET TIUIEN=$O(TIUARR(TIUIEN)) QUIT:TIUIEN'>0  DO
+       . NEW ROSFOUND SET ROSFOUND=0
+       . NEW TMGDFN SET TMGDFN=$P($G(^TIU(8925,TIUIEN,0)),"^",2)
+       . NEW DATETIME SET DATETIME=TODAY
+       . FOR  SET DATETIME=$O(^TIU(8925,"ZTMGPTDT",TMGDFN,DATETIME)) QUIT:DATETIME'>0  DO
+       . . NEW THISTIU SET THISTIU=0
+       . . FOR  SET THISTIU=$O(^TIU(8925,"ZTMGPTDT",TMGDFN,DATETIME,THISTIU)) QUIT:THISTIU'>0  DO
+       . . . NEW NOTETYPE SET NOTETYPE=$P($G(^TIU(8925,THISTIU,0)),"^",1)
+       . . . IF NOTETYPE=1424 SET ROSFOUND=1
+       . IF ROSFOUND=0 SET MISSEDARR(TMGDFN,TIUIEN)=""
+       IF $D(MISSEDARR) DO
+       . NEW %ZIS
+       . SET %ZIS("A")="Enter Output Device: "
+       . SET IOP="S121-LAUGHLIN-LASER"
+       . DO ^%ZIS  ;"standard device call
+       . IF POP DO  GOTO DEEDN
+       . . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       . use IO
+       . WRITE !
+       . WRITE "************************************************************",!
+       . WRITE "         OFFICE NOTES WITHOUT ROS SCANNED INTO SYSTEM",!
+       . WRITE "                       ",$$EXTDATE^TMGDATE(TODAY,1),!
+       . WRITE "          Please deliver this report to Eddie",!
+       . WRITE "************************************************************",!
+       . WRITE "                                            (From TMGRPT1.m)",!!
+       . NEW TMGDFN SET TMGDFN=0
+       . FOR  SET TMGDFN=$O(MISSEDARR(TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," -> "
+       . . SET TIUIEN=0
+       . . FOR  SET TIUIEN=$O(MISSEDARR(TMGDFN,TIUIEN)) QUIT:TIUIEN'>0  DO
+       . . . W TIUIEN,","
+       . . W !
+       . DO ^%ZISC 
+       QUIT
+       ;"
 DEEMEDPT()  ;"
        NEW %ZIS
        SET %ZIS("A")="Enter Output Device: "

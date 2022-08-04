@@ -209,13 +209,14 @@ ENV(XPDENV,Msg)
 
         S %=$$REQB(.Msg)
         I % S (XPDABORT,XPDREQAB)=% G ABORT
-        S %=$G(^XTMP("XPDI",XPDA,"PRE")) D:%]""
-        . DO AddMsg^TMGPAT2("Will first run the Environment Check Routine, "_%,0,.Msg)
-        . D SAVE^XPDIJ(%)
-        . NEW saved
-        . DO IOCapON^TMGKERNL
-        . D @("^"_%)
-        . DO IOCapOFF^TMGKERNL("saved")
+PRE     ;        
+        NEW ARTN S ARTN=$G(^XTMP("XPDI",XPDA,"PRE")) D:ARTN]""
+        . DO AddMsg^TMGPAT2("Will first run the Environment Check Routine, "_ARTN,0,.Msg)
+        . D SAVE^XPDIJ(ARTN)
+        . NEW saved,DEBUG SET DEBUG=0
+        . IF DEBUG=0 DO IOCapON^TMGKERNL
+        . D @("^"_ARTN)
+        . IF DEBUG=0 DO IOCapOFF^TMGKERNL("saved")
         . IF $DATA(saved) DO AddMsg^TMGPAT2(.saved,0,.Msg)
 
 
