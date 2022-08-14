@@ -19,7 +19,6 @@ TMGPAT6  ;TMG/kst/Patching tools ;10/19/08, 7/14/22
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;
  ;"SCAN() - Scan web server holding all patches, and parse all into Fileman file
  ;"BROWSE() -- To browse file 22709.1
  ;"PICKENTRY(OPTION,OUTPATH,OUTNAME) --  browse file 22709.1 and pick entry
@@ -36,7 +35,12 @@ TMGPAT6  ;TMG/kst/Patching tools ;10/19/08, 7/14/22
  ;"=======================================================================
  ;"Private Functions
  ;"=======================================================================
+ ;"CYCLE(INFO) -- Process each web directory node, recursively calling self for subdirectories
  ;"INITIALIZE(INFO) --Setup INFO var 
+ ;"ARRHASPATCH(ARR,PATCH) -- Determine if ARR, holding list of patches, has an entry matching PATCH  
+ ;"GETUNPAIRED(OUT)  -- Make listing of all patches that are not a KIDS & INFOTEXT duo.
+ ;"FIX1MISSINGINFO(DATA) -- Fix missing for 1 item
+ ;"REF2IENS(REF) -- Get IENS from "C" or "D" index, given ref up to part BEFORE IENS
  ;"ADDDIR(INFO,IENS) --Add top level dir
  ;"ISDIR0(AFILE) --Decide if filename is a directory
  ;"ISZIP0(AFILE) --Decide if filename is of type ZIP
@@ -45,7 +49,8 @@ TMGPAT6  ;TMG/kst/Patching tools ;10/19/08, 7/14/22
  ;"ISZIP(INFO) --Decide if filename is of type ZIP
  ;"ISKIDS(INFO) --Decide if filename is of type KIDS
  ;"ISTEXT(INFO) --Decide if filename is of type TXT
- ;"CYCLE(INFO)  --Process each web directory node, recursively calling self for subdirectories
+ ;"ISGBL(INFO) -- Decide if filename is of type GBL
+ ;"CHARACTERIZE(INFO,ISZIP,ISDIR,ISFILE,INZIPDIR,ISTEXT,ISKIDS,ISGBL) -- Characterize file
  ;"GETDIR(INFO,OUT) --Get directory listing, either from web server, or extract from pseudo-dir ZIP file
  ;"WGETFILE(INFO) --Download from web server to local HFS file
  ;"DELFILE(INFO) --Delete local file, as per name stored in INFO
@@ -56,11 +61,14 @@ TMGPAT6  ;TMG/kst/Patching tools ;10/19/08, 7/14/22
  ;"$$PROCESSFILE(INFO) --Take file entry and parse, depending on if KIDS etc. 
  ;"PARSETXT(INFO,ARR)  --Open KIDS info TEXT FILE and extract metadata
  ;"PARSEKIDS(INFO,ARR) --Open KIDS file and extract metadata
+ ;"PARSEGBL(INFO,ARR)  -- Evaluate GBL file and extract metadata 
  ;"KIDSHASDPND(IENS)  --See if KIDS entry has listed dependencies.   
  ;"KEEPZIPENTRY(INFO)  --Return if a particular entry in a zip file should be kept (stored in Fileman file).
  ;"FINDFILE121(INFO,IENS)  --Search for prior record representing a file entry in file 22709.121
  ;"STOREFILE(INFO) --Store record representing file entry
  ;"VWRITE(INFO,STR,LF)  --Write string if in verbose mode
+ ;"FIXDIRS() ;TEMP FIX
+ ;"FIXDIRS2() ;TEMP FIX
  ;"KILL1(IEN)  --KILL IEN IN 22709.12
  ;"FINDSUBDIR(IENS,NAME,OUTIENS) --Search for subdir record representing directory
  ;"FINDDIR(INFO,IENS) --Search for prior record representing directory
@@ -80,10 +88,9 @@ TMGPAT6  ;TMG/kst/Patching tools ;10/19/08, 7/14/22
  ;"SHOWHELP(OPTION) -- show help for file browser
  ;"REF2IENS(REF) --Get IENS from "C" or "D" index, given ref up to part BEFORE IENS
  ;"FIXVER  --Fix versions saved at "2.0" instead of 2, etc.   
- ;"FIXDIRS() ;TEMP FIX
- ;"FIXDIRS2() ;TEMP FIX
  ;"TESTGMD() ;TESTING 
- ; 
+ ;"LOADDIR(PARRAY,CURDIR,OPTION) -- load CURDIR entries into PARRAY
+ ;
  ;"=======================================================================
  ;
  ;"======================================================================
@@ -312,7 +319,7 @@ GETUNPAIRED(OUT)  ;"Make listing of all patches that are not a KIDS & INFOTEXT d
   . . . WRITE "------------------------",!
   QUIT
   ;
-FIX1MISSINGINFO(DATA)  ;"
+FIX1MISSINGINFO(DATA)  ;"Fix missing for 1 item
   ;"Input: DATA -- PASS BY REFERENCE.  An array as output by GETPVPINFO()
   NEW APATCH SET APATCH=""
   FOR  SET APATCH=$ORDER(DATA("KIDS","CONTAINED PATCHES",APATCH)) QUIT:APATCH=""  DO
@@ -1959,5 +1966,4 @@ SHOWHELP(OPTION) ;
   DO PRESS2GO^TMGUSRI2
   WRITE #
   QUIT
-  ; 
-  
+  ;  

@@ -91,6 +91,7 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15
  ;"SETGBLCO  //Set Global Colors
  ;"KILLGBLC  //Kill Global Colors
  ;"DEMOCOLOR
+ ;"$$COLORPAIR(FG,BG,ARR) --Return a 'FG^BG' based on names
  ;"=======================================================================
  ;"DEPENDENCIES: XLFSTR
  ;"=======================================================================
@@ -395,6 +396,72 @@ VCOLORS(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
   DO ESCN(FG,BG,"m") QUIT
   QUIT
   ;
+VFGCOLOR256(N)  ;"Set Text Foreground Color  <ESC>[38;5;<NUM>m
+  ;"NOT YET TESTED   https://misc.flogisoft.com/bash/tip_colors_and_formatting
+  DO VTATRIB(0)
+  DO ESCN(38,5_";"_N,"m") QUIT
+  ;
+VBGCOLOR256(N)  ;"Set Text Background Color  <ESC>[48;5;<NUM>m
+  ;"NOT YET TESTED  https://misc.flogisoft.com/bash/tip_colors_and_formatting
+  DO VTATRIB(0)
+  DO ESCN(48,5_";"_N,"m") QUIT
+  ;
+VCOLORS256(FG,BG)  ;Set Text Colors   <ESC>[[38|48];5;<NUM>m
+  ;"NOT YET TESTED   https://misc.flogisoft.com/bash/tip_colors_and_formatting
+  ;"FROM HERE: https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+  ;"  0-  7:  standard colors (as in ESC [ 30–37 m)
+  ;"  8- 15:  high intensity colors (as in ESC [ 90–97 m)
+  ;" 16-231:  6 × 6 × 6 cube (216 colors): 16 + 36 × r + 6 × g + b (0 <= r, g, b <= 5)
+  ;"232-255:  grayscale from black to white in 24 steps
+  DO VTATRIB(0)
+  DO ESCN(38,5_";"_FG,"m") 
+  DO ESCN(48,5_";"_BG,"m") 
+  QUIT
+  ;
+COLORPAIR(FG,BG,ARR) ;"Return a 'FG^BG' based on names
+  ;"Input: FG -- the name (as defined below) of foreground color
+  ;"       BG -- the name (as defined below) of background color
+  ;"       ARR -- OPTIONAL.  PASS BY REFERENCE.  Can use with repeated calls to save time.  
+  IF $DATA(TMGCOLBLACK)=0 DO SETGBLCO
+  IF $DATA(ARR)=0 DO       
+  . SET ARR("FG","BLACK")=TMGCOLBLACK                    ;"0
+  . SET ARR("FG","RED")=TMGCOLRED                        ;"1
+  . SET ARR("FG","GREEN")=TMGCOLGREEN                    ;"2
+  . SET ARR("FG","YELLOW")=TMGCOLYELLOW                  ;"3
+  . SET ARR("FG","BLUE")=TMGCOLBLUE                      ;"4
+  . SET ARR("FG","MAGENTA")=TMGCOLMAGENTA                ;"5
+  . SET ARR("FG","CYAN")=TMGCOLCYAN                      ;"6
+  . SET ARR("FG","GREY")=TMGCOLGREY                      ;"7
+  . SET ARR("FG","BRIGHT RED")=TMGCOLBRED                ;"8
+  . SET ARR("FG","BRIGHT GREEN")=TMGCOLBGREEN            ;"9
+  . SET ARR("FG","BRIGHT YELLOW")=TMGCOLBYELLOW          ;"10
+  . SET ARR("FG","BRIGHT BLUE")=TMGCOLBBLUE              ;"11
+  . SET ARR("FG","BRIGHT MAGENTA")=TMGCOLBMAGENTA        ;"12
+  . SET ARR("FG","BRIGHT CYAN")=TMGCOLBCYAN              ;"13
+  . SET ARR("FG","WHITE")=TMGCOLFGBWHITE                 ;"14
+  . SET ARR("FG","DARK RED")=TMGCOLDKRED                 ;"15
+  . ;
+  . SET ARR("BG","BLACK")=TMGCOLBLACK                    ;"0
+  . SET ARR("BG","RED")=TMGCOLRED                        ;"1
+  . SET ARR("BG","GREEN")=TMGCOLGREEN                    ;"2
+  . SET ARR("BG","YELLOW")=TMGCOLYELLOW                  ;"3
+  . SET ARR("BG","BLUE")=TMGCOLBLUE                      ;"4
+  . SET ARR("BG","MAGENTA")=TMGCOLMAGENTA                ;"5
+  . SET ARR("BG","CYAN")=TMGCOLCYAN                      ;"6
+  . SET ARR("BG","GREY")=TMGCOLGREY                      ;"7
+  . SET ARR("BG","BRIGHT RED")=TMGCOLBRED                ;"8
+  . SET ARR("BG","BRIGHT GREEN")=TMGCOLBGREEN            ;"9
+  . SET ARR("BG","BRIGHT YELLOW")=TMGCOLBYELLOW          ;"10
+  . SET ARR("BG","BRIGHT BLUE")=TMGCOLBBLUE              ;"11
+  . SET ARR("BG","BRIGHT MAGENTA")=TMGCOLBMAGENTA        ;"12
+  . SET ARR("BG","BRIGHT CYAN")=TMGCOLBCYAN              ;"13
+  . SET ARR("BG","DARK GREY")=TMGCOLBGREY                ;"14
+  . SET ARR("BG","WHITE")=TMGCOLWHITE                    ;"15
+  NEW FGC SET FGC=$GET(ARR("FG",$$UP^XLFSTR(FG)),0)
+  NEW BGC SET BGC=$GET(ARR("BG",$$UP^XLFSTR(BG)),15)
+  SET RESULT=FGC_"^"_BGC
+  QUIT RESULT
+  ;  
 SETGBLCO   ;"Set Global Colors
   SET TMGCOLBLACK=0
   SET TMGCOLRED=1
@@ -405,14 +472,16 @@ SETGBLCO   ;"Set Global Colors
   SET TMGCOLCYAN=6
   SET TMGCOLGREY=7
   ;
-  SET TMGCOLBRED=8
-  SET TMGCOLBGREEN=9
-  SET TMGCOLBYELLOW=10
-  SET TMGCOLBBLUE=11
-  SET TMGCOLBMAGENTA=12
-  SET TMGCOLBCYAN=13
-  SET TMGCOLBGREY=14,TMGCOLFGBWHITE=14
-  SET TMGCOLWHITE=15
+  SET TMGCOLBRED=8       ;"'Bright' color
+  SET TMGCOLBGREEN=9     ;"'Bright' color
+  SET TMGCOLBYELLOW=10   ;"'Bright' color
+  SET TMGCOLBBLUE=11     ;"'Bright' color
+  SET TMGCOLBMAGENTA=12  ;"'Bright' color
+  SET TMGCOLBCYAN=13     ;"'Bright' color
+  SET TMGCOLBGREY=14     ;"//BACKGROUND COLOR
+  SET TMGCOLFGBWHITE=14  ;"FOREGROUND COLOR
+  SET TMGCOLWHITE=15     ;"//BACKGROUND COLOR
+  SET TMGCOLDKRED=15     ;"FOREGROUND COLOR
    ;
   QUIT
   ;
@@ -435,34 +504,7 @@ KILLGBLC   ;"Kill Global Colors
   KILL TMGCOLBGREY
   KILL TMGCOLWHITE
   KILL TMGCOLFGBWHITE
-  QUIT
-  ;
-COLORBOX(SETBG,SETFG)  ;
-  ;"Purpose: to WRITE a grid on the screen, showing all the color combos
-  ;"Input: SETBG -- OPTIONAL.  If data sent, then ONLY that background will be shown.
-  ;"        (i.e. for only picking a foreground color)
-  ;"  SETFG -- OPTIONAL.  If data sent, then only for picking background color
-  NEW FG,BG
-  IF $DATA(SETFG)#10=0 DO
-  . WRITE "FG:",?10
-  . FOR FG=0:1:15 DO
-  . . WRITE $$RJ^XLFSTR(FG,2)," "
-  . WRITE !
-  NEW START,FINISH
-  SET START=0,FINISH=15
-  IF ($DATA(SETBG)#10=1) DO
-  . SET (START,FINISH)=SETBG
-  FOR BG=START:1:FINISH DO
-  . IF BG=0 WRITE "BG:"
-  . WRITE ?7,$$RJ^XLFSTR(BG,2),?10
-  . FOR FG=0:1:15 DO
-  . . DO VCOLORS(FG,BG)
-  . . IF $DATA(SETFG)#10=0 DO
-  . . . WRITE " X "
-  . . ELSE  DO
-  . . . WRITE "   "
-  . . DO VTATRIB(0)
-  . WRITE !
+  KILL TMGCOLDKRED    
   QUIT
   ;
 PICK1COL(LABEL,INITVAL)   ;
@@ -500,15 +542,50 @@ PICKCLRS(FG,BG)   ;
   SET BG=$$PICK1COL("Background (BG)",.BG)
   QUIT FG_"^"_BG
   ;
+  ;"==============================================================
+  ;
 DEMOCOLR   ;
    ;"Purpose: to WRITE a lines on the screen, showing all the color combos
   DO VCUSAV2
   NEW FG,BG
-  FOR BG=1:1:14 DO
-  . FOR FG=1:1:14 DO
+  FOR BG=0:1:15 DO
+  . FOR FG=0:1:15 DO
   . . DO VCOLORS(FG,BG)
   . . WRITE "Text with background color #",BG," and foreground color #",FG
   . . DO VTATRIB(0)
   . . WRITE !
   DO VCULOAD2
   QUIT
+  ;
+COLORBOX(SETBG,SETFG)  ;
+  ;"Purpose: to WRITE a grid on the screen, showing all the color combos
+  ;"Input: SETBG -- OPTIONAL.  If data sent, then ONLY that background will be shown.
+  ;"        (i.e. for only picking a foreground color)
+  ;"  SETFG -- OPTIONAL.  If data sent, then only for picking background color
+  NEW FG,BG
+  IF $DATA(SETFG)#10=0 DO
+  . WRITE "FG:",?10
+  . FOR FG=0:1:15 DO
+  . . WRITE $$RJ^XLFSTR(FG,2)," "
+  . WRITE !
+  NEW START,FINISH
+  SET START=0,FINISH=15
+  IF ($DATA(SETBG)#10=1) DO
+  . SET (START,FINISH)=SETBG
+  FOR BG=START:1:FINISH DO
+  . IF BG=0 WRITE "BG:"
+  . WRITE ?7,$$RJ^XLFSTR(BG,2),?10
+  . FOR FG=0:1:15 DO
+  . . DO VCOLORS(FG,BG)
+  . . IF $DATA(SETFG)#10=0 DO
+  . . . WRITE " X "
+  . . ELSE  DO
+  . . . WRITE "   "
+  . . DO VTATRIB(0)
+  . WRITE !
+  QUIT
+  ;
+  ;
+  ;"NOTE:  This shows demow (that works from bash command line) with 256 color!
+  ;https://misc.flogisoft.com/bash/tip_colors_and_formatting
+  

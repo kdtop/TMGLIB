@@ -75,7 +75,7 @@ NEWPACK  ;
         IF RESULT=0 GOTO NPDONE
         NEW IEN9D4 SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,""))
         IF IEN9D4'>0 DO  GOTO NPDONE
-        . DO AddMsg^TMGPAT2("Can't find PACKAGE named '"_PCKINIT_"'",1,.Msg)
+        . DO ADDMSG^TMGPAT2("Can't find PACKAGE named '"_PCKINIT_"'",1,.Msg)
         ;
 NPDONE  ;
         IF $$SHOWMSG^TMGPAT2(.Msg)
@@ -335,7 +335,7 @@ DownPCK(PATCHNAME,OPTION,Msg)
         . IF $GET(OPTION("VERBOSE"))=1 WRITE COUNT,"/",TOTAL,".  ---- ",PATCHNAME," ----",!
         . NEW IENS SET IENS=$$GETIENS^TMGPAT2(PATCHNAME) QUIT:(IENS="")
         . IF $$ENSRLOCL^TMGPAT2(IENS,.INFO,.Msg,.OPTION,PCKINIT)=0 DO
-        . . DO AddMsg^TMGPAT2("Unable to download patch to local file system.",1,Msg)
+        . . DO ADDMSG^TMGPAT2("Unable to download patch to local file system.",1,Msg)
         . SET COUNT=COUNT+1
         ;
         IF $GET(OPTION("VERBOSE"))=1 DO

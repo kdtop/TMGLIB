@@ -26,7 +26,7 @@ TMGPAT2  ;TMG/kst/Patching tools Suport;09/17/08, 7/21/22
  ;"ENSRLOCL(IENS,INFO,Msg,OPTION,PCKINIT) -- Ensure files downloaded from server and stored locally
  ;"DownloadPATCH(PATCHNAME,PROTOCOL,OPTION,Msg,INFO) -- Ensure that the Patch has been downloaded from server and stored locally
  ;"MakePATCHEntry(PATCHNAME,Msg) -- make pseudo-entries to show that something was processed.
- ;"AddMsg(s,IsError,Msg) -- add a message to Msg ARRAY
+ ;"ADDMSG(s,IsError,Msg) -- add a message to Msg ARRAY
  ;"SHOWMSG(Msg) -- display the message array
  ;
  ;"=======================================================================
@@ -54,7 +54,7 @@ MAKFRESH(PCKINIT,Msg,PCKDIRFNAME)
 
         NEW IEN9D4 SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,""))
         IF IEN9D4'>0 DO  GOTO ENSFDONE
-        . DO AddMsg("Can't find PACKAGE named '"_PCKINIT_"'",1,.Msg)
+        . DO ADDMSG("Can't find PACKAGE named '"_PCKINIT_"'",1,.Msg)
         NEW PCKIEN,lastFMDate
         SET PCKIEN=+$ORDER(^TMG(22709,"B",IEN9D4,""))
         IF PCKIEN>0 SET lastFMDate=$PIECE($GET(^TMG(22709,PCKIEN,2)),"^",1)
@@ -96,7 +96,7 @@ RefreshPackge(PCKINIT,Msg,NEEDSREFRESH,PCKDIRFNAME,OPTION)
         IF RESULT=0 GOTO RPDONE
         NEW IEN9D4 SET IEN9D4=+$ORDER(^DIC(9.4,"C",PCKINIT,""))
         IF IEN9D4'>0 DO  GOTO RPDONE
-        . DO AddMsg("Can't find PACKAGE named '"_PCKINIT_"'",1,.Msg)
+        . DO ADDMSG("Can't find PACKAGE named '"_PCKINIT_"'",1,.Msg)
         NEW SOMEADDED
         SET RESULT=$$LOADPCKG(IEN9D4,.ARRAY,"http://",.Msg,.SOMEADDED)
 RPDONE
@@ -118,7 +118,7 @@ EmptyPACKAGE(IEN9D4,Msg)
         SET TMGFDA(22709,PCKIEN_",",.01)="@"
         DO FILE^DIE("EK","TMGFDA","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO
-        . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
 
 EPDONE  QUIT
 
@@ -146,7 +146,7 @@ LOADPCKG(IEN9D4,ARRAY,PROTOCOL,Msg,SOMEADDED)
         SET PROTOCOL=$GET(PROTOCOL,"http://")
         SET IEN9D4=+$GET(IEN9D4)
         IF IEN9D4'>0 DO  GOTO LPDONE
-        . DO AddMsg("Can't find record #"_IEN9D4_" in INSTALL file.",1,.Msg)
+        . DO ADDMSG("Can't find record #"_IEN9D4_" in INSTALL file.",1,.Msg)
         NEW PCKIEN SET PCKIEN=+$ORDER(^TMG(22709,"B",IEN9D4,""))
         NEW TMGFDA,TMGMSG,TMGIEN,X,%
         DO NOW^%DTC ;"output in %
@@ -159,7 +159,7 @@ LOADPCKG(IEN9D4,ARRAY,PROTOCOL,Msg,SOMEADDED)
         . DO UPDATE^DIE("K","TMGFDA","TMGIEN","TMGMSG")
         . SET PCKIEN=$GET(TMGIEN(1))
         IF $DATA(TMGMSG("DIERR")) DO
-        . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         IF PCKIEN'>0 GOTO LPDONE
 
         NEW SPCLNAMES
@@ -174,11 +174,11 @@ LOADPCKG(IEN9D4,ARRAY,PROTOCOL,Msg,SOMEADDED)
         . IF 'VALID,$$ISSPNAME(UNAME) DO  QUIT
         . . SET SPCLNAMES(NAME)=""
         . IF VER="" DO  QUIT
-        . . DO AddMsg("Unable to process file name: "_NAME_".  Couldn't determine version number.",1,.Msg)
+        . . DO ADDMSG("Unable to process file name: "_NAME_".  Couldn't determine version number.",1,.Msg)
         . ;"IF SEQNUM="" DO  QUIT   ;Removed because sometimes the sequence # comes from the TXT file, not the patch file.
-        . ;". DO AddMsg("Unable to process file name: "_NAME_".  Couldn't determine sequence number.",1,.Msg)
+        . ;". DO ADDMSG("Unable to process file name: "_NAME_".  Couldn't determine sequence number.",1,.Msg)
         . IF $GET(PATCHNUM)="" DO  QUIT
-        . . DO AddMsg("Unable to process file name: "_NAME_".  Couldn't determine patch number.",1,.Msg)
+        . . DO ADDMSG("Unable to process file name: "_NAME_".  Couldn't determine patch number.",1,.Msg)
         . NEW TEMPRESULT
         . SET TEMPRESULT=$$LoadOne(PCKIEN,VER,PATCHNUM,SEQNUM,PROTOCOL_FULLNAMEPATH)
         . SET SPCLNAMES("ZZ",VER,PATCHNUM,SEQNUM)=FULLNAMEPATH
@@ -297,7 +297,7 @@ LoadOne(PCKIEN,VER,PATCHNUM,SEQNUM,REMOTEURL,Msg)
         . SET TMGFDA(22709.01,"+1,"_PCKIEN_",",.02)=$TRANSLATE(VER,".","") ;"synonym
         . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
         . IF $DATA(TMGMSG("DIERR")) DO
-        . . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         . SET VERIEN=+$GET(TMGIEN(1))
         IF VERIEN'>0 GOTO LODONE
         NEW PATCHIEN SET PATCHIEN=+$ORDER(^TMG(22709,PCKIEN,1,VERIEN,1,"B",PATCHNUM,""))
@@ -306,7 +306,7 @@ LoadOne(PCKIEN,VER,PATCHNUM,SEQNUM,REMOTEURL,Msg)
         . SET TMGFDA(22709.11,"+1,"_VERIEN_","_PCKIEN_",",.01)=PATCHNUM
         . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
         . IF $DATA(TMGMSG("DIERR")) DO
-        . . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         . SET PATCHIEN=+$GET(TMGIEN(1))
         . SET RESULT=2  ;"something added
         IF PATCHIEN'>0 GOTO LODONE
@@ -326,7 +326,7 @@ LoadOne(PCKIEN,VER,PATCHNUM,SEQNUM,REMOTEURL,Msg)
         IF SEQNUM'="" SET TMGFDA(22709.11,PATCHIEN_","_VERIEN_","_PCKIEN_",",".02")=SEQNUM
         DO FILE^DIE("K","TMGFDA","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO
-        . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         IF $DATA(TMGMSG("DIERR"))=0 DO
         . IF RESULT>0 QUIT
         . SET RESULT=1 ;"success
@@ -446,7 +446,7 @@ ENSRLOCL(IENS,INFO,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         DO GETS^DIQ(22709.11,IENS,"1;1.5;2;3;4","","TMGDATA","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO  GOTO ELDONE
         . NEW TEMPS SET TEMPS=$$GETERRST^TMGDEBU2(.TMGMSG)
-        . DO AddMsg(TEMPS,1,.Msg)
+        . DO ADDMSG(TEMPS,1,.Msg)
         . IF VERBOSE WRITE TEMPS,!
         NEW URL SET URL=$GET(TMGDATA(22709.11,IENS,1))
         SET INFO("KID URL")=URL
@@ -455,7 +455,7 @@ ENSRLOCL(IENS,INFO,Msg,OPTION,PCKINIT)  ;"ENSURE LOCAL
         IF URL="" DO
         . IF textURL'="" SET INFO("TEXT ONLY")=1 QUIT
         . NEW TEMPS SET TEMPS="No URL found for KIDS patch or accompanying Info text file in FM File #22709.22, IENS="_IENS
-        . DO AddMsg(TEMPS,1,.Msg)
+        . DO ADDMSG(TEMPS,1,.Msg)
         . IF VERBOSE WRITE TEMPS,!
 
         NEW PATH SET PATH=$GET(TMGDATA(22709.11,IENS,2))
@@ -510,7 +510,7 @@ ELDONE
         IF $DATA(TMGFDA) DO
         . DO FILE^DIE("","TMGFDA","TMGMSG")
         . IF $DATA(TMGMSG("DIERR")) DO
-        . . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         . . SET RESULT=0
         . . IF VERBOSE WRITE Msg("ERROR",MsgI),!
 
@@ -641,7 +641,7 @@ MakePATCHEntry(PATCHNAME,Msg)
         SET TMGFDA(9.7,"+1,",17)=%                      ;"17 = Install completion time
         DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO
-        . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         . SET RESULT=0
 
 MPE2    SET PCKINIT=$PIECE(PATCHNAME,"*",1)
@@ -664,7 +664,7 @@ MPE2    SET PCKINIT=$PIECE(PATCHNAME,"*",1)
         SET TMGFDA(9.4901,IENS,.03)="`"_DUZ ;".03=Applied by
         DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO
-        . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         . SET RESULT=0
 
 MPE3    IF RESULT=0 GOTO MPEDONE
@@ -675,7 +675,7 @@ MPE3    IF RESULT=0 GOTO MPEDONE
         SET IENS=TMGIEN(1)_","_IEN9D49_","_IEN9D4_","
         DO WP^DIE(9.4901,IENS,1,"","TMGWP","TMGMSG")
         IF $DATA(TMGMSG("DIERR")) DO
-        . DO AddMsg($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
+        . DO ADDMSG($$GETERRST^TMGDEBU2(.TMGMSG),1,.Msg)
         . SET RESULT=0
 
 MPEDONE
@@ -779,7 +779,7 @@ MAKEPATCHNAME(PCKINIT,VER,PATCHNUM,SEQNUM)
         QUIT RESULT
         ;
         ;
-AddMsg(s,IsError,Msg)
+ADDMSG(s,IsError,Msg)
         ;"Purpose: to add a message to Msg ARRAY
         ;"Input: s  -- message.  May be a string, or an array (or both) in format of:
         ;"              s=A line

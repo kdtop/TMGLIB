@@ -63,10 +63,10 @@ EN(InstallName,Option,Msg)
   . S XPDNM=$P(XPDT(XPDIT),U,2)
   . S XPDPKG=+$P($G(^XPD(9.7,+XPDT(XPDIT),0)),U,2)
   . S %=$P(^(0),U,5)
-  . DO AddMsg^TMGPAT2("Checking Install for Package "_XPDNM,0,.Msg)
+  . DO ADDMSG^TMGPAT2("Checking Install for Package "_XPDNM,0,.Msg)
   . ;"Check that Install file was created correctly
   . I '$D(^XPD(9.7,XPDA,"INI"))!'$D(^("INIT")) DO  Q
-  . . DO AddMsg^TMGPAT2("**INSTALL FILE IS CORRUPTED**",1,.Msg)
+  . . DO ADDMSG^TMGPAT2("**INSTALL FILE IS CORRUPTED**",1,.Msg)
   . . S XPDQUIT=1
   . ;"Run enviroment check routine
   . ;"XPDREQAB req. build missing, =2 global killed
@@ -86,7 +86,7 @@ EN(InstallName,Option,Msg)
   ;"check that we have all Builds to install
   S XPDA=XPDST,XPDNM=XPDSET,Y=0
   F  S Y=$O(^XPD(9.7,"ASP",XPDA,Y)) Q:'Y  S %=+$O(^(Y,0)) I '$D(XPDT("DA",%)) G NONE
-  DO AddMsg^TMGPAT2(" ",0,.Msg)
+  DO ADDMSG^TMGPAT2(" ",0,.Msg)
   ;"See IF a Master Build
   S %=$O(^XTMP("XPDI",XPDA,"BLD",0))
   S %=$P(^(%,0),U,3)

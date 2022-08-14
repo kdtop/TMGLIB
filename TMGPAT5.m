@@ -1,4 +1,4 @@
-TMGPAT5  ;TMG/kst/Patching tools ;10/19/08
+TMGPAT5  ;TMG/kst/Patching tools ;10/19/08, 8/10/22
          ;;1.0;TMG-LIB;**1**;10/19/08
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -12,13 +12,25 @@ TMGPAT5  ;TMG/kst/Patching tools ;10/19/08
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;
  ;"SHOWTG(NOPAUSE) -- SHOW ENTRIES LOADED IN TRANSPORT GLOBAL
  ;"LSTTG(OUT) -- LIST TRANSPORT GLOBALS LOADED
  ;"FIXPATCH(TRIALRUN) -- Purpose: This fixes situation when a patch with wrong $ZRO 
+ ;"GBLLSTTG()  -- SHOW ENTRIES LOADED IN TRANSPORT GLOBAL
+ ;"EXAMKIDS(INFO) -- Examine KIDS file, esp routines.  
+ ;"KIDS2ARR(ARRAY,LOCALFILE) -- Load KIDS file into a multi-dimensional array  
+ ;"PICKEXAMINE() -- Ask user for entry in file 9.7, then SHOW ENTRIES LOADED IN TRANSPORT GLOBAL
+ ;"XTRACTRTN(IEN9D7,OUT) -- Scan ^XTMP("XPDI",IEN9D7,*) and extract routines into array
+ ;"GETLOCALRTN(RTN,OUT) -- Extract a local routine module into OUT
+ ;
  ;"=======================================================================
  ;"Private Functions
  ;"=======================================================================
+ ;"EXAMRTNS(IEN9D7)  -- Examine routines from INSTALL record
+ ;"DOEXAM(KIDSARR,LOCALARR,OPTION) -- Prompt user via menu to pick a result from array to examine, and then view etc.    
+ ;"SHOW1RTN(ARR,NAME,NOPAUSE)  -- Show 1 routine
+ ;"COMP2RTNS(KIDSARR,LOCALARR,NAME,NOPAUSE)  --COMPARE 2 ROUTINES
+ ;"DIFF2RTNS(KIDSARR,LOCALARR,NAME)  -- Show Diff betweem 2 routines
+ ;"PREPENDARR(ARR,LINE)  -- Add lines to top of ARR.  Presumes first index of ARR is 1
  ; 
  ;"=======================================================================
  ;
@@ -66,6 +78,7 @@ FIXPATCH(TRIALRUN) ;
   ;"    files if they exist)
   NEW PDIR SET PDIR="/opt/worldvista/EHR/p/"
   NEW RDIR SET RDIR="/opt/worldvista/EHR/r/"
+  NEW SOME SET SOME=0
   SET TRIALRUN=$GET(TRIALRUN)
   IF TRIALRUN DO
   . WRITE !,"This will show which changes can be made, but will NOT actually make any changes.",!
@@ -83,7 +96,8 @@ FIXPATCH(TRIALRUN) ;
   . . IF TYPE'="m" QUIT
   . . NEW NAMESPACE SET NAMESPACE=$EXTRACT(AFILE,1,3)
   . . IF NAMESPACE="TMG" QUIT
-  . . IF $EXTRACT(AFILE,1,1)="Z" QUIT
+  . . IF $EXTRACT(AFILE,1,2)="ZZ" QUIT
+  . . SET SOME=1
   . . WRITE AFILE
   . . NEW PFILE SET PFILE=PDIR_AFILE
   . . NEW RFILE SET RFILE=RDIR_AFILE
@@ -108,7 +122,86 @@ FIXPATCH(TRIALRUN) ;
   . . . ;"DO YN^DICN WRITE !
   . . . ;"IF %'=1 QUIT
   . . . IF 'TRIALRUN SET %=$$MOVE^TMGKERNL(PFILE,RFILE)
+  IF SOME=0 WRITE !,"No files found to move.",!
+  DO PRESS2GO^TMGUSRI2
   QUIT  
+  ;
+EXAMKIDS(INFO) ;"Examine KIDS file, esp routines.  
+  ;"Input:  INFO -- PASS BY REFERENCE.  E.g. 
+  ;"           INFO("KID FILE")="DG-5p3_SEQ-831_PAT-940.kids"
+  ;"           INFO("PATH")="/opt/worldvista/EHR/kids/Remote_Patches-dirFor-DG/"
+  ;"Result: 1^OK, or -1^ErrMessage
+  NEW RESULT SET RESULT="1^OK"
+  NEW FNAME SET FNAME=$GET(INFO("KID FILE")) IF FNAME="" SET RESULT="-1^Filename not provided" GOTO EXKDN
+  NEW PATH SET PATH=$GET(INFO("PATH")) IF PATH="" SET RESULT="-1^Path name not provided" GOTO EXKDN
+  NEW LOCALFILE SET LOCALFILE=PATH_FNAME
+  NEW ARRAY
+  SET RESULT=$$KIDS2ARR(.ARRAY,PATH_FNAME) ;"Examine KIDS file, esp routines.
+  NEW KIDSRTNARR,ARTN SET ARTN=""
+  FOR  SET ARTN=$ORDER(ARRAY("RTN",ARTN)) QUIT:ARTN=""  DO
+  . NEW IDX SET IDX=0
+  . FOR  SET IDX=$ORDER(ARRAY("RTN",ARTN,IDX)) QUIT:IDX'>0  DO
+  . . SET KIDSRTNARR(ARTN,IDX)=$GET(ARRAY("RTN",ARTN,IDX,0))
+  NEW LOCALRTNARR,ROUTINE SET ROUTINE=""
+  FOR  SET ROUTINE=$ORDER(KIDSRTNARR(ROUTINE)) QUIT:ROUTINE=""!(+RESULT=-1)  DO 
+  . SET RESULT=$$GETLOCALRTN(ROUTINE,.LOCALRTNARR)
+  IF +RESULT=-1 GOTO EXRTDN
+  NEW OPTON SET OPTION("ENABLE COMPARE TOGGLE")=1
+  SET RESULT=$$DOEXAM(.KIDSRTNARR,.LOCALRTNARR,.OPTION) IF +RESULT=-1 GOTO EXRTDN
+EXKDN ;  
+  QUIT RESULT
+  ;  
+KIDS2ARR(ARRAY,LOCALFILE) ;"Load KIDS file into a multi-dimensional array  
+  ;"Input:  ARRAY -- PASS BY REFERENCE.  AN OUT PARAMETER.  Kids is parsed into array 
+  ;"        LOCALFILE -- Full path and filename of local file. 
+  ;"Result: 1^OK, or -1^ErrMessage
+  NEW RESULT SET RESULT="1^OK"
+  IF $$DOS2UNIX^TMGKERNL(LOCALFILE)  ;"ignore results. 
+  NEW OPTION,LINES,TEMP SET OPTION("OVERFLOW")=1
+  SET TEMP=$$HFS2ARFP^TMGIOUT3(LOCALFILE,"LINES",.OPTION)
+  IF TEMP=0 SET RESULT="-1^Unable to load ["_LOCALFILE_"]" GOTO K2ADN
+  NEW L1,L2,IDX1,IDX2 SET (IDX1,IDX2)=0
+  FOR  SET IDX1=$ORDER(LINES(IDX2)),IDX2=$ORDER(LINES(IDX1)) QUIT:(IDX1'>0)!(IDX2'>0)  DO
+  . IF IDX2#2'=0 DO
+  . . WRITE "WHAT'S UP??",!
+  . . DO PRESS2GO^TMGUSRI2
+  . SET L1=$GET(LINES(IDX1)),L2=$GET(LINES(IDX2)) 
+  . IF (L1="")!(L1'[")") DO  QUIT
+  . . SET ARRAY("TMG INFO",L1)=L2
+  . NEW TEMP SET TEMP="ARRAY("_L1
+  . DO
+  . . ;"NEW $ETRAP SET $ETRAP="WRITE ""Can't set "_TEMP_"="_L2_" ..."",! SET $ETRAP="""",$ECODE="""""
+  . . new $etrap set $etrap="write ""Error Trapped.)"",! set $etrap="""",$ecode="""""
+  . . SET @TEMP=L2
+K2ADN ;  
+  QUIT RESULT
+  ;
+PICKEXAMINE() ;"Ask user for entry in file 9.7
+  DO SHOWTG(1) ;"SHOW ENTRIES LOADED IN TRANSPORT GLOBAL
+  NEW DIC,X,Y SET DIC=9.7,DIC(0)="MAEQ",DIC("S")="I '$P(^(0),U,9),$D(^XTMP(""XPDI"",Y))"
+  DO ^DIC WRITE ! IF Y'>0 QUIT
+  DO EXAMRTNS(+Y)
+  DO PRESS2GO^TMGUSRI2
+  QUIT
+  ; 
+EXAMRTNS(IEN9D7)  ;"Examine routines from INSTALL record
+  ;"Input: IEN9D7 -- IEN in file 9.7 (INSTALL file)
+  ;"Result: 1^OK -- routines returned, or -1^ErrMessage
+  NEW RESULT SET RESULT="1^OK"
+  NEW KIDSRTNARR SET RESULT=$$XTRACTRTN(IEN9D7,.KIDSRTNARR) IF +RESULT=-1 GOTO EXRTDN
+  NEW LOCALRTNARR,ROUTINE SET ROUTINE=""
+  FOR  SET ROUTINE=$ORDER(KIDSRTNARR(ROUTINE)) QUIT:ROUTINE=""!(+RESULT=-1)  DO 
+  . SET RESULT=$$GETLOCALRTN(ROUTINE,.LOCALRTNARR)
+  IF +RESULT=-1 GOTO EXRTDN
+  SET RESULT=$$DOEXAM(.KIDSRTNARR,.LOCALRTNARR) IF +RESULT=-1 GOTO EXRTDN
+EXRTDN ;  
+  QUIT RESULT
+  ;
+XTRACTRTN(IEN9D7,OUT)  ;"Scan ^XTMP("XPDI",IEN9D7,*) and extract routines into array
+  ;"Input: IEN9D7 -- IEN in file 9.7 (INSTALL file)
+  ;"       OUT -- PASS BY REFERENCE.  An OUT PARAMETER.  Format
+  ;"         OUT(<RTN NAME>,LINE#)=<text>
+  ;"Result: 1^OK -- routines returned, or 0^OK - no problem, but no routines, or -1^ErrMessage
   ;
   ;"for entry 10332
   ;"   yottadb>zwr ^XPD(9.7,10332,*)   <--- ^XPD(9.7) IS 'INSTALL' FILE
@@ -139,33 +232,6 @@ FIXPATCH(TRIALRUN) ;
   ;"   ^XTMP("XPDI",10332,"RTN","XUMF664P",94,0)=" Q"
   ;"   ^XTMP("XPDI",10332,"VER")="8.0^22.0"
   ; 
-PICKEXAMINE() ;"Ask user for entry in file 9.7
-  DO SHOWTG(1) ;"SHOW ENTRIES LOADED IN TRANSPORT GLOBAL
-  NEW DIC,X,Y SET DIC=9.7,DIC(0)="MAEQ",DIC("S")="I '$P(^(0),U,9),$D(^XTMP(""XPDI"",Y))"
-  DO ^DIC WRITE ! IF Y'>0 QUIT
-  DO EXAMRTNS(+Y)
-  DO PRESS2GO^TMGUSRI2
-  QUIT
-  ; 
-EXAMRTNS(IEN9D7)  ;"Examine routines from INSTALL record
-  ;"Input: IEN9D7 -- IEN in file 9.7 (INSTALL file)
-  ;"Result: 1^OK -- routines returned, or -1^ErrMessage
-  NEW RESULT SET RESULT="1^OK"
-  NEW KIDSRTNARR SET RESULT=$$XTRACTRTN(IEN9D7,.KIDSRTNARR) IF +RESULT=-1 GOTO EXRTDN
-  NEW LOCALRTNARR,ROUTINE SET ROUTINE=""
-  FOR  SET ROUTINE=$ORDER(KIDSRTNARR(ROUTINE)) QUIT:ROUTINE=""!(+RESULT=-1)  DO
-  . SET RESULT=$$GETLOCALRTN(ROUTINE,.LOCALRTNARR)
-  IF +RESULT=-1 GOTO EXRTDN
-  SET RESULT=$$DOEXAM(.KIDSRTNARR,.LOCALRTNARR) IF +RESULT=-1 GOTO EXRTDN
-EXRTDN ;  
-  QUIT RESULT
-  ;
-XTRACTRTN(IEN9D7,OUT)  ;"Scan ^XTMP("XPDI",IEN9D7,*) and extract routines into array
-  ;"Input: IEN9D7 -- IEN in file 9.7 (INSTALL file)
-  ;"       OUT -- PASS BY REFERENCE.  An OUT PARAMETER.  Format
-  ;"         OUT(<RTN NAME>,LINE#)=<text>
-  ;"Result: 1^OK -- routines returned, or 0^OK - no problem, but no routines, or -1^ErrMessage
-  ;
   IF '$DATA(^XTMP("XPDI",IEN9D7)) DO  GOTO XRTNDN 
   . SET RESULT="-1^NO DATA FOUND FOR IEN "_IEN9D7
   NEW RESULT SET RESULT="1^OK"
@@ -208,22 +274,31 @@ GETLOCALRTN(RTN,OUT)  ;"Extract a local routine module into OUT
   IF '$DATA(OUT) SET RESULT="0^NO ROUTINE FOUND"
   QUIT RESULT
   ;
-DOEXAM(KIDSARR,LOCALARR)  ;"Prompt user via menu to pick a result from array to examine, and then view etc.    
+DOEXAM(KIDSARR,LOCALARR,OPTION)  ;"Prompt user via menu to pick a result from array to examine, and then view etc.    
   ;"Input: KIDSARR -- PASS BY REFERENCE.  Array of routines found in KIDS.  Format:   
   ;"         KIDSARR(<RTN NAME>,LINE#)=<text>
   ;"Input: LOCALSARR -- PASS BY REFERENCE.  Array of routines found in local system.  Format:
   ;"         KIDSARR(<RTN NAME>,LINE#)=<text>
+  ;"       OPTION -- OPTIONAL.  
+  ;"          OPTION("ENABLE COMPARE TOGGLE")=1  If present, user can select between working with KIDS routines vs comparing to local
   ;"Result: 1^OK or -1^ErrMessage
   NEW RESULT SET RESULT="1^OK"
   NEW MENU,IDX,USRPICK,VERB,ROUTINENAME,NOLOCAL,LOCALTAGS,CONFLICT
+  NEW COMPAREMODE SET COMPAREMODE=1
+  NEW TOGGLEOK SET TOGGLEOK=+$GET(OPTION("ENABLE COMPARE TOGGLE"))
 DEL1 ;  
   SET IDX=1,ROUTINENAME=""
   KILL MENU,NOLOCAL SET MENU(0)="Select Routine For Examination"
   FOR  SET ROUTINENAME=$ORDER(KIDSARR(ROUTINENAME)) QUIT:ROUTINENAME=""  DO
   . IF $DATA(LOCALARR(ROUTINENAME)) DO
-  . . SET MENU(IDX)="Compare KIDS vs LOCAL routine: ["_ROUTINENAME_"]"_$CHAR(9)_"COMPARE^"_ROUTINENAME,IDX=IDX+1
   . . NEW TEMP IF $$CHKLOCLRTN^TMGPAT4(ROUTINENAME,.TEMP,.LOCALTAGS)=1 DO
   . . . MERGE CONFLICT(ROUTINENAME)=TEMP
+  . . IF COMPAREMODE=1 DO
+  . . . NEW LCL SET LCL=$SELECT($DATA(CONFLICT(ROUTINENAME))>0:" <- LOCAL MODIFICATION",1:"")
+  . . . SET MENU(IDX)="Compare KIDS vs LOCAL routine: ["_ROUTINENAME_"]"_LCL_$CHAR(9)_"COMPARE^"_ROUTINENAME,IDX=IDX+1
+  . . ELSE  DO
+  . . . SET MENU(IDX)="View KIDS routine:  ["_ROUTINENAME_"]"_$CHAR(9)_"VIEW^"_ROUTINENAME,IDX=IDX+1
+  . . . SET MENU(IDX)="View LOCAL routine: ["_ROUTINENAME_"]"_$CHAR(9)_"VIEW_LOCAL^"_ROUTINENAME,IDX=IDX+1
   . ELSE  DO
   . . SET NOLOCAL(ROUTINENAME)=""
   NEW JDX SET JDX=1,ROUTINENAME=""
@@ -233,14 +308,21 @@ DEL1 ;
   SET ROUTINENAME=""
   FOR  SET ROUTINENAME=$ORDER(NOLOCAL(ROUTINENAME)) QUIT:ROUTINENAME=""  DO
   . SET MENU(IDX)="View *NEW* KIDS routine: ["_ROUTINENAME_"]"_$CHAR(9)_"VIEW^"_ROUTINENAME,IDX=IDX+1
+  IF TOGGLEOK DO
+  . NEW STR SET STR=$SELECT(COMPAREMODE=1:"OFF",1:"ON")
+  . SET MENU(IDX)="Toggle COMPARISON mode to "_STR_$CHAR(9)_"TOGGLE_COMPARE^",IDX=IDX+1
   SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
   IF USRPICK="^" GOTO DEDN
   SET VERB=$PIECE(USRPICK,"^",1)
   SET ROUTINENAME=$PIECE(USRPICK,"^",2)
   IF VERB="VIEW" DO  GOTO DEL1
   . DO SHOW1RTN(.KIDSARR,ROUTINENAME,1)
+  IF VERB="VIEW_LOCAL" DO  GOTO DEL1
+  . DO SHOW1RTN(.LOCALARR,ROUTINENAME,1)
   IF VERB="COMPARE" DO  GOTO DEL1
   . DO DIFF2RTNS(.KIDSRTNARR,.LOCALRTNARR,ROUTINENAME)
+  IF VERB="TOGGLE_COMPARE" DO  GOTO DEL1
+  . SET COMPAREMODE='COMPAREMODE  
 DEDN ;  
   QUIT RESULT
   ;
@@ -260,20 +342,22 @@ S1RDN ;
   IF $GET(NOPAUSE)'=1 DO PRESS2GO^TMGUSRI2
   QUIT
   ;
-COMP2RTNS(KIDSARR,LOCALARR,NAME,NOPAUSE)  ;
+COMP2RTNS(KIDSARR,LOCALARR,NAME,NOPAUSE)  ;"COMPARE 2 ROUTINES
   DO SHOW1RTN(.KIDSARR,NAME,1)
   WRITE !,"==========================================",!
   DO SHOW1RTN(.LOCALARR,NAME,1)  
   IF $GET(NOPAUSE)'=1 DO PRESS2GO^TMGUSRI2
   QUIT
   ;
-DIFF2RTNS(KIDSARR,LOCALARR,NAME)  ; 
+DIFF2RTNS(KIDSARR,LOCALARR,NAME)  ;"Show Diff betweem 2 routines
   NEW TEMP1 MERGE TEMP1=KIDSARR(NAME)
   NEW TEMP2 MERGE TEMP2=LOCALARR(NAME)
   NEW LINE SET LINE="========================================="
   NEW ESC SET ESC="To exit, type <ESC>:qa<ENTER>"
-  NEW L1 SET L1=LINE_"^ROUTINE: "_NAME_" from KIDS Patch^"_ESC_"^"_LINE
-  NEW L2 SET L2=LINE_"^ROUTINE: "_NAME_" from LOCAL VISTA^"_ESC_"^"_LINE
+  NEW JMP SET JMP="<Ctrl>W then <LEFT> or <RIGHT> arrows to swap window sides"
+  NEW NOEDT SET NOEDT="Don't edit files.  Any changes will be DISCARDED."
+  NEW L1 SET L1=LINE_"^ROUTINE: "_NAME_" from KIDS Patch^"_ESC_"^"_JMP_"^"_NOEDT_"^"_LINE
+  NEW L2 SET L2=LINE_"^ROUTINE: "_NAME_" from LOCAL VISTA^"_ESC_"^"_JMP_"^"_NOEDT_"^"_LINE
   DO PREPENDARR(.TEMP1,L1) 
   DO PREPENDARR(.TEMP2,L2) 
   DO VIMADIFF^TMGKERNL(.TEMP1,.TEMP2)
@@ -293,3 +377,4 @@ PREPENDARR(ARR,LINE)  ;"Add lines to top of ARR.  Presumes first index of ARR is
   . SET OUT(CT)=ALINE,CT=CT+1
   KILL ARR MERGE ARR=OUT  
   QUIT
+  

@@ -275,7 +275,7 @@ DOIENS(PCKINIT,NEXTIENS,NEXTPATCH,PCKDIRFNAME)
         NEW DLSUCCESS SET DLSUCCESS=0  ;"default to failure
         SET RESULT=$$ENSRLOCL^TMGPAT2(NEXTIENS,.INFO,.Msg,.OPTION,PCKINIT)
         IF RESULT=0 DO  GOTO DNPDONE
-        . DO AddMsg^TMGPAT2("Unable to find patch on local file system.",1,Msg)
+        . DO ADDMSG^TMGPAT2("Unable to find patch on local file system.",1,Msg)
         . IF $$SHOWMSG^TMGPAT2(.Msg)
         ELSE  SET DLSUCCESS=1
         NEW TEMP SET TEMP=$GET(INFO("TEXT FILE"),$GET(INFO("KID FILE")))
@@ -441,7 +441,7 @@ GETPCKVER(PCKINIT,VER)
         ;"Purpose: query user for package, and desired version
         ;"Input: PCKINIT - PASS BY REFERENCE.  An OUT PARAMETER. The package initials, e.g. 'DI' in the case of Fileman
         ;"       VER -- PASS BY REFERENCE.  An OUT PARAMETER.  The version of the package to match.
-        ;"RESULTs: nONE;  (if user ABORTed, VER="^")
+        ;"RESULTs: NONE;  (if user ABORTed, VER="^")
         SET VER="^"
         NEW DIC,X,Y
         SET DIC=9.4,DIC(0)="MAEQ"  ;"ask for package name
@@ -632,7 +632,7 @@ PICKFILE(INFO,PARRAY)
         IF RESULT="BROWSE" DO  GOTO PFDN
         . NEW TEXTURL SET TEXTURL=$GET(INFO("TEXT URL"))
         . NEW SERVERPATH DO SPLITFPN^TMGIOUTL(TEXTURL,.SERVERPATH)
-        . DO URLPICK(.INFO,SERVERPATH)
+        . IF $$URLPICK(.INFO,SERVERPATH)  ;"IGNORE RESULT
         . SET RESULT=$GET(INFO("KID FILE"))
         IF "@^"[RESULT SET RESULT=""
         SET INFO("KID FILE")=RESULT

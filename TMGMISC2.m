@@ -30,10 +30,12 @@ TMGMISC2 ;TMG/kst/sacc-COMPLIANT Misc utility library 1/6/17
  ;"DEPENDENCIES: ^XLFDT
  ;"=======================================================================
  ;"
-LISTCT(PARRAY) ;" SAAC complient entry point.
+LISTCT(PARRAY,OPTION) ;" SAAC complient entry point.
   ;"SCOPE: PUBLIC
   ;"Purpose: to count the number of entries in an array
   ;"Input: PARRAY -- PASS BY NAME.  pointer to (name of) array to test.
+  ;"       OPTION -- OPTIONAL.  
+  ;"           OPTION("NUMERIC")=1  If provided, then only numeric entries counted. 
   ;"OUTPUT: the number of entries at highest level
   ;"      e.g.  ARRAY("TELEPHONE")=1234
   ;"            ARRAY("CAR")=4764
@@ -45,7 +47,10 @@ LISTCT(PARRAY) ;" SAAC complient entry point.
   NEW RESULT SET RESULT=0
   DO
   . NEW $ETRAP SET $ETRAP="WRITE ""?? Error Trapped ??"",! SET $ECODE="""" QUIT"
-  . FOR  SET IDX=$ORDER(@PARRAY@(IDX)) QUIT:IDX=""  SET RESULT=RESULT+1
+  . IF +$GET(OPTION("NUMERIC"))=0 DO
+  . . FOR  SET IDX=$ORDER(@PARRAY@(IDX)) QUIT:IDX=""  SET RESULT=RESULT+1
+  . ELSE  DO
+  . . FOR  SET IDX=$ORDER(@PARRAY@(IDX)) QUIT:(+IDX'=IDX)  SET RESULT=RESULT+1
   QUIT RESULT
   ;
 DTFORMAT(FMDATE,FORMAT,ARRAY) ;
@@ -285,7 +290,7 @@ TIMEPFIL(GROUP,ITEM,TOGGLE) ;"Turn a timer on or off.
   QUIT
   ;
 SHOWRPT(GROUP)  ;"show report of timer
-  NEW OUT DO TIMERRPT(.OUT,GROUP)
+  NEW OUT DO TIMERPT(.OUT,GROUP)
   IF $DATA(OUT) ZWR OUT
   QUIT
   ;

@@ -25,7 +25,7 @@ PKG(XPDA,Option,Msg)
         N XPD,XPDCP,XPDNM,XPDNOQUE,XPDPKG,X,Y,%
         NEW abort SET abort=0
         S XPDNM=$P(XPDT(XPDIT),U,2)
-        DO AddMsg^TMGPAT2("   "_XPDNM,0,.Msg)
+        DO ADDMSG^TMGPAT2("   "_XPDNM,0,.Msg)
 
         ;"check KIDS version against sites version, skip IF package is Kernel
         I $$PKG^TMGXPDUT(XPDNM)'["KERNEL" D  ;"not interactive routine
@@ -33,10 +33,10 @@ PKG(XPDA,Option,Msg)
         . Q:$O(XPDT("NM","KERNEL"))["KERNEL"
         . S Y=$G(^XTMP("XPDI",XPDA,"VER"))
         . I $$VERSION^TMGXPDUT("XU")<Y do
-        . . DO AddMsg^TMGPAT2("Need Version "_+Y_" of KERNEL!",1,.Msg)
+        . . DO ADDMSG^TMGPAT2("Need Version "_+Y_" of KERNEL!",1,.Msg)
         . . S XPDQUIT=1
         . I $$VERSION^TMGXPDUT("VA FILEMAN")<$P(Y,U,2) do
-        . . DO AddMsg^TMGPAT2("Need Version "_+$P(Y,U,2)_" of VA FILEMAN!",1,.Msg)
+        . . DO ADDMSG^TMGPAT2("Need Version "_+$P(Y,U,2)_" of VA FILEMAN!",1,.Msg)
         . . S XPDQUIT=1
         I $D(XPDQUIT) SET abort=1 GOTO PCKDone
 
@@ -83,7 +83,7 @@ PKG(XPDA,Option,Msg)
         DO XPCK^XPDIK("KRN")
 PCKDone
         IF abort=1 do
-        . DO AddMsg^TMGPAT2("Aborting",1,.Msg)
+        . DO ADDMSG^TMGPAT2("Aborting",1,.Msg)
         . DO ABORT^TMGXPDI(XPDA,1,,.Msg)
 
         Q
@@ -110,17 +110,17 @@ INST(XPDNM,Option,Msg)
         . NEW IEN SET IEN=$ORDER(^XPD(9.7,"B",XPDNM,"")) ;"//kt added
         . ;"set XPDQUIT=1  ;"//kt added
         . S (SH,Y)=0
-        . DO AddMsg^TMGPAT2("Build "_XPDNM_" has been loaded before [IEN #"_IEN_" in File INSTALL (9.7)]",0,.Msg)
-        . ;"do AddMsg^TMGPAT2("Here is when: ",0,.Msg)
+        . DO ADDMSG^TMGPAT2("Build "_XPDNM_" has been loaded before [IEN #"_IEN_" in File INSTALL (9.7)]",0,.Msg)
+        . ;"do ADDMSG^TMGPAT2("Here is when: ",0,.Msg)
         . F  S Y=$O(^XPD(9.7,"B",XPDNM,Y)) Q:'Y  D
         . . Q:'$D(^XPD(9.7,Y,0))  S %=^(0)
-        . . ;"do AddMsg^TMGPAT2("   "_$P(%,U),0,.Msg)
+        . . ;"do ADDMSG^TMGPAT2("   "_$P(%,U),0,.Msg)
         . . I $P(%,U,9)<3,$D(^XTMP("XPDI",Y)) DO  QUIT
-        . . . DO AddMsg^TMGPAT2("   **Transport Global already exists**",0,.Msg)
+        . . . DO ADDMSG^TMGPAT2("   **Transport Global already exists**",0,.Msg)
         . . . S XPD=0
         . . S %X=$X
-        . . DO AddMsg^TMGPAT2("   "_$$EXTERNAL^DILFD(9.7,.02,"",$P(%,U,9)),0,.Msg)
-        . . DO AddMsg^TMGPAT2("   "_$P(%,U)_" was loaded on "_$$FMTE^XLFDT($P($G(^XPD(9.7,Y,1)),U)),0,.Msg)
+        . . DO ADDMSG^TMGPAT2("   "_$$EXTERNAL^DILFD(9.7,.02,"",$P(%,U,9)),0,.Msg)
+        . . DO ADDMSG^TMGPAT2("   "_$P(%,U)_" was loaded on "_$$FMTE^XLFDT($P($G(^XPD(9.7,Y,1)),U)),0,.Msg)
         . Q:$D(XPD)  ;"QUIT IF transport global exist
         . SET XPD=0 ;"signal QUIT -- //kt added
         IF $D(XPD) SET XPDA=XPD GOTO INSTDone
@@ -130,8 +130,8 @@ INST(XPDNM,Option,Msg)
         D ^DIC
         I Y<0 DO  GOTO INSTDone
         . S SH=0
-        . DO AddMsg^TMGPAT2("Can't ADD Build "_XPDNM_" to Install File",1,.Msg)
-        . ;"do AddMsg^TMGPAT2($PIECE(Y,"^",2)_" already exists in INSTALLATION file (9.7), IEN=#"_+Y,1,.Msg)
+        . DO ADDMSG^TMGPAT2("Can't ADD Build "_XPDNM_" to Install File",1,.Msg)
+        . ;"do ADDMSG^TMGPAT2($PIECE(Y,"^",2)_" already exists in INSTALLATION file (9.7), IEN=#"_+Y,1,.Msg)
         . SET XPDA=0
 
         ;"set starting package to Y, IF it is not already defined
@@ -187,11 +187,11 @@ ENV(XPDENV,Msg)
         . S X=XPDNM["*"
         . ;"If patch, version must be the same
         . I X,%'=Y do
-        . . DO AddMsg^TMGPAT2("This Patch is for Version "_%_", you are running Version "_Y,1,.Msg)
+        . . DO ADDMSG^TMGPAT2("This Patch is for Version "_%_", you are running Version "_Y,1,.Msg)
         . . S XPDQUIT=1
         . ;"if package, version must be greater or equal
         . I 'X,%<Y do
-        . . DO AddMsg^TMGPAT2("You have a Version greater than mine!",1,.Msg)
+        . . DO ADDMSG^TMGPAT2("You have a Version greater than mine!",1,.Msg)
         . . S XPDQUIT=1
         . Q:'$G(XPDQUIT)
         . I $G(XPDMBREQ) D  Q
@@ -211,13 +211,13 @@ ENV(XPDENV,Msg)
         I % S (XPDABORT,XPDREQAB)=% G ABORT
 PRE     ;        
         NEW ARTN S ARTN=$G(^XTMP("XPDI",XPDA,"PRE")) D:ARTN]""
-        . DO AddMsg^TMGPAT2("Will first run the Environment Check Routine, "_ARTN,0,.Msg)
+        . DO ADDMSG^TMGPAT2("Will first run the Environment Check Routine, "_ARTN,0,.Msg)
         . D SAVE^XPDIJ(ARTN)
         . NEW saved,DEBUG SET DEBUG=0
         . IF DEBUG=0 DO IOCapON^TMGKERNL
         . D @("^"_ARTN)
         . IF DEBUG=0 DO IOCapOFF^TMGKERNL("saved")
-        . IF $DATA(saved) DO AddMsg^TMGPAT2(.saved,0,.Msg)
+        . IF $DATA(saved) DO ADDMSG^TMGPAT2(.saved,0,.Msg)
 
 
 ABORT   I $G(XPDABORT) D  Q XPDABORT
@@ -267,7 +267,7 @@ REQB(Msg)
         . ;"XPDACT=0 warning, =1 abort & KILL global, =2 abort
         . NEW s SET s=$S(XPDACT:"**INSTALL ABORTED**",1:"**WARNING**")_$S(XPDQ=1:" Patch ",1:" Package ")
         . SET s=s_XPDX_" is Required "_$S(XPDACT:"to install",1:"for")_" this package!!"
-        . DO AddMsg^TMGPAT2(s,1,.Msg)
+        . DO ADDMSG^TMGPAT2(s,1,.Msg)
         Q:'XPDQUIT 0
         ;"Don't DO IF leave global and loading
         D:'(XPDQUIT=2&'XPDENV) ABORT^TMGXPDI(XPDA,XPDQUIT,,.Msg)

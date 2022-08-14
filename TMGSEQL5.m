@@ -119,13 +119,41 @@ PROCESS1(ONELINE) ;"Process one line from the CSV file.
   ;"ADD CPTs
   DO ADDCPTS(.PCELIST,.IDX,.ONELINE,.ENTRY)
   ;"
+  IF $$PRIORFILE(.PCELIST) QUIT
+  ;
   ;"FILE PCELIST
-  ;"note: CONSIDER if this is the correct API or not.  Perhaps won't cause
-  ;taskman problems.  DATA2PCE^PXAI() or similar
+  ;"NOTE: DATA2PCE^PXAI() would be a better API, but we would have to rewrite this entire code.  SAVE^ORWPCE ultimately calls DATA2PCE
+  ;"NOTE: 8/5/22.  We tried having saves occur in foreground task (not tasking off), but this
+  ;"      causes hangs as each element was trying to get database lock, and everything was getting very slow.
+  ;"      When tasking off, there are thousands of tasks generated, but Taskman is typically
+  ;"      about to process them all in 20 minutes or so.  SO, leave code to allow tasking off.  
   DO SAVE^ORWPCE(.TMGRESULT,.PCELIST,.NOTEIEN,.ORLOC)
 PRODN ;
   QUIT TMGRESULT
   ;"
+PRIORFILE(PCELIST)  ;"Determine if CPT data here already in system (prior filing)
+  NEW TMGRESULT SET TMGRESULT=0
+  NEW TMGDFN SET TMGDFN=$P($G(PCELIST(3)),"^",3)
+  NEW DATE SET DATE=$P($G(PCELIST(2)),"^",3)\1
+  NEW CPT,IDX,DONE SET IDX=0,DONE=0,CPT=""
+  FOR  SET IDX=$O(PCELIST(IDX)) QUIT:(IDX'>0)!(DONE=1)  DO
+  . NEW LINE SET LINE=$G(PCELIST(IDX))
+  . IF $P(LINE,"^",1)'="CPT+" QUIT
+  . SET CPT=$P(LINE,"^",2),DONE=1
+  IF CPT="" QUIT
+  NEW CPTIDX SET CPTIDX=0
+  FOR  SET CPTIDX=$O(^AUPNVCPT("C",TMGDFN,CPTIDX)) QUIT:(CPTIDX'>0)!(TMGRESULT=1)  DO
+  . NEW THISCPT,THISVISIT
+  . SET THISCPT=$P($G(^AUPNVCPT(CPTIDX,0)),"^",1)
+  . SET THISCPT=$P($G(^ICPT(THISCPT,0)),"^",1)
+  . SET THISVISIT=$P($G(^AUPNVCPT(CPTIDX,0)),"^",3)
+  . SET THISVISIT=$P($G(^AUPNVSIT(THISVISIT,0)),"^",1)\1
+  . IF (THISCPT=CPT)&(THISVISIT=DATE) DO
+  . . SET TMGRESULT=1
+  . . WRITE "   !!SKIPPING!!  ",!
+  QUIT TMGRESULT
+
+
 FINDDFN(ONELINE)  ;"Try and find patient's DFN
   ;"Input: ONELINE -- PASS BY REFERENCE.  See IMPCPTS() for CSV format
   ;"Result: -1^error or DFN
@@ -544,6 +572,7 @@ FDDN ;
   ;"
 LOGIMPM(MESSAGE)
   NEW X DO NOW^%DTC
+  w MESSAGE,!
   SET ^TMG("TMG ENCOUNTER IMPORT",%,MESSAGE)=""
   QUIT
   ;"

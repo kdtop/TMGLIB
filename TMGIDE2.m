@@ -842,6 +842,7 @@ ErrTrap(tmgIDEPos)
         ;"Purpose: This is the line that is called by GT.M for each ztrap event.
         ;"      It will be used to display the current code execution point
        IF $$ShouldSkip($PIECE(tmgIDEPos,"^",2)) DO
+       . USE $P  ;"//kt 8/10/22
        . WRITE !,"Error at ",$P($ZSTATUS,",",2)," -- in code that debugger can't display.",!
        . WRITE "Error is: ",$P($ZSTATUS,",",3,99),!
        . WRITE !,"Dropping to command line via BREAK",!

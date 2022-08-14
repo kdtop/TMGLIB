@@ -12,10 +12,15 @@ TMGPAT2B  ;TMG/kst/Patching tools Suport;7/24/2022
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
+ ;"ENSRLOCL(IENS,INFO,MSG,OPTION) -- Ensure  files have been downloaded from server and stored locally
+ ;"ADDMSG(STR,ISERR,MSG,VERBOSE) -- Add a message to MSG ARRAY
+ ;"SHOWMSG(MSG,NOPAUSE)  -- display the message array
+ ;"MAKEPATCHENTRY(PCK,VER,SEQ,PNUM,MSG) -- Make a pseudo-patcy-entry  show it was processed.
  ;
  ;"=======================================================================
  ;"Private Functions
  ;"=======================================================================
+ ;"ENSRLOCL2(DATA,INFO,MSG,OPTION)  -- Ensure files have been downloaded from server and stored locally
  ;
  ;"=======================================================================
  ;"=======================================================================
@@ -286,4 +291,3 @@ MPE3 ;
 MPEDONE ;
   QUIT RESULT
   ;
-  

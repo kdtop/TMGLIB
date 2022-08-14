@@ -22,14 +22,14 @@ TMGPAT4  ;TMG/kst/Patching tools ;09/22/08, 2/2/14, 8/4/2022
  ;"=======================================================================
  ;"GETREQPATCHES(ARRAY,INFO) -- scan ARRAY, holding TXT file, and assemble list of required patches
  ;"GETCATEGORY(ARRAY,INFO) -- scan ARRAY, holding TXT file, and assemble category entries
- ;"GETFNAMEs(ARRAY,INFO) -- scan ARRAY, holding TXT file, and scavenge and .KID file names
+ ;"GETFNAMES(ARRAY,INFO) -- scan ARRAY, holding TXT file, and scavenge and .KID file names
  ;"GETMULTPATCHES(ARRAY,INFO,OPTION) -- scan ARRAY, holding TXT file, and matching multi-patch info
  ;"GETSEQ(PATCHNAME,MODE,OPTION,URL) -- For a given patch (e.g. DI*12*123), return the SEQ #
  ;"FindMultPATCH(PATCHNAME,PCKINIT,OPTION,URL) --
  ;"CHECKDELTA(INFO) -- compare the requirements in INFO vs existing system.
  ;"PANALYZE(INFO,OPTION) -- look at a patch KID file and extract useful information
  ;"PGETREQPATCHES(ARRAY,INFO) -- scan ARRAY, holding KID file, and assemble list of required patches
- ;"CheckLocal(PARRAY,OPTION) -- check a KIDS for conflict with local modifications.
+ ;"CHECKLOCAL(PARRAY,OPTION) -- check a KIDS for conflict with local modifications.
  ;"CHKLOCLRTN(ROUTINE) -- see IF one routine has any local modifications.
  ;
  ;"=======================================================================
@@ -61,7 +61,7 @@ ARRANALYZE(ARRAY,INFO,OPTION)
         DO GETREQPATCHES(.ARRAY,.INFO)
         DO GETCATEGORY(.ARRAY,.INFO)
         DO GETMULTPATCHES(.ARRAY,.INFO,.OPTION)
-        DO GETFNAMEs(.ARRAY,.INFO)
+        DO GETFNAMES(.ARRAY,.INFO)
         DO GETSUBJECT(.ARRAY,.INFO)
         DO CHECKDELTA(.INFO)
         QUIT
@@ -91,7 +91,6 @@ GETREQPATCHES(ARRAY,INFO)
         ;"       INFO  -- PASS BY REFERENCE.  Data added as follows:
         ;"              INFO("SPECIFIED REQ",PATCHNAME)=""
         ;"Results: NONE
-
         NEW DONE SET DONE=0
         NEW FOUNDLIST SET FOUNDLIST=0
         NEW i SET i=""
@@ -107,14 +106,13 @@ GETREQPATCHES(ARRAY,INFO)
         . . IF ONEPATCH="" QUIT
         . . SET INFO("SPECIFIED REQ",ONEPATCH)=""
         QUIT
-
+        ;
 PGETREQPATCHES(ARRAY,INFO)
         ;"Purpose: to scan ARRAY, holding KID file, and assemble list of required patches
         ;"Input: ARRAY -- PASS BY REFERENCE -- holds TXT file
         ;"       INFO  -- PASS BY REFERENCE.  Data added as follows:
         ;"              INFO("SPECIFIED REQ",PATCHNAME)=""
         ;"Results: NONE
-        ;
         NEW DONE SET DONE=0
         NEW FOUNDLIST SET FOUNDLIST=0
         NEW i SET i=""
@@ -137,7 +135,7 @@ GETCATEGORY(ARRAY,INFO)
         ;"       INFO  -- PASS BY REFERENCE.  Data added as follows:
         ;"              INFO("PATCH CATEGORY",NAME)=""
         ;"Results: NONE
-
+        ;
         NEW DONE SET DONE=0
         NEW FOUNDLIST SET FOUNDLIST=0
         NEW i SET i=""
@@ -153,14 +151,13 @@ GETCATEGORY(ARRAY,INFO)
         . . IF ONEPATCH="" QUIT
         . . SET INFO("PATCH CATEGORY",ONEPATCH)=""
         QUIT
-
-GETFNAMEs(ARRAY,INFO)
+        ;
+GETFNAMES(ARRAY,INFO)
         ;"Purpose: to scan ARRAY, holding TXT file, and scavenge and .KID file names
         ;"Input: ARRAY -- PASS BY REFERENCE -- holds TXT file
         ;"       INFO  -- PASS BY REFERENCE.  Data added as follows:
         ;"              INFO("MISC KID FILES",NAME)=""
         ;"Results: NONE
-
         NEW i SET i=""
         FOR  SET i=$ORDER(ARRAY(i)) QUIT:(i="")  DO
         . NEW s SET s=$$TRIM^XLFSTR($GET(ARRAY(i)))
@@ -176,14 +173,13 @@ GETFNAMEs(ARRAY,INFO)
         . . IF (FNAME="") QUIT
         . . SET INFO("MISC KID FILES",FNAME)=""
         QUIT
-
+        ;
 GETSUBJECT(ARRAY,INFO)
         ;"Purpose: to scan ARRAY, holding TXT file, and scavenge SUBJECT line
         ;"Input: ARRAY -- PASS BY REFERENCE -- holds TXT file
         ;"       INFO  -- PASS BY REFERENCE.  Data added as follows:
         ;"              INFO("SUBJECT",NAME)=""
         ;"Results: NONE
-
         NEW i SET i=""
         NEW DONE SET DONE=0
         FOR  SET i=$ORDER(ARRAY(i)) QUIT:(i="")!DONE  DO
@@ -196,7 +192,7 @@ GETSUBJECT(ARRAY,INFO)
         . . SET INFO("SUBJECT",subj)=""
         . . SET DONE=1
         QUIT
-
+        ;
 GETMULTPATCHES(ARRAY,INFO,OPTION)
         ;"Purpose: to scan ARRAY, holding TXT file, and matching multi-patch info
         ;"Input: ARRAY -- PASS BY REFERENCE -- holds TXT file
@@ -206,7 +202,6 @@ GETMULTPATCHES(ARRAY,INFO,OPTION)
         ;"       OPTION -- optional.  Pass by reference.
         ;"              OPTION("VERBOSE")=1, means messaages also written directly to output
         ;"Results: NONE
-
         NEW DONE SET DONE=0
         NEW FOUNDLIST,FOUNDSection SET (FOUNDLIST,FOUNDSection)=0
         NEW fileNAME SET fileNAME=""
@@ -236,10 +231,8 @@ GETMULTPATCHES(ARRAY,INFO,OPTION)
         . . . FOR  QUIT:($$UP^XLFSTR($EXTRACT(TEMPS,$LENGTH(TEMPS)))="D")!(TEMPS="")  DO
         . . . . SET TEMPS=$EXTRACT(TEMPS,1,$LENGTH(TEMPS)-1)
         . . . SET INFO("MULTI-PATCH","FILENAME")=TEMPS
-
         QUIT
-
-
+        ;
 GETSEQ(PATCHNAME,MODE,OPTION,URL)
         ;"Purpose: For a given patch (e.g. DI*12*123), return name with the SEQ #
         ;"Input: PATCHNAME -- e.g. DI*12*123
@@ -252,7 +245,6 @@ GETSEQ(PATCHNAME,MODE,OPTION,URL)
         ;"  SET ^TMG("KIDS","PATCH NAMES",PCKINIT,"COMBINED",RESULT)=URL
         ;"Results: returns patch name with seq #, e.g. 'DI*12*123 SEQ #123'
         ;"         or "" IF problem.
-
         NEW RESULT SET RESULT=""
         NEW SEQNUM,PCKINIT,VER,PATCHNUM,SEQNUM
         DO PRSEPATCHNAME^TMGPAT2(PATCHNAME,.PCKINIT,.VER,.PATCHNUM,.SEQNUM)
@@ -275,11 +267,10 @@ GSqDONE IF RESULT="" DO
         . IF (PCKINIT="")!(VER="")!(PATCHNUM="") QUIT
         . SET ^TMG("KIDS","PATCH NAMES",PCKINIT,VER,PATCHNUM)="???"
 GSQDN   QUIT RESULT
-
+        ;
 PATCHDIRNAME(PCKINIT) ;
         QUIT "Remote_Patches-dirFor-"_PCKINIT
-
-
+        ;
 FindMultPATCH(PATCHNAME,PCKINIT,OPTION,URL,INFO)
         ;"Purpose: Search through downloaded directory file for patch, and return URL
         ;"Input: PATCHNAME -- e.g. CSV_12_1234.KID
@@ -291,11 +282,10 @@ FindMultPATCH(PATCHNAME,PCKINIT,OPTION,URL,INFO)
         ;"              INFO("KID URL")=URL on server for KID file
         ;"              INFO("TEXT URL")=URL on server for TXT file
         ;"Results: 1 IF found, 0 IF not found or problem.
-
         NEW RESULT SET RESULT=0
         SET PATCHNAME=$GET(PATCHNAME) GOTO:(PATCHNAME="") FMPDONE
         NEW VERBOSE SET VERBOSE=$GET(OPTION("VERBOSE"))
-
+        ;
         NEW FPATH,FNAME,ARRAY,ABORT
         SET ABORT=0
         SET FPATH=$GET(^TMG("KIDS","PATCH DIR"),"/tmp/")
@@ -321,7 +311,7 @@ FindMultPATCH(PATCHNAME,PCKINIT,OPTION,URL,INFO)
         . IF $$UP^XLFSTR(NAME)=$$UP^XLFSTR(PATCHNAME) DO
         . . SET URL=FULLNAMEPATH
         . . SET RESULT=1
-
+        ;
         IF RESULT=0 DO   ;"last try to come up with filename.
         . NEW serverPATH SET serverPATH=$GET(INFO("KID URL"))
         . IF serverPATH="" SET serverPATH=$GET(INFO("TEXT URL"))
@@ -329,12 +319,9 @@ FindMultPATCH(PATCHNAME,PCKINIT,OPTION,URL,INFO)
         . SET serverPATH=$PIECE(serverPATH,"ftp://",2)
         . SET URL=serverPATH_PATCHNAME
         . SET RESULT=1  ;"this is not a sure 'find', more of a hopeful guess that it will be in same directory.
-
-FMPDONE
+FMPDONE ;
         QUIT RESULT
-
-
-
+        ;
 CHECKDELTA(INFO)
         ;"Purpose: to compare the requirements in INFO (as created by ANALYZE) and
         ;"         determine differences in existing system.
@@ -348,7 +335,6 @@ CHECKDELTA(INFO)
         ;"Output:
         ;"          INFO("SPECIFIED REQ",PATCHNAME)="OK, Installed." or "Still Needed"
         ;"          INFO("STILL NEEDED",reqPATCH)=""
-
         NEW reqPATCH SET reqPATCH=""
         FOR  SET reqPATCH=$ORDER(INFO("SPECIFIED REQ",reqPATCH)) QUIT:(reqPATCH="")  DO
         . NEW TEMPS
@@ -358,7 +344,7 @@ CHECKDELTA(INFO)
         . . NEW s2 SET s2=$$GETSEQ(reqPATCH) IF s2="" SET s2=reqPATCH
         . . SET INFO("STILL NEEDED",s2)=""
         . SET INFO("SPECIFIED REQ",reqPATCH)=TEMPS
-
+        ;
         NEW PATCHNAME SET PATCHNAME=""
         FOR  SET PATCHNAME=$ORDER(INFO("MULTI-PATCH","CONTAINS",PATCHNAME)) QUIT:(PATCHNAME="")  DO
         . NEW PCKINIT SET PCKINIT=$PIECE(PATCHNAME,"*",1)
@@ -371,9 +357,9 @@ CHECKDELTA(INFO)
         . NEW lastSEQNUM SET lastSEQNUM=$PIECE(lastPATCH,"SEQ #",2)
         . IF lastSEQNUM<SEQNUM DO
         . . SET INFO("GAPPED PATCHES",PATCHNAME)="Currently at: "_lastPATCH
-
+        ;
         QUIT
-
+        ;
 ShowAnalysis(INFO,Msg)
         ;"Purpose: To display analysis info in a meaningful way.
         ;"Input: INFO -- PASS BY REFERENCE.  INFO as created by ANALYZE(INFO,OPTION)
@@ -382,12 +368,11 @@ ShowAnalysis(INFO,Msg)
         ;"                                   Msg("ERROR")=COUNT of last error
         ;"              Message are store in Msg(x)=Message
         ;"                                   Msg=COUNT of last message+1
-
         NEW TEMPMsg,someReq
         MERGE TEMPMsg=Msg
         SET someReq=0
-        DO AddMsg^TMGPAT2("According to INFO TXT file,",0,.TEMPMsg)
-        DO AddMsg^TMGPAT2("Before this patch is applied, other patches should have been installed first:",0,.TEMPMsg)
+        DO ADDMSG^TMGPAT2("According to INFO TXT file,",0,.TEMPMsg)
+        DO ADDMSG^TMGPAT2("Before this patch is applied, other patches should have been installed first:",0,.TEMPMsg)
         NEW i SET i=""
         FOR  SET i=$ORDER(INFO("SPECIFIED REQ",i)) QUIT:(i="")  DO
         . NEW s SET s=$$GETSEQ(i) IF s="" SET s=i
@@ -398,34 +383,32 @@ ShowAnalysis(INFO,Msg)
         . NEW LASTPCK SET LASTPCK=$$GETLSTPK^TMGPAT1(PCKINIT,VER)
         . NEW TEMPS SET TEMPS="    "_s_" <-- "_$GET(INFO("SPECIFIED REQ",i))
         . IF LASTPCK'="" SET TEMPS=TEMPS_" Current at: "_LASTPCK
-        . DO AddMsg^TMGPAT2(TEMPS,0,.TEMPMsg)
-        DO AddMsg^TMGPAT2(" ",0,.TEMPMsg)
+        . DO ADDMSG^TMGPAT2(TEMPS,0,.TEMPMsg)
+        DO ADDMSG^TMGPAT2(" ",0,.TEMPMsg)
         IF someReq=1 DO
         . KILL Msg MERGE Msg=TEMPMsg
-
+        ;
         IF $GET(INFO("MULTI-PATCH","FILENAME"))="" GOTO SA2
         SET someReq=0
-        DO AddMsg^TMGPAT2("This patch is a Multi-Patch.  It contains patches for the following packages: ",0,.Msg)
+        DO ADDMSG^TMGPAT2("This patch is a Multi-Patch.  It contains patches for the following packages: ",0,.Msg)
         KILL TEMPMsg MERGE TEMPMsg=Msg
         SET i=""
         FOR  SET i=$ORDER(INFO("MULTI-PATCH","CONTAINS",i)) QUIT:(i="")  DO
         . NEW curSys SET curSys=$GET(INFO("MULTI-PATCH","CONTAINS",i,"LATEST IN THIS PACKAGE"))
         . NEW s SET s=$$LJ^XLFSTR(i,25)
         . SET someReq=1
-        . DO AddMsg^TMGPAT2("  "_s_" [This system is currently at: "_curSys_"]",0,.TEMPMsg)
+        . DO ADDMSG^TMGPAT2("  "_s_" [This system is currently at: "_curSys_"]",0,.TEMPMsg)
         IF someReq=1 DO
         . KILL Msg MERGE Msg=TEMPMsg
-        DO AddMsg^TMGPAT2("This multipatch is combined into file: "_$GET(INFO("MULTI-PATCH","FILENAME")),0,.Msg)
-SA2
+        DO ADDMSG^TMGPAT2("This multipatch is combined into file: "_$GET(INFO("MULTI-PATCH","FILENAME")),0,.Msg)
+SA2     ;
         NEW subj SET subj=$ORDER(INFO("SUBJECT",""))
         IF subj'="" DO
-        . DO AddMsg^TMGPAT2("PATCH SUBJECT: "_subj,0,.Msg)
-
-SADONE
+        . DO ADDMSG^TMGPAT2("PATCH SUBJECT: "_subj,0,.Msg)
+SADONE  ;
         QUIT
-
-
-CheckLocal(PARRAY,OPTION)
+        ;
+CHECKLOCAL(PARRAY,OPTION)
         ;"Purpose: to check a KIDS installation file, before it is applied, to ensure
         ;"         that it doesn't conflict with any local modifications.
         ;"         --The means of detecting local mods to be enhanced with time.
@@ -452,8 +435,7 @@ CheckLocal(PARRAY,OPTION)
         . . FOR  SET IDX=$ORDER(DETAIL(IDX)) QUIT:IDX'>0  DO
         . . . WRITE "   Line #",IDX,".  ",$GET(DETAIL(IDX)),!
         QUIT RESULT
-
-
+        ;
 CHKLOCLRTN(ROUTINE,DETAIL,MATCHES)  ;"CHECK LOCAL ROUTINE
         ;"Purpose: to see IF one routine has any local modifications.
         ;"Input: ROUTINE -- the routine name  e.g. XUP
@@ -490,7 +472,6 @@ CKRTNDAT ;
         ;;/elh
         ;;tmg
         ;;FOIA
-        ;;osehra
         ;;WVEHR
         ;;VEFA
         ;;<DONE>
