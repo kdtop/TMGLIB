@@ -29,8 +29,6 @@ TMGPAT5  ;TMG/kst/Patching tools ;10/19/08, 8/10/22
  ;"DOEXAM(KIDSARR,LOCALARR,OPTION) -- Prompt user via menu to pick a result from array to examine, and then view etc.    
  ;"SHOW1RTN(ARR,NAME,NOPAUSE)  -- Show 1 routine
  ;"COMP2RTNS(KIDSARR,LOCALARR,NAME,NOPAUSE)  --COMPARE 2 ROUTINES
- ;"DIFF2RTNS(KIDSARR,LOCALARR,NAME)  -- Show Diff betweem 2 routines
- ;"PREPENDARR(ARR,LINE)  -- Add lines to top of ARR.  Presumes first index of ARR is 1
  ; 
  ;"=======================================================================
  ;
@@ -320,7 +318,7 @@ DEL1 ;
   IF VERB="VIEW_LOCAL" DO  GOTO DEL1
   . DO SHOW1RTN(.LOCALARR,ROUTINENAME,1)
   IF VERB="COMPARE" DO  GOTO DEL1
-  . DO DIFF2RTNS(.KIDSRTNARR,.LOCALRTNARR,ROUTINENAME)
+  . DO DIFF2RTNS^TMGPAT7(.KIDSRTNARR,.LOCALRTNARR,ROUTINENAME)
   IF VERB="TOGGLE_COMPARE" DO  GOTO DEL1
   . SET COMPAREMODE='COMPAREMODE  
 DEDN ;  
@@ -335,7 +333,7 @@ SHOW1RTN(ARR,NAME,NOPAUSE)  ;"
   SET L1=L1_"VIEW ONLY -- Any edits to this file will be DISCARDED.^"
   SET L1=L1_"To exit, type <CTRL>X  (upper OR lowercase X)^"
   SET L1=L1_"========================================="
-  DO PREPENDARR(.TMG1RTN,L1) 
+  DO PREFIXLINE2ARR^TMGSTUT2(.TMG1RTN,L1) 
   DO EDITARRAY^TMGKERNL(.TMG1RTN)  
   ;"DO EDITARR2^TMGKERN8("TMG1RTN","nano","#NOTE: any edits made to this file will be discarded!")
 S1RDN ;  
@@ -349,32 +347,3 @@ COMP2RTNS(KIDSARR,LOCALARR,NAME,NOPAUSE)  ;"COMPARE 2 ROUTINES
   IF $GET(NOPAUSE)'=1 DO PRESS2GO^TMGUSRI2
   QUIT
   ;
-DIFF2RTNS(KIDSARR,LOCALARR,NAME)  ;"Show Diff betweem 2 routines
-  NEW TEMP1 MERGE TEMP1=KIDSARR(NAME)
-  NEW TEMP2 MERGE TEMP2=LOCALARR(NAME)
-  NEW LINE SET LINE="========================================="
-  NEW ESC SET ESC="To exit, type <ESC>:qa<ENTER>"
-  NEW JMP SET JMP="<Ctrl>W then <LEFT> or <RIGHT> arrows to swap window sides"
-  NEW NOEDT SET NOEDT="Don't edit files.  Any changes will be DISCARDED."
-  NEW L1 SET L1=LINE_"^ROUTINE: "_NAME_" from KIDS Patch^"_ESC_"^"_JMP_"^"_NOEDT_"^"_LINE
-  NEW L2 SET L2=LINE_"^ROUTINE: "_NAME_" from LOCAL VISTA^"_ESC_"^"_JMP_"^"_NOEDT_"^"_LINE
-  DO PREPENDARR(.TEMP1,L1) 
-  DO PREPENDARR(.TEMP2,L2) 
-  DO VIMADIFF^TMGKERNL(.TEMP1,.TEMP2)
-  QUIT
-  ; 
-PREPENDARR(ARR,LINE)  ;"Add lines to top of ARR.  Presumes first index of ARR is 1
-  NEW HEADER DO SPLIT2AR^TMGSTUT2(LINE,"^",.HEADER)
-  NEW OUT
-  NEW CT SET CT=1
-  NEW IDX SET IDX=0
-  FOR  SET IDX=$ORDER(HEADER(IDX)) QUIT:IDX'>0  DO
-  . NEW ALINE SET ALINE=$GET(HEADER(IDX))
-  . SET OUT(CT)=ALINE,CT=CT+1
-  NEW IDX SET IDX=0
-  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
-  . NEW ALINE SET ALINE=$GET(ARR(IDX))
-  . SET OUT(CT)=ALINE,CT=CT+1
-  KILL ARR MERGE ARR=OUT  
-  QUIT
-  

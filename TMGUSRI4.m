@@ -43,6 +43,11 @@ RECSEL(FILE,IENS,OPTION) ;
   ;"               this code will be called for each record, and the result of the 
   ;"               function will be used to display the record for selection.  Example: 
   ;"               "$$MYNAMEFN^TMGTEST1(IEN)"  <-- MUST have 'IEN' as parameter name
+  ;"           OPTION("FILTER CODE") -- OPTIONAL   If provided, then
+  ;"               this code will be called for each record, and the result of the 
+  ;"               function will be used to determine if to include record for selection.  Example: 
+  ;"               "$$MYFILTERFN^TMGTEST1(NAME,IEN,.OPTION)"  <-- MUST have 'NAME', 'IEN', & OPTION as parameters.
+  ;"               If function returns 1, then element is filtered (i.e. NOT included)
   ;"           OPTION("COLORS","NORM")="7^4"
   ;"           OPTION("COLORS","BOLD")="14^4"
   ;"           OPTION("COLORS","RED")="14^1"
@@ -55,6 +60,8 @@ RECSEL(FILE,IENS,OPTION) ;
   SET OPTION("NCS")=$GET(OPTION("NCS"),1)
   NEW CODE SET CODE=$GET(OPTION("REC NAME SETUP CODE"))
   IF CODE'="",$EXTRACT(CODE,1,2)="$$" SET CODE="SET NAME="_CODE
+  NEW FILTERCODE SET FILTERCODE=$GET(OPTION("FILTER CODE"))
+  IF FILTERCODE'="",$EXTRACT(FILTERCODE,1,2)="$$" SET FILTERCODE="SET FILTER="_FILTERCODE
   NEW REFARR,TMGDA
   DO GETREFAR^TMGDBAP3(FNUM,.REFARR)
   IF $$ISSUBFIL^TMGDBAP3(FNUM) DO
@@ -76,6 +83,11 @@ RECSEL(FILE,IENS,OPTION) ;
   . . . NEW ZN SET ZN=$GET(@ROOTREF@(0))
   . . . SET NAME=$PIECE(ZN,"^",1)
   . . SET NAME=$$TRIM^XLFSTR(NAME) QUIT:NAME=""
+  . . IF FILTERCODE'="" DO  QUIT:NAME=""
+  . . . NEW FILTER SET FILTER=0
+  . . . NEW $ETRAP SET $ETRAP="SET NAME=""(Invalid M Code!.  Error Trapped.)"" SET $ETRAP="""",$ECODE="""""
+  . . . XECUTE FILTERCODE
+  . . . IF FILTER=1 SET NAME=""  ;"signal to filter out (don't include) item
   . . SET REF2(NAME,IEN)=""
   IF $DATA(REF2) SET REF=$NAME(REF2)  ;"//kt 4/24/19
   SET OPTION("INDX")=1
@@ -126,7 +138,7 @@ LISTSEL(PARRAY,OPTION) ;
   ;"           OPTION("ON KEYPRESS") -- OPTIONAL.  see SCROLLER^TMGUSRIF  ;<-- Best to NOT use (interferes with auto-filter functionality) 
   ;"Result: Returns full string of selected item, or "" IF nothing selected (or ^ entered)
   NEW TMPLSARRAY,TMGMASTERARRAY
-  NEW TMGRESULT SET TMGRESULT=""
+  NEW TMGSELRESULT SET TMGSELRESULT=""
   NEW CNT SET CNT=1
   NEW IDX SET IDX=""
   IF $GET(OPTION("INDX"))=1 DO
@@ -139,15 +151,6 @@ LISTSEL(PARRAY,OPTION) ;
   . . NEW RETURNVAL SET RETURNVAL=$GET(@PARRAY@(IDX))
   . . IF RETURNVAL="" SET RETURNVAL=IDX
   . . SET TMPLSARRAY(CNT,IDX)=RETURNVAL,CNT=CNT+1
-  ;"original --> FOR  SET IDX=$ORDER(@PARRAY@(IDX)) QUIT:(IDX="")  DO
-  ;"original --> . NEW RETURNVAL
-  ;"original --> . IF $GET(OPTION("INDX"))=1 DO
-  ;"original --> . . SET RETURNVAL=$ORDER(@PARRAY@(IDX,""))
-  ;"original --> . . IF RETURNVAL="" SET RETURNVAL=0
-  ;"original --> . ELSE  DO
-  ;"original --> . . SET RETURNVAL=$GET(@PARRAY@(IDX))
-  ;"original --> . . IF RETURNVAL="" SET RETURNVAL=IDX
-  ;"original --> . SET TMPLSARRAY(CNT,IDX)=RETURNVAL,CNT=CNT+1
   MERGE TMGMASTERARRAY=TMPLSARRAY
   NEW TMGSCRLOPT MERGE TMGSCRLOPT=OPTION
   IF $GET(TMGSCRLOPT("HEADER",1))="" SET TMGSCRLOPT("HEADER",1)="Pick Item"
@@ -158,8 +161,8 @@ LISTSEL(PARRAY,OPTION) ;
   SET TMGSCRLOPT("ON KEYPRESS")=$GET(OPTION("ON KEYPRESS"),"HNDLKP^TMGUSRI4")
   MERGE TMGSCRLOPT("ON CURSOR")=OPTION("ON CURSOR")
   MERGE TMGSCRLOPT("ON CHANGING")=OPTION("ON CHANGING")
-  DO SCROLLER^TMGUSRIF("TMPLSARRAY",.TMGSCRLOPT)  ;"Event handler(s) setup TMGRESULT
-  QUIT TMGRESULT
+  DO SCROLLER^TMGUSRIF("TMPLSARRAY",.TMGSCRLOPT)  ;"Event handler(s) will set TMGSELRESULT
+  QUIT TMGSELRESULT
   ;
 HNDLSEL(PARRAY,OPTION,INFO) ;
   ;"Purpose: Handle ON SELECTION event from Scroller, from LISTSEL
@@ -173,8 +176,8 @@ HNDLSEL(PARRAY,OPTION,INFO) ;
   ;"        TMGSCLRMSG,TMGRESULT
   ;"Result: NONE
   ;"Output: May affect globally-scoped variable TMGSCLRMSG to communicate back to Scroller
-  ;"        May affect globally-scoped variable TMGRESULT
-  SET TMGRESULT=$GET(INFO("CURRENT LINE","RETURN"))
+  ;"        May affect globally-scoped variable TMGSELRESULT
+  SET TMGSELRESULT=$GET(INFO("CURRENT LINE","RETURN"))
   SET TMGSCLRMSG="^"
   QUIT
   ;

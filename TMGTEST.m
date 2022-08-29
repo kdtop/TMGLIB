@@ -345,4 +345,17 @@ OPENAICURL(PROMPTARR,RESULT,VERBOSE)  ;
   ;
   IF $GET(VERBOSE) ZWRITE RESULT
   QUIT
- 
+  ;
+CHKERR
+   DO
+   . NEW $ETRAP 
+   . SET $ETRAP="write ""Error Trapped: "",$ECODE,! set $ETRAP="""",$ECODE="""""
+   . ZLINK "TMGTEST2"
+   QUIT
+
+CHKMATHERR   
+   DO
+   . NEW $ETRAP 
+   . SET $ETRAP="write ""Error Trapped: "",$ECODE,! set $ETRAP="""",$ECODE="""""
+   . WRITE 1/0
+   QUIT

@@ -586,6 +586,6 @@ COLORBOX(SETBG,SETFG)  ;
   QUIT
   ;
   ;
-  ;"NOTE:  This shows demow (that works from bash command line) with 256 color!
+  ;"NOTE:  This shows demo (that works from bash command line) with 256 color!
   ;https://misc.flogisoft.com/bash/tip_colors_and_formatting
   

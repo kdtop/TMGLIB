@@ -31,7 +31,7 @@ TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18, 3/24/21
  ;"GETLETTER(GRPNUMBER)  
  ;"FIXHTML(DOMNAME,ERR)  --A callback function for fixing HTML 
  ;"DELNODES(SRCH,DOCID,ERR)  
- ;"ALLGRPS(TMGHPI,DELIMITER)  --Return a list of all groups for a provided HPI
+ ;"ALLGRPS(TMGHPI,DELIMITER)  --Return a array containing all the groups listed in the HPI.  e.g. "A","B"
  ;"TOPICFORALL(.TOPIC4ALL)  --Set the array for all topics that should be included with all groups
 
  ;"
@@ -135,6 +135,10 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"          ITEMARRAY("TEXT",Ref#,4)=part 4, e.g. name of table  
         ;"          ITEMARRAY("TEXT",Ref#,"GROUPX",#)=""  <-- index of GROUP nodes
         ;"          ITEMARRAY("TEXT",Ref#,"TABLEX",#)=""  <-- index of TABLE nodes        
+        ;"          ITEMARRAY("GROUP",<GRP>,Ref#)=<Title>  -- an index of items by group
+        ;"             e.g. ITEMARRAY("GROUP","C",Ref#)="DYSPEPSIA"  -- an index of items by group
+        ;"          ITEMARRAY("GROUP",<GRP>,"COUNT")=number of items in group
+        ;"          ITEMARRAY("GROUP",<GROUP>
         ;"       OPTION -PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
         ;"          OPTION("AUTOGROUPING") = 0 OR 1
         ;"          OPTION("NUMOFGROUPS") =
@@ -254,8 +258,10 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES) ;"return title of section  
         . IF TMGHPI[DELIMITER SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)
         . ELSE  SET TMGHPI=""
-        . IF TITLE["ALLERGIES" QUIT
-        . IF $$UP^XLFSTR(TITLE)["FOLLOWUP ITEMS" QUIT
+        . NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(TITLE)
+        . IF UPTITLE["ALLERGIES" QUIT
+        . IF UPTITLE["FOLLOWUP ITEMS" QUIT
+        . IF (DUZ=168)&(UPTITLE["PREVENT") QUIT   ;"8/16/22
         . SET SECTION=$$TRIM^XLFSTR(SECTION)
         . DO RMTAGS^TMGHTM1(.SECTION,"</LI>")
         . IF ($$TRIMSECT(SECTION)="")!(SECTION="<P>")!(SECTION="<BR>")!(SECTION="<BR><BR>")!(SECTION="<BR></P>")!(SECTION="<U></U>:")!(SECTION=":") DO
@@ -269,11 +275,11 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . . SET ITEMARRAY("TEXT",IDX)=TITLE
         . . ;"This if is added to test for a Title that is to be included in
         . . ;"all groups. The else below it was the previous code
-        . . IF $D(TOPIC4ALL($$UP^XLFSTR(TITLE))) DO  ;"IF INCLUDED IN ALL GROUPS 
+        . . IF $DATA(TOPIC4ALL(UPTITLE)) DO  ;"IF INCLUDED IN ALL GROUPS 
         . . . NEW GRP SET GRP=""
         . . . FOR  SET GRP=$ORDER(ALLGRPS(GRP)) QUIT:GRP=""  DO
-        . . . . SET ITEMARRAY("GROUP",GRP,IDX)=""
-        . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
+        . . . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
+        . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$GET(ITEMARRAY("GROUP",GRP,"COUNT"))+1
         . . . SET ITEMARRAY("TEXT",IDX,1,"GROUP")=ALLGRPSTR
         . . . MERGE ITEMARRAY("TEXT",IDX,1,"GROUP","LIST")=ALLGRPS
         . . ELSE  DO                                ;"IF TREATED AS SET
@@ -281,7 +287,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . . . FOR  SET JDX=$ORDER(TEXTARR(JDX)) QUIT:JDX'>0  DO
         . . . . NEW GRP SET GRP=""
         . . . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
-        . . . . . SET ITEMARRAY("GROUP",GRP,IDX)=""
+        . . . . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
         . . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
         . . SET IDX=IDX+1
         . . ;"IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
@@ -293,11 +299,11 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . . IF $$UP^XLFSTR(SECTION)["[GROUP" SET OPTION("GROUPING")=1
         . . IF $$UP^XLFSTR(SECTION)["(GROUP" SET OPTION("GROUPING")=1
         IF PREVFOUND=0 DO  ;"if prevention section not found, add blank one
-        . SET ITEMARRAY(IDX)="<U>Prevention</U>: (data needed)"
+        . SET ITEMARRAY(IDX)="<U>Prevention</U>: "  ;"8/19/22 removed "(data needed)"
         . SET ITEMARRAY("TEXT",IDX)="Prevention"
-        . SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
+        . SET ITEMARRAY("TEXT",IDX,1)=""   ;"8/19/22 removed "(data needed)"
         . SET IDX=IDX+1
-        IF SOCIALFOUND=0 DO  ;"if socoail section not found, add blank one
+        IF SOCIALFOUND=0 DO  ;"if social section not found, add blank one
         . SET ITEMARRAY(IDX)="<U>Social</U>: (data needed)"
         . SET ITEMARRAY("TEXT",IDX)="Social"
         . SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
@@ -397,52 +403,6 @@ GTOLDORD(TEXTARR,OPTION)  ;"TRY TO FIND OLDER FOLLOWUP GROUPING ORDER IF FIRST
         IF GROUP'="" SET OPTION("GROUP-ORDER")=GROUP
         QUIT
         ;"
-  ;"Remove later  5/21/18      
-  ;"COMPHPI0(ITEMARRAY,OPTION,OUT)  ;"EDDIE'S WORKING COMPILER OF HPI
-  ;"        ;"Purpose: Reassemble ordered list, removing undesired sections
-  ;"        ;"INPUT: ITEMARRAY -- PASS BY REFERENCE.  FORMAT -- SEE PARSEARR() above        
-  ;"        ;"       OPTION -PASS BY REFERENCE.  FORMAT:
-  ;"        ;"          OPTION("AUTOGROUPING") = 0 OR 1
-  ;"        ;"          OPTION("NUMOFGROUPS") =
-  ;"        ;"          OPTION("GROUPING") =
-  ;"        ;"          OPTION("BULLETS") = 0 OR 1
-  ;"        ;"       OUT -- PASS BY REFERENCE.  OPTIONAL.  Will get back formatted array with structured HPI.
-  ;"        ;"           OUT(#)=<TEXT>
-  ;"        ;"           OUT=<LINE COUNT>
-  ;"        ;"Result: Returns HPI section as one long string.  
-  ;"        NEW TOPICS SET TOPICS=+$ORDER(ITEMARRAY(""),-1)
-  ;"        NEW WARNING SET WARNING=(TOPICS>10)
-  ;"        NEW AUTOGROUPING SET AUTOGROUPING=+$GET(OPTION("AUTOGROUPING"))
-  ;"        NEW NUMOFGROUPS  SET NUMOFGROUPS=$GET(OPTION("NUMOFGROUPS"))
-  ;"        NEW GROUPING SET GROUPING=$GET(OPTION("GROUPING"))
-  ;"        NEW BULLETS SET BULLETS=$GET(OPTION("BULLETS"))
-  ;"        NEW TMGHPI SET TMGHPI=""
-  ;"        IF GROUPING=1 SET AUTOGROUPING=0  ;"IF ALREADY GROUPING, DON'T ATTEMPT TO AUTOGROUP
-  ;"        ;
-  ;"        IF (WARNING=1)&(GROUPING=0)&(+$GET(DUZ)'=83) DO
-  ;"        . SET TMGHPI="{HTML:<B><FONT style=""BACKGROUND-COLOR:#ff0000"">}CONSIDER GROUPING. PATIENT HAS "_TOPICS_" TOPICS.{HTML:</B></FONT>}"
-  ;"        ELSE  DO
-  ;"        . SET TMGHPI=""
-  ;"        IF BULLETS=1 DO
-  ;"        . SET TMGHPI=TMGHPI_"<UL>"
-  ;"        ELSE  DO
-  ;"        . SET TMGHPI=TMGHPI_""
-  ;"        NEW IDX SET IDX=0
-  ;"        FOR  SET IDX=$ORDER(ITEMARRAY(IDX)) QUIT:IDX'>0  DO
-  ;"        . IF $GET(ITEMARRAY(IDX))["<U>ALLERGIES</U>" QUIT
-  ;"        . IF BULLETS=1 DO
-  ;"        . . IF AUTOGROUPING=1 DO
-  ;"        . . . NEW BRKTAG SET BRKTAG=":"
-  ;"        . . . IF $G(ITEMARRAY(IDX))["</U>:" SET BRKTAG="</U>:"
-  ;"        . . . IF $G(ITEMARRAY(IDX))["</U> :" SET BRKTAG="</U> :"
-  ;"        . . . SET TMGHPI=TMGHPI_"<LI>"_$$TRIM^XLFSTR($P($GET(ITEMARRAY(IDX)),BRKTAG,1))_BRKTAG_$$GROUP(IDX,TOPICS,NUMOFGROUPS)_$$TRIM^XLFSTR($P($GET(ITEMARRAY(IDX)),BRKTAG,2))_"</LI>"
-  ;"        . . ELSE  DO
-  ;"        . . . SET TMGHPI=TMGHPI_"<LI>"_$GET(ITEMARRAY(IDX))_"</LI>"
-  ;"        . ELSE  DO
-  ;"        . . SET TMGHPI=TMGHPI_"     * "_$GET(ITEMARRAY(IDX))_"<P>"
-  ;"        IF BULLETS=1 SET TMGHPI=TMGHPI_"</UL>"
-  ;"        QUIT TMGHPI
-  ;"        ;
 COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI    
         ;"Input: ITEMARRAY -- PASS BY REFERENCE.  Format:
         ;"            ITEMARRAY(Ref#)=<Full section text>
@@ -585,11 +545,12 @@ AUTOGRP(ITEMARR,NUMOFGRPS,SECTIONCOUNT)  ;"AUTO GROUP TOPICS
         QUIT
         ;"
 GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
-        ;"Input:  SEQARR
-        ;"        ITEMARRAY
-        ;"        GRPORDER
-        ;"        OPTION
-        ;"Output is SEQARR.  Format (SEQARR(#)=IDX order.  IDX is used as  ITEMARRAY("TITLE",IDX)
+        ;"Input:  SEQARR -- PASS BY REFERENCE, AN OUT PARAMETER. Format as below. 
+        ;"        ITEMARRAY -- PASS BY REFERENCE.  See format above.
+        ;"        GRPORDER -- string giving group order, if any.  E.g. "A" or "B,C"
+        ;"        OPTION -- PASS BY REFERENCE.  
+        ;"Output is SEQARR.  Format (SEQARR(#)=IDX order.  IDX is used as ITEMARRAY("TITLE",IDX)
+        ;"Result: none. 
         NEW AWV SET AWV=+$G(OPTION("AWV"))
         NEW IDX
         SET GRPORDER=$$TRIM^XLFSTR($GET(GRPORDER))
@@ -650,7 +611,7 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
         . . SET TOPIC=$$UP^XLFSTR(TOPIC)
         . . IF TOPIC'="PREVENTION" QUIT
         . . KILL SEQARR(IDX)
-        . . NEW LAST SET LAST=$ORDER(SEQARR(""),-1)
+        . . NEW LAST SET LAST=$ORDER(SEQARR(""),-1)  ;"don't add back, since we want it to be fresh each time
         . . SET SEQARR(LAST+1)=JDX
         . . SET DONE=1 ;"This lets us quit the for loop without looping back to Prevention at the SEQARR's end
         QUIT
@@ -671,7 +632,17 @@ ADDBREAK(ITEMARRAY,BREAKLINE)  ;"ADD A BREAK SECTION
         SET ITEMARRAY("TEXT",BREAKLINE)=$$NOTADDRE^TMGTIUOT
         QUIT
         ;"
-GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR,AWV)  ;
+GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR,AWV)  ;"Get sequence array for 1 group.
+        ;"Input: ITEMARRAY -- PASS BY REFERENCE.  See full format above.  Partial items below.  
+        ;"            ITEMARRAY("GROUP",<GRP>,Ref#)=""  -- an index of items by group
+        ;"              e.g. ITEMARRAY("GROUP","C",Ref#)=""  -- an index of items by group
+        ;"            ITEMARRAY("GROUP",<GRP>,"COUNT")=number of items in group
+        ;"       SEQARR -- PASS BY REFERENCE, AN IN & OUT PARAMETER. 
+        ;"       GROUP -- group to gather for, e.g. "A" or "B"
+        ;"       CT -- current index in SEQARR
+        ;"       USEDIDXARR -- PASS BY REFERENCE.  AN IN & OUT PARAMETER.  An array of items already used.  
+        ;"       AWV:  1 if Anual Wellness Visit.  
+        ;"Result: none
         SET GROUP=$GET(GROUP)
         SET AWV=+$G(AWV)
         IF $DATA(USEDGRPARR(GROUP)) QUIT

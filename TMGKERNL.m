@@ -176,10 +176,17 @@ VIMDIFF(FPNAME1,FPNAME2,PARAMS)  ;"FILES vimdiff command
   WRITE #
   NEW L2 SET L2="REMEMBER!!\n"
   SET L2=L2_"(It can be hard to get out of vim!!)\n"
-  SET L2=L2_"To exit, type <ESC>:qa<ENTER>  ('qa' must be lower case letters)"
+  SET L2=L2_"\n"
+  SET L2=L2_"To exit, type <ESC>:qa<ENTER>\n"
+  SET L2=L2_"\n"
+  SET L2=L2_"Explaination:\n"
+  SET L2=L2_"<ESC> ensures vim is set to COMMAND MODE\n"
+  SET L2=L2_":q is for QUIT, and :qa is for quit ALL\n"
+  SET L2=L2_"NOTE: the 'qa' must be **lower case** letters)"
+  IF $GET(PARAMS)'="" SET PARAMS=PARAMS_" "
   DO POPUPBOX^TMGUSRI2("NOTICE! Launching vimdiff",L2)
   DO PRESS2GO^TMGUSRI2
-  NEW CMD SET CMD="vimdiff "_$GET(PARAMS)_" """_FPNAME1_""" """_FPNAME2_""""
+  NEW CMD SET CMD="vimdiff "_$GET(PARAMS)_""""_FPNAME1_""" """_FPNAME2_""""
   ZSYSTEM CMD
   NEW RESULT SET RESULT=$ZSYSTEM&255  ;"get result of execution. (low byte only)
   IF RESULT=0 SET RESULT="1^OK"
@@ -226,6 +233,9 @@ VIMADIFF(ARR1,ARR2,PARAMS)  ;"use vimdiff command on 2 arrays
   SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR1",PATH,FNAME1) IF TMGRESULT'>0 GOTO DFDN2
   SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR2",PATH,FNAME2) IF TMGRESULT'>0 GOTO DFDN2
   NEW TEMP SET TEMP=$$VIMDIFF(PATH_FNAME1,PATH_FNAME2,.PARAMS)
+  ;"Load data from files back into array to return to caller.
+  KILL ARR1 SET TMGRESULT=$$HFS2ARR^TMGIOUT3(PATH,FNAME1,"ARR1") IF TMGRESULT'>0 GOTO DFDN2
+  KILL ARR2 SET TMGRESULT=$$HFS2ARR^TMGIOUT3(PATH,FNAME2,"ARR2") IF TMGRESULT'>0 GOTO DFDN2
   NEW TEMP2 SET TEMP2=$$DELFILE^TMGIOUTL(PATH_FNAME1)
   NEW TEMP3 SET TEMP3=$$DELFILE^TMGIOUTL(PATH_FNAME2)
   IF TEMP2'>0 SET TMGRESULT=TEMP2 GOTO DFDN2

@@ -1,4 +1,4 @@
-TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 6/27/22
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 8/14/22
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;
@@ -47,6 +47,7 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 6/27/22
   ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.  
   ;"$$NEXTCH2(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.
   ;"$$SUBASCII(STR)  --TAKES INPUT OF AAC AND RETURNS AAB (useful for finding just before, to $ORDER to STR)
+  ;"$$MIDSTRCOLOR(TEXT,START,LEN) -- similar to MidStr(), but skipping over {{color}} tags  
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
@@ -595,5 +596,31 @@ SUBASCII(STR)  ;"TAKES INPUT OF 'AAC' AND RETURNS 'AAB'
   NEW RESULT SET RESULT=$EXTRACT(STR,1,$LENGTH(STR)-1)
   NEW CH SET CH=$EXTRACT(STR,$LENGTH(STR)),CH=$CHAR($ASCII(CH)-1)
   SET RESULT=RESULT_CH
+  QUIT RESULT
+  ;  
+MIDSTRCOLOR(TEXT,START,LEN) ;"SIMILAR to MidStr(), but skipping over {{color}} tags
+  ;"Exmple: TEXT = 'hello {{red}} world {{blue}} and stars'
+  ;"                         ^-- this is pos 10
+  ;"                00000000011111111112222222222333333333
+  ;"                12345678901234567890123456789012345678
+  ;"        START 10
+  ;"        LEN = 9999
+  ;"Result: ' world  and stars'
+  NEW RESULT SET RESULT=""
+  NEW IDX
+  NEW NONCOLORPOS SET NONCOLORPOS=0
+  NEW INCOLOR SET INCOLOR=0
+  FOR IDX=1:1 DO  QUIT:(IDX>=$LENGTH(TEXT))!(LEN=0)
+  . NEW CH SET CH=$EXTRACT(TEXT,IDX)
+  . NEW CH2 SET CH2=$EXTRACT(TEXT,IDX+1)
+  . IF CH="{",CH2="{" DO  QUIT
+  . . SET INCOLOR=1,IDX=IDX+1
+  . IF CH="}",CH2="}" DO  QUIT
+  . . SET INCOLOR=0,IDX=IDX+1
+  . IF INCOLOR=0 SET NONCOLORPOS=NONCOLORPOS+1
+  . IF NONCOLORPOS<START QUIT
+  . IF INCOLOR QUIT
+  . SET RESULT=RESULT_CH
+  . SET LEN=LEN-1
   QUIT RESULT
   ;  

@@ -33,6 +33,10 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
   ;"WP2STR(PARRAY,DIVCH,MAXLEN,INITLINE) -- Takes a WP field, and concatenates into one long string.
   ;"WP2ARRAY(REF,OUTREF) -- Convert a Fileman WP array into a flat ARRAY
   ;"ARRAY2WP(REFARRAY,REF) -- Convert an ARRAY to a Fileman-format WP array
+  ;"PREFIXLINE2ARR(ARR,LINE) -- Add formatted lines to top of ARR.  
+  ;"INSERTARR(OUT,ARR1,ARR2,INSERTIDX) -- Insert merge (potentially overlapping) #-indexed ARR1 into ARR2
+  ;"PREFIXARR(ARR,HEADERARR) -- PREFIX HEADER ARRAY ONTO ARR
+  ;"APPENDARR(ARR,TAILARR) -- APPEND TAIL ARRAY ONTO ARR
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
@@ -457,3 +461,79 @@ ARRAY2WP(REFARRAY,REF) ;
 A2WDN   ;
   QUIT
   ;
+INSERTARR(OUT,ARR1,ARR2,INSERTIDX) ;"Insert merge (potentially overlapping) #-indexed ARR1 into ARR2
+  ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  PRIOR CONTENTS KILLED
+  ;"       ARR1 -- The array being inserted.  Format: ARR(#,...)=""
+  ;"       ARR2 -- The array that ARR1 is being inserted into.   Format: ARR(#,...)=""
+  ;"       INSERTIDX -- The starting index that ARR1 will be inserted BEFORE.
+  ;"Results: none, but OUT is modified
+  ;"Example:  ARR1(1)='APPLE'
+  ;"          ARR1(2,1)='PEAR'
+  ;"          ARR1(3,9,2)='ORANGE'
+  ;"          ARR1(4)='GRAPE'
+  ;"
+  ;"          ARR2(1)='BIKE'
+  ;"          ARR2(2,5)='SKATES'
+  ;"          ARR2(3,'A')='FRISBEE'
+  ;"          ARR2(4)='BASEBALL'
+  ;"          ARR2(5)='KITE
+  ;"'
+  ;"          INSERTIDX=4
+  ;"
+  ;" --> RESULTING OUTPUT:  (notice index renumbering)
+  ;"          OUT(1)='BIKE'
+  ;"          OUT(2,5)='SKATES'    
+  ;"          OUT(3,'A')='FRISBEE' 
+  ;"          OUT(4)='APPLE'       <--original ARR1 inserted here
+  ;"          OUT(5,1)='PEAR'      <--original ARR1 inserted here
+  ;"          OUT(6,9,2)='ORANGE'  <--original ARR1 inserted here
+  ;"          OUT(7)='GRAPE'       <--original ARR1 inserted here
+  ;"          OUT(8)='BASEBALL'    
+  ;"          OUT(9)='KITE         
+  
+  ;"Results: none.  
+  KILL OUT 
+  NEW CT SET CT=1
+  NEW IDX2 SET IDX2=""
+  ;"First get any part of ARR2 before INSERTIDX
+  FOR  SET IDX2=$ORDER(ARR2(IDX2)) QUIT:(IDX2'<INSERTIDX)!(IDX2="")  DO
+  . MERGE OUT(CT)=ARR2(IDX2) SET CT=CT+1
+  ;"Next add ARR1
+  NEW IDX1 SET IDX1=""
+  FOR  SET IDX1=$ORDER(ARR1(IDX1)) QUIT:(IDX1="")  DO
+  . MERGE OUT(CT)=ARR1(IDX1) SET CT=CT+1
+  ;"Finally add rest of ARR2
+  FOR  DO  SET IDX2=$ORDER(ARR2(IDX2)) QUIT:(IDX2="")
+  . MERGE OUT(CT)=ARR2(IDX2) SET CT=CT+1
+  QUIT
+  ;
+PREFIXLINE2ARR(ARR,LINE)  ;"Add formatted lines to top of ARR.  
+  ;"Input: ARR.  Line to add to.  Format ARR(#)=<text>
+  ;"       LINE -- Data to add.  Format: 'part1^part2^part3^part4...' Each part is added as separate line
+  NEW HEADERARR DO SPLIT2AR^TMGSTUT2(LINE,"^",.HEADERARR)
+  NEW TEMP DO INSERTARR(.TEMP,.HEADERARR,.ARR,0)
+  KILL ARR MERGE ARR=TEMP  
+  ;"NEW OUT
+  ;"NEW CT SET CT=1
+  ;"NEW IDX SET IDX=0
+  ;"FOR  SET IDX=$ORDER(HEADER(IDX)) QUIT:IDX'>0  DO
+  ;". NEW ALINE SET ALINE=$GET(HEADER(IDX))
+  ;". SET OUT(CT)=ALINE,CT=CT+1
+  ;"NEW IDX SET IDX=0
+  ;"FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  ;". NEW ALINE SET ALINE=$GET(ARR(IDX))
+  ;". SET OUT(CT)=ALINE,CT=CT+1
+  ;"KILL ARR MERGE ARR=OUT  
+  QUIT
+  ;  
+PREFIXARR(ARR,HEADERARR) ;"PREFIX HEADER ARRAY ONTO ARR
+  NEW TEMP DO INSERTARR(.TEMP,.HEADERARR,.ARR,0)
+  KILL ARR MERGE ARR=TEMP
+  QUIT
+  ;
+APPENDARR(ARR,TAILARR) ;"APPEND TAIL ARRAY ONTO ARR
+  NEW LASTIDX SET LASTIDX=$ORDER(ARR(""),-1)
+  NEW TEMP DO INSERTARR(.TEMP,.TAILARR,.ARR,LASTIDX+1)
+  KILL ARR MERGE ARR=TEMP
+  QUIT
+  

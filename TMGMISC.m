@@ -46,6 +46,7 @@ TMGMISC ;TMG/kst/Misc utility library ;03/25/06; 7/31/15, 3/24/21
  ;"ParsePos(pos,label,offSET,routine,dmod)
  ;"ScanMod(Module,pArray)
  ;"ConvertPos(Pos,pArray)
+ ;"COMPARRAY(PARR1,PARR2) -- upper case wrapper for CompArray(pArray1,pArray2)
  ;"CompArray(pArray1,pArray2) return IF two arrays are identical
  ;"$$CompABArray(pArrayA,pArrayB,pOutArray) -- FULL compare of two arrays, return diffArray
  ;"$$IterTemplate(Template,Prior)
@@ -1119,32 +1120,30 @@ CPDone
         QUIT cpResult
 
 
-
-
-CompArray(pArray1,pArray2)
+COMPARRAY(PARR1,PARR2)  ;"upper case wrapper for CompArray(pArray1,pArray2)
+        QUIT $$CompArray(PARR1,PARR2)  
+        ;
+CompArray(pArray1,pArray2)  ;"Are two arrays identical?
         ;"Purpose: To return IF two arrays are identical
         ;"      Equality means that all nodes and values are present and equal
         ;"Input: Array1 -- PASS BY NAME.  The *name of* the first array to be compared
         ;"       Array1 -- PASS BY NAME.  The *name of* the second array to be compared
-        ;"Output: 1 IF two are identical, 0 IF not
-
+        ;"Output: 1 if two are identical, 0 if not
         NEW result SET result=1
         NEW index1,index2
         SET index1=$ORDER(@pArray1@(""))
         SET index2=$ORDER(@pArray2@(""))
         IF (index1="")!(index2="") SET result=0 GOTO CADone
         FOR  DO  QUIT:(result=0)!(index1="")!(index2="")
-        . IF index2'=index2 SET result=0 QUIT
+        . IF index1'=index2 SET result=0 QUIT
         . IF $GET(@pArray1@(index1))'=$GET(@pArray2@(index2)) SET result=0 QUIT
         . IF ($DATA(@pArray1@(index1))'<10)!($DATA(@pArray2@(index2))'<10) DO
         . . SET result=$$CompArray($name(@pArray1@(index1)),$name(@pArray2@(index2)))
         . SET index1=$ORDER(@pArray1@(index1))
         . SET index2=$ORDER(@pArray2@(index2))
-
 CADone QUIT result
-
-
-
+        ;
+        ;
 IterTemplate(Template,Prior)
         ;"Purpose: To iterate through a SORT TEMPLATE (i.e. provide record numbers held in the template
         ;"          one at a time.  For each time this function is called, one record number (IEN) is returned.

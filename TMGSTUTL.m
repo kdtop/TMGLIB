@@ -16,6 +16,7 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"SetStrLen^TMGSTUTL(Text,Width)
+ ;"$$NESTSPLIT(Text,OpenBracket,CloseBracket,SBefore,S,SAfter) -- Uppercase wrapper for blow. 
  ;"$$NestSplit^TMGSTUTL(Text,OpenBracket,CloseBracket,SBefore,S,SAfter)
  ;"$$FormatArray^TMGSTUTL(InArray,OutArray,Divider)
  ;"$$Trim^TMGSTUTL(S,TrimCh)  ; --> or use $$TRIM^XLFSTR
@@ -102,6 +103,9 @@ SetStrLen(Text,Width)
         DO SETSTLEN^TMGSTUT2(.Text,.Width)
         QUIT
 
+NESTSPLIT(Text,OpenBracket,CloseBracket,SBefore,S,SAfter) ;
+  QUIT $$NestSplit(.Text,.OpenBracket,.CloseBracket,.SBefore,.S,.SAfter)
+  ;
 NestSplit(Text,OpenBracket,CloseBracket,SBefore,S,SAfter)
         ;"PUBLIC FUNCTION
         ;"Purpose: To take a string in this format:
@@ -1233,6 +1237,7 @@ TrimTags(lineS)
        QUIT RESULT
 
 ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) ;"Array to Host File
+        ;"NOTE: This may be duplicate of ARR2HFS^TMGIOUT3
         ;"Purpose: to WRITE the array to the host file system
         ;"Input: TMGARRAY -- PASS BY REFERENCE -- The array containing the text of the output file
         ;"                  example: TMGARRAY(1)="line #1"   <-- note, **don't** use TMGARRAY(1,0)="Line#1" format
@@ -1250,6 +1255,7 @@ ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) ;"Array to Host File
         QUIT TMGRESULT
         ;
 HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) ;"Host File to Array
+        ;"NOTE: This may be duplicate of HFS2ARR^TMGIOUT3
         ;"Purpose: to WRITE the array to the host file system
         ;"Input: TMGARRAY -- PASS BY REFERENCE -- The array to containing the text reading from the file
         ;"         example: TMGARRAY(1)="line #1 from host file system"
@@ -1269,4 +1275,3 @@ HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) ;"Host File to Array
         KILL @TMGREF
         QUIT TMGRESULT
         ;
-
