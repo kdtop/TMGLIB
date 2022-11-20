@@ -42,6 +42,7 @@ LISTALERTS(REF) ;
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(@REF@(IDX)) QUIT:IDX'>0  DO
   . NEW INFO MERGE INFO=@REF@(IDX)
+  . IF $$SHOULDGARBLE^TMGMISC4() SET INFO=$$GARBLEALERT^TMGMISC4(INFO)
   . ;"INFO = 0 node for alert
   . ;"INFO(1) = IEN of the alert
   . ;"INFO(2) = data for the alert

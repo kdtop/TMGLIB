@@ -1465,7 +1465,7 @@ P23RESVL(TMGDFN,TEST,DATE,DATA,TEXT,WHY)  ;"
 P23ADMIN(TMGDFN,AGEARR)  ;"Purpose: get a listing of ages when P23 was administered
         ;"AGEARR (PASS BY REF):
         ;"          AGEARR(AGE)=DATE ADMINISTERED^AGE WHEN RECEIVED
-        NEW IMMLIST SET IMMLIST="^19^96^"
+        NEW IMMLIST SET IMMLIST="^19^96^777003^"
         NEW DOB SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3)
         NEW IDX SET IDX=0
         FOR  SET IDX=$O(^AUPNVIMM("C",TMGDFN,IDX)) QUIT:IDX'>0  DO
@@ -2314,5 +2314,43 @@ BMICOHRT(TMGDFN,TEST,DATE,DATA,TEXT)
         IF (BMI>34.9)&(BMI<40) DO
         . SET TEST=1
         . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"
+ONMEMMEDS(TMGDFN,TEST,DATE,DATA,TEXT)       
+        ;"Purpose: CF if patient is on memory meds 
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;"  FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0,DATE=0
+        ;"Test Med List
+        NEW TMGMEDLIST,TMGMEDARRAY
+        ;"//kt 5/7/18 DO MEDLIST^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)  
+        DO MEDARR^TMGTIUOJ(.TMGMEDLIST,.TMGDFN,.TMGMEDARRAY)     ;"//kt 5/7/18
+        IF $DATA(TMGMEDARRAY) DO
+        . NEW IDX SET IDX=0
+        . NEW ITEM
+        . FOR  SET IDX=$ORDER(TMGMEDARRAY(IDX)) QUIT:(+IDX'>0)!(TEST=1)  DO
+        . . SET ITEM=$$UP^XLFSTR($GET(TMGMEDARRAY(IDX)))
+        . . IF (ITEM["ARICEPT")!(ITEM["NAMENDA") DO
+        . . . SET TEST=1
+        QUIT
+        ;"
+PTMEMMEDS(TMGRESULT,TMGDFN)
+        ;"RPC Wrapper for ONMEMMEDS
+        ;"  CHECKS TO SEE IF PATIENT IS ON AN APPLICABLE MEMORY MED
+        ;"  TMGRESULT=1 FOR YES, OR 0 FOR NO
+        NEW DATE,TEST
+        DO ONMEMMEDS(TMGDFN,.TEST,.DATE)
+        IF TEST=1 DO
+        . SET TMGRESULT="1^PATIENT HAS MEMORY ISSUES. PLEASE MAKE SURE THEY GET A PRINTOUT OF THIS CONSULT, OR MAIL TO THEM IF THEY AREN'T IN THE OFFICE."
+        ELSE  DO
+        . SET TMGRESULT="0^NOT ON MEMORY MEDS"
         QUIT
         ;"

@@ -121,7 +121,32 @@ CASETAGS(HTMLSTR,MODE)  ;"Convert all HTML tag names to specified CASE
   . SET OUTSTR=STRA_NEWTAG_STRB
   ;"s ^TMP("EDDIE","OUTSTR")=OUTSTR
   QUIT OUTSTR
-  
+  ;"
+TIUPASTE(TMGRESULT,HTMLARR)  ;"RPC: TMG CPRS HTML PASTE EVENT
+  ;"Purpose: remove unwanted HTML tags from Clipboard prior to pasting
+  NEW TMGTEST SET TMGTEST=0
+  IF TMGTEST=1 DO
+  . MERGE HTMLARR=^TMG("TIUPASTE","HTML")
+  ELSE  DO
+  . K ^TMG("TIUPASTE","HTML")
+  . MERGE ^TMG("TIUPASTE","HTML")=HTMLARR
+  NEW IDX SET IDX=0
+  NEW HTML SET HTML=""
+  FOR  SET IDX=$O(HTMLARR(IDX)) QUIT:IDX'>0  DO
+  . SET HTML=HTML_$G(HTMLARR(IDX))
+  SET HTML="<"_$P(HTML,"<",2,9999)  ;" Remove Clipboard header info
+  DO RMTAG2^TMGHTM1(.HTML,"a")
+  DO RMTAG2^TMGHTM1(.HTML,"html")
+  DO RMTAG2^TMGHTM1(.HTML,"body")
+  DO RMTAG2^TMGHTM1(.HTML,"body")
+  DO RMTAG2^TMGHTM1(.HTML,"font")
+  DO RMTAG2^TMGHTM1(.HTML,"tt")
+  IF HTML["<!--StartFragment-->" SET HTML=$P(HTML,"<!--StartFragment-->",2)
+  IF HTML["<!--EndFragment-->" SET HTML=$P(HTML,"<!--EndFragment-->",1)
+  ;"SET HTML=$$REPLSTR^TMGSTUT3(HTML,$C(13,10),"")
+  SET TMGRESULT(0)=HTML
+  QUIT
+  ;"
   ;================================================================
   ;
 SAMPLEHTML0  ;  DELETE LATER

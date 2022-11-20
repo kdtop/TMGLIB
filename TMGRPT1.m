@@ -393,7 +393,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        DO C^%DTC
        SET endDate=X+.999999
        ;"SET NowDate=3181231
-       ;"SET endDate=3190107
+       ;"SET endDate=3221004
        FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
        . IF (RECORDS>0)&(dueDate>endDate) QUIT
        . IF (RECORDS=0)&(future=1) QUIT

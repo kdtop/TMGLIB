@@ -340,7 +340,7 @@ ISDIR(Path,NodeDiv)  ;
   SET NodeDiv=$GET(NodeDiv,"/")
   IF $EXTRACT(Path,$LENGTH(Path))'=NodeDiv SET Path=Path_NodeDiv
   NEW p SET p="myTerm"
-  OPEN p:(COMMAND="stat --format=%F "_Path:readonly)::"pipe"
+  OPEN p:(COMMAND="stat --format=%F """_Path_"""":readonly)::"pipe"
   USE p
   NEW x READ x
   CLOSE p USE $P

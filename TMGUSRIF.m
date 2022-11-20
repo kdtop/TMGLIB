@@ -88,6 +88,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"          OPTION("HIGHLINE")=<line number>  OPTIONAL.  Default=5.  This is line cursor is on initially. May be modified by events, see below
   ;"                 NOTE: This will be used if $G(OPTION("COLUMNS","ACTIVE"))=1 (default), 
   ;"                       otherwise OPTION("COLUMNS",<COL#>,"HIGHLINE") used 
+  ;"          OPTION("LR SCROLLING") = 1   Default = 0. If 1, then left, right keys scroll text rather than passing to user functions
   ;"          ---- Multi-column mode ----
   ;"          OPTION("COLUMNS","ACTIVE") = OPTIONAL.   Default = 1. Which column user can scroll currently
   ;"          OPTION("COLUMNS","NUM") = OPTIONAL.   Default = 1. Number of columns to show
@@ -178,7 +179,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   . . DO DRAWCMDAREA()  
   . . ;
   . SET TMGSCLRMSG=""  ;"Initialize message variable that can be used by event handlers to send back message. 
-  . NEW TEMP SET TEMP=$$USER()  ;"interact with users, trigger events etc. 
+  . NEW TEMP SET TEMP=$$USER(.OPTION)  ;"interact with users, trigger events etc. 
   . IF TMGSCLRMSG="^" SET DONE=1 QUIT
   . IF TMGSCLRMSG="FULL" SET DRAWMODE="FULL" QUIT
   . IF TEMP="^" SET DONE=1 QUIT
@@ -191,7 +192,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"=======================================================================
   ;"=======================================================================
   ;
-USER();"Read user input and interact
+USER(OPTION);"Read user input and interact
   ;"NOTE: Uses vars in global scope, defined in SCROLLER scope: 
   ;"Result: 1 for draw, 2 for full draw, ^ for done.  
   ;
@@ -201,6 +202,7 @@ USER();"Read user input and interact
   SET INPUT=$$READKY^TMGUSRI5("re",,1,,.ESCKEY)
   IF (INPUT="")&(ESCKEY="") SET ESCKEY="CR"
   NEW DONE SET DONE=0
+  NEW HANDLED SET HANDLED=0
   IF $EXTRACT(INPUT,1)="^",$LENGTH(INPUT)>1 SET ESCKEY="CTRL-"_$EXTRACT(INPUT,2,$LENGTH(INPUT)),INPUT=""
   IF $GET(OPTION("ON CURSOR"))'="",INPUT="",$$ISCURSOR(ESCKEY) DO  GOTO:DONE USI2
   . SET DONE=$$EVENTCURSOR(ESCKEY)  ;"trigger on cursor event
@@ -225,8 +227,9 @@ USER();"Read user input and interact
   IF (ESCKEY="CTRL-A"),$GET(OPTION("MULTISEL"))=1 DO  GOTO USI2  ;"selection all TOGGLE.
   . DO HNDLSELALL ;"Handle user Select ALL
   IF INPUT="^" SET RESULT="^" GOTO USI2
-  IF (INPUT["CURSOR^") DO  GOTO USI2
-  . DO HNDLCURSOR(INPUT,.HIGHLINE,.TOPLINE,.XOFFSET,ACTIVECOL)
+  IF (INPUT["CURSOR^") DO  GOTO USI2:HANDLED
+  . SET HANDLED=$$HNDLCURSOR(INPUT,.HIGHLINE,.TOPLINE,.XOFFSET,ACTIVECOL,.OPTION)
+  . IF HANDLED=0 SET INPUT="" QUIT
   . SET RESULT=1
   IF INPUT="=" DO  GOTO USI2
   . DO HNDLSETSIZE ;"Handle user setting screen size      
@@ -237,7 +240,7 @@ USER();"Read user input and interact
   ;
   SET INFO("USER INPUT")=INPUT
   SET INFO("CMD")=BUILDCMD
-  DO EVENT("ON KEYPRESS")
+  DO EVENT(.OPTION,"ON KEYPRESS")
   SET NEEDREFRESH=2
   ;
   ;"After above events, see if event handler code requested scroller to select a particular line. 
@@ -253,17 +256,19 @@ EVENTCURSOR(ESCKEY)  ;"trigger on cursor event
   ;"Result: 1 if event handled cursor, 0 otherwise.  
   SET INFO("CURSOR")=ESCKEY
   SET INFO("CURSOR","HANDLED")=0
-  DO EVENT("ON CURSOR")
+  DO EVENT(.OPTION,"ON CURSOR")
   NEW RESULT SET RESULT=(+$GET(INFO("CURSOR","HANDLED"))=1)
   QUIT RESULT
   ;
-HNDLCURSOR(INPUT,HIGHLINE,TOPLINE,XOFFSET,COL) ;"Handle user cursor input.  
+HNDLCURSOR(INPUT,HIGHLINE,TOPLINE,XOFFSET,COL,OPTION) ;"Handle user cursor input.  
   ;"Note: uses vars in global scope, defined in SCROLLER scope:
-  ;"       OPTION(used via EVENT() call),WIDTH
+  ;"       WIDTH
+  ;"Result: 1 if cursor was handled here, or 0 if not. 
+  NEW RESULT SET RESULT=0
   NEW CSRDIR SET CSRDIR=$PIECE(INPUT,"^",2)
   NEW COUNT SET COUNT=$PIECE(INPUT,"^",3) 
   NEW DATAREF SET DATAREF=$$DATAREF(COL)
-  IF ("UP,DOWN,LEFT,RIGHT,"[CSRDIR)=0 QUIT
+  IF ("UP,DOWN,LEFT,RIGHT,"[CSRDIR)=0 GOTO HNDCSRDN
   IF COUNT="*","LEFT"[CSRDIR SET COUNT=9999999
   IF COUNT="*","RIGHT"[CSRDIR DO
   . NEW TEMPXO SET TEMPXO(COL)=0
@@ -283,22 +288,26 @@ HNDLCURSOR(INPUT,HIGHLINE,TOPLINE,XOFFSET,COL) ;"Handle user cursor input.
   IF CSRDIR="UP"    SET DELTA=-COUNT
   IF CSRDIR="LEFT"  SET DELTA=-COUNT
   IF CSRDIR="RIGHT" SET DELTA=COUNT
-  IF DELTA=0 QUIT
+  IF DELTA=0 GOTO HNDCSRDN
   IF "UP,DOWN"[CSRDIR DO
   . NEW TEMPHL MERGE TEMPHL=HIGHLINE
   . NEW TEMPTL MERGE TEMPTL=TOPLINE
   . SET TEMPHL(COL)=HIGHLINE(COL)+DELTA  ;"HL will be planned next highlight line
   . DO ENSURHLONSCRN(.TEMPHL,.TEMPTL,COL)
   . DO PREPINFO(.INFO,TMGPSCRLARR,"NEXT LINE",TEMPHL(COL))  
-  . DO EVENT("ALLOW CHANGE") IF $GET(INFO("ALLOW CHANGE"))'>0 QUIT
+  . DO EVENT(.OPTION,"ALLOW CHANGE") IF $GET(INFO("ALLOW CHANGE"))'>0 QUIT
   . KILL INFO("NEXT LINE")
   . KILL HIGHLINE MERGE HIGHLINE=TEMPHL
   . KILL TOPLINE MERGE TOPLINE=TEMPTL
+  . SET RESULT=1
   IF "LEFT,RIGHT"[CSRDIR DO
   . DO PREPINFO(.INFO,TMGPSCRLARR,"NEXT LINE",HIGHLINE(COL))  
-  . DO EVENT("ALLOW CHANGE") IF $GET(INFO("ALLOW CHANGE"))'>0 QUIT
+  . DO EVENT(.OPTION,"ALLOW CHANGE") IF $GET(INFO("ALLOW CHANGE"))'>0 QUIT
+  . IF $GET(OPTION("LR SCROLLING"))'=1 QUIT
   . SET XOFFSET(COL)=$$INBOUNDS(XOFFSET(COL)+DELTA,0,500)  ;"May need to find better way than hardcoded 500 later....
-  QUIT  
+  . SET RESULT=1
+HNDCSRDN ;  
+  QUIT RESULT
   ;
 HNDLCOLCYCLE ;"Hand user input of function key to cycle column
   SET ACTIVECOL=ACTIVECOL+1
@@ -635,8 +644,8 @@ SETETRAP ;
   SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
   QUIT
   ;
-EVENT(EVENT) ;"Trigger event, if defined.
-  ;"NOTE: Uses OPTION in global scope.
+EVENT(OPTION,EVENT) ;"Trigger event, if defined.
+  ;"NOTE: The event code uses INFO, which is in global scope.
   NEW CODEFN SET CODEFN=$$GETCODEFN(EVENT,.OPTION) QUIT:(CODEFN="")
   NEW $ETRAP DO SETETRAP
   XECUTE CODEFN
@@ -813,6 +822,7 @@ DEMOCOLS ;"DEMONSTRATE SCROLLER WITH COLUMNS.
   SET OPTION("COLUMNS","NUM")=3 
   SET OPTION("COLUMNS",1,"WIDTH")=30
   SET OPTION("COLUMNS","FN TOGGLE NUM")="F1"
+  SET OPTION("LR SCROLLING")=1
   NEW RTN SET RTN="TMG"
   NEW IDX FOR IDX=1:1:60 DO
   . SET RTN=$ORDER(^DIC(9.8,"B",RTN)) QUIT:RTN=""

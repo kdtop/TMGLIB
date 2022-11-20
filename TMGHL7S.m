@@ -121,7 +121,7 @@ SU2     NEW TMGUSERINPUT,TMGMNU
         WRITE "Load sample HL7 message now" DO YN^DICN WRITE !
         IF %=-1 GOTO SUDN
         IF %=2 GOTO M1
-        DO FILEMENU^TMGHL70(.TMGTESTMSG)
+        DO FILEMENU^TMGHL70(.TMGTESTMSG,INDENTN)
 M0      DO NSURTMGU(.TMGTESTMSG,.IEN22720,.TMGU)         
         SET TMGRESULT=$$PRSEARRY^TMGHL7X2(IEN22720,.TMGTESTMSG,.TMGHL7MSG,.TMGU) ;
         IF TMGRESULT<0 DO  GOTO SUDN
@@ -279,6 +279,7 @@ SEG(IEN22720,TMGHL7MSG,TMGU,INDENTN) ;
         NEW IENSEG SET IENSEG=0
         NEW SEGN SET SEGN=""
         NEW MAXSEGN SET MAXSEGN=0
+        NEW TMGDD DO GETDD^TMGHL7X3(.TMGDD)
 M3      ;
         KILL TMGUSERINPUT,TMGMNU,TMGFOUND
         SET INDENTN=+$GET(INDENTN)
@@ -322,7 +323,7 @@ M3      ;
         . SET TMGUSERINPUT=MAXSEGN+1
         . ;"READ "Enter in custom segment Number: ",TMGUSERINPUT:$GET(DTIME,3600),!
         IF (+TMGUSERINPUT>0)!(+$PIECE(TMGUSERINPUT,"^",2)>0) DO  GOTO M3
-        . DO ONESEG(IEN22720,+$PIECE(TMGUSERINPUT,"^",2),+TMGUSERINPUT,.TMGHL7MSG,.TMGU,INDENTN+2)
+        . DO ONESEG(IEN22720,+$PIECE(TMGUSERINPUT,"^",2),+TMGUSERINPUT,.TMGHL7MSG,.TMGU,INDENTN+2,.TMGDD)
         IF TMGUSERINPUT="ViewMsg" DO VIEWMSG^TMGHL7U2(.TMGTESTMSG) GOTO M3DN
         IF TMGUSERINPUT="^" GOTO M3DN
         IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
@@ -337,16 +338,20 @@ M3B     NEW DIE,DR,DA
 M3DN    QUIT
         ;
         ;"----------------------------------------------------
-ONESEG(IEN22720,IENSEG,SEGN,TMGHL7MSG,TMGU,INDENTN) ;
-        ;"Input: IENSEG -- optional. IEN of segment record.  Record added IF not provided
+ONESEG(IEN22720,IENSEG,SEGN,TMGHL7MSG,TMGU,INDENTN,TMGDD) ;
+        ;"Input: IEN22720 -- which entry to edit. 
+        ;"       IENSEG -- optional. IEN of segment record.  Record added IF not provided
         ;"       SEGN -- optional.  Index number of segment in TMGHL7MSG
         ;"       TMGHL7MSG
         ;"       TMGU
         ;"       INDENTN -- OPTIONAL.  the number of spaces to indent the menu display
+        ;"       TMGDD -- OPTIONAL.  An array from  GETDD^TMGHL7X3 describing HL7 segment names
         ;"Note: Either SEGN or IENSEG must be provided.
+        ;"Uses TMGDD in global scope, define in SETUP^TMGHL7S scope
         NEW TMGRESULT SET TMGRESULT=1
         SET SEGN=+$GET(SEGN)
         SET IENSEG=+$GET(IENSEG)
+        IF $DATA(TMGDD)=0 DO GETDD^TMGHL7X3(.TMGDD)
         NEW SAMPL SET SAMPL=$GET(TMGHL7MSG(SEGN))
         NEW SEGNAME SET SEGNAME=$GET(TMGHL7MSG(SEGN,"SEG"))
         IF SEGNAME="",(IENSEG>0) DO
@@ -380,33 +385,43 @@ OS2     IF IENSEG'>0 DO  ;"add NEW subfile record
         . DO PRESS2GO^TMGUSRI2
         NEW TMGUSERINPUT,TMGMNU
         NEW TMGMNUI,FLDN,FOUND
+        NEW SHOWALLFLDS SET SHOWALLFLDS=0
 M4      ;
         KILL TMGUSERINPUT,TMGMNU,FOUND
         SET INDENTN=+$GET(INDENTN)
         SET TMGMNU(-1,"INDENT")=INDENTN
         SET TMGMNUI=1,FLDN=0
+        ;"Add menu entries based on examples in TMGHL7MSG
         FOR  SET FLDN=$ORDER(TMGHL7MSG(SEGN,FLDN)) QUIT:(+FLDN'>0)  DO
-        . NEW S SET S=$GET(TMGHL7MSG(SEGN,FLDN)) QUIT:$$TRIM^XLFSTR(S)=""
-        . SET FOUND(FLDN)=1
-        . NEW DISP SET DISP="Field #"_FLDN_",  e.g. '"_S_"'"
-        . IF $$HASCODE2(IEN22720,IENSEG,FLDN) SET DISP="(*) "_DISP
+        . NEW S SET S=$GET(TMGHL7MSG(SEGN,FLDN)) 
+        . IF $$TRIM^XLFSTR(S)="",SHOWALLFLDS=0 QUIT
+        . IF S'="" SET FOUND(FLDN)=1
+        . NEW DISP SET DISP=""
+        . IF $$HASCODE2(IEN22720,IENSEG,FLDN) SET DISP=DISP_"(*) "
+        . NEW DESCR SET DESCR=$GET(TMGDD(SEGNAME,FLDN)) IF DESCR'="" SET DESCR=" ("_DESCR_")"
+        . SET DISP=DISP_"Field #"_FLDN_DESCR
+        . IF S'="" SET DISP=DISP_",  e.g. '"_S_"'"
         . SET TMGMNU(FLDN)=DISP_$CHAR(9)_FLDN ;"TMGMNUI=TMGMNUI+1
+        ;"Now add menu entries based on items previously given code. 
         SET FLDN=0
         FOR  SET FLDN=$ORDER(^TMG(22720,IEN22720,11,IENSEG,11,FLDN)) QUIT:(+FLDN'>0)  DO
         . IF $GET(FOUND(FLDN))=1 QUIT
         . NEW DISP SET DISP="Field #"_FLDN
         . IF $$HASCODE2(IEN22720,IENSEG,FLDN) SET DISP="(*) "_DISP
-        . SET TMGMNU(FLDN)=DISP_$CHAR(9)_FLDN ;"TMGMNUI=TMGMNUI+1
+        . NEW DESCR SET DESCR=$GET(TMGDD(SEGNAME,FLDN)) IF DESCR'="" SET DESCR=" ("_DESCR_")"
+        . SET TMGMNU(FLDN)=DISP_DESCR_$CHAR(9)_FLDN ;"TMGMNUI=TMGMNUI+1
         SET TMGMNU(0)="Pick what to add transform code for.  ["_SEGNAME_"]"
         ;"SET TMGMNU(.5)="Entire segment before fields processed"_$CHAR(9)_"Prerun"
         SET TMGMNUI=$ORDER(TMGMNU(""),-1)+1
         SET TMGMNU(TMGMNUI)="(A Field number not in example)"_$CHAR(9)_"OtherNum",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Toggle: Show ALL fields "_$SELECT(SHOWALLFLDS=1:"OFF",1:"ON")_$CHAR(9)_"ToggleShowAll",TMGMNUI=TMGMNUI+1
         ;"SET TMGMNU(TMGMNUI)="Entire segment before fields processed"_$CHAR(9)_"Postrun",TMGMNUI=TMGMNUI+1
         SET DISP="Whole Segment: '"_$EXTRACT(SAMPL,1,25)_"...'"
         IF $$HASCODE1(IEN22720,IENSEG,"NOCHILD") SET DISP="(*) "_DISP
         SET TMGMNU(TMGMNUI)=DISP_$CHAR(9)_"XForm",TMGMNUI=TMGMNUI+1
         IF SAMPL'="" DO
         . SET TMGMNU(TMGMNUI)="View current example segment"_$CHAR(9)_"Example",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Dump Transform settings record"_$CHAR(9)_"DumpRec",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Edit Processing Order number for this segment"_$CHAR(9)_"Order",TMGMNUI=TMGMNUI+1
         SET TMGMNU(TMGMNUI)="Done adding transform code"_$CHAR(9)_"^",TMGMNUI=TMGMNUI+1
         ;
@@ -422,6 +437,8 @@ M4      ;
         IF TMGUSERINPUT="Prerun" DO PRESEG(IEN22720,IENSEG) GOTO M4
         IF TMGUSERINPUT="Postrun" DO POSTSEG(IEN22720,IENSEG) GOTO M4
         IF TMGUSERINPUT="Order" DO EDITORDER(IEN22720,IENSEG,.TMGHL7MSG) GOTO M4
+        IF TMGUSERINPUT="ToggleShowAll" SET SHOWALLFLDS='SHOWALLFLDS GOTO M4
+        IF TMGUSERINPUT="DumpRec" DO DUMPSEGREC(IEN22720,SEGNAME) GOTO M4
         IF TMGUSERINPUT="Example" DO  GOTO M4
         . WRITE !,"Example segment from test HL7 message:",!
         . WRITE SAMPL,!
@@ -433,6 +450,18 @@ OSG2    ;
         WRITE "Finish... allow picking of fields even without example.",!
         DO PRESS2GO^TMGUSRI2
 OSGDN   QUIT
+        ;
+DUMPSEGREC(IEN22720,SEGNAME) ;
+        ;"Input: IEN22720 -- which file entry to dump from.
+        ;"       SEGNAME -- which segment to dump
+        NEW SUBIEN SET SUBIEN=$ORDER(^TMG(22720,IEN22720,11,"B",SEGNAME,0))
+        IF SUBIEN'>0 DO  GOTO DSRDN
+        . WRITE !,"Unable to dump record",!
+        NEW IENS SET IENS=SUBIEN_","_IEN22720_","
+        DO DUMPREC^TMGDEBU3(22720.011,IENS,1)
+DSRDN   ;        
+        DO PRESS2GO^TMGUSRI2
+        QUIT
         ;
 APPSEG(IEN22720,IENSEG,INDENTN) ;"Ask Pre vs Pos
         NEW % SET %=$$ASKPP("COMPONENT","SUB-COMPONENT",IEN22720,IENSEG,,,.INDENTN)

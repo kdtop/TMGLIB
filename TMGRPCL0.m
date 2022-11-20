@@ -227,6 +227,10 @@ LISTINST(TMGOUT,FROM,DIR)        ;" Return a SET of Institutions
         . . SET IDX=IDX+1,TMGOUT(IDX)=IEN_"^"_ENTRY
         QUIT
         ;
+LNK2TIU(TMGRESULT,TMGDFN,LABDT,TIUIEN) ;" TMG CPRS LINK LAB TO NOTE rpc
+        
+        QUIT
+        ;"
 POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL: TMG CPRS POST LAB VALUES)
         ;"Purpose: Post lab results, as passed in from CPRS client
         ;"Input: TMGRESULT -- this is an OUT parameter, and it is always passed by reference
@@ -252,6 +256,8 @@ POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL: TMG CPRS POST LAB VALUES)
         ;"            INARRAY(#)="<COMMENTS>"
         ;"              Lines after this tag will be comments
         ;"              e.g. INARRAY(#)="Performed at LabCorp."
+        ;"            INARRAY(#)="<LINKEDNOTE>"
+        ;"              IEN OF TIU NOTE TO LINK
         ;"
         ;"NOTE: The date information provided in the METADATA section is the default date.
         ;"      If a different date is provide for a given lab, then this OVERRIDES the default.
@@ -360,6 +366,8 @@ POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL: TMG CPRS POST LAB VALUES)
         . IF MODE="COMMENTS" DO
         . . SET NOTEIDX=NOTEIDX+1,NOTES(NOTEIDX)="|||"_STR
         . . ;"SET ALTGROUPARRAY(IDX)=STR
+        . IF MODE="LINKEDNOTE" DO
+        . . SET LABS(0,22700)="`"_STR
         IF $DATA(LABS)=0 SET TMGRESULT(0)="-1^No data found to file."
         IF TEMPDFN'>0 SET TMGRESULT(0)="-1^Patient not specified"
         IF +TMGRESULT(0)<0 GOTO PLDN

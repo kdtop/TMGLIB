@@ -108,6 +108,7 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         ;"Once below is tested, above line can be removed
         SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
         SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        IF $$SHOULDGARBLE^TMGMISC4() DO GARBLEHPI^TMGMISC4(.ITEMARRAY)   ;"//kt -- Check for special mode to hide patient info during demos
         SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
 LHDN    QUIT TMGHPI
         ;
@@ -236,7 +237,6 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"          found rather than to give weight to ordered list items
         NEW DELIMITER SET DELIMITER=$$NEXTCH^TMGSTUT3(TMGHPI,0,"<LI>","*")
         ;"If the delimiter is *, then we will replace any <LI>'s to *
-        ;"IF DELIMITER="*" SET TMGHPI=$$REPLACE^TMGHTM1(TMGHPI,"<LI>","*")
         IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<LI>","*")
         SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)                            
         NEW PREVFOUND SET PREVFOUND=0
@@ -244,16 +244,14 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         NEW CONTRAFOUND SET CONTRAFOUND=0
         NEW FOLLOWUPFOUND SET FOLLOWUPFOUND=0
         SET OPTION("GROUPING")=0
-        ;"
-        ;"ALLGRPS is an array containing all the groups listed in the HPI,
+        ;
+        ;"ALLGRPS is an array containing all the groups listed in the HPI, e.g. "A","B"
         ;"ALLGRPSTR is the comma delimited list
-        NEW ALLGRPS,ALLGRPSTR SET ALLGRPSTR=$$ALLGRPS(TMGHPI,DELIMITER,.ALLGRPS)
-        ;"NEW GROUPARR
-        ;"TOPIC4ALL is an array of all titles
-        NEW TOPIC4ALL DO TOPICFORALL(.TOPIC4ALL)
-        ;"
+        NEW ALLGRPS,ALLGRPSTR SET ALLGRPSTR=$$ALLGRPS(TMGHPI,DELIMITER,.ALLGRPS)        
+        NEW TOPIC4ALL DO TOPICFORALL(.TOPIC4ALL)  ;"TOPIC4ALL is an array of all titles
+        ;
         FOR  QUIT:TMGHPI=""  DO  
-        . NEW SECTION SET SECTION=$P(TMGHPI,DELIMITER,1)
+        . NEW SECTION SET SECTION=$PIECE(TMGHPI,DELIMITER,1)
         . ;"HERE I NEED TO GET TITLE AND CHECK TO SEE IF GROUP NEEDS TO BE REPLACED WITH ALL GROUPSTR
         . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES) ;"return title of section  
         . IF TMGHPI[DELIMITER SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)
@@ -261,75 +259,116 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(TITLE)
         . IF UPTITLE["ALLERGIES" QUIT
         . IF UPTITLE["FOLLOWUP ITEMS" QUIT
-        . IF (DUZ=168)&(UPTITLE["PREVENT") QUIT   ;"8/16/22
+        . ;"IF (DUZ=168)&(UPTITLE["PREVENT") QUIT   ;"8/16/22
         . SET SECTION=$$TRIM^XLFSTR(SECTION)
         . DO RMTAGS^TMGHTM1(.SECTION,"</LI>")
-        . IF ($$TRIMSECT(SECTION)="")!(SECTION="<P>")!(SECTION="<BR>")!(SECTION="<BR><BR>")!(SECTION="<BR></P>")!(SECTION="<U></U>:")!(SECTION=":") DO
-        . . ;Skip section
-        . ELSE  DO        
-        . . SET SECTION=$$HTMLTRIM^TMGHTM1(SECTION,"LR")
-        . . SET SECTION=$$TRAILTRM(SECTION)
-        . . SET SECTION=$$ITALICS(SECTION)
-        . . SET ITEMARRAY(IDX)=SECTION
-        . . MERGE ITEMARRAY("TEXT",IDX)=TEXTARR 
-        . . SET ITEMARRAY("TEXT",IDX)=TITLE
-        . . ;"This if is added to test for a Title that is to be included in
-        . . ;"all groups. The else below it was the previous code
-        . . IF $DATA(TOPIC4ALL(UPTITLE)) DO  ;"IF INCLUDED IN ALL GROUPS 
-        . . . NEW GRP SET GRP=""
-        . . . FOR  SET GRP=$ORDER(ALLGRPS(GRP)) QUIT:GRP=""  DO
-        . . . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
-        . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$GET(ITEMARRAY("GROUP",GRP,"COUNT"))+1
-        . . . SET ITEMARRAY("TEXT",IDX,1,"GROUP")=ALLGRPSTR
-        . . . MERGE ITEMARRAY("TEXT",IDX,1,"GROUP","LIST")=ALLGRPS
-        . . ELSE  DO                                ;"IF TREATED AS SET
-        . . . NEW JDX SET JDX=0
-        . . . FOR  SET JDX=$ORDER(TEXTARR(JDX)) QUIT:JDX'>0  DO
-        . . . . NEW GRP SET GRP=""
-        . . . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
-        . . . . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
-        . . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
-        . . SET IDX=IDX+1
-        . . ;"IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
-        . . ;"JUST CHECK TITLE INSTEAD OF ENTIRE SECTION 4/8/19
-        . . IF $$UP^XLFSTR(TITLE)["PREVENT" SET PREVFOUND=1
-        . . IF $$UP^XLFSTR(TITLE)["SOCIAL" SET SOCIALFOUND=1
-        . . IF $$UP^XLFSTR(TITLE)["CONTRACEPTION" SET CONTRAFOUND=1
-        . . IF $$UP^XLFSTR(TITLE)["FOLLOWUP ITEMS" SET FOLLOWUPFOUND=1
-        . . IF $$UP^XLFSTR(SECTION)["[GROUP" SET OPTION("GROUPING")=1
-        . . IF $$UP^XLFSTR(SECTION)["(GROUP" SET OPTION("GROUPING")=1
+        . IF $$IGNORESECTION(SECTION) QUIT        
+        . SET SECTION=$$HTMLTRIM^TMGHTM1(SECTION,"LR")
+        . SET SECTION=$$TRAILTRM(SECTION)
+        . SET SECTION=$$ITALICS(SECTION)       
+        . NEW UPSECTION SET UPSECTION=$$UP^XLFSTR(SECTION)
+        . DO ADDITEM(.ITEMARRAY,.IDX,TITLE,SECTION,.TEXTARR) ;"Add a element to ITEMARRAY
+        . ;"moved --> SET ITEMARRAY(IDX)=SECTION
+        . ;"moved --> MERGE ITEMARRAY("TEXT",IDX)=TEXTARR 
+        . ;"moved --> SET ITEMARRAY("TEXT",IDX)=TITLE
+        . ;"moved --> ;"This if is added to test for a Title that is to be included in
+        . ;"moved --> ;"all groups. The else below it was the previous code
+        . ;"moved --> IF $DATA(TOPIC4ALL(UPTITLE)) DO  ;"IF INCLUDED IN ALL GROUPS 
+        . ;"moved --> . NEW GRP SET GRP=""
+        . ;"moved --> . FOR  SET GRP=$ORDER(ALLGRPS(GRP)) QUIT:GRP=""  DO
+        . ;"moved --> . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
+        . ;"moved --> . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$GET(ITEMARRAY("GROUP",GRP,"COUNT"))+1
+        . ;"moved --> . SET ITEMARRAY("TEXT",IDX,1,"GROUP")=ALLGRPSTR
+        . ;"moved --> . MERGE ITEMARRAY("TEXT",IDX,1,"GROUP","LIST")=ALLGRPS
+        . ;"moved --> ELSE  DO                                ;"IF TREATED AS SET
+        . ;"moved --> . NEW JDX SET JDX=0
+        . ;"moved --> . FOR  SET JDX=$ORDER(TEXTARR(JDX)) QUIT:JDX'>0  DO
+        . ;"moved --> . . NEW GRP SET GRP=""
+        . ;"moved --> . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
+        . ;"moved --> . . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
+        . ;"moved --> . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
+        . ;"moved --> SET IDX=IDX+1
+        . ;"IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
+        . ;"JUST CHECK TITLE INSTEAD OF ENTIRE SECTION 4/8/19
+        . IF UPTITLE["PREVENT" SET PREVFOUND=1
+        . IF UPTITLE["SOCIAL" SET SOCIALFOUND=1
+        . IF UPTITLE["CONTRACEPTION" SET CONTRAFOUND=1
+        . IF UPTITLE["FOLLOWUP ITEMS" SET FOLLOWUPFOUND=1
+        . IF (UPSECTION["[GROUP")!(UPSECTION["(GROUP") SET OPTION("GROUPING")=1
         IF PREVFOUND=0 DO  ;"if prevention section not found, add blank one
-        . SET ITEMARRAY(IDX)="<U>Prevention</U>: "  ;"8/19/22 removed "(data needed)"
-        . SET ITEMARRAY("TEXT",IDX)="Prevention"
-        . SET ITEMARRAY("TEXT",IDX,1)=""   ;"8/19/22 removed "(data needed)"
-        . SET IDX=IDX+1
+        . DO ADDITEM(.ITEMARRAY,.IDX,"Prevention","<U>Prevention</U>: ") 
+        . ;" SET ITEMARRAY(IDX)="<U>Prevention</U>: "  ;"8/19/22 removed "(data needed)"
+        . ;" SET ITEMARRAY("TEXT",IDX)="Prevention"
+        . ;" SET ITEMARRAY("TEXT",IDX,1)=""   ;"8/19/22 removed "(data needed)"
+        . ;" SET IDX=IDX+1
         IF SOCIALFOUND=0 DO  ;"if social section not found, add blank one
-        . SET ITEMARRAY(IDX)="<U>Social</U>: (data needed)"
-        . SET ITEMARRAY("TEXT",IDX)="Social"
-        . SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
-        . SET IDX=IDX+1
-        IF CONTRAFOUND=0 DO
-        . NEW TMGDFN SET TMGDFN=+$G(ITEMARRAY("DFN"))
-        . NEW AGE K VADM SET AGE=+$$AGE^TIULO(TMGDFN)
-        . NEW GENDER SET GENDER=$P($G(^DPT(TMGDFN,0)),"^",2)
-        . IF (GENDER="F")&(AGE>14)&(AGE<56) DO  ;"if contraception section not found for females between 15-55
-        . . SET ITEMARRAY(IDX)="<U>Contraception</U>: (data needed)"
-        . . SET ITEMARRAY("TEXT",IDX)="Contraception"
-        . . SET ITEMARRAY("TEXT",IDX,1)="(data needed)"
-        . . SET IDX=IDX+1
+        . NEW TEMPARR SET TEMPARR(1)="(data needed)"
+        . DO ADDITEM(.ITEMARRAY,.IDX,"Social","<U>Social</U>: (data needed)",.TEMPARR) 
+        . ;" SET ITEMARRAY(IDX)="<U>Social</U>: (data needed)"
+        . ;" SET ITEMARRAY("TEXT",IDX)="Social"
+        . ;" SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
+        . ;" SET IDX=IDX+1
+        IF CONTRAFOUND=0 DO   ;"if contraception section not found for females between 15-55
+        . NEW TMGDFN SET TMGDFN=+$GET(ITEMARRAY("DFN"))
+        . NEW AGE KILL VADM SET AGE=+$$AGE^TIULO(TMGDFN) IF (AGE<15)!(AGE>55) QUIT
+        . NEW GENDER SET GENDER=$PIECE($GET(^DPT(TMGDFN,0)),"^",2) IF (GENDER'="F") QUIT
+        . NEW TEMPARR SET TEMPARR(1)="(data needed)"
+        . DO ADDITEM(.ITEMARRAY,.IDX,"Contraception","<U>Contraception</U>: (data needed)",.TEMPARR) 
+        . ;" SET ITEMARRAY(IDX)="<U>Contraception</U>: (data needed)"
+        . ;" SET ITEMARRAY("TEXT",IDX)="Contraception"
+        . ;" SET ITEMARRAY("TEXT",IDX,1)="(data needed)"
+        . ;" SET IDX=IDX+1
         IF FOLLOWUPFOUND=0 DO
         . IF DUZ'=168 QUIT    ;"ONLY FOR DR. KEVIN
-        . NEW TMGDFN SET TMGDFN=+$G(ITEMARRAY("DFN"))
-        . NEW FOLLOWUPITEMS SET FOLLOWUPITEMS=$$FUITEMS^TMGTIUO3(+$GET(TMGDFN))
+        . NEW TMGDFN SET TMGDFN=+$GET(ITEMARRAY("DFN"))
+        . NEW FOLLOWUPITEMS SET FOLLOWUPITEMS=$$FUITEMS^TMGTIUO3(TMGDFN)
         . IF FOLLOWUPITEMS="" QUIT  ;"NOTHING FOUND SO NO TABLE NEEDED
-        . SET ITEMARRAY(IDX)="<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS
-        . SET ITEMARRAY("TEXT",IDX)="Followup Items"
-        . SET ITEMARRAY("TEXT",IDX,1)=""
-        . SET ITEMARRAY("TEXT",IDX,2)="[TABLE]"
-        . SET ITEMARRAY("TEXT",IDX,2,"TABLE")="FOLLOWUP ITEMS"
-        . SET ITEMARRAY("TEXT",IDX,2,"TEXT")=FOLLOWUPITEMS
-        . SET IDX=IDX+1 
+        . NEW TEMPARR 
+        . SET TEMPARR(1)=""
+        . SET TEMPARR(2)="[TABLE]"
+        . SET TEMPARR(2,"TABLE")="FOLLOWUP ITEMS"
+        . SET TEMPARR(2,"TEXT")=FOLLOWUPITEMS
+        . DO ADDITEM(.ITEMARRAY,.IDX,"Followup Items","<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS,.TEMPARR)         
+        . ;" SET ITEMARRAY(IDX)="<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS
+        . ;" SET ITEMARRAY("TEXT",IDX)="Followup Items"
+        . ;" SET ITEMARRAY("TEXT",IDX,1)=""
+        . ;" SET ITEMARRAY("TEXT",IDX,2)="[TABLE]"
+        . ;" SET ITEMARRAY("TEXT",IDX,2,"TABLE")="FOLLOWUP ITEMS"
+        . ;" SET ITEMARRAY("TEXT",IDX,2,"TEXT")=FOLLOWUPITEMS
+        . ;" SET IDX=IDX+1 
 PRSDN   QUIT TMGRESULT
+        ;   
+ADDITEM(ITEMARRAY,IDX,TITLE,TEXTSTR,TEXTARR) ;"Add a element to ITEMARRAY
+        ;"Input:  ITEMARRAY -- PASS BY REFERENCE
+        ;"        IDX       -- PASS BY REFERENCE
+        ;"        TITLE     -- name of section, e.g. "Social"
+        ;"        TEXTSTR -- string containing all narrative of section
+        ;"        TEXTARR
+        ;"  Uses TOPIC4ALL,ALLGRPS,ALLGRPSTR in global scope, defined in PARSEARR scope
+        SET ITEMARRAY(IDX)=TEXTSTR
+        MERGE ITEMARRAY("TEXT",IDX)=TEXTARR 
+        SET ITEMARRAY("TEXT",IDX)=TITLE
+        NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(TITLE)
+        ;"This if is added to test for a Title that is to be included in
+        ;"all groups. The else below it was the previous code
+        ;"NOTE: Even though adding to all groups, later when reassembling note, 
+        ;"      code will ensure it is used only once.  
+        IF $DATA(TOPIC4ALL(UPTITLE)) DO  ;"IF INCLUDED IN ALL GROUPS 
+        . NEW GRP SET GRP=""
+        . FOR  SET GRP=$ORDER(ALLGRPS(GRP)) QUIT:GRP=""  DO
+        . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
+        . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$GET(ITEMARRAY("GROUP",GRP,"COUNT"))+1
+        . SET ITEMARRAY("TEXT",IDX,1,"GROUP")=ALLGRPSTR
+        . MERGE ITEMARRAY("TEXT",IDX,1,"GROUP","LIST")=ALLGRPS
+        ELSE  DO                                ;"IF TREATED AS SET
+        . NEW JDX SET JDX=0
+        . FOR  SET JDX=$ORDER(TEXTARR(JDX)) QUIT:JDX'>0  DO
+        . . NEW GRP SET GRP=""
+        . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
+        . . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
+        . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
+        SET IDX=IDX+1
+        QUIT
         ;
 ALLGRPS(TMGHPI,DELIMITER,GROUPARR)  ;"Return a list of all groups for a provided HPI
         NEW SECTION,TABLES
@@ -353,6 +392,12 @@ TOPICFORALL(TOPIC4ALL)  ;"Set the array for all topics that should be included w
         SET TOPIC4ALL("PREVENTION")=""
         QUIT
         ;"
+IGNORESECTION(SECTION) ;"Return 1 if should ignore section        
+        IF ($$TRIMSECT(SECTION)="") QUIT 1
+        IF (SECTION="<P>")!(SECTION="<BR>")!(SECTION="<BR><BR>") QUIT 1
+        IF (SECTION="<BR></P>")!(SECTION="<U></U>:")!(SECTION=":") QUIT 1
+        QUIT 0
+        ;        
 TRIMSECT(SECTION) ;"This removes tags and trims to determine if section is
                   ;"actually empty
         NEW TRIMMED SET TRIMMED=SECTION
@@ -483,7 +528,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         ;"FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
         NEW CT SET CT=0
         FOR  SET CT=$ORDER(SEQARR(CT)) QUIT:CT'>0  DO
-        . NEW IDX SET IDX=$GET(SEQARR(CT))   
+        . NEW IDX SET IDX=+$GET(SEQARR(CT))   
         . NEW TITLE SET TITLE=$GET(ITEMARRAY("TEXT",IDX))
         . NEW LINE SET LINE=DELIM(BULLETS,"START")_$$FORMATTL(TITLE)  ;"FORMAT TITLE
         . ;"IF AUTOGROUPING>0 SET LINE=LINE_$$GROUP(IDX,SECTIONCT,NUMOFGROUPS)_" "
@@ -551,8 +596,8 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
         ;"        OPTION -- PASS BY REFERENCE.  
         ;"Output is SEQARR.  Format (SEQARR(#)=IDX order.  IDX is used as ITEMARRAY("TITLE",IDX)
         ;"Result: none. 
+        NEW USEDIDXARR,USEDGRPARR,CT,IDX
         NEW AWV SET AWV=+$G(OPTION("AWV"))
-        NEW IDX
         SET GRPORDER=$$TRIM^XLFSTR($GET(GRPORDER))
         IF (AWV=1)&(DUZ=168) SET GRPORDER="A,B,C,D"
         ;"eddie adding 10/23/18
@@ -561,63 +606,83 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
         ELSE  IF AWV=0 DO ADDBREAK(.ITEMARRAY,.BREAKLINE)    ;"5/5/22 ADDED THE IF AWV=0 TO THE DO TO KEEP THE "NOT ADDRESSED" TAG FROM BEING DISPLAYED        
         IF GRPORDER'="" DO
         . ;"Create a sequence array based on requested grouping order
-        . NEW USEDIDXARR,USEDGRPARR,GRP,LASTGRP,CT
-        . SET CT=7  ;"WE WILL LEAVE 4-6 FOR UNGROUPED, counting in tenths 10/11/18, 1 FOR SOCIAL, 2 FOR PREVENTION
+        . NEW GRP,LASTGRP
+        . SET CT=7  ;"WE WILL LEAVE 4-6 FOR UNGROUPED, 1 FOR SOCIAL, 2 FOR PREVENTION
         . IF AWV=1 DO
-        . . SET SEQARR(3)=BREAKLINE,USEDIDXARR(BREAKLINE)=1
+        . . DO INSERTSEQ(.SEQARR,3,BREAKLINE,"BREAKLINE",.USEDIDXARR)  
+        . . ;"SET SEQARR(3)=BREAKLINE,USEDIDXARR(BREAKLINE)=1
         . NEW GROUP
         . FOR PN=1:1:$LENGTH(GRPORDER,",") DO  ;"NOTE: GRPORDER may not mention all available group names
         . . SET GROUP=$$TRIM^XLFSTR($PIECE(GRPORDER,",",PN))
         . . SET LASTGRP=GROUP
-        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,AWV)  
-        . ;"Now that . . we have requested groups, continue with other groups, starting after last used group
-        . ;"E.g. if we had groups A,B,C,D in note, and requested group of B, then get next C, then D
+        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,.USEDGRPARR,AWV)
+        . ;
         . IF (BREAKLINE>-1)&(AWV=0) DO
-        . . SET CT=CT+1,SEQARR(CT)=BREAKLINE,USEDIDXARR(BREAKLINE)=1
+        . . DO ADDSEQ(.SEQARR,.CT,BREAKLINE,"BREAKLINE",.USEDIDXARR)  ;"Add element into SEQARR
+        . . ;"SET CT=CT+1,SEQARR(CT)=BREAKLINE,USEDIDXARR(BREAKLINE)=1
+        . ;
+        . ;"Now that we have the requested groups, continue with other groups, starting after last used group
+        . ;"E.g. if we had groups A,B,C,D in note, and requested group of B, then get next C, then D
+        . ;"Cycle through all groups and add if not already added.  
         . SET GROUP=LASTGRP
         . FOR  SET GROUP=$ORDER(ITEMARRAY("GROUP",GROUP)) QUIT:GROUP=""  DO
-        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,AWV)  
-        . ;"Now start over again at beginning of list. In example above, loop back to beginning of list and get group A
+        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,.USEDGRPARR,AWV)  ;"This will skip groups already in USEDGRPARR
+        . ;
+        . ;"Next, start over again at beginning of list. In example above, loop back to beginning of list and get groups starting with "A"
         . SET GROUP=""
         . FOR  SET GROUP=$ORDER(ITEMARRAY("GROUP",GROUP)) QUIT:GROUP=""  DO
-        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,AWV)  
+        . . DO GTSQ1AR(.ITEMARRAY,.SEQARR,GROUP,.CT,.USEDIDXARR,.USEDGRPARR,AWV)
+        . ;
         . ;"Lastly, go through every item, which might include items NOT in ANY group, and add them
         . SET IDX=0
-        . SET CT=4
+        . ;"SET CT=4
         . FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
-        . . IF $GET(USEDIDXARR(IDX))>0 QUIT  ;"already used 
-        . . SET CT=CT+.1,SEQARR(CT)=IDX        
+        . . IF $GET(USEDIDXARR(IDX))>0 QUIT  ;"already used
+        . . NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(ITEMARRAY("TEXT",IDX))
+        . . DO INSERTSEQ(.SEQARR,4,IDX,UPTITLE,.USEDIDXARR,1)  ;"Insert an element into SEQARR at or AFTER INSERTINDEX
+        . . ;" SET CT=CT+.1,SEQARR(CT)=IDX        
         ELSE  DO
-        . ;"Create a sequence array based on order of appearance in prior note. 
-        . NEW CT SET CT=4
+        . ;"Create a sequence array based on order of appearance in prior note.
+        . ;"First make a pseudo-group named "*", this will let us reuse code in GTSQ1AR()
+        . SET CT=4
         . NEW IDX SET IDX=0
-        . FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
-        . . IF $$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["SOCIAL" DO
-        . . . SET SEQARR(1)=IDX
-        . . ELSE  IF ($$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["PREVENTION")&(AWV=1) DO
-        . . . SET SEQARR(2)=IDX
-        . . ELSE  IF ($$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["HPI ISSUES BELOW WERE")&(AWV=1) DO
-        . . . SET SEQARR(3)=IDX
-        . . ELSE  DO
-        . . . SET CT=CT+1,SEQARR(CT)=IDX
-        . ;
-        . ;" Move Prevention bullet to last position //kt 3/31/21
-        . ;" This is already done in GTSQ1AR for notes with groups
-        . NEW IDX SET IDX=0
-        . NEW DONE SET DONE=0
-        . FOR  SET IDX=$ORDER(SEQARR(IDX)) QUIT:(IDX'>0)!(AWV=1)!(DONE=1)  DO
-        . . NEW JDX SET JDX=$GET(SEQARR(IDX)) QUIT:JDX'>0
-        . . NEW TOPIC SET TOPIC=$GET(ITEMARRAY("TEXT",JDX))
-        . . SET TOPIC=$$UP^XLFSTR(TOPIC)
-        . . IF TOPIC'="PREVENTION" QUIT
-        . . KILL SEQARR(IDX)
-        . . NEW LAST SET LAST=$ORDER(SEQARR(""),-1)  ;"don't add back, since we want it to be fresh each time
-        . . SET SEQARR(LAST+1)=JDX
-        . . SET DONE=1 ;"This lets us quit the for loop without looping back to Prevention at the SEQARR's end
+        . FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  SET ITEMARRAY("GROUP","*",IDX)=""    
+        . DO GTSQ1AR(.ITEMARRAY,.SEQARR,"*",CT,.USEDIDXARR,.USEDGRPARR,AWV)  ;"Get sequence array for 1 group.
+        . ;" NEW CT SET CT=4
+        . ;" NEW PREVIDX SET PREVIDX=0
+        . ;" NEW IDX SET IDX=0
+        . ;" FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
+        . ;" . NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(ITEMARRAY("TEXT",IDX))
+        . ;" . IF UPTITLE["SOCIAL" DO  QUIT
+        . ;" . . DO INSERTSEQ(.SEQARR,1,IDX,UPTITLE,.USEDIDXARR,1)  ;"Insert an element into SEQARR at or AFTER INSERTINDEX
+        . ;" . . ;"SET SEQARR(1)=IDX
+        . ;" . IF (UPTITLE["PREVENTION") DO  QUIT
+        . ;" . . IF (AWV=1) DO
+        . ;" . . . DO INSERTSEQ(.SEQARR,2,IDX,UPTITLE,.USEDIDXARR,1)  ;"Insert an element into SEQARR at or AFTER INSERTINDEX
+        . ;" . . . ;"SET SEQARR(2)=IDX
+        . ;" . . ELSE  PREFIDX=IDX
+        . ;" . IF (UPTITLE["HPI ISSUES BELOW WERE")&(AWV=1) DO  QUIT
+        . ;" . . DO INSERTSEQ(.SEQARR,3,IDX,UPTITLE,.USEDIDXARR,1)  ;"Insert an element into SEQARR at or AFTER INSERTINDEX
+        . ;" . . ;"SET SEQARR(3)=IDX
+        . ;" . DO ADDSEQ(.SEQARR,.CT,IDX,UPTITLE,.USEDIDXARR)  ;"Add element into SEQARR
+        . ;" . ;"SET CT=CT+1,SEQARR(CT)=IDX
+        . ;" ;
+        . ;" ;" Move Prevention bullet to last position //kt 3/31/21
+        . ;" ;" This is already done in GTSQ1AR for notes with groups
+        . ;" NEW IDX SET IDX=0
+        . ;" NEW DONE SET DONE=0
+        . ;" FOR  SET IDX=$ORDER(SEQARR(IDX)) QUIT:(IDX'>0)!(AWV=1)!(DONE=1)  DO
+        . ;" . NEW JDX SET JDX=$GET(SEQARR(IDX)) QUIT:JDX'>0
+        . ;" . NEW TOPIC SET TOPIC=$GET(ITEMARRAY("TEXT",JDX))
+        . ;" . SET TOPIC=$$UP^XLFSTR(TOPIC)
+        . ;" . IF TOPIC'="PREVENTION" QUIT
+        . ;" . KILL SEQARR(IDX)
+        . ;" . NEW LAST SET LAST=$ORDER(SEQARR(""),-1)  ;"don't add back, since we want it to be fresh each time
+        . ;" . SET SEQARR(LAST+1)=JDX
+        . ;" . SET DONE=1 ;"This lets us quit the for loop without looping back to Prevention at the SEQARR's end
         QUIT
         ;
-GETFIRST(ITEMARRAY)  ;"This function is used when no group is listed in the
-                     ;"order
+GETFIRST(ITEMARRAY)  ;"This function is used when no group is listed in the order
         NEW TMGRESULT SET TMGRESULT=""
         NEW IDX SET IDX=0
         FOR  SET IDX=$O(ITEMARRAY(IDX)) QUIT:(IDX'>0)!(TMGRESULT'="")  DO
@@ -626,13 +691,12 @@ GETFIRST(ITEMARRAY)  ;"This function is used when no group is listed in the
         QUIT TMGRESULT
         ;"
 ADDBREAK(ITEMARRAY,BREAKLINE)  ;"ADD A BREAK SECTION
-        SET BREAKLINE=999
-        SET BREAKLINE=$O(ITEMARRAY(BREAKLINE),-1)+1
+        SET BREAKLINE=$ORDER(ITEMARRAY(999),-1)+1
         SET ITEMARRAY(BREAKLINE)=$$NOTADDRE^TMGTIUOT
         SET ITEMARRAY("TEXT",BREAKLINE)=$$NOTADDRE^TMGTIUOT
         QUIT
         ;"
-GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR,AWV)  ;"Get sequence array for 1 group.
+GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR,USEDGRPARR,AWV)  ;"Get sequence array for 1 group.
         ;"Input: ITEMARRAY -- PASS BY REFERENCE.  See full format above.  Partial items below.  
         ;"            ITEMARRAY("GROUP",<GRP>,Ref#)=""  -- an index of items by group
         ;"              e.g. ITEMARRAY("GROUP","C",Ref#)=""  -- an index of items by group
@@ -640,32 +704,47 @@ GTSQ1AR(ITEMARRAY,SEQARR,GROUP,CT,USEDIDXARR,AWV)  ;"Get sequence array for 1 gr
         ;"       SEQARR -- PASS BY REFERENCE, AN IN & OUT PARAMETER. 
         ;"       GROUP -- group to gather for, e.g. "A" or "B"
         ;"       CT -- current index in SEQARR
-        ;"       USEDIDXARR -- PASS BY REFERENCE.  AN IN & OUT PARAMETER.  An array of items already used.  
+        ;"       USEDIDXARR -- PASS BY REFERENCE.  AN IN & OUT PARAMETER.  An array of items already used.
+        ;"       USEDGRPARR -- PASS BY REFERENCE.  AN IN & OUT PARAMETER.  An array of groups already processed.
         ;"       AWV:  1 if Anual Wellness Visit.  
         ;"Result: none
         SET GROUP=$GET(GROUP)
-        SET AWV=+$G(AWV)
+        SET AWV=+$GET(AWV)
         IF $DATA(USEDGRPARR(GROUP)) QUIT
         SET USEDGRPARR(GROUP)=""
         NEW IDX SET IDX=0
         NEW PREVIDX SET PREVIDX=0
         FOR  SET IDX=$ORDER(ITEMARRAY("GROUP",GROUP,IDX)) QUIT:IDX'>0  DO
-        . IF $GET(USEDIDXARR(IDX))>0 QUIT  ;"already used  (some index can be in multiple groups)
-        . IF $$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["SOCIAL" DO
-        . . SET SEQARR(1)=IDX
-        . . SET USEDIDXARR(IDX)=1
-        . ELSE  IF $$UP^XLFSTR(ITEMARRAY("TEXT",IDX))["PREVENTION" DO
+        . IF $GET(USEDIDXARR(IDX))>0 QUIT  ;"already used  Some items will have been added in multiple groups -- but only use once!
+        . NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(ITEMARRAY("TEXT",IDX))
+        . IF UPTITLE["SOCIAL" DO  QUIT
+        . . DO INSERTSEQ(.SEQARR,1,IDX,UPTITLE,.USEDIDXARR)  
+        . . ;" SET SEQARR(1)=IDX
+        . . ;" SET USEDIDXARR(IDX)=1
+        . IF UPTITLE["PREVENTION" DO  QUIT
         . . IF AWV=1 DO
-        . . . SET SEQARR(2)=IDX
-        . . . SET USEDIDXARR(IDX)=1
+        . . . DO INSERTSEQ(.SEQARR,2,IDX,UPTITLE,.USEDIDXARR)  
         . . ELSE  DO
-        . . . SET PREVIDX=IDX
-        . ELSE  DO
-        . . SET CT=CT+1,SEQARR(CT)=IDX,USEDIDXARR(IDX)=1
+        . . . SET PREVIDX=IDX  ;"defer adding until the end.  
+        . DO ADDSEQ(.SEQARR,.CT,IDX,UPTITLE,.USEDIDXARR)  ;"Add element to SEQARR
         IF PREVIDX>0 DO  ;"PREV WAS FOUND AND IS MOVED TO BOTTOM OF SEQ FOR THIS GROUP
-        . SET CT=CT+1,SEQARR(CT)=PREVIDX,USEDIDXARR(PREVIDX)=1
+        . DO ADDSEQ(.SEQARR,.CT,PREVIDX,"PREVENTION",.USEDIDXARR)  ;"Add Prevention to END of list, now that all others added.  
+        . ;" SET CT=CT+1,SEQARR(CT)=PREVIDX,USEDIDXARR(PREVIDX)=1
         QUIT
-        ;        
+        ;   
+INSERTSEQ(SEQARR,INSERTINDEX,IDX,TITLE,USEDIDXARR,DIR)  ;"Insert an element into SEQARR at or BEFORE (or AFTER) INSERTINDEX
+        SET DIR=+$GET(DIR) IF DIR'=1 SET DIR=-1  ;"If DIR=1 then insert AFTER INSERTINDEX 
+        FOR  QUIT:$DATA(SEQARR(INSERTINDEX))=0  SET INSERTINDEX=INSERTINDEX+(0.01*DIR)
+        SET SEQARR(INSERTINDEX)=IDX_"^"_$GET(TITLE)
+        SET USEDIDXARR(+IDX)=1
+        QUIT
+        ;
+ADDSEQ(SEQARR,CT,IDX,TITLE,USEDIDXARR)  ;"Add element into SEQARR
+        FOR  QUIT:$DATA(SEQARR(CT))=0  SET CT=CT+1
+        SET SEQARR(CT)=IDX_"^"_$GET(TITLE)
+        SET USEDIDXARR(+IDX)=1
+        QUIT
+        ; 
 GRPNGSTR(SECTIONCT) ;"GET GROUPING STRING
        NEW TEMP SET TEMP="{HTML:<B><FONT style=""BACKGROUND-COLOR:#ff0000"">}CONSIDER GROUPING."
        SET TEMP=TEMP_"PATIENT HAS "_SECTIONCT_" TOPICS.{HTML:</B></FONT>}"
@@ -717,6 +796,7 @@ SPLITTL(SECTION,TITLE,TEXTARR,TABLES) ;"Split title and main text of section, an
         . SET TEXTARR=$EXTRACT(SECTION,POS+1,$LENGTH(SECTION))
         DO PRCSSTXT(.TEXTARR,.TABLES)  ;"//process and parse text into array, handling tables
         SET TITLE=$$STRIPTAG^TMGHTM1(TITLE)
+        SET TITLE=$$TRIM^XLFSTR(TITLE)
         QUIT
         ;
 FORMATTL(TITLE)  ;"FORMAT TITLE

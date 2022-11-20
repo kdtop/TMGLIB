@@ -22,17 +22,17 @@ TMGAPPT1 ;TMG/kst-Appointment Related Fns;11/08/08, 2/2/14
  ;"---------------------------------------------------------------------------
  ;
 PROAPPT(Y,PROVIDER,ORBDATE,OREDATE)     ; RETURN LIST OF APPOINTMENTS FOR A PROVIDER
-        I +$G(PROVIDER)<1 S Y(1)="^No provider identified" Q
+        IF +$G(PROVIDER)<1 S Y(1)="^No provider identified" Q
         SET Y(1)="^NO APPOINTMENTS FOUND"
-        N ORI,APPTIEN,APPTDATE
-        I ORBDATE="" S Y(1)="^No beginning date sent" Q
-        I OREDATE="" S Y(1)="^No ending date sent" Q
+        NEW ORI,APPTIEN,APPTDATE
+        IF ORBDATE="" S Y(1)="^No beginning date sent" Q
+        IF OREDATE="" S Y(1)="^No ending date sent" Q
         ;
         ; Convert ORBDATE, OREDATE to FM Date/Time:
-        D DT^DILF("T",ORBDATE,.ORBDATE,"","")
-        D DT^DILF("T",OREDATE,.OREDATE,"","")
-        I (ORBDATE=-1)!(OREDATE=-1) S Y(1)="^Error in date range." Q
-        S OREDATE=$P(OREDATE,".")_.9999 ;
+        DO DT^DILF("T",ORBDATE,.ORBDATE,"","")
+        DO DT^DILF("T",OREDATE,.OREDATE,"","")
+        IF (ORBDATE=-1)!(OREDATE=-1) S Y(1)="^Error in date range." Q
+        SET OREDATE=$P(OREDATE,".")_.9999 ;
         SET ORI=0,APPTDATE=ORBDATE-0.000001
         FOR  SET APPTDATE=$ORDER(^TMG(22723,"DT",APPTDATE)) QUIT:(APPTDATE>OREDATE)!(APPTDATE'>0)  DO
         . NEW TMGDFN SET TMGDFN=0
@@ -75,6 +75,7 @@ PROAPPT(Y,PROVIDER,ORBDATE,OREDATE)     ; RETURN LIST OF APPOINTMENTS FOR A PROV
         . FOR  SET BOTIDX=$O(BOTITEMS(BOTIDX)) QUIT:BOTIDX'>0  DO
         . . SET IDX=IDX+1
         . . SET Y(IDX)=$G(BOTITEMS(BOTIDX))
+        IF $$SHOULDGARBLE^TMGMISC4() DO GARBLERESULTS^TMGMISC4(.Y)     ;"check for special mode to hide patient info during demos
         QUIT
         ;"
 PROVIDER(RESULT)  ;"RETURN ALL PROVIDERS

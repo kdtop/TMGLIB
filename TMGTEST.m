@@ -300,6 +300,19 @@ UP(X)   ;
         ;"Taken from UP^XLFSTR
         QUIT $TRANSLATE(X,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
+TESTLOOP ;
+    NEW ARR,IDX FOR IDX=1:1:10 SET ARR(IDX)=IDX
+    FOR IDX=1:1:$$ARRMAX(.ARR,"FOR") DO
+    . WRITE IDX,"--> "
+    . NEW MAX SET MAX=$$ARRMAX(.ARR,"INSIDE")
+    . WRITE "KILLING ARR(",MAX,")",! KILL ARR(MAX)
+    QUIT    
+
+ARRMAX(ARR,STR) ;    
+    NEW MAX SET MAX=$ORDER(ARR(""),-1)
+    WRITE STR,": Array max=",MAX,!
+    QUIT +MAX
+    ;        
 AICONSOLE ;
 AIL1 ;
   NEW ARR,IDX SET IDX=1

@@ -1,4 +1,4 @@
-TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 8/14/22
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 9/29/22
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;
@@ -34,6 +34,8 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 8/14/22
   ;"$$ISALPHNUM(CH) -- is character alphanumeric?
   ;"$$ISNUM(STR) -- Return IF STR is numeric
   ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB
+  ;"$$EXTRACTNUM(STR) --Extract numbers scattered through string, exluding any non-number.
+  ;"$$RANDSTR(LEN,FLAGS,EXCLUDE) --Output a random string of given length, with options
   ;"$$TRIM2NUM(STR) --Trim of anything in string up to, but not including, a number
   ;"$$NUMAFTERLABEL(STR,LABEL) -- Return number following label. 
   ;"STRIPCMD(STR)  -- Strip command characters
@@ -343,6 +345,43 @@ NUMSTR(STR,PARTB)  ;"Return numeric of string, and residual back in PARTB
   . SET PARTB=$EXTRACT(NUM,LEN)_PARTB
   . SET NUM=$EXTRACT(NUM,1,LEN-1)
   QUIT NUM
+  ;
+EXTRACTNUM(STR) ;"Extract numbers scattered through string, exluding any non-number.  
+  ;"e.g. (123) 456-7890  --> 1234567890
+  NEW IDX,RESULT SET RESULT=""
+  FOR IDX=1:1:$LENGTH(STR) DO
+  . NEW CH SET CH=$EXTRACT(STR,IDX)
+  . IF CH?1N SET RESULT=RESULT_CH
+  QUIT RESULT
+  ;    
+RANDSTR(LEN,FLAGS,EXCLUDE) ;"Output a random string of given length, with options
+  ;"Input: LEN -- desired length of output string
+  ;"       FLAGS -- OPTIONAL. default is "UL"
+  ;"          If string contains flag:
+  ;"           U -- include upper case chars
+  ;"           L -- include lower case chars
+  ;"           N -- include numbers
+  ;"           P -- include punctuation
+  ;"       Exclude - OPTIONAL.  any provided chars in string will NOT be included in output
+  NEW RESULT SET RESULT=""
+  NEW UP SET UP="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  NEW LOW SET LOW="abcdefghijklmnopqrstuvwxyz"
+  NEW NUM SET NUM="0123456789"
+  NEW PUNCT SET PUNCT="!#$%&'()*+,-./:;<=>?@[\]^_`{|}~"
+  SET FLAGS=$$UP^XLFSTR($GET(FLAGS,"UL"))
+  NEW CHARS SET CHARS=""
+  IF FLAGS["U" SET CHARS=CHARS_UP 
+  IF FLAGS["L" SET CHARS=CHARS_LOW 
+  IF FLAGS["N" SET CHARS=CHARS_NUM 
+  IF FLAGS["P" SET CHARS=CHARS_PUNCT
+  IF $GET(EXCLUDE)]"" SET CHARS=$TRANSLATE(CHARS,EXCLUDE,"")
+  SET LEN=+$GET(LEN)
+  NEW CHARLEN SET CHARLEN=$LENGTH(CHARS)
+  NEW IDX FOR IDX=1:1:LEN DO 
+  . NEW R SET R=$RANDOM(CHARLEN-1)+1
+  . NEW CH SET CH=$EXTRACT(CHARS,R)
+  . SET RESULT=RESULT_CH
+  QUIT RESULT
   ;
 TRIM2NUM(STR) ;"Trim of anything in string up to, but not including, a number
   NEW DONE SET DONE=0

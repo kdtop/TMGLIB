@@ -187,6 +187,14 @@ STOREXAM(TMGDFN,DATA)  ;"Store exam report in file RAD/NUC MED REPORTS file, #74
   . NEW DTS SET DTS=$TRANSLATE($$FMTE^XLFDT(DATA("DT")\1,"2Z"),"/","")
   . SET DTS=DTS_"-"_DATA(IDX,"CASE#")
   . NEW IEN74 SET IEN74=$ORDER(^RARPT("B",DTS,0))
+  . ;"ELH - I'm not sure why we keep getting imports that overwrite existing reports.
+  . ;"      In an attempt to stop these, I added the following IF to stop this process in its tracks
+  . ;"      until I get to the bottom of it.
+  . IF +IEN74>0 DO  QUIT:$DATA(DATA(IDX,"ERR"))
+  . . SET DATA(IDX,"ERR")="In STOREEXAM^TMGRAU01, "_DTS_" was found to exist at "_IEN74
+  . . SET DATA("ERR",IDX)=1
+  . . NEW ALERTRESULT
+  . . DO INFRMALT^TMGXQAL(.ALERTRESULT,"150","In STOREEXAM^TMGRAU01, "_DTS_" was found to exist at "_IEN74)
   . ;"FIX!  It looks like IEN74 can potentially point to an existing report
   . ;"      that may be the same date but a different study
   . IF IEN74'>0 DO  QUIT:$DATA(DATA(IDX,"ERR"))
