@@ -31,7 +31,7 @@ TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18, 3/24/21
  ;"GETLETTER(GRPNUMBER)  
  ;"FIXHTML(DOMNAME,ERR)  --A callback function for fixing HTML 
  ;"DELNODES(SRCH,DOCID,ERR)  
- ;"ALLGRPS(TMGHPI,DELIMITER)  --Return a array containing all the groups listed in the HPI.  e.g. "A","B"
+ ;"ALLGRPS(TMGHPI,DELIMITER,GRPARR,OPTION)  --Return a array containing all the groups listed in the HPI.  e.g. "A","B"
  ;"TOPICFORALL(.TOPIC4ALL)  --Set the array for all topics that should be included with all groups
 
  ;"
@@ -44,7 +44,9 @@ TESTLHPI ;
         NEW % SET %=2
         WRITE !,"CONSIDER AWV VISIT" DO YN^DICN WRITE !
         IF %=-1 QUIT
-        WRITE $$LASTHPI(+Y,%=1)
+        NEW OPTION SET OPTION("THREADS")=1
+        IF %=1 SET OPTION("AWV")=1
+        WRITE $$LASTHPI(+Y,.OPTION)
         QUIT
         ;
 T2()    ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
@@ -52,22 +54,31 @@ T2()    ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
         NEW ITEMARRAY,OUT  ;"<-- For now, these arrays are not being used.  
         NEW OPTION SET OPTION("FORCE PROCESS")=1
         QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.OPTION)
-        ;       
-LASTHPI(TMGDFN,AWV)  ;"Return the last HPI section, with processing, formatting etc.
+        ;
+T3      ;
+        NEW X,Y,DIC SET DIC(0)="MAEQ",DIC=8925
+        DO ^DIC QUIT:+Y'>0
+        NEW OPTION,ITEMARRAY 
+        SET OPTION("THREADS")=1
+        SET OPTION("SKIP REFRESH TABLES")=1
+        DO PARSETIU(+Y,.ITEMARRAY,.OPTION)
+        ZWR ITEMARRAY
+        QUIT
+        
+LASTHPI(TMGDFN,OPTION)  ;"Return the last HPI section, with processing, formatting etc.
+        ;"INPUT:  TMGDFN -- PATIENT IEN
+        ;"        OPTION -- OPTIONAL
+        ;"           OPTION("AWV")=1
+        ;"           OPTION("THREADS")=1
+        ;"RESULT: returns string of note
+        ;
         ;"FIND LAST NOTE WITH HPI SECTION
-        ;"ADDED AWV AS AN OPTION TO BE USED WHEN COMPILING THE HPI, TO REORDER DIFFERENTLY
         NEW TIULASTOV SET TIULASTOV=$$LASTTIU(TMGDFN,"HISTORY OF PRESENT ILLNESS (HPI):")
         IF TIULASTOV=0 QUIT ""           
-        NEW ITEMARRAY,OUT  ;"<-- For now, these arrays are not being used.  
-        ;"NOTE: The processing done in $$GETHPI below will probably be later
-        ;"   redone via Process Note. However, I will leave in because if we
-        ;"   generate a partial note, i.e. bringing in JUST HPI, one would expect
-        ;"   the tables to have the most up-to-date information, without having
-        ;"   to do a Process Note to refresh them.  It shouldn't add too much
-        ;"   computing burden. 
-        NEW OPTION SET OPTION("FORCE PROCESS")=1
-        SET OPTION("AWV")=+$G(AWV)
-        QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.OPTION)
+        NEW ITEMARRAY,OUT  ;"<-- For now, these arrays are not being used  
+        NEW TEMPOPT MERGE TEMPOPT=OPTION
+        SET TEMPOPT("FORCE PROCESS")=1
+        QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.TEMPOPT)
         ;                   
 LASTTIU(TMGDFN,SRCHTEXT)  ;
         ;"FIND LAST NOTE WITH HPI SECTION
@@ -92,25 +103,74 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         ;"           OUT=<LINE COUNT>
         ;"        OPTION -- PASS BY REFERENCE.  OPTIONAL
         ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
-        NEW TMGHPI SET TMGHPI=""
+        ;"          OPTION("THREADS") = 1.  If THREAD option desired.  See description PRTIUHTM^TMGTIUP3
+        ;"          OPTION("SKIP REFRESH TABLES")=1 If should NOT refresh tables. 
+        DO PARSETIU(IEN8925,.ITEMARRAY,.OPTION);"Get HPI section as one long string, with processing, formatting etc.
+        SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
+        SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        NEW TMGHPI SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
+LHDN    QUIT TMGHPI
+        ;
+ ;"backup --> del later  GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with processing, formatting etc.
+ ;"backup --> del later          ;"NOTE: as of 5/20/18, only called by LASTHPI() above (and a test function, T2(), above)
+ ;"backup --> del later          ;"INPUT:  IEN8925 -- TIIU DOCUMENT IEN
+ ;"backup --> del later          ;"        ITEMARRAY -- PASS BY REFERNCE.  An OUT PARAMETER.  See PARSEARR() for format
+ ;"backup --> del later          ;"        OUT -- PASS BY REFERENCE.  An OUT PARAMETER.  Array form of HPI. 
+ ;"backup --> del later          ;"           OUT(#)=<TEXT>
+ ;"backup --> del later          ;"           OUT=<LINE COUNT>
+ ;"backup --> del later          ;"        OPTION -- PASS BY REFERENCE.  OPTIONAL
+ ;"backup --> del later          ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
+ ;"backup --> del later          ;"          OPTION("THREADS") = 1.  If THREAD option desired.  See description PRTIUHTM^TMGTIUP3
+ ;"backup --> del later          ;"          OPTION("NO COMPILE")=1  if reassembly of note should NOT be done -- i.e. just want ITEMARRAY back
+ ;"backup --> del later          NEW TMGHPI SET TMGHPI=""
+ ;"backup --> del later          NEW TIUARRAY,PROCESSEDARR,IDX SET IDX=0
+ ;"backup --> del later          NEW TMGDFN SET TMGDFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
+ ;"backup --> del later          SET TIUARRAY("DFN")=TMGDFN
+ ;"backup --> del later          SET ITEMARRAY("DFN")=TMGDFN  ;"5/30/19
+ ;"backup --> del later          FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
+ ;"backup --> del later          . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
+ ;"backup --> del later          IF $GET(OPTION("THREADS"))=1 DO
+ ;"backup --> del later          . NEW DT SET DT=$PIECE($GET(^TIU(8925,IEN8925,0)),"^",7) ;"0;7 -> Episode Begin Date/Time
+ ;"backup --> del later          . SET OPTION("THREAD")=DT  ;"NOTE: 'THREADS' is different from 'THREAD'.  'THREAD' is used downstream
+ ;"backup --> del later          DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
+ ;"backup --> del later          DO SCRUBESCRIBE(.PROCESSEDARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
+ ;"backup --> del later          NEW RTNNOTE,TEMP 
+ ;"backup --> del later          SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION,.RTNNOTE)  ;"Parse note array into formatted array
+ ;"backup --> del later          IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
+ ;"backup --> del later          SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
+ ;"backup --> del later          SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+ ;"backup --> del later          IF $$SHOULDGARBLE^TMGMISC4() DO GARBLEHPI^TMGMISC4(.ITEMARRAY)   ;"//kt -- Check for special mode to hide patient info during demos
+ ;"backup --> del later          IF $GET(OPTION("NO COMPILE"))=1 SET TMGHPI="" GOTO LHDN        
+ ;"backup --> del later          SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
+ ;"backup --> del later  LHDN    QUIT TMGHPI
+ ;"backup --> del later          ;
+ ;       
+PARSETIU(IEN8925,ITEMARRAY,OPTION) ;"parse HPI section of TIU NOTE with processing, formatting etc.
+        ;"INPUT:  IEN8925 -- TIIU DOCUMENT IEN
+        ;"        ITEMARRAY -- PASS BY REFERNCE.  An OUT PARAMETER.  See PARSEARR() for format
+        ;"        OPTION -- PASS BY REFERENCE.  OPTIONAL
+        ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
+        ;"          OPTION("THREADS") = 1.  If THREAD option desired.  See description PRTIUHTM^TMGTIUP3
+        ;"          OPTION("SKIP REFRESH TABLES")=1 If should NOT refresh tables. 
+        ;"RESULT: 1^OK, or -1^ErrorMessage
+        NEW RESULT SET RESULT="1^OK"  ;"default
         NEW TIUARRAY,PROCESSEDARR,IDX SET IDX=0
+        SET OPTION("IEN8925")=IEN8925
         NEW TMGDFN SET TMGDFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
         SET TIUARRAY("DFN")=TMGDFN
         SET ITEMARRAY("DFN")=TMGDFN  ;"5/30/19
         FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
         . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
+        IF $GET(OPTION("THREADS"))=1 DO
+        . NEW DT SET DT=$PIECE($GET(^TIU(8925,IEN8925,0)),"^",7) ;"0;7 -> Episode Begin Date/Time
+        . SET OPTION("THREAD")=DT  ;"NOTE: 'THREADS' is different from 'THREAD'.  'THREAD' is used downstream
         DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
         DO SCRUBESCRIBE(.PROCESSEDARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
-        NEW RTNNOTE
-        NEW TEMP SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION,.RTNNOTE)  ;"Parse note array into formatted array
-        IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
-        ;" SET OPTION("BULLETS")=(+$GET(DUZ)'=83)  ;"<--- Eddie, please convert to use parameter.
-        ;"Once below is tested, above line can be removed
-        SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
-        SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        NEW RTNNOTE,TEMP 
+        SET RESULT=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION,.RTNNOTE)  ;"Parse note array into formatted array
+        IF RESULT'>0 GOTO PTDN
         IF $$SHOULDGARBLE^TMGMISC4() DO GARBLEHPI^TMGMISC4(.ITEMARRAY)   ;"//kt -- Check for special mode to hide patient info during demos
-        SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
-LHDN    QUIT TMGHPI
+PTDN    QUIT RESULT
         ;
 PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted array 
         ;"NOTE: See also TRIGGER1^TMGC0Q04 -> SUMNOTE^TMGTIUP1 --> PARSESCT^TMGTIUP1 for summarizing notes
@@ -139,14 +199,21 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"          ITEMARRAY("GROUP",<GRP>,Ref#)=<Title>  -- an index of items by group
         ;"             e.g. ITEMARRAY("GROUP","C",Ref#)="DYSPEPSIA"  -- an index of items by group
         ;"          ITEMARRAY("GROUP",<GRP>,"COUNT")=number of items in group
-        ;"          ITEMARRAY("GROUP",<GROUP>
+        ;"          ITEMARRAY("THREAD",<SECTION TITLE NAME>)=<INDEX, IN 'TEXT', OF RELATED SECTION>
+        ;"          ITEMARRAY("THREAD",<SECTION TITLE NAME>,<NOTE FMDT>)=<new text entered for section>
         ;"       OPTION -PASS BY REFERENCE.  AN OUT PARAMETER. FORMAT:
         ;"          OPTION("AUTOGROUPING") = 0 OR 1
         ;"          OPTION("NUMOFGROUPS") =
         ;"          OPTION("FORCEAUTOGROUP") = 1 if forcing from macro
         ;"          OPTION("GROUP-ORDER") = "C"  <---- if directions found in note.
-        ;"          OPTION("RETURN-REST") = 0 OR1 , IF 1 RETURN NOTE WITHOUT HPI IN RTNNOTE
-        ;"Result: 1^OK, or -1^Error message
+        ;"          OPTION("RETURN-REST") = 0 OR 1 , IF 1 RETURN NOTE WITHOUT HPI IN RTNNOTE
+        ;"          OPTION("SKIP AUTOADD","SOCIAL") = 1 if should NOT add section if missing
+        ;"          OPTION("SKIP AUTOADD","PREVENTION") = 1 if should NOT add section if missing
+        ;"          OPTION("SKIP AUTOADD","CONTRACEPTION") = 1 if should NOT add section if missing
+        ;"          OPTION("THREAD") = FMDT.  See description PRTIUHTM^TMGTIUP3
+        ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
+        ;"       RTNNOTE  -PASS BY REFERENCE.  AN OUT PARAMETER, if OPTION("RETURN-REST")=1 
+        ;"Result: 1^OK, or 1^SKIPPED, or -1^Error message
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW DORTNNOTE SET DORTNNOTE=+$G(OPTION("RETURN-REST"))
         NEW ORIGNOTE,IDX SET ORIGNOTE="",IDX=0
@@ -160,11 +227,13 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"      the DOM processor (below) was blowing the stack. 
         DO KILLFONT(.TIUARRAY)  
         ;
+        NEW TMGHPI SET TMGHPI=""
+        ;
         ;"PROCESS NOTE VIA HTML DOM, using callback function.
         NEW TEMP SET TEMP=$$PROCESS^TMGHTM2(.TIUARRAY,"FIXHTML^TMGTIUP2")
-        IF +TEMP<0 SET TMGHPI="ERROR: "_$PIECE(TEMP,"^",2,99) GOTO LHDN
+        IF +TEMP<0 SET TMGHPI="ERROR: "_$PIECE(TEMP,"^",2,99) GOTO PRSDN
+        IF TEMP["SKIPPED" GOTO PRSDN  ;"//kt 2/23/23
         ;
-        NEW TMGHPI SET TMGHPI=""
         ;"CONVERT ENTIRE NOTE INTO LONG STRING (TMGHPI)
         SET IDX=0 FOR  SET IDX=$ORDER(TIUARRAY(IDX)) QUIT:IDX'>0  DO
         . SET TMGHPI=TMGHPI_$GET(TIUARRAY(IDX))
@@ -232,9 +301,6 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"                           
         ;"Parse Items
         NEW TABLES,SECTION SET IDX=1       
-        ;"NEW DELIMITER SET DELIMITER=$SELECT(TMGHPI["<LI>":"<LI>",1:"*") 
-        ;"10-12-17, set delimiter below instead to catch the first delimiter
-        ;"          found rather than to give weight to ordered list items
         NEW DELIMITER SET DELIMITER=$$NEXTCH^TMGSTUT3(TMGHPI,0,"<LI>","*")
         ;"If the delimiter is *, then we will replace any <LI>'s to *
         IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<LI>","*")
@@ -247,13 +313,14 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;
         ;"ALLGRPS is an array containing all the groups listed in the HPI, e.g. "A","B"
         ;"ALLGRPSTR is the comma delimited list
-        NEW ALLGRPS,ALLGRPSTR SET ALLGRPSTR=$$ALLGRPS(TMGHPI,DELIMITER,.ALLGRPS)        
-        NEW TOPIC4ALL DO TOPICFORALL(.TOPIC4ALL)  ;"TOPIC4ALL is an array of all titles
+        NEW ALLGRPS,ALLGRPSTR,TOPIC4ALL  ;"NOTE! <--- used in global scope in other functions 
+        SET ALLGRPSTR=$$ALLGRPS(TMGHPI,DELIMITER,.ALLGRPS,.OPTION)        
+        DO TOPICFORALL(.TOPIC4ALL)  ;"TOPIC4ALL is an array of all titles
         ;
         FOR  QUIT:TMGHPI=""  DO  
         . NEW SECTION SET SECTION=$PIECE(TMGHPI,DELIMITER,1)
         . ;"HERE I NEED TO GET TITLE AND CHECK TO SEE IF GROUP NEEDS TO BE REPLACED WITH ALL GROUPSTR
-        . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES) ;"return title of section  
+        . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES,.OPTION) ;"Parse to a title of section, and parts
         . IF TMGHPI[DELIMITER SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)
         . ELSE  SET TMGHPI=""
         . NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(TITLE)
@@ -268,56 +335,25 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . SET SECTION=$$ITALICS(SECTION)       
         . NEW UPSECTION SET UPSECTION=$$UP^XLFSTR(SECTION)
         . DO ADDITEM(.ITEMARRAY,.IDX,TITLE,SECTION,.TEXTARR) ;"Add a element to ITEMARRAY
-        . ;"moved --> SET ITEMARRAY(IDX)=SECTION
-        . ;"moved --> MERGE ITEMARRAY("TEXT",IDX)=TEXTARR 
-        . ;"moved --> SET ITEMARRAY("TEXT",IDX)=TITLE
-        . ;"moved --> ;"This if is added to test for a Title that is to be included in
-        . ;"moved --> ;"all groups. The else below it was the previous code
-        . ;"moved --> IF $DATA(TOPIC4ALL(UPTITLE)) DO  ;"IF INCLUDED IN ALL GROUPS 
-        . ;"moved --> . NEW GRP SET GRP=""
-        . ;"moved --> . FOR  SET GRP=$ORDER(ALLGRPS(GRP)) QUIT:GRP=""  DO
-        . ;"moved --> . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
-        . ;"moved --> . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$GET(ITEMARRAY("GROUP",GRP,"COUNT"))+1
-        . ;"moved --> . SET ITEMARRAY("TEXT",IDX,1,"GROUP")=ALLGRPSTR
-        . ;"moved --> . MERGE ITEMARRAY("TEXT",IDX,1,"GROUP","LIST")=ALLGRPS
-        . ;"moved --> ELSE  DO                                ;"IF TREATED AS SET
-        . ;"moved --> . NEW JDX SET JDX=0
-        . ;"moved --> . FOR  SET JDX=$ORDER(TEXTARR(JDX)) QUIT:JDX'>0  DO
-        . ;"moved --> . . NEW GRP SET GRP=""
-        . ;"moved --> . . FOR  SET GRP=$ORDER(TEXTARR(JDX,"GROUP","LIST",GRP)) QUIT:GRP=""  DO
-        . ;"moved --> . . . SET ITEMARRAY("GROUP",GRP,IDX)=UPTITLE  ;"was ""
-        . ;"moved --> . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=+$G(ITEMARRAY("GROUP",GRP,"COUNT"))+1
-        . ;"moved --> SET IDX=IDX+1
-        . ;"IF $$UP^XLFSTR(SECTION)["PREVENT" SET PREVFOUND=1
-        . ;"JUST CHECK TITLE INSTEAD OF ENTIRE SECTION 4/8/19
         . IF UPTITLE["PREVENT" SET PREVFOUND=1
         . IF UPTITLE["SOCIAL" SET SOCIALFOUND=1
         . IF UPTITLE["CONTRACEPTION" SET CONTRAFOUND=1
         . IF UPTITLE["FOLLOWUP ITEMS" SET FOLLOWUPFOUND=1
         . IF (UPSECTION["[GROUP")!(UPSECTION["(GROUP") SET OPTION("GROUPING")=1
+        IF $GET(OPTION("SKIP AUTOADD","PREVENTION"))=1 SET PREVFOUND=1
+        IF $GET(OPTION("SKIP AUTOADD","SOCIAL"))=1 SET SOCIALFOUND=1
+        IF $GET(OPTION("SKIP AUTOADD","CONTRACEPTION"))=1 SET CONTRAFOUND=1
         IF PREVFOUND=0 DO  ;"if prevention section not found, add blank one
         . DO ADDITEM(.ITEMARRAY,.IDX,"Prevention","<U>Prevention</U>: ") 
-        . ;" SET ITEMARRAY(IDX)="<U>Prevention</U>: "  ;"8/19/22 removed "(data needed)"
-        . ;" SET ITEMARRAY("TEXT",IDX)="Prevention"
-        . ;" SET ITEMARRAY("TEXT",IDX,1)=""   ;"8/19/22 removed "(data needed)"
-        . ;" SET IDX=IDX+1
         IF SOCIALFOUND=0 DO  ;"if social section not found, add blank one
         . NEW TEMPARR SET TEMPARR(1)="(data needed)"
         . DO ADDITEM(.ITEMARRAY,.IDX,"Social","<U>Social</U>: (data needed)",.TEMPARR) 
-        . ;" SET ITEMARRAY(IDX)="<U>Social</U>: (data needed)"
-        . ;" SET ITEMARRAY("TEXT",IDX)="Social"
-        . ;" SET ITEMARRAY("TEXT",IDX,1)="(data needed)" 
-        . ;" SET IDX=IDX+1
         IF CONTRAFOUND=0 DO   ;"if contraception section not found for females between 15-55
         . NEW TMGDFN SET TMGDFN=+$GET(ITEMARRAY("DFN"))
-        . NEW AGE KILL VADM SET AGE=+$$AGE^TIULO(TMGDFN) IF (AGE<15)!(AGE>55) QUIT
+        . NEW AGE,Y KILL VADM SET AGE=+$$AGE^TIULO(TMGDFN) IF (AGE<15)!(AGE>55) QUIT
         . NEW GENDER SET GENDER=$PIECE($GET(^DPT(TMGDFN,0)),"^",2) IF (GENDER'="F") QUIT
         . NEW TEMPARR SET TEMPARR(1)="(data needed)"
         . DO ADDITEM(.ITEMARRAY,.IDX,"Contraception","<U>Contraception</U>: (data needed)",.TEMPARR) 
-        . ;" SET ITEMARRAY(IDX)="<U>Contraception</U>: (data needed)"
-        . ;" SET ITEMARRAY("TEXT",IDX)="Contraception"
-        . ;" SET ITEMARRAY("TEXT",IDX,1)="(data needed)"
-        . ;" SET IDX=IDX+1
         IF FOLLOWUPFOUND=0 DO
         . IF DUZ'=168 QUIT    ;"ONLY FOR DR. KEVIN
         . NEW TMGDFN SET TMGDFN=+$GET(ITEMARRAY("DFN"))
@@ -328,15 +364,9 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . SET TEMPARR(2)="[TABLE]"
         . SET TEMPARR(2,"TABLE")="FOLLOWUP ITEMS"
         . SET TEMPARR(2,"TEXT")=FOLLOWUPITEMS
-        . DO ADDITEM(.ITEMARRAY,.IDX,"Followup Items","<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS,.TEMPARR)         
-        . ;" SET ITEMARRAY(IDX)="<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS
-        . ;" SET ITEMARRAY("TEXT",IDX)="Followup Items"
-        . ;" SET ITEMARRAY("TEXT",IDX,1)=""
-        . ;" SET ITEMARRAY("TEXT",IDX,2)="[TABLE]"
-        . ;" SET ITEMARRAY("TEXT",IDX,2,"TABLE")="FOLLOWUP ITEMS"
-        . ;" SET ITEMARRAY("TEXT",IDX,2,"TEXT")=FOLLOWUPITEMS
-        . ;" SET IDX=IDX+1 
-PRSDN   QUIT TMGRESULT
+        . DO ADDITEM(.ITEMARRAY,.IDX,"Followup Items","<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS,.TEMPARR)
+PRSDN   IF $$SHOULDGARBLE^TMGMISC4() DO GARBLEHPI^TMGMISC4(.ITEMARRAY)   ;"//kt -- Check for special mode to hide patient info during demos
+        QUIT TMGRESULT
         ;   
 ADDITEM(ITEMARRAY,IDX,TITLE,TEXTSTR,TEXTARR) ;"Add a element to ITEMARRAY
         ;"Input:  ITEMARRAY -- PASS BY REFERENCE
@@ -346,6 +376,10 @@ ADDITEM(ITEMARRAY,IDX,TITLE,TEXTSTR,TEXTARR) ;"Add a element to ITEMARRAY
         ;"        TEXTARR
         ;"  Uses TOPIC4ALL,ALLGRPS,ALLGRPSTR in global scope, defined in PARSEARR scope
         SET ITEMARRAY(IDX)=TEXTSTR
+        IF $DATA(TEXTARR("THREAD")) DO
+        . MERGE ITEMARRAY("THREAD",TITLE)=TEXTARR("THREAD") 
+        . KILL TEXTARR("THREAD")
+        . SET ITEMARRAY("THREAD",TITLE)=IDX
         MERGE ITEMARRAY("TEXT",IDX)=TEXTARR 
         SET ITEMARRAY("TEXT",IDX)=TITLE
         NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(TITLE)
@@ -370,11 +404,11 @@ ADDITEM(ITEMARRAY,IDX,TITLE,TEXTSTR,TEXTARR) ;"Add a element to ITEMARRAY
         SET IDX=IDX+1
         QUIT
         ;
-ALLGRPS(TMGHPI,DELIMITER,GROUPARR)  ;"Return a list of all groups for a provided HPI
+ALLGRPS(TMGHPI,DELIMITER,GROUPARR,OPTION)  ;"Return a list of all groups for a provided HPI
         NEW SECTION,TABLES
         FOR  QUIT:TMGHPI=""  DO
         . NEW SECTION SET SECTION=$P(TMGHPI,DELIMITER,1)
-        . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES) ;"return title of section
+        . NEW TITLE,TEXTARR DO SPLITTL(SECTION,.TITLE,.TEXTARR,.TABLES,.OPTION) ;"return title of section
         . IF TMGHPI[DELIMITER SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)
         . ELSE  SET TMGHPI=""
         . NEW I SET I=$O(TEXTARR("GROUPX",0))
@@ -648,38 +682,6 @@ GETSEQAR(SEQARR,ITEMARRAY,GRPORDER,OPTION)  ;"Get process sequencing order.
         . NEW IDX SET IDX=0
         . FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  SET ITEMARRAY("GROUP","*",IDX)=""    
         . DO GTSQ1AR(.ITEMARRAY,.SEQARR,"*",CT,.USEDIDXARR,.USEDGRPARR,AWV)  ;"Get sequence array for 1 group.
-        . ;" NEW CT SET CT=4
-        . ;" NEW PREVIDX SET PREVIDX=0
-        . ;" NEW IDX SET IDX=0
-        . ;" FOR  SET IDX=$ORDER(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
-        . ;" . NEW UPTITLE SET UPTITLE=$$UP^XLFSTR(ITEMARRAY("TEXT",IDX))
-        . ;" . IF UPTITLE["SOCIAL" DO  QUIT
-        . ;" . . DO INSERTSEQ(.SEQARR,1,IDX,UPTITLE,.USEDIDXARR,1)  ;"Insert an element into SEQARR at or AFTER INSERTINDEX
-        . ;" . . ;"SET SEQARR(1)=IDX
-        . ;" . IF (UPTITLE["PREVENTION") DO  QUIT
-        . ;" . . IF (AWV=1) DO
-        . ;" . . . DO INSERTSEQ(.SEQARR,2,IDX,UPTITLE,.USEDIDXARR,1)  ;"Insert an element into SEQARR at or AFTER INSERTINDEX
-        . ;" . . . ;"SET SEQARR(2)=IDX
-        . ;" . . ELSE  PREFIDX=IDX
-        . ;" . IF (UPTITLE["HPI ISSUES BELOW WERE")&(AWV=1) DO  QUIT
-        . ;" . . DO INSERTSEQ(.SEQARR,3,IDX,UPTITLE,.USEDIDXARR,1)  ;"Insert an element into SEQARR at or AFTER INSERTINDEX
-        . ;" . . ;"SET SEQARR(3)=IDX
-        . ;" . DO ADDSEQ(.SEQARR,.CT,IDX,UPTITLE,.USEDIDXARR)  ;"Add element into SEQARR
-        . ;" . ;"SET CT=CT+1,SEQARR(CT)=IDX
-        . ;" ;
-        . ;" ;" Move Prevention bullet to last position //kt 3/31/21
-        . ;" ;" This is already done in GTSQ1AR for notes with groups
-        . ;" NEW IDX SET IDX=0
-        . ;" NEW DONE SET DONE=0
-        . ;" FOR  SET IDX=$ORDER(SEQARR(IDX)) QUIT:(IDX'>0)!(AWV=1)!(DONE=1)  DO
-        . ;" . NEW JDX SET JDX=$GET(SEQARR(IDX)) QUIT:JDX'>0
-        . ;" . NEW TOPIC SET TOPIC=$GET(ITEMARRAY("TEXT",JDX))
-        . ;" . SET TOPIC=$$UP^XLFSTR(TOPIC)
-        . ;" . IF TOPIC'="PREVENTION" QUIT
-        . ;" . KILL SEQARR(IDX)
-        . ;" . NEW LAST SET LAST=$ORDER(SEQARR(""),-1)  ;"don't add back, since we want it to be fresh each time
-        . ;" . SET SEQARR(LAST+1)=JDX
-        . ;" . SET DONE=1 ;"This lets us quit the for loop without looping back to Prevention at the SEQARR's end
         QUIT
         ;
 GETFIRST(ITEMARRAY)  ;"This function is used when no group is listed in the order
@@ -776,30 +778,36 @@ SUDELIM(ARR) ;"//kt 7/10/17
         SET ARR(1,"END")="</LI>" 
         QUIT
         ;
-SPLITTL(SECTION,TITLE,TEXTARR,TABLES) ;"Split title and main text of section, and parse section into parts
+SPLITTL(SECTION,TOPIC,TEXTARR,TABLES,OPTION) ;"Split TOPIC and main text of section, and parse section into parts
         ;"//As of 5/20/18, only called from PARSEARR^TMGTIUIP2()  ;"Parse note array into formatted array 
         ;"Input: SECTION -- the text to be parsed
-        ;"       TITLE -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is section TITLE  
-        ;"       TEXTARR -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is SECTION with title stripped, and cleaned.  
+        ;"       TOPIC -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is section TOPIC name  (formerly 'Title')  
+        ;"       TEXTARR -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is SECTION with TOPIC stripped, and cleaned.  
         ;"       TABLES -- OPTIONAL.  PASS BY REFERENCE.  Allows reuse from prior calls.  
+        ;"       OPTION -- OPTIONAL
+        ;"          OPTION("THREAD") = FMDT.  See description PRTIUHTM^TMGTIUP3
+        ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
         ;"Results: NONE 
         NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(SECTION,0,":",".","--","---","----")  ;"can add up to 7 strs to check for
         IF DIV'="" DO
         . NEW POS SET POS=$FIND(SECTION,DIV)-$LENGTH(DIV)
-        . SET TITLE=$EXTRACT(SECTION,1,POS-1) 
+        . SET TOPIC=$EXTRACT(SECTION,1,POS-1) 
         . SET TEXTARR=$$TRIM^XLFSTR($PIECE(SECTION,DIV,2,999))
         ELSE  DO   ;"None of the dividers were found
         . NEW CUTLEN SET CUTLEN=30
         . NEW LEN SET LEN=$LENGTH(SECTION)
         . NEW POS SET POS=$SELECT(LEN>CUTLEN:CUTLEN,1:LEN)
-        . SET TITLE=$EXTRACT(SECTION,1,POS) 
+        . SET TOPIC=$EXTRACT(SECTION,1,POS) 
         . SET TEXTARR=$EXTRACT(SECTION,POS+1,$LENGTH(SECTION))
-        DO PRCSSTXT(.TEXTARR,.TABLES)  ;"//process and parse text into array, handling tables
-        SET TITLE=$$STRIPTAG^TMGHTM1(TITLE)
-        SET TITLE=$$TRIM^XLFSTR(TITLE)
+        SET TOPIC=$$STRIPTAG^TMGHTM1(TOPIC)
+        SET TOPIC=$$HTML2TXS^TMGHTM1(TOPIC)  ;"//kt 2/26/23
+        SET TOPIC=$$TRIM^XLFSTR(TOPIC)
+        SET OPTION("TOPIC")=TOPIC
+        DO PRCSSTXT(.TEXTARR,.TABLES,.OPTION)  ;"//process and parse text into array, handling tables
+        KILL OPTION("TOPIC")
         QUIT
         ;
-FORMATTL(TITLE)  ;"FORMAT TITLE
+FORMATTL(TITLE)  ;"FORMAT TITLE,  (a.k.a 'Topic' name)
         SET TITLE=$$HTMLTRIM^TMGHTM1(TITLE)
         QUIT "<U>"_TITLE_"</U>"_": "
         ;
@@ -848,7 +856,7 @@ NUMPIECE(STRING,DELIM)
         . IF $E(STRING,CHARNUM)=DELIM SET COUNT=COUNT+1
         QUIT COUNT
         ;"
-PRCSSTXT(TEXTARR,TABLES)  ;"Process, parse, clean text for one section for unmatching tags etc.
+PRCSSTXT(TEXTARR,TABLES,OPTION)  ;"Process, parse, clean text for one section for unmatching tags etc.
         ;"//As of 5/20/18, only called from SPLITTL^TMGTIUIP2() 
         ;"INPUT: TEXTARR -- PASS BY REFERENCE.  AN OUT PARAMETER.  FORMAT:
         ;"           TEXTARR(1)=part 1, e.g. text, e.g. [GROUP A&B]
@@ -861,12 +869,17 @@ PRCSSTXT(TEXTARR,TABLES)  ;"Process, parse, clean text for one section for unmat
         ;"           TEXTARR(3)=part 3, e.g. more text
         ;"           ... etc. 
         ;"       TABLES -- OPTIONAL.  PASS BY REFERENCE.  Allows reuse from prior calls.  
+        ;"       OPTION -- OPTIONAL
+        ;"          OPTION("THREAD") = FMDT.  See description PRTIUHTM^TMGTIUP3
+        ;"          OPTION("TOPIC") = TOPIC name for section
+        ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
+        ;"       TOPIC -- OPTIONAL -- name of topic (section title) being checked
         ;"Results: none
         DO RPTAGS^TMGHTM1(.TEXTARR,"<P>","<BR>") DO RMTAGS^TMGHTM1(.TEXTARR,"</P>") ;"convert <P>...</P> into <BR>...
         DO RMTAGS^TMGHTM1(.TEXTARR,"<LI>") 
         DO RMTAGS^TMGHTM1(.TEXTARR,"</LI>")
         SET TEXTARR=$$MATCHTAG^TMGHTM1(TEXTARR) ;"ENSURE MATCHING OPEN/CLOSE TAGS
-        DO PRTIUHTM^TMGTIUP3(.TEXTARR,.TABLES)  ;"PARSE TEXTARR into parts, handling tables.  
+        DO PRTIUHTM^TMGTIUP3(.TEXTARR,.TABLES,.OPTION)  ;"PARSE TEXTARR into parts, handling tables.  
         NEW IDX SET IDX=0
         FOR  SET IDX=$ORDER(TEXTARR(IDX)) QUIT:IDX'>0  DO
         . NEW REF,STR SET STR=$GET(TEXTARR(IDX))
@@ -897,27 +910,9 @@ TRAILTRM(STR)  ;"TRIM FROM TRAILING PART OF STR
         . . SET FOUND=1
         . . SET STR=$EXTRACT(STR,1,$LENGTH(STR)-$LENGTH(FRAG))
         QUIT STR
-        ;"NEW TRIMMING 
-TRIM    ;"SET STR=$$TRIM^XLFSTR(STR)
-        ;"SET TRIMMING=0
-        ;"IF $E(STR,$L(STR)-2,$L(STR))="<P>" DO
-        ;". SET STR=$E(STR,1,$L(STR)-3)
-        ;". SET TRIMMING=1
-        ;"IF $E(STR,$L(STR)-3,$L(STR))="<BR>" DO
-        ;". SET STR=$E(STR,1,$L(STR)-4)
-        ;". SET TRIMMING=1
-        ;"IF $E(STR,$L(STR)-3,$L(STR))="</P>" DO
-        ;". SET STR=$E(STR,1,$L(STR)-4)
-        ;". SET TRIMMING=1
-        ;"IF $E(STR,$L(STR)-2,$L(STR))="..." DO
-        ;". SET STR=$E(STR,1,$L(STR)-3)
-        ;". SET TRIMMING=1      
-        ;"IF $E(STR,$L(STR)-6,$L(STR))="</FONT>" DO
-        ;". SET STR=$E(STR,1,$L(STR)-7)
-        ;". SET TRIMMING=1
-        ;"IF TRIMMING=1 GOTO TRIM    
-BTDN    ;"QUIT STR
-        ;"
+        ; 
+TRIM    QUIT        
+        ;
 ENDTEXT(STR)  ;"RETURN THE END OF THE TEXT (ACCOUNTING FOR SPACES AND TAGS)
         NEW TMGRESULT SET TMGRESULT=$L(STR)
         NEW TRIMMING

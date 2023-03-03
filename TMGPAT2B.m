@@ -47,8 +47,16 @@ ELDN ;
   ;
 ENSRLOCL2(DATA,INFO,MSG,OPTION)  ;"ENSURE LOCAL
   ;"Purpose: Ensure that the files have been downloaded from server and stored locally
+  ;"         NOTE: Because GBL files can be large, and download slow, they will NOT
+  ;"               automatically downloaded unless OPTION set (see below)
   ;"Input: DATA -- PASS BY REFERENCE.  Example:  
   ;"            DATA
+  ;"            }~GBL
+  ;"            | }~588,197,1,
+  ;"            |   }~CONTAINED PATCHES
+  ;"            |   | }~"LEX*2.0*107 SEQ #97" = 0
+  ;"            |   }~"NAME" = LEX_2_107.GBLs
+  ;"            |   }~"URL" = foia-vista.worldvista.org/Patches_By_Application/LEX-CLINICAL LEXICON/LEX_2_107.GBLs
   ;"            }~INFOTXT
   ;"            | }~4,3,1,
   ;"            | | }~CONTAINED PATCHES
@@ -85,6 +93,7 @@ ENSRLOCL2(DATA,INFO,MSG,OPTION)  ;"ENSURE LOCAL
   ;"                                   MSG=COUNT of last message+1
   ;"       OPTION -- optional.  Pass by reference.
   ;"              OPTION("VERBOSE")=1, means messaages also written directly to output
+  ;"              OPTION("GET GBLs")=1, means global files will also be downloaded. 
   ;"Output: INFO will be filled as per ENSRLOCL() above
   ;"              INFO("PATH")=PATH in HFS
   ;"              INFO("TEXT ONLY")=1 IF there is a text file, but no .KIDS file
@@ -112,8 +121,12 @@ ENSRLOCL2(DATA,INFO,MSG,OPTION)  ;"ENSURE LOCAL
   SET PATH=PATH_$$PATCHDIRNAME^TMGPAT4(PCK)
   SET PATH=$$MKTRALDV^TMGIOUTL(PATH)
   SET INFO("PATH")=PATH
-  NEW MAP SET MAP("INFOTXT")="TEXT",MAP("KIDS")="KID"  
-  NEW TARGET FOR TARGET="INFOTXT","KIDS" DO
+  NEW MAP SET MAP("INFOTXT")="TEXT",MAP("KIDS")="KID",MAP("GBL")="GBL"
+  NEW ARR SET ARR("INFOTXT")=1,ARR("KIDS")=1
+  IF $GET(OPTION("GET GBLs"))=1 SET ARR("GBL")=1
+  ;"NEW TARGET FOR TARGET="INFOTXT","KIDS" DO
+  NEW TARGET SET TARGET=""
+  FOR  SET TARGET=$ORDER(ARR(TARGET)) QUIT:TARGET=""  DO
   . NEW TARGET2 SET TARGET2=MAP(TARGET) 
   . SET AIENS="",CT=1
   . FOR  SET AIENS=$ORDER(DATA(TARGET,AIENS)) QUIT:AIENS=""  DO
@@ -133,7 +146,7 @@ ENSRLOCL2(DATA,INFO,MSG,OPTION)  ;"ENSURE LOCAL
   . . . . . WRITE " -------------------------------------------------------------",!
   . . . . . WRITE "== DOWNLOAD ===================================================",!
   . . . . . WRITE "Downloading "_TARGET_" file from patch repository server..."
-  . . . . IF $$DOWNLOADFILE^TMGKERNL(URL,PATH,0)
+  . . . . IF $$DOWNLOADFILE^TMGKERNL(URL,PATH,VERBOSE)
   . . . . IF VERBOSE DO
   . . . . . WRITE !,"===============================================================",!
   . . . . . WRITE " -------------------------------------------------------------",!

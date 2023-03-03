@@ -1,4 +1,4 @@
-TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;5/6/18, 12/2/2019
+TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;5/6/18, 12/29/22
          ;;1.0;TMG-LIB;**1,17**;07/17/12
   ;
   ;"TMG USER INTERFACE API FUNCTIONS
@@ -63,6 +63,7 @@ TML1 ;
   SET MENU(IDX,1)="(2nd line here)"
   SET IDX=IDX+1,MENU(IDX)="Hello world!"_$CHAR(9)_"HELLO"
   SET IDX=IDX+1,MENU(IDX)="Ask HAL 9000"_$CHAR(9)_"HAL"
+  SET MENU(IDX,1)=" ... you know, HAL from 2001?"
   SET IDX=IDX+1,MENU(IDX)="Shrug"_$CHAR(9)_"SHRUG"  
   SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
   IF USRPICK="^" GOTO TMDN  
@@ -505,7 +506,7 @@ MENU(OPTIONS,DEFCHOICE,USERRAW)  ;
    ;"          OPTIONS(0)=Header Text   <--- optional, default is MENU
    ;"          OPTIONS(0,n)=Additional lines of header Text   <--- optional
    ;"          OPTIONS(DispNumber)=MenuText_$C(9)_ReturnValue <-- _$C(9)_ReturnValue OPTIONAL, default is DispNumber
-   ;"          OPTIONS(DispNumber)=MenuText_$C(9)_ReturnValue
+   ;"          OPTIONS(DispNumber,#)=<text> --additional display lines, not separately selectable. No return value
    ;"          OPTIONS(DispNumber)=MenuText_$C(9)_ReturnValue
    ;"          OPTIONS(-1,"COLOR","FG")=foreground color  (optional)
    ;"          OPTIONS(-1,"COLOR","BG")=foreground color  (optional)
@@ -543,6 +544,9 @@ MNU1 ;
    . . SET BG=$GET(OPTIONS(DISPNUMBER,"COLOR","BG"),1)
    . . DO VCOLORS^TMGTERM(FG,BG)
    . WRITE " ",$PIECE(S,$CHAR(9),1),$$PAD2POS^TMGSTUT2(WIDTH-1)
+   . NEW SUBI SET SUBI=""
+   . FOR  SET SUBI=$ORDER(OPTIONS(DISPNUMBER,SUBI)) QUIT:SUBI'>0  DO
+   . . WRITE !,$$PAD2POS^TMGSTUT2(8),$GET(OPTIONS(DISPNUMBER,SUBI))
    . IF $DATA(OPTIONS(DISPNUMBER,"COLOR")) DO
    . . DO VTATRIB^TMGTERM(0) ;"Reset colors
    . WRITE " ",!

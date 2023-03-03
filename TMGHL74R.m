@@ -184,7 +184,12 @@ OBR4DN  SET TMGLASTOBR4XF=TMGVALUE
         ;
 OBR7    ;"Purpose: To transform the OBR segment, field 7  'OBSERVATION DATE TIME'
         IF TMGVALUE'>0 DO  ;"For some reason Epic is not providing an observation time.  
-        . SET TMGVALUE=$GET(TMGHL7MSG(TMGSEGN,6)) ;"Try Request DT in OBR6
+        . NEW ARR  ;"Try getting datetime from other locations
+        . SET ARR(+$GET(TMGHL7MSG(TMGSEGN,6)))=""        ;"OBR6 -- Requested Date/time
+        . NEW TEMP SET TEMP=$GET(TMGHL7MSG(TMGSEGN,27))  ;" OBR 27 - Quantity/Timing
+        . SET ARR(+$PIECE(TEMP,"^",4))=""
+        . SET ARR(+$GET(TMGHL7MSG(TMGSEGN,36)))=""       ;" OBR 36 Scheduled Date/Time
+        . SET TMGVALUE=+$ORDER(ARR(""),-1)  ;"Get LATEST of above values.  
         . IF TMGVALUE>0 QUIT
         . SET TMGVALUE=$GET(TMGHL7MSG(1,7)) ;"If still no date, then use date of HL7 message
         SET TMGHL7MSG("RAD STUDY",TMGEXAMIDX,"DT")=TMGVALUE

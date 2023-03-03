@@ -26,6 +26,22 @@ TMGHL7U5 ;TMG/kst-HL7 utility functions ; 10/11/21
  ;"=======================================================================
  ;"=======================================================================
  ;
+CHKLRDFN   ;"Check to see if any LRDFN's point to invalid patient records
+        NEW LRDFN SET LRDFN=0
+        FOR  SET LRDFN=$ORDER(^LR(LRDFN)) QUIT:LRDFN'>0  DO
+        . NEW TMGDFN SET TMGDFN=+$ORDER(^DPT("ATMGLR",LRDFN,0))
+        . IF TMGDFN=0 DO
+        . . WRITE "ERROR!! ",LRDFN," IS BLANK",!
+        . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        . IF NAME="" DO
+        . . WRITE "ERROR WITH LRDFN ",LRDFN,!
+        . . WRITE "      IT POINTS TO TMGDFN ",TMGDFN," WHICH IS EMPTY",!
+        . NEW LASTDFN SET LASTDFN=$G(^TMG("CHKLRDFN",$J,LRDFN))
+        . IF LASTDFN'=TMGDFN DO
+        . . WRITE "ERROR!! ",LRDFN," POINTED TO ",LASTDFN," BUT NOW POINTS TO ",TMGDFN,!
+        . ;"SET ^TMG("CHKLRDFN",$J,LRDFN)=TMGDFN
+        QUIT
+        ;"
 FIXLAB(VERBOSE)  ;"  Called from OPTION: TMG LAB FIX XREF (via scheduled Taskman task)        
         SET VERBOSE=$GET(VERBOSE,0)
         NEW % DO NOW^%DTC

@@ -1,4 +1,4 @@
-TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 9/29/22
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 2/26/23
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;
@@ -49,7 +49,8 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 9/29/22
   ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.  
   ;"$$NEXTCH2(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.
   ;"$$SUBASCII(STR)  --TAKES INPUT OF AAC AND RETURNS AAB (useful for finding just before, to $ORDER to STR)
-  ;"$$MIDSTRCOLOR(TEXT,START,LEN) -- similar to MidStr(), but skipping over {{color}} tags  
+  ;"$$MIDSTRCOLOR(TEXT,START,LEN) -- similar to MidStr(), but skipping over {{color}} tags
+  ;"$$FINDDT(TEXT,SPOS,OUT,SPT,EPT) --Find date in TEXT, starting at option SPOS, return value found in DTOUT
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
@@ -663,3 +664,41 @@ MIDSTRCOLOR(TEXT,START,LEN) ;"SIMILAR to MidStr(), but skipping over {{color}} t
   . SET LEN=LEN-1
   QUIT RESULT
   ;  
+FINDDT(TEXT,SPOS,OUT,SPT,EPT) ;"Find date in TEXT, starting at option SPOS, return value found in DTOUT
+  ;"NOTE: at least intially, I will be looking for date in format of ##/##/## or ##/##/#### (the number of numbers does NOT matter)
+  ;"      This could be expanded later....
+  ;"      No support for time (i.e. @1250) at this time, could be added later
+  ;"INPUT: TEXT -- text to search. 
+  ;"       SPOS -- OPTIONAL.  Index of starting position for search.  
+  ;"       OUT -- OPTIONAL.  PASS BY REFERENCE, AN OUT PARAMENTER.  Returns date found.
+  ;"       SPT -- OPTIONAL.  PASS BY REFERENCE, AN OUT PARAMETER.  Returns index of start of date
+  ;"       EPT -- OPTIONAL.  PASS BY REFERENCE, AN OUT PARAMETER.  Returns index of end of date
+  ;"RESULT: Returns index, in TEXT, of first character FOLLOWING found date, or 0 if not found.
+  ;"        NOTE: I am doing this to be consistent with $FIND function in mumps
+  ;"                  000000000111111111122222222223333333333444444444455
+  ;"                  123456789012345678901234567890123456789012345678901
+  ;"        EXAMPLE: 'This is some text.  5/4/1978: And this is more text'
+  ;"                                              ^---<  returns this position (29) 
+  ;"                                              OUT='5/4/1978'
+  ;"                                              SPT=21
+  ;"                                              EPT=28
+  NEW RESULT SET (RESULT,SPT,EPT)=0
+  SET SPOS=+$GET(SPOS) IF SPOS'>0 SET SPOS=1
+  NEW STRA,LENA SET STRA=$EXTRACT(TEXT,1,SPOS-1),LENA=$LENGTH(STRA)
+  NEW STRB,LENB SET STRB=$EXTRACT(TEXT,SPOS,$LENGTH(TEXT)),LENB=$LENGTH(STRB)
+  NEW P1 SET P1=$FIND(STRB,"/") IF P1'>0 GOTO FDTDN
+  NEW P2 SET P2=$FIND(STRB,"/",P1) IF P2'>0 GOTO FDTDN
+  ;"FIND START OF DATE STRING
+  NEW P FOR P=P1-1:-1 QUIT:(P'>0)!(SPT>0)  DO
+  . IF "1234567890/"[$EXTRACT(STRB,P) QUIT
+  . SET SPT=P+1
+  ;"FIND END OF DATE STRING
+  FOR P=SPT:1 QUIT:(P>LENB)!(EPT>0)  DO
+  . IF "1234567890/"[$EXTRACT(STRB,P) QUIT
+  . SET EPT=P-1
+  SET OUT=$EXTRACT(STRB,SPT,EPT)
+  SET SPT=SPT+LENA
+  SET EPT=EPT+LENA
+  SET RESULT=EPT+1
+FDTDN ;
+  QUIT RESULT

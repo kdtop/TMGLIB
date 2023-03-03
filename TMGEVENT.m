@@ -316,15 +316,17 @@ POSTDATA(OUT,ARRAY) ;"POST DATA CHANGES
   ;
   QUIT
  ;
-GETEDUE(OUT,DT)  ;"Get list of due Task Events
+GETEDUE(OUT,SDT,EDT)  ;"Get list of due Task Events
   ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format below
   ;"       DT -- Optional.  This is 'as-of' date.  Default is NOW
   ;"Result: none
   ;"Output: OUT.  Format:  OUT(IEN)='<DFN>^<ACTION FMDT>^<STATUS CODE>^<DUZ>^<SHORT DESCRIPTION>'
-  SET DT=$GET(DT)
-  IF DT'>0 SET DT=$$NOW^XLFDT
-  NEW ADT SET ADT=0
-  FOR  SET ADT=$ORDER(^TMG(22750,"ATMGDTST",ADT)) QUIT:(ADT'>0)!(ADT>DT)  DO
+  SET SDT=+$GET(SDT)  ;"CHANGE TO DEFAULT OF t-1Y
+  IF SDT'>0 SET SDT=$$ADDDAYS^TMGDATE("-365")
+  SET EDT=$GET(EDT)
+  IF EDT'>0 SET EDT=$$NOW^XLFDT
+  NEW ADT SET ADT=SDT-0.0000001
+  FOR  SET ADT=$ORDER(^TMG(22750,"ATMGDTST",ADT)) QUIT:(ADT'>0)!(ADT>EDT)  DO
   . NEW ASTATUS SET ASTATUS=""
   . FOR  SET ASTATUS=$ORDER(^TMG(22750,"ATMGDTST",ADT,ASTATUS)) QUIT:ASTATUS=""  DO
   . . IF ASTATUS="C" QUIT  ;"COMPLETED already
@@ -337,13 +339,13 @@ GETEDUE(OUT,DT)  ;"Get list of due Task Events
   . . . SET OUT(IEN)=ADFN_"^"_ADT_"^"_ASTATUS_"^"_ADUZ_"^"_DESCR
   QUIT
   ;
-MAKEALERTS(DT) ;"Make alerts for due Task Events.    
+MAKEALERTS(SDT,EDT) ;"Make alerts for due Task Events.    
   ;"Input:DT -- Optional.  This is 'as-of' date.  Default is NOW
   ;"Result: none
   ;"Output: Alerts may be generated.
   ;
   NEW ARR
-  DO GETEDUE(.ARR,.DT)  ;"ARR Format:  ARR(IEN22750)='<DFN>^<ACTION FMDT>^<STATUS CODE>^<DUZ>^<SHORT DESCRIPTION>'
+  DO GETEDUE(.ARR,.SDT,.EDT)  ;"ARR Format:  ARR(IEN22750)='<DFN>^<ACTION FMDT>^<STATUS CODE>^<DUZ>^<SHORT DESCRIPTION>'
   NEW IEN SET IEN=0
   FOR  SET IEN=$ORDER(ARR(IEN)) QUIT:IEN'>0  DO
   . NEW INFO SET INFO=$GET(ARR(IEN)) QUIT:INFO=""  ;"FORMAT: '<DFN>^<ACTION FMDT>^<STATUS CODE>^<DUZ>^<SHORT DESCRIPTION>'
@@ -364,7 +366,7 @@ MAKEALERTS(DT) ;"Make alerts for due Task Events.
   . NEW DATA SET DATA=ADFN_","_IEN
   . NEW MSG SET MSG="Task/Event due as of "_EXTDT_", ["_DESCR_"]"
   . ;"CALL API TO GENERATE ALERT 
-  . NEW TEMP SET TEMP=$$MKCPRSALERT("TASKEVENT",ADUZ,DATA,PTNAME,MSG)  ;"This will not generate duplicate alert.  
+  . NEW TEMP SET TEMP=$$MKCPRSALERT("TASKEVENT",ADUZ,DATA,PTNAME,MSG,IEN)  ;"This will not generate duplicate alert.  
   . IF TEMP<0 WRITE !,$PIECE(TEMP,"^",2),!
   . ;
   . ;"MAKE AN ALERT   -- REMOVE LATER, changed to $MKCPRSALERT
@@ -379,12 +381,13 @@ MAKEALERTS(DT) ;"Make alerts for due Task Events.
   . ;"IF +TEMP'=1 WRITE "Error creating Alert: "_$GET(XQALERR),!  
   QUIT
   ;
-MKCPRSALERT(TMGTYPE,ADUZ,DATA,PTNAME,MSG)  ;"MAKE AN ALERT 
+MKCPRSALERT(TMGTYPE,ADUZ,DATA,PTNAME,MSG,EXTRADATA)  ;"MAKE AN ALERT 
   ;"Input: TMGTYPE -- this will be the string identifying the type of TMG alert to be process in CPRS
   ;"       ADUZ -- the targe recipient of alert
   ;"       PTNAME -- PATIENT NAME
   ;"       DATA -- data for input.  If contains more than one item should be comma delimited
   ;"       MSG -- the text to show for the alert.  
+  ;"       EXTRADATA -- (OPTIONAL).  Extra, extended data for alert.  
   ;"Results : 1^OK, or -1^Error Message
   ;
   ;"NOTE:  Alert, as loaded by RPC 'ORWORB FASTUSER' should look like this  
@@ -401,7 +404,7 @@ MKCPRSALERT(TMGTYPE,ADUZ,DATA,PTNAME,MSG)  ;"MAKE AN ALERT
   NEW XQA,XQAARCH,XQADATA,XQAFLG,XQAGUID,XQAID,XQAOPT,XQAROU,XQASUPV,XQASURO,XQATEXT
   SET XQA(ADUZ)=""  
   SET XQAID="TMG,"_TMGTYPE_","_DATA
-  SET XQADATA="TEST123"  ;"NOTE! This data is not used!  Not loaded by RPC or sent to CPRS.  Leave here for future notice. 
+  SET XQADATA=$GET(EXTRADATA)  ;"In CPRS code, Notifications.AlertData will contain this EXTRADATA.  
   SET XQAROU="HNDLALERT^TMGEVENT"
   SET XQAMSG=PTNAME_": "_MSG
   SET XQAFLG="R"

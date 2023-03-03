@@ -143,6 +143,22 @@ MAMMORPT
        . . . SET s=s_"^"_Y
        . . . SET matches(CONSIEN,FMDate,s)=""
        . . . SET IENLIST(PtIEN)=""
+       . . . ;"new code
+       . . . NEW SUBX SET SUBX=1
+       . . . NEW SUBIEN SET SUBIEN=0
+       . . . FOR  SET SUBIEN=$O(^GMR(123,idx,50,SUBIEN)) QUIT:SUBIEN'>0  DO
+       . . . . NEW RESCHIEN SET RESCHIEN=2230
+       . . . . NEW TIUIEN SET TIUIEN=$G(^GMR(123,idx,50,SUBIEN,0))
+       . . . . IF TIUIEN["TIU" DO
+       . . . . . SET TIUIEN=+TIUIEN
+       . . . . . IF $P($G(^TIU(8925,TIUIEN,0)),"^",1)'=RESCHIEN QUIT
+       . . . . . NEW TEXTLINE SET TEXTLINE=0
+       . . . . . FOR  SET TEXTLINE=$O(^TIU(8925,TIUIEN,"TEXT",TEXTLINE)) QUIT:TEXTLINE'>0  DO
+       . . . . . . NEW LINE SET LINE=$G(^TIU(8925,TIUIEN,"TEXT",TEXTLINE,0))
+       . . . . . . IF LINE["New date is" DO
+       . . . . . . . NEW NEWDATE SET NEWDATE=$P($P(LINE,"<I>",2),"</B",1)
+       . . . . . . . SET matches(CONSIEN,FMDate,s,SUBX)="RESCHEDULED FOR: "_NEWDATE
+       . . . . . . . SET SUBX=SUBX+1
        ;
        NEW future SET future=0
        NEW dueDate SET dueDate=""
@@ -392,7 +408,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        SET X1=X,X2=6
        DO C^%DTC
        SET endDate=X+.999999
-       ;"SET NowDate=3181231
+       ;"SET NowDate=3221212
        ;"SET endDate=3221004
        FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
        . IF (RECORDS>0)&(dueDate>endDate) QUIT

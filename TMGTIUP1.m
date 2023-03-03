@@ -19,13 +19,9 @@ TMGTIUP1 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 4/11/17
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
  ;"=======================================================================
- ;"ASSEMENT(LINESTR) -- Determine IF LINES text indicates change into Assesment & Plan parts
  ;"PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY) -- parse one section on note array
  ;"FRMATTTL(TITLE) -- format titles, so that similar terms sort together.
- ;"HPIDIV(LINESTR) -- Determine IF LINESTR text indicates change into HPI parts
- ;"PMHDIV(LINESTR) -- Determine IF LINESTR text indicates change from HPI to PMH parts
- ;"ASSEMENT(LINESTR) --Determine IF LINES text indicates change into Assesment & Plan parts
- ;"PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  -- parse one section on note array
+ ;"PARSESCT2(TEMPARR,TIUIEN,SECTION,ARRAY)  -- parse one section on note array
  ;"ADDLINE(REF,TEXT) -- add text line to end of array.  
  ;"FRMATTTL(TITLE)  -- format titles, so that similar terms sort together.
  ;"GETMODS(MODS) -- load up MODS variable.
@@ -43,10 +39,11 @@ TESTSUM ;"Test summarizing one note.
         IF $DATA(ARRAY) DO ZWRITE^TMGZWR("ARRAY")
         QUIT
         ;
-SUMNOTE(TIUIEN,ARRAY) ;
+SUMNOTE(TIUIEN,ARRAY,OPTION) ;
         ;"Purpose: To take a given note in file 8925, and parse HPI and A&P into array
         ;"Input: TIUIEN -- IEN in 8925
         ;"       ARRAY -- PASS BY REFERENCE.  An OUT PARAMETER.
+        ;"       OPTION -- options to affect parsing etc.  See downstream documentation
         ;"Results: none
         ;"Output: ARRAY filled as below
         ;"              ARRAY(TIUIEN,"FULL","HPI",<TOPIC NAME>,Line#)=text
@@ -62,77 +59,53 @@ SUMNOTE(TIUIEN,ARRAY) ;
         NEW LINEI SET LINEI=0
         SET TIUIEN=+$GET(TIUIEN) GOTO:TIUIEN'>0 SNDN
         NEW TEXTARR MERGE TEXTARR=^TIU(8925,TIUIEN,"TEXT")
-        NEW ITEMARRAY,OUT,OPTION
+        NEW ITEMARRAY,OUT
         SET OPTION("FORCE PROCESS")=0
-        IF $$GETHPI^TMGTIUP2(TIUIEN,.ITEMARRAY,.OUT,.OPTION)  ;"IGNORE RESULT
+        SET OPTION("SKIP REFRESH TABLES")=1   
+        SET OPTION("THREADS")=1
+        ;"IF $$GETHPI^TMGTIUP2(TIUIEN,.ITEMARRAY,.OUT,.OPTION)  ;"IGNORE RESULT
+        DO PARSETIU^TMGTIUP2(TIUIEN,.ITEMARRAY,.OPTION) ;"parse HPI section of TIU NOTE with processing, formatting etc.
         DO PARSESCT2(.ITEMARRAY,.ARRAY,TIUIEN)
-        GOTO SNDN ;"OLD CODE BELOW
-        IF $$ISHTML^TMGHTM1(TIUIEN) DO
-        . NEW POS,LINE SET POS=0,LINE=0
-        . FOR  SET LINE=$ORDER(TEXTARR(LINE)) QUIT:LINE'>0  DO
-        . . FOR  SET POS=$FIND(TEXTARR(LINE,0),"<P>") QUIT:POS'>0  DO
-        . . . SET TEXTARR(LINE,0)=$PIECE(TEXTARR(LINE,0),"<P>",1)_" "_$PIECE(TEXTARR(LINE,0),"<P>",2,999)
-        . DO HTML2TXT^TMGHTM1(.TEXTARR,"     * ")
-        FOR  SET LINEI=$ORDER(TEXTARR(LINEI)) QUIT:+LINEI'>0  DO
-        . NEW LINESTR SET LINESTR=$GET(TEXTARR(LINEI,0))
-        . IF SECTNUM=0 DO  QUIT
-        . . IF $$HPIDIV(LINESTR) DO  QUIT
-        . . . SET SECTION="HPI",SECTNUM=1
-        . IF SECTNUM=1 DO  QUIT
-        . . IF $$PMHDIV(LINESTR) DO  QUIT
-        . . . SET SECTION="X",SECTNUM=2
-        . . SET TEMPARR(TIUIEN,SECTION,LINEI)=LINESTR
-        . IF SECTNUM=2 DO  QUIT
-        . . IF $$ASSEMENT(LINESTR) DO  QUIT
-        . . . SET SECTION="A&P",SECTNUM=3
-        . . ;"SET TEMPARR(TIUIEN,SECTION,LINEI)=LINESTR
-        . IF SECTNUM=3 DO  QUIT
-        . . IF (LINESTR["[FINAL MEDICATIONS]")!($$UP^XLFSTR(LINESTR)["FOLLOW UP") DO  QUIT
-        . . . SET SECTNUM=4
-        . . . SET SECTION="X"
-        . . SET TEMPARR(TIUIEN,SECTION,LINEI)=LINESTR
-        FOR SECTION="HPI","A&P" DO 
-        . DO PARSESCT(.TEMPARR,TIUIEN,SECTION,.ARRAY)
 SNDN    QUIT
         ;
-HPIDIV(LINESTR)  ;
-        ;"Purpose: Determine if LINESTR text indicates change into HPI parts
-        ;"Input: LINES -- 1 line of text
-        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
-        NEW RESULT SET RESULT=1
-        IF LINESTR["HPI" GOTO HPDN
-        NEW TEMPS SET TEMPS=$$UP^XLFSTR(LINESTR)
-        IF TEMPS["HISTORY",TEMPS["PRESENT",TEMPS["ILLNESS" GOTO HPDN
-        SET RESULT=0
-HPDN    QUIT RESULT
-        ;        
-PMHDIV(LINESTR)  ;
-        ;"Purpose: Determine if LINESTR text indicates change from HPI to PMH parts
-        ;"Input: LINES -- 1 line of text
-        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
-        NEW RESULT SET RESULT=1
-        IF LINESTR["(PMH)" GOTO PDDN
-        IF LINESTR["ROS:" GOTO PDDN
-        ;"Allergies are now located in HPI section -> IF LINESTR["ALLERGIES:" GOTO PDDN
-        IF LINESTR["OBJECTIVE" GOTO PDDN
-        IF LINESTR["[MEDICATIONS]" GOTO PDDN
-        IF LINESTR["[PROBLEM LIST]" GOTO PDDN
-        IF LINESTR["PMFS" GOTO PDDN
-        SET RESULT=0
-PDDN    QUIT RESULT
-        ;
-ASSEMENT(LINESTR) ;
-        ;"Purpose: Determine IF LINES text indicates change into Assesment & Plan parts
-        ;"Input: LINES -- 1 line of text
-        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
-        NEW RESULT SET RESULT=1
-        NEW TEMPS SET TEMPS=$$UP^XLFSTR(LINESTR)
-        IF (TEMPS["ASSESMENT")&(TEMPS["PLAN") GOTO ASDN
-        IF (TEMPS["ASSESSMENT")&(TEMPS["PLAN") GOTO ASDN
-        SET RESULT=0
-ASDN    QUIT RESULT
-        ;    
-PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;
+  ;"HPIDIV(LINESTR)  ;
+  ;"        ;"Purpose: Determine if LINESTR text indicates change into HPI parts
+  ;"        ;"Input: LINES -- 1 line of text
+  ;"        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
+  ;"        NEW RESULT SET RESULT=1
+  ;"        IF LINESTR["HPI" GOTO HPDN
+  ;"        NEW TEMPS SET TEMPS=$$UP^XLFSTR(LINESTR)
+  ;"        IF TEMPS["HISTORY",TEMPS["PRESENT",TEMPS["ILLNESS" GOTO HPDN
+  ;"        SET RESULT=0
+  ;"HPDN    QUIT RESULT
+  ;"        ;        
+  ;"PMHDIV(LINESTR)  ;
+  ;"        ;"Purpose: Determine if LINESTR text indicates change from HPI to PMH parts
+  ;"        ;"Input: LINES -- 1 line of text
+  ;"        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
+  ;"        NEW RESULT SET RESULT=1
+  ;"        IF LINESTR["(PMH)" GOTO PDDN
+  ;"        IF LINESTR["ROS:" GOTO PDDN
+  ;"        ;"Allergies are now located in HPI section -> IF LINESTR["ALLERGIES:" GOTO PDDN
+  ;"        IF LINESTR["OBJECTIVE" GOTO PDDN
+  ;"        IF LINESTR["[MEDICATIONS]" GOTO PDDN
+  ;"        IF LINESTR["[PROBLEM LIST]" GOTO PDDN
+  ;"        IF LINESTR["PMFS" GOTO PDDN
+  ;"        SET RESULT=0
+  ;"PDDN    QUIT RESULT
+  ;"        ;
+  ;"ASSEMENT(LINESTR) ;
+  ;"        ;"Purpose: Determine IF LINES text indicates change into Assesment & Plan parts
+  ;"        ;"Input: LINES -- 1 line of text
+  ;"        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
+  ;"        NEW RESULT SET RESULT=1
+  ;"        NEW TEMPS SET TEMPS=$$UP^XLFSTR(LINESTR)
+  ;"        IF (TEMPS["ASSESMENT")&(TEMPS["PLAN") GOTO ASDN
+  ;"        IF (TEMPS["ASSESSMENT")&(TEMPS["PLAN") GOTO ASDN
+  ;"        SET RESULT=0
+  ;"ASDN    QUIT RESULT
+  ;"        ;    
+PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;"PARSE SECTIONS
         ;"NOTE: see also PARSEARR^TMGTIUP2 regarding parsing sections
         ;"Purpose: parse one section on note array
         ;"Input:  TEMPARR -- PASS BY REFERENCE.  Array as created in SUMNOTE()
@@ -217,9 +190,9 @@ PARSESCT2(ITEMARRAY,ARRAY,TIUIEN)  ;
         ;"          -    ARRAY(TIUIEN,<SECTION>,#)=<TOPIC NAME>^<First line of paragraph>
         ;"          -    ARRAY(TIUIEN,"TITLE",<TOPIC NAME>)=<topic name as originally in text>
         ;"          -    ARRAY(TIUIEN,"SEQ#",<SECTION>,#)=<TOPIC NAME>
-        ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>)=# OF TOPICS
+        ;"               ARRAY(TIUIEN,"SEQ#",<SECTION>)=# OF TOPICS
         ;"          -    ARRAY(TIUIEN,"FULL","HPI",<TOPIC NAME>,Line#)=text
-        ;"              ARRAY(TIUIEN,"HPI",#)=<TOPIC NAME>^<First line of paragraph>
+        ;"               ARRAY(TIUIEN,"HPI",#)=<TOPIC NAME>^<First line of paragraph>
         NEW IDX SET IDX=0
         FOR  SET IDX=$O(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
         . NEW TITLE SET TITLE=$G(ITEMARRAY("TEXT",IDX))
@@ -234,6 +207,15 @@ PARSESCT2(ITEMARRAY,ARRAY,TIUIEN)  ;
         . SET ARRAY(TIUIEN,"HPI",IDX)=TITLE_"^"_$EXTRACT(TEXT,1,45)
         . SET ARRAY(TIUIEN,"TITLE",TITLE)=TITLE
         . SET ARRAY(TIUIEN,"SEQ#","HPI",IDX)=TITLE
+        NEW SECTION SET SECTION=""
+        FOR  SET SECTION=$ORDER(ITEMARRAY("THREAD",SECTION)) QUIT:SECTION=""  DO
+        . NEW IDX SET IDX=$GET(ITEMARRAY("THREAD",SECTION)) QUIT:IDX=0
+        . NEW ADT SET ADT=$ORDER(ITEMARRAY("THREAD",SECTION,0)) QUIT:ADT'>0
+        . NEW STR SET STR=$GET(ITEMARRAY("THREAD",SECTION,ADT)) QUIT:STR=""
+        . NEW SUBIDX SET SUBIDX=""
+        . FOR  SET SUBIDX=$ORDER(ITEMARRAY("THREAD",SECTION,ADT,SUBIDX)) QUIT:SUBIDX=""  DO
+        . . SET STR=STR_" <<-AND->> "_$GET(ITEMARRAY("THREAD",SECTION,ADT,SUBIDX))
+        . SET ARRAY(TIUIEN,"THREAD",IDX)=SECTION_"^"_STR
         QUIT
         ;"
 ADDLINE(REF,TEXT) ;

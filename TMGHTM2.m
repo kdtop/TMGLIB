@@ -30,15 +30,16 @@ PROCESS(HTMLIO,CALLBACKFN)  ;"Parse HTML array into HTML DOM, then call CALLBACK
   ;"         2) call user's CALLBACK Fn where they can manipulate DOM
   ;"         3) Convert DOM back into HTML array
   ;"         4) Release/delete DOM
-  ;"Input: HTML -- PASS BY REFERENCE.  Format: HTMLIO(#)=<text> or HTMLIO=<text> (but not both)  
+  ;"Input: HTMLIO -- PASS BY REFERENCE.  Format: HTMLIO(#)=<text> or HTMLIO=<text> (but not both)  
   ;"       CALLBACKFN -- pass function for call back. Format: 'MYTAG^MYROUTINE'
   ;"                    The passed function must look like this:
   ;"                       MYTAG(DOM_NAME,ERR) ; <-- in MYROUTINE , with no return result
   ;"                    User function can use %zewd* calls to manipulate DOM.  
   ;"                    ERR should be left empty, or fill will error message if needed.  
   ;"Output: HTMLIO is modified.  
-  ;"Result: 1 if OK, or -1^Error message if problem.  
+  ;"Result: 1 if OK, or 1^SKIPPED, or -1^Error message if problem.  
   NEW TMGRESULT SET TMGRESULT=1
+
   NEW IO,POP,SAVEIO SET SAVEIO=$IO
   NEW DOMNAME SET DOMNAME="PROCESS_TMGHTM2_"_$J
   NEW RESULTASONELINE SET RESULTASONELINE=0
@@ -47,6 +48,7 @@ PROCESS(HTMLIO,CALLBACKFN)  ;"Parse HTML array into HTML DOM, then call CALLBACK
   . IF $ORDER(HTML(""))'="" DO  QUIT
   . . SET TMGRESULT="-1^Data found in both HTML= and HTML(x)="
   . SET HTML(1)=HTML,HTML="",RESULTASONELINE=1
+  IF $$ISHTMLAR^TMGHTM1(.HTML)=0 SET TMGRESULT="1^SKIPPED" GOTO PROCDN  ;"//kt  If passed text is NOT HTML, then parser will hang on chars like '<', so skip
   NEW ERR SET ERR=$$PARSHTML^TMGEWD01(.HTML,DOMNAME)
   IF ERR'="" SET TMGRESULT="-1^"_ERR GOTO PROCDN
   NEW CODE SET CODE="DO "_CALLBACKFN_"("""_DOMNAME_""",.ERR)"

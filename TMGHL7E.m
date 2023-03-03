@@ -368,8 +368,11 @@ M4 ;
   NEW TMGDFN SET TMGDFN=0
   IF TMGPTINPUT="MANUALSRCH" DO
   . NEW X,Y,DIC,ANSWER
-  . SET DIC=2,DIC(0)="MAEQ"
-  . D ^DIC
+  . ;"SET DIC=2,DIC(0)="MAEQ"
+  . ;"D ^DIC
+  . SET DIC=2,DIC(0)="MAEQ",D="ADOB^B"
+  . SET DIC("A")="Enter PATIENT NAME (Name or DOB): "
+  . DO MIX^DIC1
   . WRITE !
   . IF +Y>0 DO  ;"Verify the user wants to use this patient   7/26/22
   . . NEW % SET %=1

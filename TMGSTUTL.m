@@ -26,6 +26,7 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"CleaveToArray^TMGSTUTL(Text,Divider,Array)
  ;"CleaveStr^TMGSTUTL(Text,Divider,PartB)
  ;"$$ADDWRAP^TMGSTUTL(PriorS,AddS,MaxWidth,IndentS) -- AddS to PriorS, but wrap first wrap IF needed)
+ ;"ADDWRAPARR(ARR,MAXWIDTH,NEWLINE,STR) -- Add STR to ARR, wrapping if needed 
  ;"WordWrapArray^TMGSTUTL(.Array,Width,SpecialIndent)
  ;"SplitStr^TMGSTUTL(Text,Width,PartB)
  ;"SplitLine^TMGSTUTL(s,.LineArray,Width)
@@ -337,7 +338,7 @@ SplitStr(Text,Width,PartB)
         QUIT
 
 ADDWRAP(PriorS,AddS,MaxWidth,IndentS)
-        ;"Purpose: to add AddS to PriorS, but wrap first wrap IF needed)
+        ;"Purpose: to add AddS to PriorS, but wrap first wrap if needed)
         ;"Input: PriorS : this is the total allowed width.
         ;"       AddS : this is the NEW addition string fragment to add
         ;"       MaxWidth : this is the length to wrap in.  OPTIONAL.  Default=60
@@ -373,7 +374,11 @@ ADDWRAP(PriorS,AddS,MaxWidth,IndentS)
         SET Result=Result_lastLine
 
         QUIT Result
-
+        ;
+ADDWRAPARR(ARR,MAXWIDTH,NEWLINE,STR) ;"Add STR to ARR, wrapping if needed
+        DO ADDWRAPARR^TMGSTUT2(.ARR,.MAXWIDTH,.NEWLINE,.STR)
+        QUIT  
+        ;
 WordWrapArray(Array,Width,SpecialIndent)
         ;"Scope: PUBLIC FUNCTION
         ;"Purpose: To take an array and perform word wrapping such that

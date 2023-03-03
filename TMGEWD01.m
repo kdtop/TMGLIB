@@ -1,7 +1,7 @@
 TMGEWD01   ; TMG - Web calls;  1/30/17
         ;;1.0;TMG E LAB ORDERG;;1/30/17
         ;
- ;COPIED AS BELOW BY K.TOPPENBERG (//kt), FOR MODIFICATIONS
+ ;"COPIED AS BELOW BY K.TOPPENBERG (//kt), FOR MODIFICATIONS
  ;
  ;%zewdGTM ;Enterprise Web Developer GT.M/ Virtual Appliance Functions
  ;
@@ -34,6 +34,76 @@ TMGEWD01   ; TMG - Web calls;  1/30/17
  ;
  QUIT
  ;
+ ;"================================================
+ ;"Contents
+ ;"================================================
+ ;"PARSHTML(HTMLARR,HANDLE)  ;"PARSE HTML ARRAY WITH EWD 
+ ;"PARSHTM2(HTMLREF,HANDLE)  ;"PARSE HTML ARRAY WITH EWD 
+ ;"version() 
+ ;"buildDate() 
+ ;"config ;
+ ;"getMGWSIPid() 
+ ;"stopMGWSI ;
+ ;"closeMGWSI(server)
+ ;"closeMGWSIConnections 
+ ;"shutdown 
+ ;"restart 
+ ;"pidExists(pid) ;
+ ;"validDomain(domain) 
+ ;"getIP(info) 
+ ;"openTCP(host,port,timeout) 
+ ;"tcperr ;
+ ;"resetSecurity 
+ ;"resetVM 
+ ;"setClock 
+ ;"startVM 
+ ;"startVMFail 
+ ;"startMDBVM 
+ ;"httpGET(url,html,headerArray,timeout,test,rawResponse,respHeaders,sslHost,sslPort) 
+ ;"httpResponse ;
+ ;"httpTimeout 
+ ;"httpPOST(url,payload,mimeType,html,headerArray,timeout,test,rawResponse,respHeaders,sslHost,sslPort) 
+ ;"parseURL(url,docName) 
+ ;"smtpSend(domain,from,displayFrom,to,displayTo,ccList,subject,message,dialog,authType,username,password,timeout,gmtOffset,port) 
+ ;"read(dialog) 
+ ;"message(line,dev) 
+ ;"smtpTest 
+ ;"getFileInfo(path,ext,info) ; Get list of files with specified extension
+ ;"shellPipe ; Pipe output from shell commands to scratch global
+ ;"deletePipe 
+ ;"lockPipe 
+ ;"unlockPipe 
+ ;"shellCommand(command,result) ;
+ ;"fileInfo(path,info) 
+ ;"shell(command,result) 
+ ;"testGlobal() 
+ ;"testFile() 
+ ;"mySQL(sql,resultArray,username,password,database)
+ ;"encodeDate(dateString)
+ ;"relink ;
+ ;"pwd() ;
+ ;"filepwdNotExists
+ ;"goq(global,file,gzip)
+ ;"giq(file,clearDown)
+ ;"giqError
+ ;"openFileNotExists
+ ;"uuid()
+ ;"tar(infile,outfile)
+ ;"gzip(file)
+ ;"gunzip(file)
+ ;"createTarGz(infile,outfileRootName)
+ ;"zts()
+ ;"getLinuxBuild()
+ ;"install
+ ;"install1 ;
+ ;"install2 ;
+ ;"install3 ; 
+ ;"install4 ; 
+ ;"leaveAsM ;
+ ;"================================================
+ ;"================================================
+ ; 
+ 
  ;====== //kt begin mod ===========================
 PARSHTML(HTMLARR,HANDLE)  ;"PARSE HTML ARRAY WITH EWD 
  ;"NOTE: copied and modified from parseURL^%zewdHTMLParser()
@@ -44,8 +114,8 @@ PARSHTML(HTMLARR,HANDLE)  ;"PARSE HTML ARRAY WITH EWD
  NEW isHTML set isHTML=1
  k ^CacheTempEWD($j)
  m ^CacheTempEWD($j)=HTMLARR
- d normaliseDivs^%zewdHTMLParser
- s %error=$$parseDocument^%zewdHTMLParser(HANDLE,isHTML)
+ d normaliseDivs^TMGEWD02
+ s %error=$$parseDocument^TMGEWD02(HANDLE,isHTML)
  k ^CacheTempEWD($j)
  QUIT %error 
  ;
@@ -57,8 +127,8 @@ PARSHTM2(HTMLREF,HANDLE)  ;"PARSE HTML ARRAY WITH EWD
  NEW %error
  k ^CacheTempEWD($j)
  m ^CacheTempEWD($j)=@HTMLREF
- d normaliseDivs^%zewdHTMLParser
- s %error=$$parseDocument^%zewdHTMLParser(HANDLE,1)
+ d normaliseDivs^TMGEWD02
+ s %error=$$parseDocument^TMGEWD02(HANDLE,1)
  k ^CacheTempEWD($j)
  QUIT %error 
  ;
@@ -260,7 +330,7 @@ resetVM
  k ^CacheTempWLD
  k ^ewdDemo
  d removeDOMsByPrefix^%zewdAPI()
- ;d getFilesInPath^%zewdHTMLParser("/usr/local/gtm/ewd",".m",.files)
+ ;d getFilesInPath^TMGEWD02("/usr/local/gtm/ewd",".m",.files)
  ;f lineNo=1:1 s line=$t(leaveAsM+lineNo) q:line["***END***"  d
  ;. s leaveFiles($p(line,";;",2))=""
  ; s file=""
@@ -541,7 +611,7 @@ parseURL(url,docName)
  i url["http://" s url=$p(url,"http://",2)
  s server=$p(url,"/",1)
  s getPath=$p(url,"/",2,1000)
- s ok=$$parseURL^%zewdHTMLParser(server,getPath,docName)
+ s ok=$$parseURL^TMGEWD02(server,getPath,docName)
  QUIT ok
  ;
 smtpSend(domain,from,displayFrom,to,displayTo,ccList,subject,message,dialog,authType,username,password,timeout,gmtOffset,port) 
@@ -734,7 +804,7 @@ getFileInfo(path,ext,info) ; Get list of files with specified extension
  . . s date=$re(date)
  . . ;i $$zcvt^%zewdAPI(%p9,"l")=$$zcvt^%zewdAPI(%tofile,"l") q  ; ignore temp file
  . . i ext=".*" s info(%p9)=date_$c(1)_time_$c(1)_size q
- . . s %e1="."_$$getFileExtension^%zewdHTMLParser(%p9)
+ . . s %e1="."_$$getFileExtension^TMGEWD02(%p9)
  . . i %e1'=ext q
  . . s info(%p9)=date_$c(1)_time_$c(1)_size
  QUIT

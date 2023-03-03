@@ -22,22 +22,28 @@ TMGGI ;TMG/kst/ GT.M GI ;7/14/15
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
  ;
-%GI ;service@greystone.com %GO;19920722 21:35;global input
-    ;Load globals into database
-    ;Possible enhancements:
-    ;selection and/or exclusion by key list, range and/or wildcard
-    ;optional confirmation by global name
-    ;callable entry point
+%GI(OPTION) ;"TMG modified version of ^%GI
+    ;"INPUT: OPTION -- pass by ARRAY.  Optional.
+    ;"           OPTION("FPNAME")=<FULL PATH AND FILENAME> -- specify file to load
+    ;"--------------------------------------------------------
+    ;"service@greystone.com %GO;19920722 21:35;global input
+    ;"Load globals into database
+    ;"Possible enhancements:
+    ;"selection and/or exclusion by key list, range and/or wildcard
+    ;"optional confirmation by global name
+    ;"callable entry point
+    ;"--------------------------------------------------------
     ;
     WRITE !,"Global Input Utility",!
     DO PRESS2GO^TMGUSRI2
-    IF '$DATA(%zdebug) NEW $et SET $et="zg "_$zl_":ERR^%GI" USE $P:(ctrap=$c(3):exc="zg "_$zl_":EXIT^TMGGI")
+    IF '$DATA(%zdebug) NEW $et SET $et="zg "_$zl_":ERR^TMGGI" USE $P:(ctrap=$c(3):exc="zg "_$zl_":EXIT^TMGGI")
     NEW D,NUMGBLS,NUMNODES,SAVED,X,Y,%ZD,ZFORMAT,CTLCHARS
     NEW FSIZE SET FSIZE=0
     SET CTLCHARS="" FOR D=1:1:31,127 SET CTLCHARS=CTLCHARS_$CHAR(D)
     FOR  DO  QUIT:$LENGTH(%ZD)
     . ;"READ !,"Input device: <terminal>: ",%ZD,!
-    . SET %ZD=$$GETFNAME^TMGIOUTL("Pick input file.")                 ;//kt
+    . SET %ZD=$GET(OPTION("FPNAME"))  ;"//kt
+    . IF %ZD="" SET %ZD=$$GETFNAME^TMGIOUTL("Pick input file.")                 ;//kt
     . ;"IF '$LENGTH(%ZD) SET %ZD=$P QUIT
     . IF '$LENGTH(%ZD) SET %ZD="^"
     . IF %ZD="^" QUIT
@@ -65,7 +71,7 @@ EX  . WRITE !,$P($ZS,",",2,999),!
     USE $P 
     ;"READ !,"OK <Yes>? ",X,!!
     ;"IF $LENGTH(X),$EXTRACT("NO",1,$LENGTH(X))=$TRANSLATE(X,"no","NO") GOTO EXIT
-    NEW % SET %=1 WRITE "OK" DO YN^DICN WRITE !
+    NEW % SET %=1 WRITE "OK to start load" DO YN^DICN WRITE !
     IF %'=1 GOTO EXIT
     SET ZFORMAT=Y["ZWR"
     NEW BYTES SET BYTES=0
@@ -109,11 +115,14 @@ EX  . WRITE !,$P($ZS,",",2,999),!
     . . USE $P DO PROGBAR^TMGUSRI2(BYTES,"Progress",1,FSIZE,70,STARTH)
 EOF USE $P
     WRITE !!,"Restored ",NUMNODES," node",$s(NUMNODES=1:"",1:"s")
-    WRITE " in ",NUMGBLS," global",$s(NUMGBLS=1:".",1:"s.")
+    WRITE " in ",NUMGBLS," global",$s(NUMGBLS=1:".",1:"s."),!
     CLOSE:%ZD'=$P %ZD USE $P:(ctrap="":exc="")
     QUIT
     ;
-ERR USE $P WRITE !,$PIECE($zs,",",2,99),!
+ERR USE $P 
+     WRITE !,"ERROR ENCOUNTERED",!
+     WRITE "$ZSTATUS=[",$PIECE($zs,",",2,99),"]",!
+     WRITE "$ECODE=[",$ec,"]",!
     ; Warning - Fall-though
     SET $ec=""
 EXIT ;

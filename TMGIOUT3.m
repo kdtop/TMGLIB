@@ -23,6 +23,7 @@ TMGIOUT3 ;TMG/kst/IO Utilities ;11/23/14; 12/27/14
  ;"AR2HFSFP(REF,PATHFILENAME) -- provide an interface to ARR2HFS for cases when filename is not already separated from path
  ;"HFS2ARR(PATH,FILENAME,REF,OPTION)  -- read a text array from a Host-File-System file
  ;"HFS2ARFP(PATHFILENAME,REF,OPTION) -- provide an interface to HFS2ARR for cases when filename is not already separated from path
+ ;"HFSINI2ARR(PATHFILENAME,REF,OPTION)
  ;"=======================================================================
  ;"Dependancies
  ;"%ZISH
@@ -213,3 +214,33 @@ HFS2ARFP(PATHFILENAME,REF,OPTION) ;" HFS file to Array, via FilePathName
         SET RESULT=$$HFS2ARR(.PATH,.FILENAME,.REF,.OPTION)
         QUIT RESULT
         ;
+HFSINI2ARR(PATH,FNAME,REF,OPTION) ;"HFS file INI (windows option file) to Array
+        ;"Input: PATH: for the source file, the path up to, but not including, the filename
+        ;"       FILENAME -- the filename of the source host file system. 
+        ;"       REF -- The reference to the array to be filled with RESULTs.  Format:
+        ;"              @REF@(#)=<line of text>"
+        ;"       OPTION -- [OPTIONAL].  PASS BY REFERENCE
+        ;"            OPTION("LINE-TERM")=<line_terminator_string>  e.g. $CHAR(13).  If passed normal parsing done.
+        ;"            OPTION("OVERFLOW")=<mode>.  Mode options:
+        ;"                        If 0, null or "" then overflow lines are turned into normal lines
+        ;"                        If 1 then the overflow portion is concat'd to the orig line (making length>255)
+        ;"                        If 2 then over lines are left with index values with decimal (e.g. 123.1)
+        ;"Result: 0 if failure, 1 if success
+  NEW RESULT,TEMP,OUT
+  IF $DATA(OPTION)=0 SET OPTION("LINE-TERM")=$CHAR(13)
+  SET RESULT=$$HFS2ARR(PATH,FNAME,"TEMP",.OPTION)
+  IF RESULT'>0 GOTO HI2ADN
+  NEW CURSECTION SET CURSECTION="NONE"
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(TEMP(IDX)) QUIT:(IDX'>0)  DO
+  . NEW LINE SET LINE=$GET(TEMP(IDX))
+  . IF $EXTRACT(LINE,1)="[" DO  QUIT
+  . . SET CURSECTION=$PIECE($PIECE(LINE,"[",2),"]",1)
+  . . SET OUT(CURSECTION)=""
+  . NEW KEY SET KEY=$PIECE(LINE,"=",1)
+  . NEW VALUE SET VALUE=$PIECE(LINE,"=",2,9999)
+  . SET OUT(CURSECTION,KEY)=VALUE
+  MERGE @REF=OUT
+HI2ADN ;  
+  QUIT RESULT
+  ;

@@ -29,6 +29,7 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
   ;"$$SPLITLN(STR,LINEARRAY,WIDTH,SPECIALINDENT,INDENT,DIVSTR) -- Wrap by WIDTH to array
   ;"SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX) -- Slit into array, by DIVIDER
   ;"ARR2STR(ARR,DIVIDER)  -- COMBINE ARRAY ELEMENTS INTO LONG STRING, OPPOSITE OF SPLIT2AR  
+  ;"ADDWRAPARR(ARR,STR,MAXWIDTH,NEWLINE) -- Add STR to ARR, wrapping if needed
   ;"STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE) -- Take a long string and wrap it into formal WP format
   ;"WP2STR(PARRAY,DIVCH,MAXLEN,INITLINE) -- Takes a WP field, and concatenates into one long string.
   ;"WP2ARRAY(REF,OUTREF) -- Convert a Fileman WP array into a flat ARRAY
@@ -340,6 +341,25 @@ ARR2STR(ARR,DIVIDER)  ;"COMBINE ARRAY ELEMENTS INTO LONG STRING, OPPOSITE OF SPL
   . SET RESULT=RESULT_$GET(ARR(IDX))_DIVIDER
   QUIT RESULT
   ; 
+ADDWRAPARR(ARR,MAXWIDTH,NEWLINE,STR) ;"Add STR to ARR, wrapping if needed
+  ;"Input: ARR -- IN and OUT PARAMETER
+  ;"       MAXWIDTH -- OPTIONAL.  If not provided, defaults to 250
+  ;"       NEWLINE -- if 1, then STR added on a new line.  Otherwise added to last line in ARR
+  ;"       STR -- string to add
+  SET NEWLINE=+$GET(NEWLINE)
+  NEW LINENUM SET LINENUM=+$ORDER(ARR(""),-1)
+  IF LINENUM=0 SET LINENUM=1,NEWLINE=0
+  SET MAXWIDTH=+$GET(MAXWIDTH) IF MAXWIDTH=0 SET MAXWIDTH=250
+  NEW PARTB SET PARTB=""
+  IF NEWLINE DO
+  . SET LINENUM=LINENUM+1
+  ELSE  DO
+  . SET STR=$GET(ARR(LINENUM))_STR
+  DO SPLITSTR(.STR,MAXWIDTH,.PARTB)
+  SET ARR(LINENUM)=STR
+  IF PARTB'="" SET ARR(LINENUM)=PARTB  
+  QUIT  
+  ;
 STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE)  ;
   ;"Purpose: to take a long string and wrap it into formal WP format
   ;"Input: STR:  the long string to wrap into the WP array (but not 0 based)
@@ -352,6 +372,7 @@ STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE)  ;
   ;"          @PARRAY@(INITLINE+0)=line 1
   ;"          @PARRAY@(INITLINE+1)=line 2
   ;"          @PARRAY@(INITLINE+2)=line 3
+  ;"Result: none.
   IF +$GET(WIDTH)=0 SET WIDTH=60
   IF $GET(DIVCH)="" SET DIVCH=" "
   NEW TEMPS SET TEMPS=$GET(STR)

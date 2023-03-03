@@ -45,6 +45,7 @@ MAKEURL(TMGDFN)  ;"
   QUIT "Old Recs^http://192.168.3.99:9080/data/"_TMGDFN
   ;"
 HFSROOT(DIR)  ;"Get the hard coded root in the HFS to the folder holding 'data'
+  SET DIR=$G(DIR)   ;" 11/27/22
   IF DIR="" SET DIR="oldrecs"
   QUIT "/opt/worldvista/EHR/www/"_DIR_"/"
   ;
@@ -133,13 +134,18 @@ GETFTR(OUT)
   DO ADDLN(.OUT,"</html>")
   QUIT                    
   ;
-PREPRCLK(OUTARR,TMGDFN)  ;"Prep listing of record links 
+  ;"11/27/22 note: DIR is listed in the below input, but not in the
+  ;"         declaration. Added
+PREPRCLK(OUTARR,TMGDFN,DIR)  ;"Prep listing of record links 
   ;"Input: OUTARR -- AN OUT PARAMETER.  PASS BY REFERENCE.  Format:
   ;"            OUTARR(FMDT,URLPATH^FILENAME)=""
   ;"       TMGDFN -- PATIENT IEN
   ;"       DIR -- DIRECTORY TO CHECK
   ;"RESULTS: NONE
-  NEW PATHS DO PATH4DFN(.PATHS,TMGDFN)   ;"Get one or more filepaths for patient name, including aliases
+  ;"11/27/22 note: DIR is also not passed to PATH4DFN, which it expected.
+  ;"         Added
+  SET DIR=$G(DIR)   ;"11/27/22 ADDED
+  NEW PATHS DO PATH4DFN(.PATHS,TMGDFN,DIR)   ;"Get one or more filepaths for patient name, including aliases
   NEW APATH SET APATH=""
   FOR  SET APATH=$ORDER(PATHS(APATH)) QUIT:APATH=""  DO
   . NEW HFSPATH SET HFSPATH=$$HFSROOT()_APATH

@@ -156,7 +156,7 @@ GETPRTNAME(TESTNAME,INDENTN) ;"Get PRINT NAME for TEST NAME
         . . IF STR'="" SET ARRI=ARRI+1,ARR(ARRI)=STR,STR=""   ;"//kt changed 6/20/22
         . ELSE  DO
         . . SET STR=STR_CH
-        IF STR'="" SET ARR(ARRI)=STR,STR=""
+        IF STR'="" SET ARRI=ARRI+1,ARR(ARRI)=STR,STR=""
         ;"Now, assemble name from first few letters of each word.         
         IF ARRI>7 SET ARRI=7  ;"truncate if > 7 words.  
         NEW LPI SET LPI=7\ARRI  ;"LPI means LETTERS PER INDEX (of array)

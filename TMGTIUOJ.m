@@ -299,8 +299,8 @@ FUITEMS(TMGDFN)  ;"Return the followup table if data is contained
   QUIT $$FUITEMS^TMGTIUO3(.TMGDFN)  
   ;
 LASTHPI(TMGDFN,AWV)  ;"Return the last HPI section.  Called by TIU TEXT OBJECT 'TMG LAST HPI'
-  SET AWV=+$G(AWV)
-  QUIT $$LASTHPI^TMGTIUP2(.TMGDFN,AWV)  ;"Moved to TMGTIUP2 to minimize file size 
+  NEW OPTION SET OPTION("AWV")=$GET(AWV)
+  QUIT $$LASTHPI^TMGTIUP2(.TMGDFN,.OPTION)  ;"Moved to TMGTIUP2 to minimize file size 
   ;
 ADMINDOC(TMGRESULT);
   NEW IEN SET IEN=0

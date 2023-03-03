@@ -228,7 +228,15 @@ LISTINST(TMGOUT,FROM,DIR)        ;" Return a SET of Institutions
         QUIT
         ;
 LNK2TIU(TMGRESULT,TMGDFN,LABDT,TIUIEN) ;" TMG CPRS LINK LAB TO NOTE rpc
-        
+        ;"LINK THE LABS WITH THE TIU NOTE SENT
+        NEW TMGFDA,TMGMSG,TMGRESULT SET TMGRESULT="1^OK"
+        NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
+        NEW RDT SET RDT=$$FMDT2RDT^TMGLRWU1(LABDT)
+        NEW IENS SET IENS=RDT_","_LRDFN_","
+        SET TMGFDA(63.04,IENS,22700)="`"_TIUIEN
+        DO FILE^DIE("EK","TMGFDA","TMGMSG")
+        IF $DATA(TMGMSG("DIERR")) DO  
+        . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
         QUIT
         ;"
 POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL: TMG CPRS POST LAB VALUES)
@@ -323,6 +331,7 @@ POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL: TMG CPRS POST LAB VALUES)
         . . IF (LABDATE=""),(GROUPLABDATE'="") SET LABDATE=GROUPLABDATE 
         . . NEW LABSPECNAME SET LABSPECNAME=$PIECE(STR,"^",7)
         . . NEW LABSPECIEN SET LABSPECIEN=+$PIECE(STR,"^",8)
+        . . NEW LABUNITS SET LABUNITS=$PIECE(STR,"^",9)   ;ADDED 12/20/22
         . . IF (LABSPECIEN>0),(GROUPSPECIEN'>0) SET GROUPSPECIEN=LABSPECIEN
         . . IF (LABSPECIEN'>0),(GROUPSPECIEN>0) SET LABSPECIEN=GROUPSPECIEN
         . . SET LABS(LABDATE,LABSPECIEN,FLD)=VALUE
@@ -349,7 +358,7 @@ POSTLABS(TMGRESULT,INARRAY) ;"POST LABS (RPC CALL: TMG CPRS POST LAB VALUES)
         . . SET @XREF@(5,4)=""           ;"Critical Low
         . . SET @XREF@(5,5)=""           ;"Critical High
         . . SET @XREF@(5,6)=""           ;"(not used)
-        . . SET @XREF@(5,7)=""           ;"Units
+        . . SET @XREF@(5,7)=LABUNITS     ;"Units    ;"ADDED 12/20/22
         . . SET @XREF@(5,8)=""           ;"Type of Delta Check
         . . SET @XREF@(5,9)=""           ;"Delta Value
         . . SET @XREF@(5,10)=""          ;"Default Value

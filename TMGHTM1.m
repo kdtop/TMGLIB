@@ -67,7 +67,7 @@ ISHTMREF(REFARRAY,ZN) ;
   ;"              If 0, then @REFARRAY@(#)=text
   ;"              If 1, then @REFARRAY@(#,0)=text
   ;"Results: 1 IF HTML markup, 0 otherwise.
-  ;"Note: This is not a perfect test.  Also, will fail IF tag is not uppercase
+  ;"Note: This is not a perfect test. 
   NEW RESULT SET RESULT=0
   SET REFARRAY=$GET(REFARRAY) IF REFARRAY="" GOTO ISHRDN
   SET ZN=+$GET(ZN)

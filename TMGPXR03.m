@@ -18,19 +18,35 @@ TMGPXR03 ;TMG/kst/TMG Reminder Reports stuff ;4/18/13, 2/2/14, 3/24/21
  ;"ACTIVEPT(TMGDFN,WINDOW)-- Is patient active?
  ;"RUNRPT(RESULTARR,PTARRAY,IEN,DATE,SHOWPROG,WANTNA)  ;Prints reminder report to specified device
  ;"DOREM(TMGDFN,PXRMITEM,PXRHM,DATE,WANTNA) -- CODE MODIFIED FROM ^PXRMDEV
+ ;"TOMORROW(DATE)
+ ;"NEXTDATE(DATE,DAYSTOCHECK) -- return the NEXT business date after the date provided.
+ ;"GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES,EXCLUDE)  -- returns array of all appts in date range.
+ ;"APPTREMS(TMGRESULT,REMARR,BEGDT,ENDDT) -- get all reminders, sent by REMARR that are due for scheduled patients. 
+ ;"ALLREMS(TMGRESULT,REMARR,ACTIVE) --  get all reminders, sent by REMARR that are due for scheduled patients.
+ ;"GTLABSOR(TMGRESULT,TMGDFN) -- return a string of "^" delimited lab tests to be autochecked when the lab order dialog is opened.
+ ;"COLODUE(TMGDFN,TEST,DATE,DATA,TEXT) -- IS COLONOSCOPY DUE FOR PATIENT?
+ ;"FRAILDUE(TMGDFN,TEST,DATE,DATA,TEXT) -- IS FRAILITY DUE FOR PATIENT?
+ ;"FRAILDU2(TMGDFN,TEST,DATE,DATA,TEXT) -- IS FRAILITY DUE FOR PATIENT (66-80)?
+ ;"MRDFN(TMGDFN,HFIEN) -- Return most recent date of given health factor
  ;
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
  ;"=======================================================================
  ;"GETPTLST(OUTARRAY)  -- Get list of patients
  ;"GETSTLST(OUTARRAY) -- Get list of patients from SORT TEMPLATE
- ;"SAVSTLST(ARRAY)  -- SAVE ARRAY TO SORT TEMPLATE LIST 
+ ;"SAVSTLST(ARRAY)  -- SAVE ARRAY TO SORT TEMPLATE LIST
+ ;"GETSCPTS(OUTARRAY) -- Gather list of patients to run report on, based on scheduled appts.
+ ;"GETSCHDA(OUTARRAY,SDT,EDT) -- Get list of patients schedule for appt in date range
  ;"GETALPTS(OUTARRAY) -- Gather list of ALL patients 
  ;"GETACTPTS(OUTARRAY) -- Gather list of ACTIVE patients to run report on
  ;"GETNTPTS(OUTARRAY) -- Gather list of patients with progress note between dates, to run report on
  ;"GETSWMD(MODES)  -- GET SHOW MODES
  ;"SHOWLST(ARRAY)-- Output list in formatted manner.
  ;"ACTIVEPT(TMGDFN) -- ACTIVE PATIENT
+ ;"GETCSPAT(TMGRESULT,BEGDT,ENDDT) -- returns array of patients scheduled for given dates & on Controlled Substances
+ ;"LOADHFAR(PREFIX,ARR) -- Load array with up all health factors that start
+ ;"MRFNDN(TMGDFN,HFARRAY) -- FIND MOST RECENT HF NAME
+ ;"WTTABLE(TMGDFN,OUTARRAY)  
  ;
  ;"=======================================================================
  ;"Dependancies :  TMGUSRI2
@@ -101,7 +117,7 @@ GETSTLST(OUTARRAY) ;
         ;"Result: 1^OK or -1^Message if problem
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW DIC SET DIC=.401,DIC(0)="MAEQ"
-        SET DIC("S")="NEW FL SET FL=$P(^(0),U,4) IF (FL=2)!(FL=9000001)"  ;"Only allow selection of templates to file patient file
+        SET DIC("S")="NEW FL SET FL=$PIECE(^(0),U,4) IF (FL=2)!(FL=9000001)"  ;"Only allow selection of templates to file patient file
         SET DIC("A")="Select SORT TEMPLATE with patients: "
         DO ^DIC WRITE !
         IF Y'>0 SET TMGRESULT=Y GOTO GSTLDN
@@ -136,7 +152,7 @@ SAVSTLST(ARRAY)  ; "SAVE ARRAY TO SORT TEMPLATE LIST
         SET USRINPUT=$$MENU^TMGUSRI2(.MENU)
         IF USRINPUT="EXISTING" DO  
         . NEW DIC SET DIC=.401,DIC(0)="MAEQ"
-        . SET DIC("S")="NEW FL SET FL=$P(^(0),U,4) IF (FL=2)!(FL=9000001)"  ;"Only allow selection of templates to file patient file
+        . SET DIC("S")="NEW FL SET FL=$PIECE(^(0),U,4) IF (FL=2)!(FL=9000001)"  ;"Only allow selection of templates to file patient file
         . SET DIC("A")="Select SORT TEMPLATE with patients: "
         . DO ^DIC WRITE !
         . IF Y'>0 QUIT
@@ -232,7 +248,7 @@ GETACTPTS(OUTARRAY,WINDOW)   ;
         ;"Purpose: Gather list of ACTIVE patients to run report on
         ;"Result: 1^OK or -1^Message if problem
         NEW TMGRESULT SET TMGRESULT="1^OK"
-        SET WINDOW=+$G(WINDOW) IF WINDOW=0 SET WINDOW=3
+        SET WINDOW=+$GET(WINDOW) IF WINDOW=0 SET WINDOW=3
         WRITE "Gathering list of all ACTIVE patients",!
         NEW DFNMAX SET DFNMAX=$ORDER(^DPT("!"),-1)
         NEW STIME SET STIME=$H
@@ -390,17 +406,17 @@ DOREM(TMGDFN,PXRMITEM,PXRHM,DATE,WANTNA)         ;"CODE MODIFIED FROM ^PXRMDEV
         ;This is a debugging run so SET PXRMDEBG.
         S PXRMDEBG=1
         D DEF^PXRMLDR(PXRMITEM,.DEFARR)
-        I +$G(DATE)=0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL)
-        I +$G(DATE)>0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL,DATE)
+        I +$GET(DATE)=0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL)
+        I +$GET(DATE)>0 D EVAL^PXRM(TMGDFN,.DEFARR,PXRHM,1,.FIEVAL,DATE)
         ;
         I $D(^TMP("PXRMFFDEB",$J)) M FIEVAL=^TMP("PXRMFFDEB",$J) K ^TMP("PXRMFFDEB",$J)
         ;
         S REF="FIEVAL"
         ;
-        I $G(PXRMTDEB) D
+        I $GET(PXRMTDEB) D
         . S REF="TFIEVAL"
         . S FINDING=0
-        . F  S FINDING=$O(^TMP("PXRMTDEB",$J,FINDING)) Q:FINDING=""  D
+        . F  S FINDING=$ORDER(^TMP("PXRMTDEB",$J,FINDING)) Q:FINDING=""  D
         .. K TFIEVAL M TFIEVAL(FINDING)=^TMP("PXRMTDEB",$J,FINDING)
         . K ^TMP("PXRMTDEB",$J)
         S REF="^TMP(""PXRHM"",$J)"
@@ -419,12 +435,12 @@ CMOUT(WANTNA)        ;"CODE MODIFIED FROM ^PXRMDEV
         ;"Purpose: Do formatted Clinical Maintenance output.
         ;"Input:  WANTNA -- optional.  Default=0.  If 1 then patients with N/A results are returned.  Otherwise not. 
         N DUE,LAST,RIEN,RNAME,STATUS,TEMP
-        S RIEN=$O(^TMP("PXRHM",$J,""))
-        S RNAME=$O(^TMP("PXRHM",$J,RIEN,""))
-        S TEMP=$G(^TMP("PXRHM",$J,RIEN,RNAME))
-        S STATUS=$P(TEMP,U,1)
-        S DUE=$$EDATE^PXRMDATE($P(TEMP,U,2))
-        S LAST=$$EDATE^PXRMDATE($P(TEMP,U,3))
+        S RIEN=$ORDER(^TMP("PXRHM",$J,""))
+        S RNAME=$ORDER(^TMP("PXRHM",$J,RIEN,""))
+        S TEMP=$GET(^TMP("PXRHM",$J,RIEN,RNAME))
+        S STATUS=$PIECE(TEMP,U,1)
+        S DUE=$$EDATE^PXRMDATE($PIECE(TEMP,U,2))
+        S LAST=$$EDATE^PXRMDATE($PIECE(TEMP,U,3))
         IF STATUS="N/A",($GET(WANTNA)'=1) QUIT ""
         Q STATUS_"^"_DUE_"^"_LAST
         ;
@@ -521,7 +537,7 @@ GETCSPAT(TMGRESULT,BEGDT,ENDDT)  ;"
         DO GETSCHED(.ARRAY,BEGDT,ENDDT,"AO")
         NEW TMGDFN,RESULT
         SET TMGDFN=0
-        FOR  SET TMGDFN=$O(ARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+        FOR  SET TMGDFN=$ORDER(ARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
         . NEW TEST,DATE,DATA,TEXT
         . DO PAINMEDS^TMGPXR01(TMGDFN,.TEST,.DATE,.DATA,.TEXT) 
         . IF TEST=1 DO
@@ -529,7 +545,7 @@ GETCSPAT(TMGRESULT,BEGDT,ENDDT)  ;"
         . . SET TMGRESULT(DATE,TMGDFN)=""
         QUIT
         ;"
-TOMORROW(DATE)
+TOMORROW(DATE) ;
         NEW TOMORROW
         NEW X,X1,X2
         SET X1=DATE,X2=1
@@ -542,10 +558,10 @@ NEXTDATE(DATE,DAYSTOCHECK)   ;"
         ;"         the date provided. If not provided, then it will assume
         ;"         today.
         NEW TMGRESULT,TEMPARR,COUNT
-        SET DAYSTOCHECK=$G(DAYSTOCHECK)
+        SET DAYSTOCHECK=$GET(DAYSTOCHECK)
         IF DAYSTOCHECK=0 SET DAYSTOCHECK=30 ;"QUIT IF NO RESULTS FOUND IN SO
                                             ;"MANY DAYS, TO STOP INFINITE LOOPS
-        SET DATE=+$G(DATE),COUNT=0
+        SET DATE=+$GET(DATE),COUNT=0
         IF DATE=0 DO
         . NEW X DO NOW^%DTC SET DATE=X
         SET TMGRESULT=0
@@ -565,9 +581,9 @@ GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES,EXCLUDE)  ;"
         ;"   STATUSES-(Optional) Statuses to return. Defaults to "A[ctive]"
         ;"   EXCLUDE- (Optional) Exclude nursing appointments
         NEW NUMOFAPPTS SET NUMOFAPPTS=0
-        SET EXCLUDE=$G(EXCLUDE)
+        SET EXCLUDE=$GET(EXCLUDE)
         IF EXCLUDE'=0 SET EXCLUDE=1
-        SET STATUSES=$$UP^XLFSTR($G(STATUSES))
+        SET STATUSES=$$UP^XLFSTR($GET(STATUSES))
         IF STATUSES="" SET STATUSES="A"
         SET BEGDT=$PIECE($GET(BEGDT),",",1)
         SET ENDDT=+$GET(ENDDT)
@@ -579,12 +595,12 @@ GETSCHED(TMGRESULT,BEGDT,ENDDT,STATUSES,EXCLUDE)  ;"
         . FOR  SET TMGDFN=$ORDER(^TMG(22723,"DT",DTIDX,TMGDFN)) QUIT:TMGDFN'>0  DO
         . . NEW IDX SET IDX=$ORDER(^TMG(22723,"DT",DTIDX,TMGDFN,0))
         . . NEW STATUS SET STATUS=$GET(^TMG(22723,"DT",DTIDX,TMGDFN,IDX))
-        . . ;"NEW TIMEIN SET TIMEIN=+$P($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",8)
+        . . ;"NEW TIMEIN SET TIMEIN=+$PIECE($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",8)
         . . IF STATUSES[STATUS DO
         . . . IF EXCLUDE=1 DO
-        . . . . NEW REASON SET REASON=$P($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",4)
-        . . . . NEW WITH SET WITH=$P($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",3)
-        . . . . NEW COMMENT SET COMMENT=$P($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",6)
+        . . . . NEW REASON SET REASON=$PIECE($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",4)
+        . . . . NEW WITH SET WITH=$PIECE($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",3)
+        . . . . NEW COMMENT SET COMMENT=$PIECE($GET(^TMG(22723,TMGDFN,1,IDX,0)),"^",6)
         . . . . IF REASON="INJ ONLY" QUIT
         . . . . IF REASON["PROTIME" QUIT
         . . . . IF REASON["SUTRE" QUIT
@@ -631,8 +647,7 @@ ALLREMS(TMGRESULT,REMARR,ACTIVE)  ;"
         ;"                     TMGRESULT(REMINDER IEN,DATETIME,TMGDFN)="" , FOR EACH ONE DUE
         ;"        REMARR - Reminders to check
         ;"              format REMARR(IEN of reminder)="name"  (Name optional)
-        ;"        ACTIVE - BOOLEAN (1 OR 0). If 1, check only active
-        ;:                 patients, 0 for all
+        ;"        ACTIVE - BOOLEAN (1 OR 0). If 1, check only active patients, 0 for all
         ;"
         NEW COUNT,NOW,X
         DO NOW^%DTC SET NOW=X
@@ -645,35 +660,44 @@ ALLREMS(TMGRESULT,REMARR,ACTIVE)  ;"
         . . SET RESULT=$$DOREM(TMGDFN,REMIEN,5,NOW)
         . . IF RESULT["DUE" DO
         . . . SET COUNT=COUNT+1
-        . . . SET TMGRESULT($GET(REMIEN),$P(RESULT,"^",2),TMGDFN)=RESULT
+        . . . SET TMGRESULT($GET(REMIEN),$PIECE(RESULT,"^",2),TMGDFN)=RESULT
         SET TMGRESULT(0)=COUNT
         QUIT
         ;"
-GTLABSOR(TMGRESULT,TMGDFN)  ;"
+GTLABSOR(TMGRESULT,TMGDFN)  ;
         ;"Purpose: This will be called from the RPC TMG GET ORDERED LABS
         ;"         It will return a string of "^" delimited lab tests to be 
         ;"         autochecked when the lab order dialog is opened.
-        SET TMGRESULT="" 
-        ;"Format of HFLIST is: HFLIST(IEN of HF)=Item text to check in Lab Order 
-        ;"NEW HFLIST
-        ;"SET HFLIST(2374)="HgbA1c"
+        ;"Result  -- none
+        ;"Output:  TMGRESULT is filled.  Format:  <Entry>^<Entry>^<Entry> ... 
+        ;"             Format of <Entry> is  <LabName>:<DefaultICD>:<SubList>
+        ;"             Sublist is optional. Format:  <ien22751>,<ien22751>,<ien22751>,...
+        ;"                This a list of linked elements in file 22751
+        ;"         If no entries found, then result is 'NONE'
         ;"
+        SET TMGRESULT="" 
         NEW HFIEN SET HFIEN=0
-        ;"FOR  SET HFIEN=$O(HFLIST(HFIEN)) QUIT:HFIEN'>0  DO
-        FOR  SET HFIEN=$O(^TMG(22740,"B",HFIEN)) QUIT:HFIEN'>0  DO
+        SET TMGDFN=+$GET(TMGDFN)
+        FOR  SET HFIEN=$ORDER(^TMG(22740,"B",HFIEN)) QUIT:HFIEN'>0  DO
         . NEW DATE SET DATE=0
         . NEW FOUND SET FOUND=0
         . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE)) QUIT:(DATE'>0)!(FOUND=1)  DO
         . . NEW THISDATE SET THISDATE=9999999-DATE
         . . IF THISDATE=$$TODAY^TMGDATE DO
-        . . . ;"SET TMGRESULT=TMGRESULT_$G(HFLIST(HFIEN))
-        . . . NEW IEN SET IEN=$O(^TMG(22740,"B",HFIEN,0))
-        . . . NEW ZN SET ZN=$G(^TMG(22740,IEN,0))
-        . . . IF $D(^TMP($J,"GTLABSOR",TMGDFN,IEN)) QUIT   ;"DON'T RE ADD IF ALREADY ADDED  11/4/22
-        . . . SET ^TMP($J,"GTLABSOR-TMP",TMGDFN,$P(ZN,"^",2))=IEN  ;"SAVE OFF AS TEMP, TO ADD IF SIGNED
+        . . . NEW IEN SET IEN=$ORDER(^TMG(22740,"B",HFIEN,0))
+        . . . NEW ZN SET ZN=$GET(^TMG(22740,IEN,0))
+        . . . IF $DATA(^TMP($J,"GTLABSOR",TMGDFN,IEN)) QUIT   ;"DON'T RE ADD IF ALREADY ADDED  11/4/22
+        . . . SET ^TMP($J,"GTLABSOR-TMP",TMGDFN,$PIECE(ZN,"^",2))=IEN  ;"SAVE OFF AS TEMP, TO ADD IF SIGNED
         . . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_"^"        
-        . . . SET TMGRESULT=TMGRESULT_$P(ZN,"^",2)_":"_$P(ZN,"^",3)
+        . . . SET TMGRESULT=TMGRESULT_$PIECE(ZN,"^",2)_":"_$PIECE(ZN,"^",3)
         . . . SET FOUND=1
+        . . . NEW SUBLIST SET SUBLIST=""
+        . . . NEW SUBIEN SET SUBIEN=0
+        . . . FOR  SET SUBIEN=$ORDER(^TMG(22740,IEN,1,SUBIEN)) QUIT:SUBIEN'>0  DO
+        . . . . NEW SZN SET SZN=$GET(^TMG(22740,IEN,1,SUBIEN,0)) QUIT:SZN=""
+        . . . . IF SUBLIST'="" SET SUBLIST=SUBLIST_","
+        . . . . SET SUBLIST=SUBLIST_SZN
+        . . . IF SUBLIST'="" SET TMGRESULT=TMGRESULT_":"_SUBLIST
         IF TMGRESULT="" SET TMGRESULT="NONE"
         QUIT
         ;"
@@ -682,15 +706,15 @@ COMORDHF(TMGRESULT,TMGDFN,ORDERTEXT)
         ;"  THE TEMP GLOBAL (GTLABSOR-TMP) TO STORED (GTLABSOR)
         NEW TMGTEST SET TMGTEST=0
         IF TMGTEST=1 DO
-        . SET TMGDFN=$G(^TMG("COMORDHF","TMGDFN"))
-        . SET ORDERTEXT=$G(^TMG("COMORDHF","ORDERTEXT"))
+        . SET TMGDFN=$GET(^TMG("COMORDHF","TMGDFN"))
+        . SET ORDERTEXT=$GET(^TMG("COMORDHF","ORDERTEXT"))
         ELSE  DO
         . SET ^TMG("COMORDHF","TMGDFN")=TMGDFN
         . SET ^TMG("COMORDHF","ORDERTEXT")=ORDERTEXT
         NEW TEST SET TEST=0
-        FOR  SET TEST=$O(^TMP($J,"GTLABSOR-TMP",TMGDFN,TEST)) QUIT:TEST=""  DO
+        FOR  SET TEST=$ORDER(^TMP($J,"GTLABSOR-TMP",TMGDFN,TEST)) QUIT:TEST=""  DO
         . IF ORDERTEXT[TEST DO
-        . . NEW IEN SET IEN=$G(^TMP($J,"GTLABSOR-TMP",TMGDFN,TEST))
+        . . NEW IEN SET IEN=$GET(^TMP($J,"GTLABSOR-TMP",TMGDFN,TEST))
         . . SET ^TMP($J,"GTLABSOR",TMGDFN,IEN)=""
         . . KILL ^TMP($J,"GTLABSOR-TMP",TMGDFN,TEST)
         QUIT        
@@ -706,9 +730,9 @@ COLODUE(TMGDFN,TEST,DATE,DATA,TEXT)  ;"IS COLONOSCOPY DUE FOR PATIENT
         NEW FREQ SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
         NEW DUETF SET DUETF=0
         IF FREQ["Y" DO
-        . SET DUETF=+$G(FREQ)*365
+        . SET DUETF=+$GET(FREQ)*365
         ELSE  IF FREQ["M" DO
-        . SET DUETF=+$G(FREQ)*30
+        . SET DUETF=+$GET(FREQ)*30
         IF DUETF=0 QUIT
         NEW DUEDATE,X,X1,X2
         SET DUETF=DUETF-120  ;"6/28/21 - ADDED TO ACCOUNT FOR 4M ADV TIMEFRAME TO MIRROR COLONOSCOPY
@@ -739,7 +763,7 @@ FRAILDUE(TMGDFN,TEST,DATE,DATA,TEXT)  ;"IS FRAILITY DUE FOR PATIENT
         . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE)) QUIT:DATE'>0  DO
         . . NEW THISDATE SET THISDATE=9999999-DATE
         . . IF THISDATE>MRD SET MRD=THISDATE
-        NEW BDATE SET BDATE=$P($$FIRSTYR^TMGDATE,".",1)
+        NEW BDATE SET BDATE=$PIECE($$FIRSTYR^TMGDATE,".",1)
         IF BDATE<MRD DO
         . SET TEST=0
         . SET DATE=0
@@ -755,7 +779,7 @@ FRAILDU2(TMGDFN,TEST,DATE,DATA,TEXT)  ;"IS FRAILITY DUE FOR PATIENT (66-80)
         . FOR  SET DATE=$ORDER(^AUPNVHF("AA",TMGDFN,HFIEN,DATE)) QUIT:DATE'>0  DO
         . . NEW THISDATE SET THISDATE=9999999-DATE
         . . IF THISDATE>MRD SET MRD=THISDATE
-        NEW BDATE SET BDATE=$P($$FIRSTYR^TMGDATE,".",1)
+        NEW BDATE SET BDATE=$PIECE($$FIRSTYR^TMGDATE,".",1)
         IF BDATE<MRD DO
         . SET TEST=0
         . SET DATE=0
@@ -784,8 +808,8 @@ MRFNDN(TMGDFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
         NEW DATE SET DATE=0
         NEW TMGRESULT SET TMGRESULT=""
         NEW HFNAME SET HFNAME=""
-        FOR  SET HFNAME=$O(HFARRAY(HFNAME)) QUIT:HFNAME=""  DO
-        . NEW HFIEN SET HFIEN=$G(HFARRAY(HFNAME))
+        FOR  SET HFNAME=$ORDER(HFARRAY(HFNAME)) QUIT:HFNAME=""  DO
+        . NEW HFIEN SET HFIEN=$GET(HFARRAY(HFNAME))
         . NEW TEMPDATE SET TEMPDATE=$$MRDFN(TMGDFN,HFIEN)
         . IF TEMPDATE>DATE DO
         . . SET TMGRESULT=HFNAME
@@ -793,46 +817,46 @@ MRFNDN(TMGDFN,HFARRAY)  ;"FIND MOST RECENT HF NAME
         QUIT TMGRESULT
         ;"
 WTTABLE(TMGDFN,OUTARRAY)  ;"
-  NEW TMGRESULT SET TMGRESULT=""
-  NEW RESULTARR
-  ;"
-  NEW Y1VAL,Y2VAL,Y3VAL,RECENTVAL
-  NEW Y1,Y2,Y3
-  SET Y1=$E($$TODAY^TMGDATE,1,3)+1700
-  SET Y2=Y1-1
-  SET Y3=Y1-2
-  SET (Y1VAL,Y2VAL,Y3VAL,RECENTVAL)=0
-  ;"
-  NEW TIUVIT,TIUVT,TIUVDT,TIUVDA,TIUY,VDT,TIUI,TIUCWRAP,TIUMAXW,TIUVITC
-  NEW TIUVCNT,TIUVCNT2,TIUVDATE,TIUY1,TIUVTEMP,CONV
-  NEW LVDT SET LVDT=0
-  SET TIUVITC="WT"
-  DO VITALS^TIULO(.TIUVIT,TMGDFN,TIUVITC,"","",1000)
-  SET (TIUVDT,TIUVDONE,TIUVCNT)=0
-  FOR  SET TIUVDT=$O(TIUVIT(TIUVITC,TIUVDT)) QUIT:+TIUVDT'>0!TIUVDONE  DO
-  . SET TIUVDA=0
-  . FOR  SET TIUVDA=$O(TIUVIT(TIUVITC,TIUVDT,TIUVDA)) Q:+TIUVDA'>0  DO
-  . . SET TIUVDATE=TIUVDT,TIUVCNT=TIUVCNT+1
-  . . SET TIUVTEMP=$G(TIUVIT(TIUVITC,TIUVDT,TIUVDA))
-  . . SET VDT=$$DATE^TIULS($P(TIUVTEMP,U,1),"MM/DD/CCYY")
-  . . IF VDT=LVDT QUIT
-  . . NEW THISYEAR SET THISYEAR=$P(VDT,"/",3)
-  . . SET LVDT=VDT
-  . . SET TIUY=$P(TIUVTEMP,U,8)
-  . . QUIT:+TIUY'>0
-  . . SET CONV=$J((+TIUY/2.2),3,1)
-  . . SET TIUY=TIUY_" lb "
-  . . SET TIUY=TIUY_"("_VDT_")"
-  . . IF RECENTVAL=0 SET RECENTVAL=TIUY
-  . . IF THISYEAR=Y1 SET Y1VAL=TIUY
-  . . IF THISYEAR=Y2 SET Y2VAL=TIUY
-  . . IF THISYEAR=Y3 SET Y3VAL=TIUY
-  . . ;"IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_", "
-  . . ;"SET TMGRESULT=TMGRESULT_TIUY
-  ;"SET TMGRESULT="Weight = "_TMGRESULT
-  SET TMGRESULT="First "_Y3_" weight: "_Y3VAL_$C(13)
-  SET TMGRESULT=TMGRESULT_"First "_Y2_" weight: "_Y2VAL_$C(13)
-  SET TMGRESULT=TMGRESULT_"First "_Y1_" weight: "_Y1VAL_$C(13)
-  SET TMGRESULT=TMGRESULT_"Most recent weight: "_RECENTVAL
-  QUIT TMGRESULT
-  ;"
+       NEW TMGRESULT SET TMGRESULT=""
+       NEW RESULTARR
+       ;"
+       NEW Y1VAL,Y2VAL,Y3VAL,RECENTVAL
+       NEW Y1,Y2,Y3
+       SET Y1=$E($$TODAY^TMGDATE,1,3)+1700
+       SET Y2=Y1-1
+       SET Y3=Y1-2
+       SET (Y1VAL,Y2VAL,Y3VAL,RECENTVAL)=0          
+       ;"
+       NEW VIT,TIUVT,VDT,VDA,TIUY,TIUI,VDT,TIUCWRAP,TIUMAXW,VITC
+       NEW VCNT,VDATE,TIUY1,VTEMP,CONV,VDONE
+       NEW LVDT SET LVDT=0
+       SET VITC="WT"
+       DO VITALS^TIULO(.VIT,TMGDFN,VITC,"","",1000)
+       SET (VDT,VDONE,VCNT)=0
+       FOR  SET VDT=$ORDER(VIT(VITC,VDT)) QUIT:+VDT'>0!VDONE  DO
+       . SET VDA=0
+       . FOR  SET VDA=$ORDER(VIT(VITC,VDT,VDA)) Q:+VDA'>0  DO
+       . . SET VDATE=VDT,VCNT=VCNT+1
+       . . SET VTEMP=$GET(VIT(VITC,VDT,VDA))
+       . . SET VDATE=$$DATE^TIULS($PIECE(VTEMP,U,1),"MM/DD/CCYY")
+       . . IF VDATE=LVDT QUIT
+       . . NEW THISYEAR SET THISYEAR=$PIECE(VDATE,"/",3)
+       . . SET LVDT=VDATE
+       . . SET TIUY=$PIECE(VTEMP,U,8)
+       . . QUIT:+TIUY'>0
+       . . SET CONV=$J((+TIUY/2.2),3,1)
+       . . SET TIUY=TIUY_" lb "
+       . . SET TIUY=TIUY_"("_VDATE_")"
+       . . IF RECENTVAL=0 SET RECENTVAL=TIUY
+       . . IF THISYEAR=Y1 SET Y1VAL=TIUY
+       . . IF THISYEAR=Y2 SET Y2VAL=TIUY
+       . . IF THISYEAR=Y3 SET Y3VAL=TIUY
+       . . ;"IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_", "
+       . . ;"SET TMGRESULT=TMGRESULT_TIUY
+       ;"SET TMGRESULT="Weight = "_TMGRESULT
+       SET TMGRESULT="First "_Y3_" weight: "_Y3VAL_$C(13)
+       SET TMGRESULT=TMGRESULT_"First "_Y2_" weight: "_Y2VAL_$C(13)
+       SET TMGRESULT=TMGRESULT_"First "_Y1_" weight: "_Y1VAL_$C(13)
+       SET TMGRESULT=TMGRESULT_"Most recent weight: "_RECENTVAL
+       QUIT TMGRESULT
+       ;"

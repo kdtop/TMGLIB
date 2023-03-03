@@ -26,7 +26,7 @@ TMGIOUTL ;TMG/kst/IO Utilities ;7/22/15, 6/25/22
  ;"$$GETFNAME^TMGIOUTL(MSG,DEFPATH,DEFFNAME,NODEDIV,OUTPATH,OUTNAME,PROMPT,FILTER)
  ;"$$GETDIRNM(MSG,DEFPATH,NODEDIV,OUTPATH,PROMPT) -- query user for a directory name
  ;"$$FILEXIST^TMGIOUTL(FULLPATHNAME)
- ;"PCK1FILE(PARTNAMEPATH) --For  name like 'MyFil*',  display all matches and allow user to pick one
+ ;"PCK1FILE(PARTNAMEPATH) --For name like 'MyFil*',  display all matches and allow user to pick one
  ;"$$DELFILE^TMGIOUTL(PATHFILENAME)
  ;"$$MKTRALDV^TMGIOUTL(PATH,NODEDIV)
  ;
@@ -277,6 +277,27 @@ PCK1FILE(PARTNAMEPATH) ;
   . WRITE "(No file selected.)",!
   ;
   QUIT RESULT
+  ;
+PCKDELFILE(DEFPATH,MSG)  ;
+  ;"Purpose: Show listing of files from PATH and allow user to pick for deletion
+  ;"Input:  DEFPATH: [OPTIONAL] The default path to offer user.
+  ;"        MSG. [OPTIONAL] A message to show user prior to name prompt.                       
+  ;"                May contain "\n" character for line wrapping.
+  NEW FNAME,PATH,FPNAME 
+  SET FPNAME=$$GETFNAME(.MSG,.DEFPATH,,,.PATH,.FNAME)
+  IF FPNAME="" QUIT
+  WRITE !,"PATH = ",PATH,!
+  WRITE "FILE = ",FNAME,!
+  NEW % SET %=2 
+  WRITE "PERMANENTLY DELETE file" DO YN^DICN WRITE !
+  IF %'=1 QUIT
+  NEW RESULT SET RESULT=$$DELFILE(FPNAME)
+  IF RESULT=1 DO
+  . WRITE "File deleted.",!
+  ELSE  DO
+  . WRITE "ERROR deleting file.",!
+  DO PRESS2GO^TMGUSRI2
+  QUIT
   ;
 DELFILE(PATHFILENAME) ;
   ;"Purpose: to delete one file on host file system

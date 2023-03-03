@@ -127,10 +127,30 @@ PROCESS1(ONELINE) ;"Process one line from the CSV file.
   ;"      causes hangs as each element was trying to get database lock, and everything was getting very slow.
   ;"      When tasking off, there are thousands of tasks generated, but Taskman is typically
   ;"      about to process them all in 20 minutes or so.  SO, leave code to allow tasking off.  
-  DO SAVE^ORWPCE(.TMGRESULT,.PCELIST,.NOTEIEN,.ORLOC)
+  ;"DO SAVE^ORWPCE(.TMGRESULT,.PCELIST,.NOTEIEN,.ORLOC)
+  DO SAVE(.TMGRESULT,.PCELIST,.NOTEIEN,.ORLOC)   ;"Call the save below for now  2/2/23
 PRODN ;
   QUIT TMGRESULT
   ;"
+SAVE(OK,PCELIST,NOTEIEN,ORLOC)	; save PCE information -- COPIED FROM ORWPCE.m, so that we can
+    ;" make tweaks as needed for now. Once our saves are solid we can add back
+	N VSTR,GMPLUSER
+	N ZTIO,ZTRTN,ZTDTH,ZTSAVE,ZTDESC,ZTSYNC,ZTSK
+	S VSTR=$P(PCELIST(1),U,4) K ^TMP("ORWPCE",$J,VSTR)
+	M ^TMP("ORWPCE",$J,VSTR)=PCELIST
+	S GMPLUSER=$$CLINUSER^ORQQPL1(DUZ),NOTEIEN=+$G(NOTEIEN)
+	S ZTIO="ORW/PXAPI RESOURCE",ZTRTN="DQSAVE^ORWPCE1",ZTDTH=$H
+	S ZTSAVE("PCELIST(")="",ZTDESC="Data from CPRS to PCE"
+	S ZTSAVE("GMPLUSER")="",ZTSAVE("NOTEIEN")="",ZTSAVE("DUZ")=""
+	I VSTR'["E" S ZTSYNC="ORW"_VSTR
+	S ZTSAVE("ORLOC")=""
+    NEW TMGDBSAV SET TMGDBSAV=0            ;"//kt debugging tool
+    IF $GET(TMGORWSFG)=1 SET TMGDBSAV=1       ;"//kt TMGOWRSFG for TMG ORW SAVE FOREGROUND
+	;"IF TMGDBSAV=1 DO DQSAVE^ORWPCE1 QUIT   ;"//kt
+    ;"DO DQSAVE^ORWPCE1 QUIT  ;//elh 1/17/23 - added to force immediate save, so the Health Factors are there when calling TMG GET ORDERED LABS
+	D ^%ZTLOAD I '$D(ZTSK) D DQSAVE^ORWPCE1
+	Q
+	;"
 PRIORFILE(PCELIST)  ;"Determine if CPT data here already in system (prior filing)
   NEW TMGRESULT SET TMGRESULT=0
   NEW TMGDFN SET TMGDFN=$P($G(PCELIST(3)),"^",3)

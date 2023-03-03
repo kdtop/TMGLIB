@@ -529,7 +529,13 @@ HndlWatch(tmgAction) ;
        . NEW v SET v=""
        . FOR  SET v=$ORDER(tmgDgbWatches(v)) QUIT:(v="")  DO
        . . IF v="*" QUIT  ;" this signal for watching CHANGES handled elsewhere.
-       . . SET tmgWatchLine=tmgWatchLine_" WRITE """_v_" =["",$GET("_v_"),""], """
+       . . IF $EXTRACT(v,1)="@" DO       
+       . . . NEW TEMPV SET TEMPV=$$OREF^DILF($NAME(@v))_"*)"
+       . . . ;"WRITE !,"TEMPV=",TEMPV,!
+       . . . SET tmgWatchLine=tmgWatchLine_" WRITE """_v_" =["" ZWR:$D("_v_") "_TEMPV_" WRITE ""],"" "
+       . . . ;"WRITE "tmgWatchLine=",tmgWatchLine,!
+       . . ELSE  DO
+       . . . SET tmgWatchLine=tmgWatchLine_" WRITE """_v_" =["",$GET("_v_"),""], """
        ELSE  DO
        . KILL tmgDgbWatches
        . NEW tempCode

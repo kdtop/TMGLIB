@@ -431,7 +431,7 @@ HELHRPT(TMGDFN)
   . . . IF NEWDUE>0 DO
   . . . . SET DUE=$$ADDDAYS^TMGDATE(730,NEWDUE)
   . . . . SET DUE=$$EXTDATE^TMGDATE(DUE,2)
-  . IF REMIEN=289 DO    ;"Low dose CT, set to 1D follow up to force each time, so we need to set STATUS properly
+  . IF REMIEN=298 DO    ;"Low dose CT, set to 1D follow up to force each time, so we need to set STATUS properly
   . . IF (DUE="None")&(STATUS="DUE NOW") DO
   . . . SET STATUS="Up To Date"
   . . . NEW NEWDUE SET NEWDUE=$P($G(REMRESULT),"^",3)
