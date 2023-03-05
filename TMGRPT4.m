@@ -12,9 +12,20 @@ TMGRPT4  ;TMG/kst TMG REPORTS  ;10/7/16, 3/24/21
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"TMGIMMR(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) Immunization report entry point, as called from CPRS REPORT system
- ;"TMGHFACT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) HEALTH FACTOR REPORT Entry point, as called from CPRS REPORT system
  ;
+ ;"TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) -- CPT report Entry point, as called from CPRS REPORT system
+ ;"GETCPT(OUT,TMGDFN,SDT,EDT) --gather CPT'S for patient into array
+ ;"GETICD(OUT,TMGDFN,SDT,EDT) --Gather ICD's for patient into array  
+ ;"FLURPT(SDT,EDT,VERBOSE) -- Show number of flu shots administered by month
+ ;"PETAGETR() -- Physical exam tag entry point  Entry point for report option
+ ;"PETAGEST(BDATE,EDATE,SUPPRESS) -- Physical Exam tag exists.  look through TIU notes to see if Dr. Kevin's physical exam disclaimer has not been removed properly.
+ ;"PHNVISIT(BDT,EDT)  -- DISPLAY TELEPHONE VISITS WHERE E&M CODES WERE BILLED 7 DAYS PRIOR OR 24 HOURS AFTER
+ ;"NONTEAPT -- see if there are any appts scheduled that doesn't have any notes. Checks for the last 7 days
+ ;"NOADDL -- see if over the course of the last 7 days there are any particular note titles that doesn't have addl signers but should
+ ;"UNSIGNTIU  -- UNSIGNED OFFICE NOTES"
+ ;"NOFUAPPT  --PRINT A LIST OF PATIENT SEEN LAST WEEK, WHO DON'T HAVE APPTS SCHEDULED
+ ;"WRONGTIUDATE
+ ;" 
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================

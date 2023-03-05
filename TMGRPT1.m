@@ -172,6 +172,9 @@ MAMMORPT
        . . NEW s SET s=""
        . . FOR  SET s=$Order(matches(CONSIEN,dueDate,s)) QUIT:s=""  do
        . . . WRITE "Due: ",$p(s,"^",3),?25,$p(s,"^",2),?60,"Made on visit: ",$p($p(s,"^",1),"@",1),!
+       . . . NEW SUBIDX SET SUBIDX=0
+       . . . FOR  SET SUBIDX=$Order(matches(CONSIEN,dueDate,s,SUBIDX)) QUIT:SUBIDX'>0  DO
+       . . . . WRITE ?18,"========>",$G(matches(CONSIEN,dueDate,s,SUBIDX)),!
        . WRITE !
        ;" 
        QUIT   ;"DON'T PRINT THE FOLLOWING FOR NOW. REMOVE QUIT LATER WHEN READY

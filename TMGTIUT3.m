@@ -161,7 +161,7 @@ GETFULL(OUT,ADFN,SECTION,TOPIC,SDT,EDT,OPTION) ;"Get cumulative, full text for p
   ;"Input:  OUT -- AN OUT PARAMETER.  PASS BY REFERENCE.  Format:
   ;"         OUT(0)="1^OK" or "-1^Error message"
   ;"         OUT(#)=FMDT^line#^line of text
-  ;"       IEN8925 = The source document holding topic  
+  ;"       ADFN -- patient IEN
   ;"       SECTION -- 'HPI', or 'A&P'
   ;"       TOPIC -- the topic, or paragraph title name.  Should exactly match
   ;"              that returned in output from GETTOPL() or GETFTOP()
@@ -174,6 +174,10 @@ GETFULL(OUT,ADFN,SECTION,TOPIC,SDT,EDT,OPTION) ;"Get cumulative, full text for p
   ;"           OPTION("FIRST")=3 <-- example.  Means return the 3 first/oldest matches
   ;"           If not provided, then ALL matches are returned.  
   ;"Result: none.
+  ;
+  ;"NOTE: I once had RPC take 50 seconds(!) to return.  I think this was choke point
+  ;"      Later I will see if I can rewrite with data from file 22719.2  //kt 3/5/23
+  ;
   SET OUT(0)="1^OK"
   SET TOPIC=$GET(TOPIC)                   
   IF TOPIC="" DO  GOTO GFDN
@@ -494,4 +498,192 @@ TESTSGST ;
   . IF $DATA(OUT)=0 QUIT
   . WRITE "==============",!,TOPIC,!,"==============",!
   . ZWR OUT
+  QUIT
+  ;
+  ;"==========================================================
+  ;
+DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from, during patient encounter
+  ;"RPC NAME:  <TO DO!!>
+  ;"Input:  OUT  -- output.  Format depends on command
+  ;"        ADFN
+  ;"        CMD -- (can extend in future if needed)
+  ;"            CMD = "LIST FOR NOTE^<IEN8925>"
+  ;"        SDT -- OPTIONAL.  Starting DT.  Default = 0.  Data prior to SDT can be ignored
+  ;"OUTPUT:  OUT -- if CMD='LIST FOR NOTE'
+  ;"           OUT(0)="1^OK", OR "-1^<ErrorMessage>"
+  ;"           OUT(#)="1^<TOPIC NAME>^<THREAD TEXT>^<LINKED PROBLEM IEN>^<LINKED ICD>^<LINKED ICD LONG NAME>^<LINKED SNOWMED NAME>"
+  ;"               NOTES:
+  ;"                 PIECE#1 = 1 means discussed this visit in note
+  ;"                 Topic name is title of section, e.g. 'Back pain'.
+  ;"                 Thread text is text that was ADDED to topic paragraph in TIU NOTE
+  ;"                 Linked values only returned if Topic name previously linked to a PROBLEM
+  ;"                 So if Linked ICD's ect not present, then values will be blank
+  ;"           OUT(#)="2^<TOPIC NAME>^<SUMMARY TEXT>^<LINKED PROBLEM IEN>^<LINKED ICD>^<LINKED ICD LONG NAME>^<LINKED SNOWMED NAME>"  
+  ;"               NOTES:
+  ;"                 PIECE#1 = 2 means NOT discussed this visit, so no THREAD TEXT returned
+  ;"                 SummaryText is a fragment from the BEGINNING of the topic paragraph.
+  ;"                 Linked values only returned if Topic name previously linked to a PROBLEM
+  ;"                 So if Linked ICD's ect not present, then values will be blank
+  ;"           OUT(#)="3^<PROBLEM INFORMATION>  <--- format as created by LIST^ORQQPL3
+  ;"               FORMAT of PROBLEM INFORMATION by pieces.  
+  ;"                  1    2       3         4   5       6          7   8      9       10    11      12     13      14       15             16           17              18                19                 20                    
+	;"                 ifn^status^description^ICD^onset^last modified^SC^SpExp^Condition^Loc^loc.type^prov^service^priority^has comment^date recorded^SC condition(s)^inactive flag^ICD long description^ICD coding system
+	;"                   NOTE: ifn = Pointer to Problem #9000011
+  ;"               NOTES:
+  ;"                 PIECE#1 = 3 means node is a listing of PROBLEM
+  ;"                 If problem already listed in a 1 or 2 node, then it will NOT be listed here
+  ;"           OUT(#)="4^<PRIOR ICD>^<ICD LONG NAME>^<FMDT LAST USED>" 
+  ;"               NOTES:
+  ;"                 PIECE#1 = 4 means that information is for an ICD code that was previously set for a patient visit.
+  ;"                 If ICD has already been included in a piece#1=1 node, then it will NOT be listed here.  
+  ;"RESULT: none. But OUT(0) = 1^OK, or -1^ErrorMessage
+  ;
+  SET OUT(0)="1^OK"  ;"default
+  SET ADFN=+$GET(ADFN)
+  SET SDT=+$GET(SDT)
+  NEW IDX SET IDX=1
+  NEW CMD1 SET CMD1=$PIECE(CMD,"^",1)
+  IF CMD1="LIST FOR NOTE" DO
+  . NEW IEN8925 SET IEN8925=+$PIECE(CMD,"^",2)
+  . NEW ARRAY DO SUMNOTE^TMGTIUP1(IEN8925,.ARRAY)
+  . KILL ARRAY(IEN8925,"FULL"),ARRAY(IEN8925,"SEQ#")
+  . NEW PROBLIST DO PROBLST(.PROBLIST,9182,SDT)   ;"DELETE LATER 
+  . ;"NEW PROBLIST DO PROBLST(.PROBLIST,ADFN,SDT)
+  . NEW THREADINFO DO THREADS(.THREADINFO,ADFN,IEN8925,.ARRAY)
+  . NEW TOPICS DO UNUSEDTOPICS(.TOPICS,.ARRAY)
+  . NEW ICDLIST DO ICDLIST(.ICDLIST,ADFN,SDT)
+  . ;"-------------------------------------------
+  . NEW JDX SET JDX=0
+  . FOR  SET JDX=$ORDER(THREADINFO(JDX)) QUIT:JDX'>0  DO
+  . . NEW LINE SET LINE=$GET(THREADINFO(JDX)) QUIT:JDX=""
+  . . NEW TOPIC SET TOPIC=$PIECE(LINE,"^",1)
+  . . NEW THREADTXT SET THREADTXT=$PIECE(LINE,"^",2)
+  . . NEW PROBIEN SET PROBIEN=$PIECE(LINE,"^",3)
+  . . NEW LINKIDX SET LINKIDX=$GET(PROBLST("PROBLEM",PROBIEN))
+  . . NEW PROBINFO SET PROBINFO=$GET(PROBLST(LINKIDX))
+  . . NEW ICD SET ICD=$PIECE(PROBINFO,"^",4)
+  . . NEW ICDDAME SET ICDNAME=$PIECE(PROBINFO,"^",19)
+  . . NEW SNOMED SET SNOMED=$PIECE(PROBINFO,"^",3)
+  . . NEW RESULT SET RESULT=TOPIC_"^"_THREADTXT_"^"_PROBIEN_"^"_ICD_"^"_ICDNAME_"^"_SNOMED
+  . . SET OUT(IDX)="1^"_RESULT,IDX=IDX+1
+  . ;"-------------------------------------------
+  . SET JDX=0
+  . FOR  SET JDX=$ORDER(TOPICS(JDX)) QUIT:JDX'>0  DO
+  . . NEW LINE SET LINE=$GET(TOPICS(JDX)) QUIT:JDX=""
+  . . NEW TOPIC SET TOPIC=$PIECE(LINE,"^",1)
+  . . IF $DATA(THREADINFO("TOPIC",ATOPIC))>0 QUIT
+  . . NEW THREADTXT SET THREADTXT=$PIECE(LINE,"^",2)
+  . . NEW PROBIEN SET PROBIEN=$PIECE(LINE,"^",3)
+  . . NEW LINKIDX SET LINKIDX=$GET(PROBLST("PROBLEM",PROBIEN))
+  . . NEW PROBINFO SET PROBINFO=$GET(PROBLST(LINKIDX))
+  . . NEW ICD SET ICD=$PIECE(PROBINFO,"^",4)
+  . . NEW ICDDAME SET ICDNAME=$PIECE(PROBINFO,"^",19)
+  . . NEW SNOMED SET SNOMED=$PIECE(PROBINFO,"^",3)
+  . . NEW RESULT SET RESULT=TOPIC_"^"_THREADTXT_"^"_PROBIEN_"^"_ICD_"^"_ICDNAME_"^"_SNOMED
+  . . SET OUT(IDX)="2^"_LINE,IDX=IDX+1
+  . SET JDX=0
+  . FOR  SET JDX=$ORDER(PROBLIST(JDX)) QUIT:JDX'>0  DO
+  . . NEW LINE SET LINE=$GET(PROBLIST(JDX)) QUIT:JDX=""
+  . . NEW IEN SET IEN=+LINE QUIT:IEN'>0
+  . . IF $DATA(THREADINFO(IEN)) QUIT
+  . . IF $DATA(TOPICS(IEN)) QUIT
+  . . SET OUT(IDX)="3^"_LINE,IDX=IDX+1
+  . SET JDX=0
+  . FOR  SET JDX=$ORDER(ICDLIST(JDX)) QUIT:JDX'>0  DO
+  . . NEW LINE SET LINE=$GET(ICDLIST(JDX)) QUIT:JDX=""
+  . . SET OUT(IDX)="4^"_LINE
+  QUIT
+  ;
+THREADS(OUT,ADFN,IEN8925,ARRAY)  ;"Get THREADS info for notE
+  ;"INPUT:  OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:
+  ;"           OUT(#)="<TOPIC NAME>^<THREAD TEXT>^<LINKED PROBLEM IEN>
+  ;"           OUT("TOPIC",<TOPIC NAME>)=#
+  ;"           OUT("PROBLEM",<PROBLEM IEN>)=#
+  ;"           OUT("ICD",<ICD COD>)=#
+	;"        ADFN -- patient IEN
+  ;"        IEN8925 -- NOTE IEN
+  ;"        ARRAY -- note info (already parsed), should be as created by SUMNOTE^TMGTIUP1
+  NEW IDX SET IDX=1  
+  NEW JDX SET JDX=0  
+  FOR  SET JDX=$ORDER(ARRAY(IEN8925,"THREAD",JDX)) QUIT:JDX'>0  DO
+  . NEW LINE SET LINE=$GET(ARRAY(IEN8925,"THREAD",JDX)) QUIT:LINE=""
+  . NEW TOPIC SET TOPIC=$$UP^XLFSTR($PIECE(LINE,"^",1))
+  . NEW THREADTXT SET THREADTXT=$PIECE(LINE,"^",2,9999)
+  . SET THREADTXT=$$REPLSTR^TMGSTUT3(THREADTXT,"^","-[/\]-")  ;"Ensure threadtxt doesn't contain any "^"s
+  . NEW PTIEN SET PTIEN=+$ORDER(^TMG(22719.5,"B",ADFN,0))
+  . NEW LINKIEN SET LINKIEN=+$ORDER(^TMG(22719.5,PTIEN,1,"B",TOPIC,0))
+  . NEW ZN SET ZN=$GET(^TMG(22719.5,PTIEN,1,LINKIEN,0))
+  . NEW PROBIEN SET PROBIEN=+$PIECE(ZN,"^",2)
+  . NEW RESULT SET RESULT=TOPIC_"^"_THREADTXT_"^"_PROBIEN
+  . SET OUT(IDX)=RESULT,IDX=IDX+1
+  QUIT
+  ;
+UNUSEDTOPICS(OUT,ARRAY)  ;"Get list of topics that do NOT have corresponding thread text  
+  ;"INPUT:  OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:
+  ;"           OUT(#)="<TOPIC NAME>^<SUMMARY TEXT>^<LINKED PROBLEM IEN>
+  ;"           OUT("TOPIC",<TOPIC NAME>)=#
+  ;"           OUT("PROBLEM",<PROBLEM IEN>)=#
+  ;"           OUT("ICD",<ICD COD>)=#
+  ;"        ARRAY -- note info (already parsed), should be as created by SUMNOTE^TMGTIUP1
+  NEW IDX SET IDX=1
+  NEW TOPIC SET TOPIC=""
+  NEW JDX SET JDX=0
+  FOR  SET JDX=$ORDER(ARRAY(IEN8925,"HPI",JDX)) QUIT:(JDX'>0)  DO
+  . NEW LINE SET LINE=$GET(ARRAY(IEN8925,"HPI",JDX)) QUIT:LINE=""
+  . NEW TOPIC SET TOPIC=$$UP^XLFSTR($PIECE(LINE,"^",1))
+  . NEW SUMMTXT SET SUMMTXT=$PIECE(LINE,"^",2,9999)
+  . SET SUMMTXT=$$REPLSTR^TMGSTUT3(SUMMTXT,"^","-[/\]-")  ;"Ensure text doesn't contain any "^"s
+  . NEW PTIEN SET PTIEN=+$ORDER(^TMG(22719.5,"B",ADFN,0))
+  . NEW LINKIEN SET LINKIEN=+$ORDER(^TMG(22719.5,PTIEN,1,"B",TOPIC,0))
+  . NEW ZN SET ZN=$GET(^TMG(22719.5,PTIEN,1,LINKIEN,0))
+  . NEW PROBIEN SET PROBIEN=+$PIECE(ZN,"^",2)
+  . NEW RESULT SET RESULT=TOPIC_"^"_SUMMTXT_"^"_PROBIEN
+  . SET OUT(IDX)=RESULT,IDX=IDX+1
+  QUIT
+  ;
+PROBLST(OUT,ADFN,SDT)  ;"Get listing of patient's defined problem list
+  ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:      
+  ;"           OUT(0) = COUNT
+  ;"           OUT(#)="<PROBLEM INFORMATION>  <--- format as created by LIST^ORQQPL3
+  ;"               FORMAT of PROBLEM INFORMATION by pieces.  
+  ;"                  1    2       3         4   5       6          7   8      9       10    11      12     13      14       15             16           17              18                19                 20                    
+	;"                 ifn^status^description^ICD^onset^last modified^SC^SpExp^Condition^Loc^loc.type^prov^service^priority^has comment^date recorded^SC condition(s)^inactive flag^ICD long description^ICD coding system
+	;"                   NOTE: ifn = Pointer to Problem #9000011
+	;"       ADFN -- patient IEN
+	;"       SDT -- Starting date for returned problems.
+	;"Result: none
+  SET SDT=+$GET(SDT)
+  NEW STATUS SET STATUS="A"  ;"A=ACTIVE
+  DO LIST^ORQQPL3(.OUT,ADFN,STATUS,SDT)
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(OUT(IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=$GET(OUT(IDX)) QUIT:LINE=""
+  . NEW IEN SET IEN=+LINE QUIT:IEN'>0
+  . SET OUT("PROBLEM",IEN)=IDX
+  QUIT
+  ;
+ICDLIST(OUT,ADFN,SDT) ;
+  ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:
+  ;"        OUT(#)=<ICD CODE>^<ICD NAME>^<LAST USED FMDT>
+	;"       ADFN -- patient IEN
+	;"       SDT -- Starting date for returned problems.
+	;"Result: none
+  NEW TEMP,XREF
+  NEW EDT SET EDT=9999999
+  DO GETICD^TMGRPT4(.TEMP,ADFN,.SDT,.EDT)  ;"Gather ICD's for patient into array
+  NEW IDX SET IDX=1
+  NEW ADT SET ADT=0
+  FOR  SET ADT=$ORDER(TEMP("ICD",ADT)) QUIT:ADT'>0  DO
+  . NEW LINE SET LINE=""
+  . FOR  SET LINE=$ORDER(TEMP("ICD",ADT,LINE)) QUIT:LINE=""  DO
+  . . NEW ICD SET ICD=$PIECE(LINE,"^",1)
+  . . NEW ICDNAME SET ICDNAME=$PIECE(LINE,"^",2)
+  . . SET XREF(ICD,ADT)=IDX
+  . . SET OUT(IDX)=ICD_"^"_ICDNAME,IDX=IDX+1
+  ;"Now determine last used date.
+  NEW ICD SET ICD=""
+  FOR  SET ICD=$ORDER(XREF(ICD)) QUIT:ICD=""  DO
+  . NEW LASTDT SET LASTDT=+$ORDER(XREF(ICD,""),-1) QUIT:LASTDT=0 
+  . SET IDX=+$GET(XREF(ICD,LASTDT))
+  . SET $PIECE(OUT(IDX),"^",3)=LASTDT
   QUIT

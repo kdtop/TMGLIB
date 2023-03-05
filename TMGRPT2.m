@@ -22,6 +22,27 @@ TMGRPT2  ;TMG/kst TMG REPORTS  ;8/16/13, 2/2/14, 10/18/16, 3/24/21
  ;"RPTPTMIS -- Autoprint entry point for PTMISSED
  ;"ASKPTMIS -- Interactive entry point for PTMISSED 
  ;
+ ;"IHSPAT --Print any patients with missing locations in IHS Patient file
+ ;"BILLTEST(OUTARRAY,BDATE,EDATE,TEXT) --DEMO TEST FUNCTION
+ ;"ASKBMI -- Interactive entry point for BMIMISSED
+ ;"TMPLNAPT(TMGDFN) -- TIU TEMPLATE TO RETURN NEXT APPTS
+ ;"NEXTAPPT(TMGRESULT,TMGDFN,TODAY) 
+ ;"MISMAMMO -- Print report for patients with unscheduled mammograms
+ ;"MAMORDRD(TMGDFN) -- Determine if patient has an outstanding mammogram ordered
+ ;"TICKLER(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) --Tickler report
+ ;"TOPICS(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) -- TOPICS report
+ ;"CPTIIRPT -- return all patients, over 65 with any metrics they have had for the current month.
+ ;"GETCPT(TMGDFN,KEY,VALUE,TMGRESULT,DATE) --  returns the CPT and ICD codes to be documented.
+ ;"CHKNOTE(TMGDFN,NOTEIEN,BEGINDATE,DATESTR,CPT,EXCLUDEFOUND) -- find whether the given note exists
+ ;"SMOKER(OUTARR)  
+ ;"HASNOTES(TMGDFN,BEGINDATE)  -- returns 0 (if none) or date of note the patient had after BEGINDATE
+ ;"APPTTIME(BDATE,EDATE) -- calculate the wait times for a given time period.
+ ;"APTTIME2(BDATE,EDATE) -- calculate the wait times for a given time period.
+ ;"WAITTIME(BDATE,EDATE) -- calculate the wait times for a given time period.
+ ;"MISOVCHG(BDATE,EDATE) -- Print appts that don't have corresponding OV charges
+ ;" TMGAWV(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) -- AWV report
+ ;"AWVREMS(REMLIST) -- list of reminders to include on AWV report
+ ;
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
@@ -446,8 +467,8 @@ GDDN
   QUIT
   ;"
 GETICDS(TMGRESULT,BDATE,EDATE)  ;"
-  ;"This report will return all the ICDs for patients seen for the date
-  ;"range specified
+  ;"This report will return all the ICDs for patients seen for the date range specified
+  ;"NOTE: GETCODES below contains this code, and more...
   NEW IEN,TEXT,ICDIEN,ICDTEXT
   NEW TIUDATE,TIUIEN,FOUND
   SET TIUDATE=$PIECE(BDATE,".",1)
@@ -476,8 +497,7 @@ GETICDS(TMGRESULT,BDATE,EDATE)  ;"
   . . . SET TMGRESULT(NAME,STR,VSTDT)=""
   QUIT
 GETCODES(ICDARRAY,CPTARRAY,BDATE,EDATE)  ;"
-  ;"This report will return all the ICDs for patients seen for the date
-  ;"range specified
+  ;"This report will return all the ICDs for patients seen for the date range specified
   NEW IEN,TEXT,ICDIEN,ICDTEXT
   NEW TIUDATE,TIUIEN,FOUND
   SET TIUDATE=$PIECE(BDATE,".",1)
@@ -698,7 +718,7 @@ GETNAME(TMGDFN)
   QUIT $PIECE($GET(^DPT(TMGDFN,0)),"^",1)_" ("_$PIECE($GET(^DPT(TMGDFN,"TMG")),"^",2)_")"
   ;
 ASKBMI
-  ;"Interactive entry point for PTMISSED
+  ;"Interactive entry point for BMIMISSED
   NEW %ZIS
   SET %ZIS("A")="Enter Output Device: "
   SET %ZIS("B")="HOME"
@@ -1338,7 +1358,7 @@ CHKMEDS(TMGDFN,LISTIEN,DATESTR,CPT)
 CMDN
   QUIT RESULT
   ;"
-SMOKER(OUTARR)
+SMOKER(OUTARR)  ;
   SET TMGY=""
   NEW FORMER SET FORMER=$G(OUTARR("KEY-VALUE","FORMER TOBACCO USER"))
   SET FORMER=+$$INTDATE^TMGDATE(FORMER)
@@ -1584,8 +1604,7 @@ STRTTIME(TMGDFN,THISDATE)  ;"RETURN THE START TIME FOR THE DAY
   IF BTIME=9999999 SET BTIME=0
   QUIT BTIME
   ;"
-MISOVCHG(BDATE,EDATE)  ;"Print appts that don't have corresponding OV
-  ;"charges
+MISOVCHG(BDATE,EDATE)  ;"Print appts that don't have corresponding OV charges
   NEW DATE SET DATE=$P(BDATE,".",1)
   SET EDATE=$P(EDATE,".",1)_".999999"
   FOR  SET DATE=$O(^TMG(22723,"DT",DATE)) QUIT:(DATE>EDATE)!(DATE'>0)  DO
