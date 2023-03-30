@@ -372,3 +372,32 @@ CLEANUP
    . . . WRITE "Entry successfully deleted",!
    QUIT
    ;"
+SUSMCENC(OUT,IDX,TMGDFN)  ;
+   ;"  ADD SUSPECT MEDICAL CONDITIONS TO ENCOUNTER ARRAY  (FROM TMGTIUT3)
+   ;"//kt moved to tmgtiut3 --> NEW SDT
+   ;"//kt moved to tmgtiut3 --> SET SDT=$$TODAY^TMGDATE
+   ;"//kt moved to tmgtiut3 --> NEW THISYEAR SET THISYEAR=$E(SDT,1,3)+1700
+   ;"//kt moved to tmgtiut3 --> NEW ARRAY DO GET1PAT(.ARRAY,TMGDFN,THISYEAR)
+   ;"//kt moved to tmgtiut3 --> IF $D(ARRAY) DO
+   ;"//kt moved to tmgtiut3 --> . SET OUT(IDX)="5^HEADER^Suspect Medical Conditions",IDX=IDX+1
+   ;"//kt moved to tmgtiut3 --> . NEW MCIDX SET MCIDX=9999
+   ;"//kt moved to tmgtiut3 --> . FOR  SET MCIDX=$O(ARRAY(MCIDX),-1) QUIT:MCIDX'>0  DO
+   ;"//kt moved to tmgtiut3 --> . . NEW ICD,DESC,ZN,CONDITION
+   ;"//kt moved to tmgtiut3 --> . . SET ZN=$G(ARRAY(MCIDX))
+   ;"//kt moved to tmgtiut3 --> . . SET ICD=$P(ZN,"^",2),DESC=$P(ZN,"^",4)
+   ;"//kt moved to tmgtiut3 --> . . SET ICD=$$FIXICD(ICD)
+   ;"//kt moved to tmgtiut3 --> . . SET CONDITION=$P(ZN,"^",3)
+   ;"//kt moved to tmgtiut3 --> . . SET OUT(IDX)="5^ENTRY^"_ICD_"^"_DESC_"^"_CONDITION_"^10D",IDX=IDX+1
+   QUIT
+   ;"
+FIXICD(CODE)  ;" Test given code against file 80 (which has the dots
+   ;"NOTE: ^ICD9("ABA",30,<ICD 10 CODE> is the index to use, I think 
+   NEW OUTCODE,I,FOUNDCODE
+   SET FOUNDCODE=""
+   FOR I=1:1:$L(CODE) D
+   . S OUTCODE=$E(CODE,1,I)_"."_$E(CODE,I+1,$L(CODE))_" "
+   . ;"W OUTCODE,!
+   . IF $D(^ICD9("AB",OUTCODE)) SET FOUNDCODE=OUTCODE
+   IF FOUNDCODE="" SET FOUNDCODE="CODE "_CODE_" NOT FOUND IN ICD FILE"
+   QUIT FOUNDCODE
+   ;"

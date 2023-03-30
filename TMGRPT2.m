@@ -1053,13 +1053,13 @@ TEST
   NEW BEGINDATE SET BEGINDATE=$$TODAY^TMGDATE
   SET BEGINDATE=$E(BEGINDATE,1,5)_"01.000000"
   ;"SET BEGINDATE=3200601.0000
-  SET BEGINDATE=$$ADDDAYS^TMGDATE(-42)
+  SET BEGINDATE=$$ADDDAYS^TMGDATE(-7)
   ;"SET BEGINDATE=3200401.0000
   ;"header
   WRITE !
   WRITE "************************************************************",!
   ;"WRITE "              INSURANCE METRICS FOR ",$$MNTHNAME^TMGDATE(BEGINDATE),!
-  WRITE "              INSURANCE METRICS FOR LAST 21 DAYS",!
+  WRITE "              INSURANCE METRICS FOR LAST 7 DAYS",!
   WRITE "************************************************************",!
   WRITE "                                            (From TMGRPT2.m)",!!
   ;"GET TABLE DATA

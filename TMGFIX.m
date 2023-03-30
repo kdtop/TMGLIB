@@ -8,6 +8,162 @@
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
+  ;"=====================================================
+  ;"=====================================================
+  ;" Keep Code in block below.  It took me about 5-6 hrs to write
+  ;"=====================================================
+  ;"=====================================================
+
+COMMONREF(MODE,GENDER,GRAPH,ARRAY,pctl) ;
+        ;"Purpose: Return array filled with data for percentile curves
+        ;"Input: MODE -- 1 IF for age range 0-36 months, 2 IF age 2-20 yrs
+        ;"       GENDER -- M OR F
+        ;"       GRAPH -- Name of graph
+        ;"       ARRAY -- PASS BY REFERENCE.  AN OUT PARAMETER.  PRIOR VALUES KILLED.
+        ;"           ARRAY(%tile,Age)=x^y
+        ;"Result: none
+        NEW DIC,X,Y,L,M,S
+        KILL ARRAY
+        SET GENDER=$EXTRACT($$UP^XLFSTR(GENDER),1)
+        IF (GENDER'="M")&(GENDER'="F") GOTO CMRFQT
+        SET DIC=22713,DIC(0)="M",X=$GET(GRAPH)
+        DO ^DIC
+        IF +Y'>0 GOTO CMRFQT
+        NEW IEN SET IEN=+Y
+        NEW X0,XINC,XMAX
+        IF MODE=1 SET X0=0,XINC=1,XMAX=36
+        ELSE  SET X0=24,XINC=12,XMAX=240
+        SET X=X0
+        NEW ZARRAY,Z
+        NEW ABORT SET ABORT=0
+        FOR  DO  SET X=X+XINC QUIT:(X>XMAX)!ABORT        
+        . IF +$$GETLMS^TMGGRC1(IEN,X,GENDER,.L,.M,.S)<0 SET ABORT=1 QUIT
+        . NEW P SET P=pctl DO
+        . . IF $GET(ZARRAY(P))="" SET ZARRAY(P)=$$PCTL2Z^TMGGRC1(P)
+        . . SET Z=ZARRAY(P)        
+        . . NEW VAL SET VAL=$$LMSZ2Y^TMGGRC1(L,M,S,Z)
+        . . SET VAL=$JUSTIFY(VAL,0,2)
+        . . SET ARRAY(P,X)=X_"^"_VAL
+        ;
+CMRFQT  QUIT
+        ;
+
+MAKEVS ;"Make fake vitals for a test patient.
+        NEW DIC,X,Y,PCTL,AGE,GENDER,TMGERR,GRAPH,ARRAY,%
+        SET DIC=2,DIC(0)="MEQ"
+        SET DIC("A")="Enter name of **TEST** patient: "
+        ;"SET X="ZZTEST,BABY"
+        DO ^DIC WRITE !
+        IF +Y'>0 QUIT
+        NEW TMGDFN SET TMGDFN=+Y
+        DO GETPAT^TMGGRC2(TMGDFN,.AGE,.GENDER,.TMGERR)
+        NEW DOB SET DOB=+$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
+        IF $DATA(^GMR(120.5,"C",TMGDFN)) DO  QUIT:(%=-1)
+        . SET %=2
+        . WRITE "Patient has other vitals already defined.  DELETE them all"
+        . DO YN^DICN WRITE !
+        . IF %'=1 QUIT
+        . NEW DIK SET DIK="^GMR(120.5,"
+        . NEW DA SET DA=0
+        . FOR  SET DA=$ORDER(^GMR(120.5,"C",TMGDFN,DA)) QUIT:(+DA'>0)  DO
+        . . DO ^DIK
+        . . WRITE "!"
+        . WRITE !
+        READ "Enter Percentile (9-95) :",PCTL:60,!
+        KILL DIC
+        NEW IEN
+        FOR IEN=20,8,9 DO
+        . ;"SET DIC=120.51,DIC(0)="MEQ"
+        . ;"DO ^DIC WRITE !
+        . ;"IF +Y'>0 QUIT
+        . SET Y=IEN_"^"_$PIECE($GET(^GMRD(120.51,IEN,0)),"^",1)
+        . WRITE !,$p(Y,"^",2)
+        . DO MAKE1VS(TMGDFN,GENDER,Y,PCTL) ;
+        QUIT
+
+MAKE1VS(TMGDFN,GENDER,TYPE,PCTL) ;
+        ;"TYPE -- IEN^Name from 120.51
+
+        NEW GRAPH,UNIT,MULT,AGE
+        NEW NAME SET NAME=$PIECE(TYPE,"^",2)
+        IF NAME="CIRCUMFERENCE/GIRTH" DO
+        . SET GRAPH(1)="HEAD CIRC BY AGE -- INFANT"
+        . SET GRAPH(2)=""
+        . SET UNIT="cm"
+        . SET MULT=(1/2.54)
+        ELSE  IF NAME="HEIGHT" DO
+        . SET GRAPH(1)="LENGTH BY AGE -- INFANT"
+        . SET GRAPH(2)="STATURE BY AGE"
+        . SET UNIT="cm"
+        . SET MULT=(1/2.54)
+        ELSE  IF NAME="WEIGHT" DO
+        . SET GRAPH(1)="WEIGHT BY AGE -- INFANT"
+        . SET GRAPH(2)="WEIGHT BY AGE"
+        . SET UNIT="kg"
+        . SET MULT=2.2
+        ELSE  DO  QUIT
+        . WRITE "Unsupported graph.",!
+        KILL DIC
+        NEW ABORT SET ABORT=0
+        FOR GRAPH=1,2 DO  QUIT:ABORT
+        . SET DIC=22713,DIC(0)="M"
+        . SET X=GRAPH(GRAPH) QUIT:X=""
+        . DO ^DIC ;"WRITE !
+        . IF +Y'>0 QUIT
+        . ;"WRITE Y,!
+        . SET GRAPH("N")=$PIECE(Y,"^",2)
+        . DO COMMONREF(GRAPH,GENDER,GRAPH("N"),.ARRAY,PCTL) ;
+        . IF $DATA(ARRAY)=0 QUIT
+        . NEW AGE SET AGE=0
+        . FOR  SET AGE=$ORDER(ARRAY(PCTL,AGE)) QUIT:(AGE="")!ABORT  DO
+        . . NEW S SET S=ARRAY(PCTL,AGE)
+        . . NEW DELTA SET DELTA=$P(S,"^",1)
+        . . IF GRAPH=1,DELTA=36 QUIT
+        . . IF GRAPH=2,DELTA=24 QUIT
+        . . NEW VAL SET VAL=$P(S,"^",2)
+        . . NEW NDATE,X1,X2,X,y
+        . . SET X2=((DELTA*30.42)+.5)\1
+        . . SET X1=DOB
+        . . DO C^%DTC  ;"OUTPUT IN X
+        . . SET Y=X DO DD^%DT  ;"OUPUT IN Y
+        . . ;"WRITE "on DOB +",DELTA,": (",Y,")  ",VAL," ",UNIT,!
+        . . SET ABORT=$$Add1VS(TMGDFN,TYPE,VAL,Y,UNIT)
+        QUIT
+
+Add1VS(TMGDFN,TYPE,VALUE,DATE,UNIT)
+        ;"TYPE -- IEN^Name from 120.51
+        ;"Result: 0 IF OK, 1 IF error
+        SET VALUE=$JUSTIFY(VALUE,0,1)
+        IF +$PIECE(VALUE,".",2)=0 SET VALUE=VALUE\1
+        IF +TYPE=20 SET UNIT=$E(UNIT,1)
+        SET VALUE=VALUE_UNIT
+        WRITE $P(TYPE,"^",2),"  DATE: (",DATE,")  ",VALUE,!
+        NEW RESULT SET RESULT=0
+        NEW TMGFDA,TMGIEN,TMGMSG,AGE
+        SET TMGFDA(120.5,"+1,",.01)=DATE_"@08:00"
+        SET TMGFDA(120.5,"+1,",.02)="`"_TMGDFN
+        SET TMGFDA(120.5,"+1,",.03)="`"_+TYPE
+        SET TMGFDA(120.5,"+1,",.04)="NOW"
+        SET TMGFDA(120.5,"+1,",.05)="lo"
+        SET TMGFDA(120.5,"+1,",.06)="`"_DUZ
+        DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
+        IF $DATA(TMGMSG("DIERR")) DO  GOTO A1VDN
+        . DO SHOWDIER^TMGDEBU2(.TMGMSG)
+        . SET RESULT=1
+        NEW IEN SET IEN=TMGIEN(1)
+        KILL TMGFDA
+        SET TMGFDA(120.5,IEN_",",1.2)=VALUE
+        DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
+        IF $DATA(TMGMSG("DIERR")) DO  GOTO A1VDN
+        . DO SHOWDIER^TMGDEBU2(.TMGMSG)
+        . SET RESULT=1
+
+A1VDN   QUIT RESULT
+
+  ;"=====================================================
+  ;"=====================================================
+
+ 
 ;"=====================================================================
 ;"================================================================
 
@@ -272,162 +428,6 @@ SUMM
         . WRITE "FILE [",FNAME,"] has ",$$LISTCT^TMGMISC2(REF)," overlapping records",!
         QUIT
 
-  ;"=====================================================
-  ;"=====================================================
-  ;" Keep Code in block below.  It took me about 5-6 hrs to write
-  ;"=====================================================
-  ;"=====================================================
-
-COMMONREF(MODE,GENDER,GRAPH,ARRAY,pctl) ;
-        ;"Purpose: Return array filled with data for percentile curves
-        ;"Input: MODE -- 1 IF for age range 0-36 months, 2 IF age 2-20 yrs
-        ;"       GENDER -- M OR F
-        ;"       GRAPH -- Name of graph
-        ;"       ARRAY -- PASS BY REFERENCE.  AN OUT PARAMETER.  PRIOR VALUES KILLED.
-        ;"           ARRAY(%tile,Age)=x^y
-        ;"Result: none
-        NEW DIC,X,Y,L,M,S
-        KILL ARRAY
-        SET GENDER=$EXTRACT($$UP^XLFSTR(GENDER),1)
-        IF (GENDER'="M")&(GENDER'="F") GOTO CMRFQT
-        SET DIC=22713,DIC(0)="M",X=$GET(GRAPH)
-        DO ^DIC
-        IF +Y'>0 GOTO CMRFQT
-        NEW IEN SET IEN=+Y
-        NEW X0,XINC,XMAX
-        IF MODE=1 SET X0=0,XINC=1,XMAX=36
-        ELSE  SET X0=24,XINC=12,XMAX=240
-        SET X=X0
-        NEW ZARRAY,Z
-        NEW ABORT SET ABORT=0
-        FOR  DO  SET X=X+XINC QUIT:(X>XMAX)!ABORT        
-        . IF +$$GETLMS^TMGGRC1(IEN,X,GENDER,.L,.M,.S)<0 SET ABORT=1 QUIT
-        . NEW P SET P=pctl DO
-        . . IF $GET(ZARRAY(P))="" SET ZARRAY(P)=$$PCTL2Z^TMGGRC1(P)
-        . . SET Z=ZARRAY(P)        
-        . . NEW VAL SET VAL=$$LMSZ2Y^TMGGRC1(L,M,S,Z)
-        . . SET VAL=$JUSTIFY(VAL,0,2)
-        . . SET ARRAY(P,X)=X_"^"_VAL
-        ;
-CMRFQT  QUIT
-        ;
-
-MAKEVS ;"Make fake vitals for a test patient.
-        NEW DIC,X,Y,PCTL,AGE,GENDER,TMGERR,GRAPH,ARRAY,%
-        SET DIC=2,DIC(0)="MEQ"
-        SET DIC("A")="Enter name of **TEST** patient: "
-        ;"SET X="ZZTEST,BABY"
-        DO ^DIC WRITE !
-        IF +Y'>0 QUIT
-        NEW TMGDFN SET TMGDFN=+Y
-        DO GETPAT^TMGGRC2(TMGDFN,.AGE,.GENDER,.TMGERR)
-        NEW DOB SET DOB=+$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
-        IF $DATA(^GMR(120.5,"C",TMGDFN)) DO  QUIT:(%=-1)
-        . SET %=2
-        . WRITE "Patient has other vitals already defined.  DELETE them all"
-        . DO YN^DICN WRITE !
-        . IF %'=1 QUIT
-        . NEW DIK SET DIK="^GMR(120.5,"
-        . NEW DA SET DA=0
-        . FOR  SET DA=$ORDER(^GMR(120.5,"C",TMGDFN,DA)) QUIT:(+DA'>0)  DO
-        . . DO ^DIK
-        . . WRITE "!"
-        . WRITE !
-        READ "Enter Percentile (9-95) :",PCTL:60,!
-        KILL DIC
-        NEW IEN
-        FOR IEN=20,8,9 DO
-        . ;"SET DIC=120.51,DIC(0)="MEQ"
-        . ;"DO ^DIC WRITE !
-        . ;"IF +Y'>0 QUIT
-        . SET Y=IEN_"^"_$PIECE($GET(^GMRD(120.51,IEN,0)),"^",1)
-        . WRITE !,$p(Y,"^",2)
-        . DO MAKE1VS(TMGDFN,GENDER,Y,PCTL) ;
-        QUIT
-
-MAKE1VS(TMGDFN,GENDER,TYPE,PCTL) ;
-        ;"TYPE -- IEN^Name from 120.51
-
-        NEW GRAPH,UNIT,MULT,AGE
-        NEW NAME SET NAME=$PIECE(TYPE,"^",2)
-        IF NAME="CIRCUMFERENCE/GIRTH" DO
-        . SET GRAPH(1)="HEAD CIRC BY AGE -- INFANT"
-        . SET GRAPH(2)=""
-        . SET UNIT="cm"
-        . SET MULT=(1/2.54)
-        ELSE  IF NAME="HEIGHT" DO
-        . SET GRAPH(1)="LENGTH BY AGE -- INFANT"
-        . SET GRAPH(2)="STATURE BY AGE"
-        . SET UNIT="cm"
-        . SET MULT=(1/2.54)
-        ELSE  IF NAME="WEIGHT" DO
-        . SET GRAPH(1)="WEIGHT BY AGE -- INFANT"
-        . SET GRAPH(2)="WEIGHT BY AGE"
-        . SET UNIT="kg"
-        . SET MULT=2.2
-        ELSE  DO  QUIT
-        . WRITE "Unsupported graph.",!
-        KILL DIC
-        NEW ABORT SET ABORT=0
-        FOR GRAPH=1,2 DO  QUIT:ABORT
-        . SET DIC=22713,DIC(0)="M"
-        . SET X=GRAPH(GRAPH) QUIT:X=""
-        . DO ^DIC ;"WRITE !
-        . IF +Y'>0 QUIT
-        . ;"WRITE Y,!
-        . SET GRAPH("N")=$PIECE(Y,"^",2)
-        . DO COMMONREF(GRAPH,GENDER,GRAPH("N"),.ARRAY,PCTL) ;
-        . IF $DATA(ARRAY)=0 QUIT
-        . NEW AGE SET AGE=0
-        . FOR  SET AGE=$ORDER(ARRAY(PCTL,AGE)) QUIT:(AGE="")!ABORT  DO
-        . . NEW S SET S=ARRAY(PCTL,AGE)
-        . . NEW DELTA SET DELTA=$P(S,"^",1)
-        . . IF GRAPH=1,DELTA=36 QUIT
-        . . IF GRAPH=2,DELTA=24 QUIT
-        . . NEW VAL SET VAL=$P(S,"^",2)
-        . . NEW NDATE,X1,X2,X,y
-        . . SET X2=((DELTA*30.42)+.5)\1
-        . . SET X1=DOB
-        . . DO C^%DTC  ;"OUTPUT IN X
-        . . SET Y=X DO DD^%DT  ;"OUPUT IN Y
-        . . ;"WRITE "on DOB +",DELTA,": (",Y,")  ",VAL," ",UNIT,!
-        . . SET ABORT=$$Add1VS(TMGDFN,TYPE,VAL,Y,UNIT)
-        QUIT
-
-Add1VS(TMGDFN,TYPE,VALUE,DATE,UNIT)
-        ;"TYPE -- IEN^Name from 120.51
-        ;"Result: 0 IF OK, 1 IF error
-        SET VALUE=$JUSTIFY(VALUE,0,1)
-        IF +$PIECE(VALUE,".",2)=0 SET VALUE=VALUE\1
-        IF +TYPE=20 SET UNIT=$E(UNIT,1)
-        SET VALUE=VALUE_UNIT
-        WRITE $P(TYPE,"^",2),"  DATE: (",DATE,")  ",VALUE,!
-        NEW RESULT SET RESULT=0
-        NEW TMGFDA,TMGIEN,TMGMSG,AGE
-        SET TMGFDA(120.5,"+1,",.01)=DATE_"@08:00"
-        SET TMGFDA(120.5,"+1,",.02)="`"_TMGDFN
-        SET TMGFDA(120.5,"+1,",.03)="`"_+TYPE
-        SET TMGFDA(120.5,"+1,",.04)="NOW"
-        SET TMGFDA(120.5,"+1,",.05)="lo"
-        SET TMGFDA(120.5,"+1,",.06)="`"_DUZ
-        DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
-        IF $DATA(TMGMSG("DIERR")) DO  GOTO A1VDN
-        . DO SHOWDIER^TMGDEBU2(.TMGMSG)
-        . SET RESULT=1
-        NEW IEN SET IEN=TMGIEN(1)
-        KILL TMGFDA
-        SET TMGFDA(120.5,IEN_",",1.2)=VALUE
-        DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
-        IF $DATA(TMGMSG("DIERR")) DO  GOTO A1VDN
-        . DO SHOWDIER^TMGDEBU2(.TMGMSG)
-        . SET RESULT=1
-
-A1VDN   QUIT RESULT
-
-  ;"=====================================================
-  ;"=====================================================
-
- 
 HASFACTOR(SOURCEREF,FACTOR) ;"RETURN IF PATIENT HAS FACTOR
         ;"Purpose: Ensure patients have health factor etc stored for given dates
         ;"Input: REF -- format: @REF@(DFN,FMDT)=""        
@@ -968,3 +968,40 @@ FIXPATCH  ;
   DO FIXPATCH^TMGPAT5
   QUIT
   ;
+   
+FIX22719D2 ;
+  NEW ADFN SET ADFN=0
+  FOR  SET ADFN=$ORDER(^TMG(22719.2,ADFN)) QUIT:ADFN'>0  DO
+  . NEW SAVEARR
+  . NEW TOPICREC SET TOPICREC=0
+  . FOR  SET TOPICREC=$ORDER(^TMG(22719.2,ADFN,1,TOPICREC)) QUIT:TOPICREC'>0  DO
+  . . NEW DTREC SET DTREC=0
+  . . FOR  SET DTREC=$ORDER(^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC)) QUIT:DTREC'>0  DO
+  . . . NEW ZN SET ZN=$GET(^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC,0))
+  . . . NEW DT SET DT=$PIECE(ZN,"^",1)
+  . . . NEW IEN8925 SET IEN8925=$PIECE(ZN,"^",2)
+  . . . IF IEN8925>0 QUIT  ;"already present
+  . . . SET IEN8925=+$GET(SAVEARR(DT))
+  . . . IF IEN8925'>0  SET IEN8925=+$$GETDOC(ADFN,DT)
+  . . . IF IEN8925'>0 QUIT
+  . . . SET $PIECE(ZN,"^",2)=IEN8925
+  . . . SET ^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC,0)=ZN  ;"DIRECT WRITE
+  . . . SET SAVEARR(DT)=IEN8925
+  . WRITE "."
+  . ;"IF $DATA(SAVEARR) ZWR SAVEARR
+  QUIT
+  ;
+GETDOC(ADFN,DT)  ;"CONVERT DFN + DT --> IEN8925
+  NEW RESULT SET RESULT=+$ORDER(^TIU(8925,"ZTMGPTDT",ADFN,DT,0))
+  QUIT RESULT
+  ;
+FIX22719D5 ;
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(^TMG(22719.5,IEN)) QUIT:IEN'>0  DO
+  . NEW ZN SET ZN=$GET(^TMG(22719.5,IEN,0))
+  . NEW DFN SET DFN=$PIECE(ZN,"^",1)
+  . IF DFN=IEN QUIT
+  . IF $DATA(^TMG(22719.5,DFN)) DO  QUIT
+  . . WRITE !,"CAN'T MERGE INTO #"_DFN_", BECAUSE DATA ALREADY THERE.  SKIPPING",!
+  . MERGE ^TMG(22719.5,DFN)=^TMG(22719.5,IEN) KILL ^TMG(22719.5,IEN)
+  QUIT 

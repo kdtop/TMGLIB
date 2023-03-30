@@ -99,6 +99,12 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   QUIT
   ;
 GETCPT(OUT,TMGDFN,SDT,EDT) ;"gather CPT'S for patient into array
+  ;"Input:  OUT -- AN OUT ARRAY.  Format:
+  ;"           OUT("CPT",<FMDT>,"<CPT>^CPT NAME>")=""
+  ;"           OUT("DT",<FMDT\1>,"CPT","<CPT>^<CPT NAME>")=""
+  ;"        TMGDFN -- Patient IEN
+  ;"        SDT -- starting date for search
+  ;"        EDT -- ending date for search
   NEW IEN SET IEN=0
   FOR  SET IEN=$ORDER(^AUPNVCPT("C",TMGDFN,IEN)) QUIT:+IEN'>0  DO
   . NEW ZN SET ZN=$GET(^AUPNVCPT(IEN,0)) QUIT:ZN=""
@@ -112,7 +118,15 @@ GETCPT(OUT,TMGDFN,SDT,EDT) ;"gather CPT'S for patient into array
   . SET OUT("DT",VSTDT\1,"CPT",CPTZN)=""
   QUIT
   ;
-GETICD(OUT,TMGDFN,SDT,EDT)  ;"Gather ICD's for patient into array  
+GETICD(OUT,TMGDFN,SDT,EDT,OPTION)  ;"Gather ICD's for patient into array  
+  ;"Input:  OUT -- AN OUT ARRAY.  Format:
+  ;"           OUT("ICD",<FMDT>,"<ICD>^<ICD NAME>")=""
+  ;"           OUT("DT",<FMDT\1>,"ICD","<ICD>^<ICD NAME>")=""
+  ;"        TMGDFN -- Patient IEN
+  ;"        SDT -- starting date for search
+  ;"        EDT -- ending date for search
+  ;"        OPTION -- optional.
+  ;"           OPTION("ICDSYS")=1 If present then ICD_system is returned, i.e.  OUT("ICD",<FMDT>,"<ICD>^<ICD NAME>^<ICDSYS>")="" 
   NEW IEN SET IEN=0
   FOR  SET IEN=$ORDER(^AUPNVPOV("C",TMGDFN,IEN)) QUIT:+IEN'>0  DO
   . NEW ZN SET ZN=$GET(^AUPNVPOV(IEN,0)) QUIT:ZN=""
@@ -126,6 +140,14 @@ GETICD(OUT,TMGDFN,SDT,EDT)  ;"Gather ICD's for patient into array
   . NEW PTR SET PTR=$ORDER(^ICD9(ICDIEN,68,"B",ADT,0)) QUIT:PTR'>0
   . NEW DESCR SET DESCR=$GET(^ICD9(ICDIEN,68,PTR,1))
   . NEW STR SET STR=$PIECE(ICDZN,"^",1)_"^"_DESCR
+  . IF $GET(OPTION("ICDSYS")) DO
+  . . NEW CODESYSIEN SET CODESYSIEN=$PIECE($GET(^ICD9(ICDIEN,1)),"^",1)  ;" 1;1  --> 1.1  CODING SYSTEM <-Pntr  [*P80.4']
+  . . QUIT:CODESYSIEN'>0  
+  . . NEW ZN SET ZN=$GET(^ICDS(CODESYSIEN,0))
+  . . NEW CSABRV SET CSABRV=$PIECE(ZN,"^",2) QUIT:CSABRV=""
+  . . SET STR=STR_"^"_CSABRV
+  . . ;"NEW CSYS SET CSYS=$PIECE(ZN,"^",1) QUIT:CSYS=""
+  . . ;"SET STR=STR_"^"_CSYS
   . SET OUT("ICD",VSTDT,STR)=""
   . SET OUT("DT",VSTDT\1,"ICD",STR)=""
   QUIT
