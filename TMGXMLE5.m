@@ -126,7 +126,11 @@ WRIT1FLD(FILENUM,IEN,FIELD,FIELDS,FLAGS,SREF,IENS,INDENTS,WRITERS,SAVFIELDINFO) 
   . . NEW GETFLAG SET GETFLAG=""
   . . IF FLAGS["I" SET GETFLAG="I"
   . . IF $GET(FIELDINFO("SPECIFIER"))["Cm" DO  QUIT ;"//kt 3/17/21  Computed multiline
-  . . . NEW TMGOUT DO GETS^DIQ(FILENUM,IENS,FIELD,"","TMGOUT")
+ . . .  NEW TMGOUT,ERR SET ERR=0  ;"//kt 4/19/23
+  . . . DO   ;"had instance of crash with this due to missing variables in computed code. 
+  . . . . NEW $ETRAP SET $ETRAP=" SET ERR=$ECODE SET $ETRAP="""",$ECODE="""" "
+  . . . . DO GETS^DIQ(FILENUM,IENS,FIELD,"","TMGOUT")
+  . . . IF ERR'=0 SET LINE="(ERROR: "_ERR_")" QUIT
   . . . SET LINE=""
   . . . NEW IDX SET IDX=0
   . . . FOR  SET IDX=$ORDER(TMGOUT(FILENUM,IENS,FIELD,IDX)) QUIT:IDX'>0  DO

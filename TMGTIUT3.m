@@ -16,25 +16,36 @@ TMGTIUT3 ;TMG/kst-TIU-related code ; 5/20/15, 4/11/17, 3/15/23
   ;" RPC -- Public Functions.
   ;"=======================================================================
   ;"TOPICS(OUT,CMD,ADFN,SECTION,TOPICLST,SDT,EDT)-- High level entry point for functions below
-  ;"TOPRBLNK(OUT,IN)  --TOPIC-PROBLEM LINK entry point
-  ;"TOPICLST(OUT,ADFN,STARTING,DIR,MAX) -- List all topics in file 22719.51 (a subfile), or subset thereof.
-  ;"LKSUGEST(OUT,TOPIC)  -- Suggest info for problems to create for given topic
-  ;"DXLIST(OUT,ADFN,CMD,SDT) -- Get list of possible diagnoses for user to pick from, during patient encounter
+  ;"TOPRBLNK(OUT,IN)  --TOPIC-PROBLEM LINK entry point.  RPC: TMG CPRS TOPIC LINKS
+  ;"TOPICLST(OUT,ADFN,STARTING,DIR,MAX) -- List all topics in file 22719.51 (a subfile), or subset thereof. RPC: TMG CPRS TOPIC SUBSET
+  ;"LKSUGEST(OUT,TOPIC)  -- Suggest info for problems to create for given topic. RPC ENTRY POINT FOR: TMG CPRS TOPIC CODE SUGGEST
+  ;"DXLIST(OUT,ADFN,CMD,SDT) -- Get list of possible diagnoses for user to pick from, during patient encounter.  RPC NAME:  TMG CPRS ENCOUNTER GET DX LIST
   ;"SUMNOTE(IEN8925,ARRAY) -- Get back summary data from prior parsing and storage. 
   ;"THREADS(OUT,ADFN,IEN8925,ARRAY) -- Get THREADS info for note
   ;"UNUSEDTOPICS(OUT,ARRAY,THREADINFO) -- Get list of topics that do NOT have corresponding thread text  
   ;"PROBLST(OUT,ADFN,SDT)  -- Get listing of patient's defined problem list
   ;"ICDLIST(OUT,ADFN,SDT) -- Get listing of ICD's used for patient in past  
+  ;"PROCLIST(OUT,ADFN,CMD,SDT) -- Get list of possible procedures for user to pick from, during patient encounter. RPC NAME:  TMG CPRS ENCOUNTER GET CPT LST
+  ;"VISITLIST(OUT,ADFN,CMD,SDT) -- Get list of possible procedures for user to pick from, during patient encounter.  RPC NAME:  TMG CPRS ENCOUNTER GET VST LST
+  ;  
   ;"=======================================================================
   ;"PRIVATE API FUNCTIONS
   ;"=======================================================================
   ;"TESTLST ;
-  ;"GETFTOP(OUT,ADFN,SECTION,SDT,EDT)  ;"GET FORMATTED TOPICS LIST for a patient
-  ;"GETTOPL(OUT,ADFN,SECTION,SDT,EDT,FILTER)  ;"GET TOPICS LIST for a patient
-  ;"GETFULL(OUT,ADFN,SECTION,TOPIC,SDT,EDT) ;"Get cumulative, full text for problem
+  ;"GETFTOP(OUT,ADFN,SECTION,SDT,EDT) -- GET FORMATTED TOPICS LIST for a patient
+  ;"GETTOPL(OUT,ADFN,SECTION,SDT,EDT,FILTER) --GET TOPICS LIST for a patient
+  ;"GETFULL(OUT,ADFN,SECTION,TOPIC,SDT,EDT) --Get cumulative, full text for problem
   ;"HNDLSET(LINE) -- Handle SET command from TOPRBLNK
   ;"HNDLGET(LINE) -- Handle GET command from TOPRBLNK
   ;"HNDLKILL(LINE)-- Handle KILL command from TOPRBLNK
+  ;"TESTSGST -- test suggested toppic LKSUGEST
+  ;"ADDENTRY(OUT,IDX,IEN,USEDARR,ALLARRAY) --utility function for common ICD's above
+  ;"ADDSUBENTRY(OUT,IDX,IEN,SUBIEN,ALLARRAY) --utility function for common ICD's above  
+  ;"ADDENTRYCPT(OUT,NODENUM,FNUM,IDX,IEN,USEDARR,ALLARRAY) --utility function for common CPT's above
+  ;"ADDSUBENTRYCPT(OUT,NODENUM,FNUM,IDX,IEN,SUBIEN,ALLARRAY) --utility function for common CPT's above  
+  ;"CPTLIST(OUT,ADFN,SDT) --Get listing of CPT's used for patient in past. Utility function for PROCLIST above. 
+  ;"TESTCPT ;
+  ;"TESTVST ;
   ;
   ;"=======================================================================
   ;"DEPENDENCIES: 
@@ -480,69 +491,88 @@ TPLSTDN ;
   SET OUT(0)=RESULT
   QUIT
   ;
-LKSUGEST(OUT,TOPIC)  ;"Suggest info for problems to create for given topic  
-  ;"RPC ENTRY POINT FOR: TMG CPRS TOPIC PROB SUGGEST
+LKSUGEST(OUT,TOPIC)  ;"Suggest info for problems to create, or ICD's, for given topic  
+  ;"RPC ENTRY POINT FOR: TMG CPRS TOPIC CODE SUGGEST
   ;"Input: OUT -- PASS BY REFERENCE, an OUT PARAMETER.
   ;"       TOPIC -- Topic name to suggest from
   ;"Results: none
   ;"Output: OUT is filled as follows.
   ;"        OUT(0)="1^OK" or "-1^Error Message"
-  ;"        OUT(#)=<"ICD" OR "10D">^<ICD CODE>^<ICD NAME>^"SCT"^<SCT CODE>^<SCT NAME>   <-- multiple entries, for each suggestion.  
+  ;"        OUT(#)=TopicName^<"ICD" OR "10D">^<ICD CODE>^<ICD NAME>^<ProblemIEN>^<SCT CODE>^<SCT NAME>   <-- multiple entries, for each suggestion.  
   ;"        if no entries are found, then none returned.  but OUT(0) will still be "1^OK"
   ;"Code below taken (and modified heavily) from LIST^ORQQPL3
   SET TOPIC=$GET(TOPIC)
   IF TOPIC="" DO  QUIT
   . SET OUT(0)="-1^No topic name supplied"
   SET OUT(0)="1^OK"
-  NEW CNT SET CNT=0
-  NEW IMPLDT SET IMPLDT=$$IMPDATE^LEXU("10D")
-  NEW ORIDT SET ORIDT=$$NOW^XLFDT
-  NEW TMGLN SET TMGLN=""
   NEW TEMP
-  NEW IEN SET IEN=0
-  FOR  SET IEN=$ORDER(^TMG(22719.5,"TOPIC",TOPIC,IEN)) QUIT:+IEN'>0  DO
-  . NEW SUBIEN SET SUBIEN=0
-  . FOR  SET SUBIEN=$ORDER(^TMG(22719.5,"TOPIC",TOPIC,IEN,SUBIEN)) QUIT:+SUBIEN'>0  DO
-  . . NEW PROBIEN SET PROBIEN=+$PIECE($GET(^TMG(22719.5,IEN,1,SUBIEN,0)),"^",2)
-  . . QUIT:PROBIEN'>0
-  . . ;"NOTE: PROBIEN is pointer to file 9000011
-  . . NEW GMPL0,GMPL1,GMPL800,GMPL802,I,SCT,ST,ICD,DTREC,ICDD,ORDTINT,ORPLCSYS
-  . . NEW ORTOTAL,LIN,INACT
-  . . SET (ICDD,INACT)=""
-  . . SET GMPL0=$GET(^AUPNPROB(PROBIEN,0)),GMPL1=$GET(^AUPNPROB(PROBIEN,1))
-  . . SET GMPL800=$GET(^AUPNPROB(PROBIEN,800)),GMPL802=$GET(^AUPNPROB(PROBIEN,802))
-  . . SET SCT=$PIECE(GMPL800,U)
-  . . NEW SCTNAME SET SCTNAME=""
-  . . IF SCT'="" DO
-  . . . NEW IEN757D02 SET IEN757D02=$ORDER(^LEX(757.02,"APCODE",SCT_" ",0)) QUIT:IEN757D02'>0
-  . . . NEW IEN757D01 SET IEN757D01=+$GET(^LEX(757.02,IEN757D02,0)) QUIT:IEN757D01'>0
-  . . . SET SCTNAME=$$UP^XLFSTR($PIECE($GET(^LEX(757.01,IEN757D01,0)),"^",1))
-  . . SET ST=$PIECE(GMPL0,U,12) ;" .12 STATUS: A=ACTIVE I=INACTIVE
-  . . IF ST'="A" QUIT  ;"//kt added
-  . . NEW LEX
-  . . SET ORDTINT=$SELECT(+$PIECE(GMPL802,U,1):$PIECE(GMPL802,U,1),1:$PIECE(GMPL0,U,8))
-  . . NEW ICDIEN SET ICDIEN=+GMPL0
-  . . SET ORPLCSYS=$SELECT($PIECE(GMPL802,U,2)]"":$PIECE(GMPL802,U,2),1:$$SAB^ICDEX($$CSI^ICDEX(80,ICDIEN),ORDTINT))
-  . . IF ORPLCSYS="" SET ORPLCSYS="ICD"  ;"//kt added
-  . . SET ICD=$PIECE($$ICDDATA^ICDXCODE(ORPLCSYS,+GMPL0,ORDTINT,"I"),U,2)
-  . . IF (ORIDT<IMPLDT),(+$$STATCHK^ICDXCODE($$CSI^ICDEX(80,+GMPL0),ICD,ORIDT)'=1) SET INACT="#"
-  . . IF +$GET(SCT),(+$$STATCHK^LEXSRC2(SCT,ORIDT,.LEX)'=1) SET INACT="$"
-  . . IF INACT'="" QUIT  ;"//kt added
-  . . IF $DATA(^AUPNPROB(PROBIEN,803)) DO
-  . . . NEW I SET I=0
-  . . . FOR   SET I=$ORDER(^AUPNPROB(PROBIEN,803,I)) QUIT:+I'>0   SET $PIECE(ICD,"/",(I+1))=$PIECE($GET(^AUPNPROB(PROBIEN,803,I,0)),U)
-  . . IF +ICD'="" SET ICDD=$$ICDDESC^GMPLUTL2(ICD,ORIDT,ORPLCSYS)
-  . . SET DTREC=$PIECE(GMPL1,U,9)  ;"DATE RECORDED
-  . . NEW PROBTXT SET PROBTXT=$$PROBTEXT^GMPLX(PROBIEN)
-  . . ;"SET LIN=PROBIEN_U_PROBTXT_U_ICD_U_DTREC_U_INACT_U_ICDD_U_ORPLCSYS
-  . . SET TMGLN=ORPLCSYS_U_ICD_U_ICDD_U_"SCT"_U_SCT_U_SCTNAME
-  . . ;"SET CNT=CNT+1
-  . . ;"SET OUT(CNT)=TMGLN
-  . . SET TEMP(TMGLN)=""
-  . ;"SET GMPL(0)=CNT
-  SET TMGLN=""
+  SET TOPIC=$$UP^XLFSTR(TOPIC)
+  NEW ATOPIC SET ATOPIC=""
+  FOR  SET ATOPIC=$ORDER(^TMG(22719.5,"TOPIC",ATOPIC)) QUIT:ATOPIC=""  DO
+  . IF ATOPIC'[TOPIC QUIT
+  . NEW IEN SET IEN=0
+  . FOR  SET IEN=$ORDER(^TMG(22719.5,"TOPIC",ATOPIC,IEN)) QUIT:+IEN'>0  DO
+  . . NEW SUBIEN SET SUBIEN=0
+  . . FOR  SET SUBIEN=$ORDER(^TMG(22719.5,"TOPIC",ATOPIC,IEN,SUBIEN)) QUIT:+SUBIEN'>0  DO
+  . . . NEW ZN SET ZN=$GET(^TMG(22719.5,IEN,1,SUBIEN,0))
+  . . . NEW PROBIEN SET PROBIEN=+$PIECE(ZN,"^",2)
+  . . . IF PROBIEN>0 DO SUGST4PROB(.TEMP,ATOPIC,PROBIEN)
+  . . . NEW ICDIEN SET ICDIEN=$PIECE(ZN,"^",3)
+  . . . DO SUGST4ICD(.TEMP,ATOPIC,ICDIEN)
+  NEW CNT SET CNT=0
+  NEW TMGLN SET TMGLN=""
   FOR  SET TMGLN=$ORDER(TEMP(TMGLN)) QUIT:TMGLN=""  DO
   . SET CNT=CNT+1,OUT(CNT)=TMGLN
+  QUIT
+  ;
+SUGST4ICD(TEMP,TOPICNAME,ICDIEN) ;"Utility function for LKSUGEST above
+  NEW CSINFO,ICDINFO
+  SET CSINFO=$$ICDCODESYS(ICDIEN,.ICDINFO) ;"Result: -1^Error message, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>
+  IF +ICDINFO=-1 QUIT
+  NEW CODESYS SET CODESYS=$PIECE(CSINFO,"^",1)
+  NEW ICDCODE SET ICDCODE=$PIECE(ICDINFO,"^",2)
+  NEW ICDDESCR SET ICDDESCR=$PIECE(ICDINFO,"^",4)
+  SET TMGLN=TOPICNAME_U_CODESYS_U_ICDCODE_U_ICDDESCR
+  SET TEMP(TMGLN)=""
+  QUIT
+  ;
+SUGST4PROB(TEMP,TOPICNAME,PROBIEN) ;"Utility function for LKSUGEST above
+  ;"Input: OUT: output, see format above
+  ;"       PROBIEN is pointer to file 9000011
+  NEW IMPLDT SET IMPLDT=$$IMPDATE^LEXU("10D")
+  NEW NOWDT SET NOWDT=$$NOW^XLFDT
+  NEW N0,GMPL1,GMPL800,GMPL802,I,SCTCODE,ST,ICDCODE,DTREC,ICDDESCR,ORDTINT,CODESYS
+  NEW ORTOTAL,LIN,INACT
+  SET (ICDDESCR,INACT)=""
+  NEW TMGLN SET TMGLN=""
+  SET N0=$GET(^AUPNPROB(PROBIEN,0)),GMPL1=$GET(^AUPNPROB(PROBIEN,1))
+  NEW ICDIEN SET ICDIEN=+N0
+  SET GMPL800=$GET(^AUPNPROB(PROBIEN,800)),GMPL802=$GET(^AUPNPROB(PROBIEN,802))
+  SET SCTCODE=$PIECE(GMPL800,U,1)
+  NEW SCTNAME SET SCTNAME=""
+  IF SCTCODE'="" DO
+  . NEW IEN757D02 SET IEN757D02=$ORDER(^LEX(757.02,"APCODE",SCTCODE_" ",0)) QUIT:IEN757D02'>0
+  . NEW IEN757D01 SET IEN757D01=+$GET(^LEX(757.02,IEN757D02,0)) QUIT:IEN757D01'>0
+  . SET SCTNAME=$$UP^XLFSTR($PIECE($GET(^LEX(757.01,IEN757D01,0)),"^",1))
+  SET ST=$PIECE(ICDIEN,U,12) ;" .12 STATUS: A=ACTIVE I=INACTIVE
+  IF ST'="A" QUIT  ;"//kt added
+  NEW LEX
+  SET ORDTINT=$SELECT(+$PIECE(GMPL802,U,1):$PIECE(GMPL802,U,1),1:$PIECE(ICDIEN,U,8))
+  SET CODESYS=$SELECT($PIECE(GMPL802,U,2)]"":$PIECE(GMPL802,U,2),1:$$SAB^ICDEX($$CSI^ICDEX(80,ICDIEN),ORDTINT))
+  IF CODESYS="" SET CODESYS="ICD"  ;"//kt added
+  SET ICDCODE=$PIECE($$ICDDATA^ICDXCODE(CODESYS,+ICDIEN,ORDTINT,"I"),U,2)
+  IF (NOWDT<IMPLDT),(+$$STATCHK^ICDXCODE($$CSI^ICDEX(80,+ICDIEN),ICDCODE,NOWDT)'=1) SET INACT="#"
+  IF +$GET(SCTCODE),(+$$STATCHK^LEXSRC2(SCTCODE,NOWDT,.LEX)'=1) SET INACT="$"
+  IF INACT'="" QUIT  ;"//kt added
+  IF $DATA(^AUPNPROB(PROBIEN,803)) DO
+  . NEW I SET I=0
+  . FOR   SET I=$ORDER(^AUPNPROB(PROBIEN,803,I)) QUIT:+I'>0   SET $PIECE(ICDCODE,"/",(I+1))=$PIECE($GET(^AUPNPROB(PROBIEN,803,I,0)),U)
+  IF +ICDCODE'="" SET ICDDESCR=$$ICDDESC^GMPLUTL2(ICDCODE,NOWDT,CODESYS)
+  SET DTREC=$PIECE(GMPL1,U,9)  ;"DATE RECORDED
+  NEW PROBTXT SET PROBTXT=$$PROBTEXT^GMPLX(PROBIEN)
+  ;"SET LIN=PROBIEN_U_PROBTXT_U_ICDCODE_U_DTREC_U_INACT_U_ICDDESCR_U_CODESYS
+  SET TMGLN=TOPICNAME_U_CODESYS_U_ICDCODE_U_ICDDESCR_U_PROBIEM_U_SCTCODE_U_SCTNAME
+  SET TEMP(TMGLN)=""
   QUIT
   ;
 TESTSGST ;
@@ -557,6 +587,18 @@ TESTSGST ;
   . ZWR OUT
   QUIT
   ;
+TESTSGST2 ;
+  NEW TOPIC 
+  READ "Enter Topic name to test (^ to abort): ",TOPIC WRITE !
+  IF TOPIC["^" QUIT
+  NEW OUT DO LKSUGEST(.OUT,TOPIC)
+  IF $GET(OUT(0))'="1^OK" DO  QUIT
+  . WRITE "ERROR: ",$PIECE(OUT(0),"^",2),! 
+  KILL OUT(0)
+  IF $DATA(OUT)=0 QUIT
+  WRITE "==============",!,TOPIC,!,"==============",!
+  ZWR OUT
+  QUIT
   ;"==========================================================
   ;
 DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from, during patient encounter
@@ -625,7 +667,7 @@ DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from
   . NEW PROBLIST DO PROBLST(.PROBLIST,ADFN,SDT)
   . NEW THREADINFO DO THREADS(.THREADINFO,ADFN,IEN8925,.ARRAY)
   . NEW TOPICS DO UNUSEDTOPICS(.TOPICS,.ARRAY,.THREADINFO)
-  . NEW ICDLIST DO ICDLIST(.ICDLIST,ADFN,SDT)
+  . NEW ICDLIST DO ICDLIST(.ICDLIST,ADFN,3160101)  ;"SET THE START DATE TO 1/1/2016 TO LIMIT ICD-9 CODES
   . ;"-------Items discussed this visit in note ----------------
   . NEW JDX SET JDX=0
   . FOR  SET JDX=$ORDER(THREADINFO(JDX)) QUIT:JDX'>0  DO
@@ -692,6 +734,7 @@ DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from
   . . . SET ICD=$PIECE(ZN,"^",2),DESC=$PIECE(ZN,"^",4)
   . . . SET ICD=$$FIXICD^TMGSUSMC(ICD)
   . . . SET CONDITION=$PIECE(ZN,"^",3)
+  . . . ;"NOTE: Later, should use ICDCODESYS(ICD) Result: -1^Error message, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>  
   . . . SET OUT(IDX)="5^ENTRY^"_ICD_"^"_DESC_"^"_CONDITION_"^10D",IDX=IDX+1
   . ;"--------common ICD code from file -----
   . NEW ALLARRAY,USEDARR
@@ -736,14 +779,34 @@ ADDSUBENTRY(OUT,IDX,IEN,SUBIEN,ALLARRAY) ;"utility function for common ICD's abo
   NEW ICDCODE SET ICDCODE=$PIECE($GET(^ICD9(IEN80,0)),"^",1)
   NEW ICDNAME SET ICDNAME=$$VSTD^ICDEX(IEN80)
   NEW DISPNAME SET DISPNAME=$PIECE(ZN,"^",3)
-  NEW ICDCODESYS SET ICDCODESYS="10D"   ;"HARD CODE FOR NOW
+  NEW ICDCODESYS SET ICDCODESYS="10D"   ;"HARD CODE Initially
+  NEW TEMP SET TEMP=$$ICDCODESYS(ICDCODE) ;"Result: -1^Error message, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>
+  IF +TEMP'=-1 SET ICDCODESYS=$PIECE(TEMP,"^",1)
   SET OUT(IDX)="5^ENTRY^"_ICDCODE_"^"_DISPNAME_"^"_ICDNAME_"^"_ICDCODESYS,IDX=IDX+1
   NEW TEMPNAME SET TEMPNAME=DISPNAME
   IF TEMPNAME'="" SET TEMPNAME=DISPNAME_"("_ICDNAME_")" 
   ELSE  SET TEMPNAME=ICDNAME
   SET ALLARRAY(TEMPNAME)=ICDCODE_"^"_DISPNAME_"^"_ICDNAME_"^"_ICDCODESYS
   QUIT
-  ;   
+  ;
+ICDCODESYS(ICD,ICDINFO) ;"Get ICD coding system for ICD code (or IEN)
+  ;"Input: ICD -- either name or IEN of ICD code
+  ;"       INFO -- OPTIONAL.  OUT PARAMETER.  Full info as returned by $$ICDDATA^ICDXCODE 
+  ;"Result: -1^NOT FOUND, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>
+  NEW RESULT SET RESULT="-1^NOT FOUND"  ;"default
+  SET ICDINFO=$$ICDDATA^ICDXCODE("",ICD)
+  IF +ICDINFO=-1 DO
+  . NEW TESTCS SET TESTCS=""
+  . FOR  SET TESTCS=$ORDER(^ICDS("C",TESTCS)) QUIT:(TESTCS="")!(+ICDINFO'=-1)  DO
+  . . SET ICDINFO=$$ICDDATA^ICDXCODE(TESTCS,ICD)  ;"try each code system
+  IF +ICDINFO=-1 GOTO ICSDN
+  NEW CSIEN SET CSIEN=+$PIECE(ICDINFO,"^",20)  ;"this is pointer to file 80.4
+  IF CSIEN'>0 GOTO ICSDN
+  NEW ZN SET ZN=$GET(^ICDS(CSIEN,0))
+  SET RESULT=$PIECE(ZN,"^",2)_"^"_$PIECE(ZN,"^",1)_"^"_CSIEN
+ICSDN ;
+  QUIT RESULT
+  ;    
 SUMNOTE(IEN8925,ARRAY) ;"Get back summary data from prior parsing and storage. 
   ;"Input: IEN8925 -- note IEN
   ;"       ARRAY -- PASS BY REFERENCE, AN OUT PARAMETER.  Format: 
@@ -828,7 +891,7 @@ UNUSEDTOPICS(OUT,ARRAY,THREADINFO)  ;"Get list of topics that do NOT have corres
   NEW JDX SET JDX=0
   FOR  SET JDX=$ORDER(ARRAY(IEN8925,"HPI",JDX)) QUIT:(JDX'>0)  DO
   . NEW LINE SET LINE=$GET(ARRAY(IEN8925,"HPI",JDX)) QUIT:LINE=""
-  . NEW TOPIC SET TOPIC=$$UP^XLFSTR($PIECE(LINE,"^",1))
+  . NEW TOPIC SET TOPIC=$$UP^XLFSTR($PIECE(LINE,"^",1)) QUIT:TOPIC=""
   . IF $DATA(THREADINFO("TOPIC",TOPIC)) QUIT
   . NEW SUMMTXT SET SUMMTXT=$PIECE(LINE,"^",2,9999)
   . SET SUMMTXT=$$REPLSTR^TMGSTUT3(SUMMTXT,"^","-[/\]-")  ;"Ensure text doesn't contain any "^"s
@@ -1016,7 +1079,7 @@ ADDSUBENTRYCPT(OUT,NODENUM,FNUM,IDX,IEN,SUBIEN,ALLARRAY) ;"utility function for 
   ;   
   ;"==========================================================
   ;
-CPTLIST(OUT,ADFN,SDT) ;"Get listing of CPT's used for patient in past. Utility funciton for PROCLIST above. 
+CPTLIST(OUT,ADFN,SDT) ;"Get listing of CPT's used for patient in past. Utility function for PROCLIST above. 
   ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:
   ;"        OUT(#)=<CPT CODE>^<CPT NAME>^<LAST USED FMDT>
 	;"       ADFN -- patient IEN

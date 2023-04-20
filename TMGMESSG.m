@@ -118,6 +118,25 @@ ORDERTO(TMGRESULT,TYPE)  ;"
 OTDN
  QUIT
  ;"
+FUMSGTO(TMGRESULT,TYPE)  ;"
+ ;"Purpose: This routine will return the user that needs to get the
+ ;"         office visit Follow up order message 
+ ;"Input: Type is the user to return 1=Normal user to receive 
+ ;"                                  2=<future expansion>
+ NEW INIARR,IDX
+ SET TYPE=+$G(TYPE)
+ IF TYPE'>0 DO  GOTO OTDN
+ . SET TMGRESULT="-1^NO TYPE SENT"
+ SET TMGRESULT="-1^NO USER RETURNED",IDX=0
+ DO HFS2ARR^TMGIOUT3($$LABORDERLOC(),$$LABORDERINI(),"INIARR")
+ FOR  SET IDX=$O(INIARR(IDX)) QUIT:IDX'>0  DO
+ . NEW LINE SET LINE=$G(INIARR(IDX))
+ . IF LINE["MessageRecipient" DO
+ . . NEW USER SET USER=$P(LINE,"MessageRecipient=",2)
+ . . SET USER=$P(USER,$C(13),1)
+ . . SET TMGRESULT="1^"_USER
+ QUIT
+ ;"
 MSGDATE()  ;"
  ;"Purpose: Get the formatted date string for the message
  NEW DATE,%,Y DO NOW^%DTC

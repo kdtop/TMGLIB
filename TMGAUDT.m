@@ -262,9 +262,13 @@ GACCES1(OUT,TMGDUZ,SDT,EDT) ;"-- GET BRIEF ACCESS LIST FROM FILE 1.1 (AUDIT)
         . SET TMGRESULT="-1^Invalid User parameter. Got: '"_$GET(TMGDUZ)_"'"
         SET TMGDUZ=+$GET(TMGDUZ)
         DO PREPDATS(.SDT,.EDT) ;"PREP DATES
-        NEW IEN SET IEN=0
-        FOR  SET IEN=$ORDER(^DIA(2,"D",TMGDUZ,IEN)) QUIT:(+IEN'>0)  DO
-        . NEW ADT SET ADT=$PIECE($GET(^DIA(2,IEN,0)),"^",2)
+        NEW DONE SET DONE=0
+        ;"NOTE: I am assuming that DATE/TIME increases with record number.  So IEN's are in chronological order. 
+        NEW IEN SET IEN=$ORDER(^DIA(2,"D",TMGDUZ,""),-1)  ;"plan reverse order scan
+        FOR  SET IEN=$ORDER(^DIA(2,"D",TMGDUZ,IEN),-1) QUIT:(+IEN'>0)!DONE  DO
+        . NEW ZN SET ZN=$GET(^DIA(2,IEN,0))
+        . NEW ADT SET ADT=$PIECE(ZN,"^",2)  ;"0;2 = DATE/TIME RECORDED
+        . IF ADT<SDT SET DONE=1  ;"Assuming IEN's are chronological, no need to go futher back in time. 
         . IF (ADT<SDT)!(ADT>EDT) QUIT
         . NEW TEMPARR DO GETAUDIT(.TEMPARR,2,IEN,"2.9","IE") 
         . NEW TMGDFN SET TMGDFN=+$GET(TEMPARR(1.1,IEN,2.9,"E"))
