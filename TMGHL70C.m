@@ -102,15 +102,16 @@ ADDATOMIC(NAME,INDENTN,MODE) ;
         WRITE INDENTSTR,"Add a New LABORATORY TEST"
         IF NAME'="" WRITE ": ",HINTNAME
         IF $GET(MODE)="R" GOTO AA0 ;"Never add dataname for OBR tests.  Can add later if same name found in OBX segment
-        NEW TMGPANEL,% SET %=2
-        WRITE !
         WRITE INDENTSTR,"===========================================",!
-        WRITE INDENTSTR,"Is ",$SELECT(HINTNAME'="":HINTNAME,1:"the NEW test")," a PANEL?",!
-        WRITE INDENTSTR,"  I.e. a group of other tests.  E.g. CBC.",!
-        WRITE INDENTSTR,"  Enter NO if you are unsure.",!
-        WRITE INDENTSTR,"  PANEL test: " DO YN^DICN WRITE ! SET TMGPANEL=%
-        IF TMGPANEL=-1 SET TMGRESULT="-1^User aborted" GOTO AADN
-        IF TMGPANEL=1 GOTO AA1
+        ;"not working --> NEW TMGPANEL,% SET %=2
+        ;"not working --> WRITE !
+        ;"not working --> WRITE INDENTSTR,"===========================================",!
+        ;"not working --> WRITE INDENTSTR,"Is ",$SELECT(HINTNAME'="":HINTNAME,1:"the NEW test")," a PANEL?",!
+        ;"not working --> WRITE INDENTSTR,"  I.e. a group of other tests.  E.g. CBC.",!
+        ;"not working --> WRITE INDENTSTR,"  Enter NO if you are unsure.",!
+        ;"not working --> WRITE INDENTSTR,"  PANEL test: " DO YN^DICN WRITE ! SET TMGPANEL=%
+        ;"not working --> IF TMGPANEL=-1 SET TMGRESULT="-1^User aborted" GOTO AADN
+        ;"not working --> IF TMGPANEL=1 GOTO AA1        
 AA0     WRITE !,INDENTSTR,"Before ",$SELECT(HINTNAME'="":HINTNAME,1:"the NEW test")," can be added, a storage location",!        
         WRITE INDENTSTR,"  (called a'DATA NAME') must first be added, or an existing one selected.",!
         ;"WRITE INDENTSTR DO PRESS2GO^TMGUSRI2

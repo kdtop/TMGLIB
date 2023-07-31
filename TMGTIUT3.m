@@ -337,7 +337,7 @@ HNDS2 ;"Add subrecord or modify existing subrecord.
   . IF ICDCODE="@" SET ICDIEN="@" QUIT
   . NEW CSYS SET CSYS=$PIECE(ICDINFO,";",3)
   . NEW CDT SET CDT=$PIECE(ICDINFO,";",4)
-  . SET ICDIEN=+$$ICDDATA^ICDXCODE(CSYS,ICDCODE,CDT,"E")
+  . SET ICDIEN=+$$ICDDATA(CSYS,ICDCODE,CDT,"E")
   . IF ICDIEN'>0 DO  QUIT
   . . SET RESULT="-1^Invalid ICD info provided in piece#4: ["_ICDINFO_"]"
   NEW SCTIEN SET SCTIEN=+$PIECE(LINE,"^",6)  ;"<-- needs to be added to fileman file still!!
@@ -560,7 +560,7 @@ SUGST4PROB(TEMP,TOPICNAME,PROBIEN) ;"Utility function for LKSUGEST above
   SET ORDTINT=$SELECT(+$PIECE(GMPL802,U,1):$PIECE(GMPL802,U,1),1:$PIECE(ICDIEN,U,8))
   SET CODESYS=$SELECT($PIECE(GMPL802,U,2)]"":$PIECE(GMPL802,U,2),1:$$SAB^ICDEX($$CSI^ICDEX(80,ICDIEN),ORDTINT))
   IF CODESYS="" SET CODESYS="ICD"  ;"//kt added
-  SET ICDCODE=$PIECE($$ICDDATA^ICDXCODE(CODESYS,+ICDIEN,ORDTINT,"I"),U,2)
+  SET ICDCODE=$PIECE($$ICDDATA(CODESYS,+ICDIEN,ORDTINT,"I"),U,2)
   IF (NOWDT<IMPLDT),(+$$STATCHK^ICDXCODE($$CSI^ICDEX(80,+ICDIEN),ICDCODE,NOWDT)'=1) SET INACT="#"
   IF +$GET(SCTCODE),(+$$STATCHK^LEXSRC2(SCTCODE,NOWDT,.LEX)'=1) SET INACT="$"
   IF INACT'="" QUIT  ;"//kt added
@@ -574,6 +574,77 @@ SUGST4PROB(TEMP,TOPICNAME,PROBIEN) ;"Utility function for LKSUGEST above
   SET TMGLN=TOPICNAME_U_CODESYS_U_ICDCODE_U_ICDDESCR_U_PROBIEM_U_SCTCODE_U_SCTNAME
   SET TEMP(TMGLN)=""
   QUIT
+  ;
+ICDDATA(CSYS,CODE,DATE,FRMT,LOC) ;"API Wrapper for ICDDATA^ICDXCODE(), with custom status checking
+  ;"Input:  CSYS -- code system.  OPTIONAL.  If not provided, then first matching code system will be used. 
+  ;"        CODE -- Code/IEN/variable pointer 
+  ;"        DATE -- Code-Set Date (default = TODAY)
+  ;"        FRMT -- "E" external (default)    
+  ;"                "I" internal (IEN)
+  ;"        LOC    Local codes    1 = Yes
+  ;"                              0 = No (default)  
+  ;"Output:
+  ;" 
+  ;"  If CODE was a diagnosis, returns an 22 piece string delimited by "^"
+  ;"  
+  ;"    1  IEN of code in file 80
+  ;"    2  ICD-9 Dx Code                (#.01)     
+  ;"       NOTE: If status is INACTIVE, then code is prefixed with "#"
+  ;"    3  Identifier                   (#1.2)
+  ;"    4  Versioned Dx                 (67 multiple)  <-- i.e. name
+  ;"       NOTE: If status is INACTIVE, then name  is prefixed with "<INACTIVE>"
+  ;"    5  Unacceptable as Principal Dx (#1.3)
+  ;"    6  Major Dx Cat                 (72 multiple)
+  ;"    7  MDC13                        (#1.4)
+  ;"    8  Compl/Comorb                 (103 multiple)
+  ;"    9  ICD Expanded                 (#1.7)
+  ;"    10 Status                       (66 multiple)
+  ;"    11 Sex                          (10 multiple)
+  ;"    12 Inactive Date                (66 multiple)
+  ;"    13 MDC24                        (#1.5)
+  ;"    14 MDC25                        (#1.6)
+  ;"    15 Age Low                      (11 multiple)
+  ;"    16 Age High                     (12 multiple)
+  ;"    17 Activation Date              (66 multiple)
+  ;"    18 Message                      
+  ;"    19 Complication/Comorbidity     (103 multiple)
+  ;"    20 Coding System                (#1.1)
+  ;"    21 Primary CC Flag              (103 multiple)
+  ;"    22 PDX Exclusion Code           (#1.11)          
+  ;"
+  ;"   If CODE was a procedure, returns A 14 piece string delimited by "^"
+  ;"   
+  ;"    1  IEN of code in file 80.1
+  ;"    2  ICD procedure code           (#.01)
+  ;"    3  Identifier                   (#1.2)
+  ;"    4  MDC24                        (#1.5)
+  ;"    5  Versioned Oper/Proc          (67 multiple)
+  ;"    6  <null>
+  ;"    7  <null>
+  ;"    8  <null>
+  ;"    9  ICD Expanded                 (#1.7)
+  ;"    10 Status                       (66 multiple)
+  ;"    11 Use with Sex                 (10 multiple)
+  ;"    12 Inactive Date                (66 multiple)
+  ;"    13 Activation Date              (66 multiple)
+  ;"    14 Message
+  ;"    15 Coding System                (#1.1)
+  ;"     
+  ;"    or
+  ;"
+  ;"    -1^Error Description  
+  NEW RESULT SET RESULT=$$ICDDATA^ICDXCODE(.CSYS,.CODE,.DATE,.FRMT,.LOC)
+  IF $GET(CSYS)="",+RESULT=-1 DO
+  . NEW TESTCS SET TESTCS=""
+  . FOR  SET TESTCS=$ORDER(^ICDS("C",TESTCS)) QUIT:(TESTCS="")!(+RESULT'=-1)  DO
+  . . SET RESULT=$$ICDDATA^ICDXCODE(TESTCS,.CODE,.DATE,.FRMT,.LOC)  ;"Try each code system.     
+  NEW STATUS SET STATUS=$PIECE(RESULT,"^",10)
+  IF +STATUS'=1 DO   ;"1 MEANS ACTIVE, 0 MEANS INACTIVE
+  . NEW ICDCODE SET ICDCODE=$PIECE(RESULT,"^",2) QUIT:ICDCODE=""  ;"e.g. M54.5
+  . SET $PIECE(RESULT,"^",2)="#"_ICDCODE
+  . NEW DESCR SET DESCR=$PIECE(RESULT,"^",4) QUIT:DESCR=""  ;"e.g. Low back pain
+  . SET $PIECE(RESULT,"^",4)="<INACTIVE>"_DESCR
+  QUIT RESULT
   ;
 TESTSGST ;
   NEW TOPIC SET TOPIC=""
@@ -635,7 +706,7 @@ DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from
   ;"               NOTES:
   ;"                 PIECE#1 = 4 means that information is for an ICD code that was previously set for a patient visit.
   ;"                 If ICD has already been included in a piece#1=1 node, then it will NOT be listed here.  
-  ;"           OUT(#)="5^HEADER^<Section Name>" 
+  ;"           OUT(#)="5^HEADER^<Section Name>^<IEN22753>" 
   ;"        or OUT(#)="5^ENTRY^<ICD CODE>^<DISPLAY NAME>^<ICD LONG NAME>^<ICDCODESYS>" 
   ;"               NOTES:
   ;"                 PIECE#1 = 5 means that information is for a listing of common ICD code from a defined encounter form. 
@@ -726,7 +797,7 @@ DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from
   . NEW THISYEAR SET THISYEAR=$EXTRACT(SDT,1,3)+1700
   . NEW SUSARR DO GET1PAT^TMGSUSMC(.SUSARR,ADFN,THISYEAR)
   . IF $DATA(SUSARR) DO
-  . . SET OUT(IDX)="5^HEADER^Suspect Medical Conditions",IDX=IDX+1
+  . . SET OUT(IDX)="5^HEADER^--> SUSPECT MEDICAL CONDITIONS <--",IDX=IDX+1
   . . NEW MCIDX SET MCIDX=9999
   . . FOR  SET MCIDX=$ORDER(SUSARR(MCIDX),-1) QUIT:MCIDX'>0  DO
   . . . NEW ICD,DESC,ZN,CONDITION
@@ -758,7 +829,7 @@ ADDENTRY(OUT,IDX,IEN,USEDARR,ALLARRAY) ;"utility function for common ICD's above
   IF $DATA(USEDARR(IEN)) QUIT
   SET USEDARR(IEN)=""
   NEW SECTNAME SET SECTNAME=$PIECE($GET(^TMG(22753,IEN,0)),"^",1) QUIT:SECTNAME=""
-  SET OUT(IDX)="5^HEADER^"_SECTNAME,IDX=IDX+1
+  SET OUT(IDX)="5^HEADER^"_SECTNAME_"^"_IEN,IDX=IDX+1
   NEW KDX SET KDX=0
   FOR  SET KDX=$ORDER(^TMG(22753,IEN,1,"ASEQ",KDX)) QUIT:KDX'>0  DO
   . NEW SUBIEN SET SUBIEN=0
@@ -776,11 +847,18 @@ ADDENTRY(OUT,IDX,IEN,USEDARR,ALLARRAY) ;"utility function for common ICD's above
 ADDSUBENTRY(OUT,IDX,IEN,SUBIEN,ALLARRAY) ;"utility function for common ICD's above  
   NEW ZN SET ZN=$GET(^TMG(22753,IEN,1,SUBIEN,0)) QUIT:ZN=""
   NEW IEN80 SET IEN80=+$PIECE(ZN,"^",1) QUIT:IEN80'>0
-  NEW ICDCODE SET ICDCODE=$PIECE($GET(^ICD9(IEN80,0)),"^",1)
-  NEW ICDNAME SET ICDNAME=$$VSTD^ICDEX(IEN80)
-  NEW DISPNAME SET DISPNAME=$PIECE(ZN,"^",3)
   NEW ICDCODESYS SET ICDCODESYS="10D"   ;"HARD CODE Initially
-  NEW TEMP SET TEMP=$$ICDCODESYS(ICDCODE) ;"Result: -1^Error message, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>
+  NEW ICDINFO SET ICDINFO=$$ICDDATA(ICDCODESYS,IEN80)
+  ;"NEW ICDCODE SET ICDCODE=$PIECE($GET(^ICD9(IEN80,0)),"^",1)
+  NEW ICDCODE SET ICDCODE=$PIECE(ICDINFO,"^",2)
+  ;"NEW ICDNAME SET ICDNAME=$$VSTD^ICDEX(IEN80)
+  NEW ICDNAME SET ICDNAME=$PIECE(ICDINFO,"^",4)
+  NEW DISPNAME SET DISPNAME=$PIECE(ZN,"^",3)
+  IF $PIECE(ICDINFO,"^",10)'=1 DO  ;"1=ACTIVE, 0=INACTIVE
+  . IF DISPNAME="" QUIT
+  . SET DISPNAME="<INACTIVE>"_DISPNAME
+  ;"NEW TEMP SET TEMP=$$ICDCODESYS(ICDCODE) ;"Result: -1^Error message, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>
+  NEW TEMP SET TEMP=$$ICDCSYS(ICDINFO) ;"Result: -1^Error message, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>
   IF +TEMP'=-1 SET ICDCODESYS=$PIECE(TEMP,"^",1)
   SET OUT(IDX)="5^ENTRY^"_ICDCODE_"^"_DISPNAME_"^"_ICDNAME_"^"_ICDCODESYS,IDX=IDX+1
   NEW TEMPNAME SET TEMPNAME=DISPNAME
@@ -794,19 +872,25 @@ ICDCODESYS(ICD,ICDINFO) ;"Get ICD coding system for ICD code (or IEN)
   ;"       INFO -- OPTIONAL.  OUT PARAMETER.  Full info as returned by $$ICDDATA^ICDXCODE 
   ;"Result: -1^NOT FOUND, or  <CodeSys ShortName>^<CodeSys LongName>^<CodeSysIEN>
   NEW RESULT SET RESULT="-1^NOT FOUND"  ;"default
-  SET ICDINFO=$$ICDDATA^ICDXCODE("",ICD)
-  IF +ICDINFO=-1 DO
-  . NEW TESTCS SET TESTCS=""
-  . FOR  SET TESTCS=$ORDER(^ICDS("C",TESTCS)) QUIT:(TESTCS="")!(+ICDINFO'=-1)  DO
-  . . SET ICDINFO=$$ICDDATA^ICDXCODE(TESTCS,ICD)  ;"try each code system
-  IF +ICDINFO=-1 GOTO ICSDN
-  NEW CSIEN SET CSIEN=+$PIECE(ICDINFO,"^",20)  ;"this is pointer to file 80.4
-  IF CSIEN'>0 GOTO ICSDN
-  NEW ZN SET ZN=$GET(^ICDS(CSIEN,0))
-  SET RESULT=$PIECE(ZN,"^",2)_"^"_$PIECE(ZN,"^",1)_"^"_CSIEN
-ICSDN ;
+  SET ICDINFO=$$ICDDATA("",ICD)
+  ;"IF +ICDINFO=-1 DO
+  ;". NEW TESTCS SET TESTCS=""
+  ;". FOR  SET TESTCS=$ORDER(^ICDS("C",TESTCS)) QUIT:(TESTCS="")!(+ICDINFO'=-1)  DO
+  ;". . SET ICDINFO=$$ICDDATA(TESTCS,ICD)  ;"try each code system
+  IF +ICDINFO>0 SET RESULT=$$ICDCSYS(ICDINFO)
   QUIT RESULT
-  ;    
+  ;  
+ICDCSYS(ICDINFO) ;"Get ICD coding system from ICDINFO data string
+  NEW CSIEN SET CSIEN=+$PIECE(ICDINFO,"^",20)  ;"this is pointer to file 80.4
+  QUIT $$ICDCSYS2(CSIEN)
+  ;
+ICDCSYS2(CSIEN) ;"Get ICD coding system for CS IEN in  file 80.4
+  NEW RESULT SET RESULT="-1^NOT FOUND"  ;"default
+  IF CSIEN>0 DO
+  . NEW ZN SET ZN=$GET(^ICDS(CSIEN,0))
+  . SET RESULT=$PIECE(ZN,"^",2)_"^"_$PIECE(ZN,"^",1)_"^"_CSIEN
+  QUIT RESULT
+  ;
 SUMNOTE(IEN8925,ARRAY) ;"Get back summary data from prior parsing and storage. 
   ;"Input: IEN8925 -- note IEN
   ;"       ARRAY -- PASS BY REFERENCE, AN OUT PARAMETER.  Format: 
@@ -858,7 +942,7 @@ THREADS(OUT,ADFN,IEN8925,ARRAY)  ;"Get THREADS info for note
   . NEW ZN SET ZN=$GET(^TMG(22719.5,PTIEN,1,LINKIEN,0))
   . NEW PROBIEN SET PROBIEN=+$PIECE(ZN,"^",2)
   . NEW ICDIEN SET ICDIEN=+$PIECE(ZN,"^",3)
-  . NEW ICDINFO SET ICDINFO="" IF ICDIEN>0 DO
+  . NEW ICDSTR SET ICDSTR="" IF ICDIEN>0 DO
   . . NEW N0 SET N0=$GET(^ICD9(ICDIEN,0))
   . . NEW N1 SET N1=$GET(^ICD9(ICDIEN,1))
   . . NEW CS SET CS=""
@@ -868,9 +952,9 @@ THREADS(OUT,ADFN,IEN8925,ARRAY)  ;"Get THREADS info for note
   . . . NEW CSABRV SET CSABRV=$PIECE(ZN,"^",2) 
   . . . NEW CSYS SET CSYS=$PIECE(ZN,"^",1) 
   . . . SET CS=CSABRV
-  . . NEW TEMP SET TEMP=$$ICDDATA^ICDXCODE(CS,ICDIEN)  ;"e.g. 504605^G47.30^^Sleep apnea, unspecified^^3^^0^^1^^^^^^^3151001^^0^30^0^
-  . . SET ICDINFO=ICDIEN_";"_$PIECE(TEMP,"^",2)_";"_$PIECE(TEMP,"^",4)_";"_CS
-  . NEW RESULT SET RESULT=TOPIC_"^"_THREADTXT_"^"_PROBIEN_"^"_ICDINFO
+  . . NEW TEMP SET TEMP=$$ICDDATA(CS,ICDIEN)  ;"e.g. 504605^G47.30^^Sleep apnea, unspecified^^3^^0^^1^^^^^^^3151001^^0^30^0^
+  . . SET ICDSTR=ICDIEN_";"_$PIECE(TEMP,"^",2)_";"_$PIECE(TEMP,"^",4)_";"_CS
+  . NEW RESULT SET RESULT=TOPIC_"^"_THREADTXT_"^"_PROBIEN_"^"_ICDSTR
   . SET OUT(IDX)=RESULT
   . SET OUT("TOPIC",TOPIC)=IDX
   . SET OUT("PROBLEM",+PROBIEN)=IDX
@@ -932,7 +1016,7 @@ ICDLIST(OUT,ADFN,SDT) ;"Get listing of ICD's used for patient in past
 	;"Result: none
   NEW TEMP,XREF
   NEW EDT SET EDT=9999999
-  NEW OPTION SET OPTION("ICDSYS")=1
+  NEW OPTION SET OPTION("ICDSYS")=1,OPTION("ACTIVECHK")=1
   DO GETICD^TMGRPT4(.TEMP,ADFN,.SDT,.EDT,.OPTION)  ;"Gather ICD's for patient into array
   NEW IDX SET IDX=1
   NEW SORTARR  ;"<-- Used to remove duplicate ICD entries and alpha sort by NAME
@@ -990,7 +1074,7 @@ PROCLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible procedures for user to pick f
   ;"           OUT(#)="1^<PRIOR CPT>^<CPT LONG NAME>^<FMDT LAST USED>" 
   ;"               NOTES:
   ;"                 PIECE#1 = 1 means that information is for an ICD code that was previously set for a patient visit.
-  ;"           OUT(#)="2^HEADER^<Section Name>" 
+  ;"           OUT(#)="2^HEADER^<Section Name>^<IEN22754>" 
   ;"        or OUT(#)="2^ENTRY^<CPT CODE>^<DISPLAY NAME>^<CPT LONG NAME>" 
   ;"               NOTES:
   ;"                 PIECE#1 = 2 means that information is for a listing of common CPT code from a defined encounter form. 
@@ -1045,7 +1129,7 @@ ADDENTRYCPT(OUT,NODENUM,FNUM,IDX,IEN,USEDARR,ALLARRAY) ;"utility function for co
   IF $DATA(USEDARR(IEN)) QUIT
   SET USEDARR(IEN)=""
   NEW SECTNAME SET SECTNAME=$PIECE($GET(^TMG(FNUM,IEN,0)),"^",1) QUIT:SECTNAME=""
-  SET OUT(IDX)=NODENUM_"^HEADER^"_SECTNAME,IDX=IDX+1
+  SET OUT(IDX)=NODENUM_"^HEADER^"_SECTNAME_"^"_IEN,IDX=IDX+1
   NEW KDX SET KDX=0
   FOR  SET KDX=$ORDER(^TMG(FNUM,IEN,1,"ASEQ",KDX)) QUIT:KDX'>0  DO
   . NEW SUBIEN SET SUBIEN=0
@@ -1125,7 +1209,7 @@ VISITLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible procedures for user to pick 
   ;"        SDT -- OPTIONAL.  Starting DT.  Default = 0.  Data prior to SDT can be ignored
   ;"OUTPUT:  OUT -- if CMD='LIST FOR USER'
   ;"           OUT(0)="1^OK", OR "-1^<ErrorMessage>"
-  ;"           OUT(#)="1^HEADER^<Section Name>" 
+  ;"           OUT(#)="1^HEADER^<Section Name>^<IEN22755>" 
   ;"        or OUT(#)="1^ENTRY^<CPT CODE>^<DISPLAY NAME>^<CPT LONG NAME>" 
   ;"               NOTES:
   ;"                 PIECE#1 =12 means that information is for a listing of common VISIT CPT code from a defined encounter form. 
@@ -1179,4 +1263,23 @@ TESTVST ;
   ZWR OUT
   QUIT
   ;
-  
+SUBRECID(OREF,IEN,FILENUM) ;"Callback function from LIST^DIC, optionally used
+  ;"This code is designed to be called via IDENTIFIER parameter in LIST^DIC, via
+  ;"     "DO SUBRECID^TMGTIUT3(DIC,Y,+$GET(DIFILE))"
+  ;"     See here: https://hardhats.org/fileman/pm/db_dic_l.htm
+  ;"     NOTE: DIFILE is not listed as variable that can be depended on.  But 
+  ;"           runtime inspection shows that this has been setup by Fileman. 
+  ;"     Code should not do any output EXCEPT via EN^DDIOL, e.g. D EN^DDIOL("KILROY WAS HERE!") 
+  ;"INPUT: OREF -- this is the open format of file being transversed, e.g. '^TMG(22753,5,1,'
+  ;"       Y -- this is IEN of the item being considered, e.g. '6'
+  ;"       FILENUM -- The Fileman number of the file being transversed.  
+  IF FILENUM'=22753.01 QUIT  ;"can make more general later.  
+  NEW CREF SET CREF=OREF_Y_")"
+  NEW ZN SET ZN=$GET(@CREF@(0))
+  NEW IEN80 SET IEN80=+ZN QUIT:(IEN80'>0)
+  NEW OUT SET OUT=$$CODEC^ICDEX(80,IEN80)
+  NEW LONGTEXT SET LONGTEXT=$$VLT^ICDEX(80,IEN80)
+  IF LONGTEXT'="" SET OUT=OUT_" -- "_LONGTEXT
+  DO EN^DDIOL(OUT)
+  QUIT
+  ;  

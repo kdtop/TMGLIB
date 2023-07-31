@@ -26,15 +26,17 @@ TMGPROV1 ;TMG/kst-TMG PROVIDER FUNCTION ; 9/7/2018
  ;"=======================================================================
  ;"Dependancies :
  ;"=======================================================================
-GETPROV(TMGRESULT,TMGDFN,TMGDUZ) ;"-- Get the patient's current provider (RPC: TMG CPRS GET CURRENT PROVIDER)
+GETPROV(TMGRESULT,TMGDFN,TMGDUZ,RTNNAME) ;"-- Get the patient's current provider (RPC: TMG CPRS GET CURRENT PROVIDER)
  ;"Purpose: This function will return the patient's provider to be set in the
  ;"         encounter object and displayed in the pnlVisit of frmFrame.
  ;"Input: TMGRESULT - (RPC Output) IEN of user (New Person file)
  ;"       TMGDFN - IEN of patient (Patient file)
  ;"       TMGDUZ - IEN of current user (New Person file)
+ ;"       RTNNAME(Optional) - Boolean, if 1 return the provider name instead of DFN
  ;"Output: TMGRESULT should be the IEN of the provider
  ;"Result: none
  SET TMGDFN=+$G(TMGDFN),TMGDUZ=+$G(TMGDUZ)
+ SET RTNNAME=+$G(RTNNAME)
  IF (TMGDFN'>0)!(TMGDUZ'>0) DO  GOTO GPDN
  . SET TMGRESULT=DUZ
  ;"Here we will determine if a PCP was determined previously
@@ -54,6 +56,7 @@ GETPROV(TMGRESULT,TMGDFN,TMGDUZ) ;"-- Get the patient's current provider (RPC: T
  . SET TMGFDA(2,TMGDFN_",",22707.1)=$$TODAY^TMGDATE
  . DO FILE^DIE("E","TMGFDA","TMGMSG")
 GPDN
+ IF RTNNAME=1 SET TMGRESULT=$P($G(^VA(200,TMGRESULT,0)),"^",1)
  QUIT
  ;"
 FINDPCP(TMGDFN)  ;"Find patient's PCP based on last X office notes.
@@ -147,7 +150,14 @@ AUTHRCNT(TMGDFN,AUTHORARR,TARGETCT,WHY) ;"Find last 100 notes for patient, and g
  IF PCPIEN2'>0 SET PCPIEN2="-1"
  IF PCPIEN2'=PCPIEN SET PCPIEN=PCPIEN2
  IF PCPIEN>0 DO
- . SET WHY(WHYIDX)="PCP FOUND IS: "_$P($G(^VA(200,PCPIEN,0)),"^",1)
+ . SET WHY(WHYIDX)="PCP FOUND IS: "_$P($G(^VA(200,PCPIEN,0)),"^",1),WHYIDX=WHYIDX+1
+ . NEW TESTDATE SET TESTDATE=+$P($G(^DPT(TMGDFN,"TMGPCP")),"^",2)
+ . IF TESTDATE>0 DO
+ . . SET WHY(WHYIDX)="",WHYIDX=WHYIDX+1
+ . . IF TESTDATE>$$TODAY^TMGDATE() DO
+ . . . SET WHY(WHYIDX)="PCP CHECK WON'T UPDATE AGAIN UNTIL: "_$$EXTDATE^TMGDATE(TESTDATE)
+ . . ELSE  DO
+ . . . SET WHY(WHYIDX)="LAST PCP DETERMINATION DATE WAS: "_$$EXTDATE^TMGDATE(TESTDATE)
  ELSE  DO
  . SET WHY(WHYIDX)="NO PCP DETERMINED. SETTING AS CURRENT USER FOR NOW." 	 
  QUIT

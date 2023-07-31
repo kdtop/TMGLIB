@@ -126,7 +126,10 @@ GETICD(OUT,TMGDFN,SDT,EDT,OPTION)  ;"Gather ICD's for patient into array
   ;"        SDT -- starting date for search
   ;"        EDT -- ending date for search
   ;"        OPTION -- optional.
-  ;"           OPTION("ICDSYS")=1 If present then ICD_system is returned, i.e.  OUT("ICD",<FMDT>,"<ICD>^<ICD NAME>^<ICDSYS>")="" 
+  ;"           OPTION("ICDSYS")=1 If present then ICD_system is returned, i.e.  OUT("ICD",<FMDT>,"<ICD>^<ICD NAME>^<ICDSYS>")=""
+  ;"           OPTION("ACTIVECHK")=1 If present that each ICD is checked, and if inactive, then code is prefixed with "#", and name prefixed with "<INACTIVE>"
+  NEW ACTIVECHK SET ACTIVECHK=+$GET(OPTION("ACTIVECHK"))
+  NEW CSCHK SET CSCHK=+$GET(OPTION("ICDSYS"))
   NEW IEN SET IEN=0
   FOR  SET IEN=$ORDER(^AUPNVPOV("C",TMGDFN,IEN)) QUIT:+IEN'>0  DO
   . NEW ZN SET ZN=$GET(^AUPNVPOV(IEN,0)) QUIT:ZN=""
@@ -135,19 +138,28 @@ GETICD(OUT,TMGDFN,SDT,EDT,OPTION)  ;"Gather ICD's for patient into array
   . NEW VSTDT SET VSTDT=$PIECE(VSTZN,"^",1)
   . IF (VSTDT<SDT)!(VSTDT>EDT) QUIT  ;"Past this line, ICD is within date range
   . NEW ICDIEN SET ICDIEN=+$PIECE(ZN,"^",1) QUIT:ICDIEN'>0
-  . NEW ICDZN SET ICDZN=$GET(^ICD9(ICDIEN,0)) QUIT:ICDZN=""
+  . NEW ICDZN SET ICDZN=$GET(^ICD9(ICDIEN,0)) QUIT:ICDZN=""  ;"NOTE: 0 node holds only field .01, CODE NUMBER, e.g. "120.2"
   . NEW ADT SET ADT=$ORDER(^ICD9(ICDIEN,68,"B",""),-1) QUIT:ADT'>0
   . NEW PTR SET PTR=$ORDER(^ICD9(ICDIEN,68,"B",ADT,0)) QUIT:PTR'>0
   . NEW DESCR SET DESCR=$GET(^ICD9(ICDIEN,68,PTR,1))
   . NEW STR SET STR=$PIECE(ICDZN,"^",1)_"^"_DESCR
-  . IF $GET(OPTION("ICDSYS")) DO
-  . . NEW CODESYSIEN SET CODESYSIEN=$PIECE($GET(^ICD9(ICDIEN,1)),"^",1)  ;" 1;1  --> 1.1  CODING SYSTEM <-Pntr  [*P80.4']
-  . . QUIT:CODESYSIEN'>0  
-  . . NEW ZN SET ZN=$GET(^ICDS(CODESYSIEN,0))
-  . . NEW CSABRV SET CSABRV=$PIECE(ZN,"^",2) QUIT:CSABRV=""
-  . . SET STR=STR_"^"_CSABRV
-  . . ;"NEW CSYS SET CSYS=$PIECE(ZN,"^",1) QUIT:CSYS=""
-  . . ;"SET STR=STR_"^"_CSYS
+  . IF ACTIVECHK!CSCHK DO
+  . . NEW ICDINFO SET ICDINFO=$$ICDDATA^TMGTIUT3("",ICDIEN)
+  . . IF ACTIVECHK,($PIECE(ICDINFO,"^",10)'=1) DO
+  . . . NEW ICDCODE SET ICDCODE=$PIECE(ICDINFO,"^",2)
+  . . . SET DESCR=$PIECE(ICDINFO,"^",4)
+  . . . SET STR=ICDCODE_"^"_DESCR
+  . . IF CSCHK DO
+  . . . NEW CSINFO SET CSINFO=$$ICDCSYS^TMGTIUT3(ICDINFO)
+  . . . SET $PIECE(STR,"^",3)=$PIECE(CSINFO,"^",1)
+  . ;"IF $GET(OPTION("ICDSYS")) DO
+  . ;". NEW CODESYSIEN SET CODESYSIEN=$PIECE($GET(^ICD9(ICDIEN,1)),"^",1)  ;" 1;1  --> 1.1  CODING SYSTEM <-Pntr  [*P80.4']
+  . ;". QUIT:CODESYSIEN'>0  
+  . ;". NEW ZN SET ZN=$GET(^ICDS(CODESYSIEN,0))
+  . ;". NEW CSABRV SET CSABRV=$PIECE(ZN,"^",2) QUIT:CSABRV=""
+  . ;". SET STR=STR_"^"_CSABRV
+  . ;". ;"NEW CSYS SET CSYS=$PIECE(ZN,"^",1) QUIT:CSYS=""
+  . ;". ;"SET STR=STR_"^"_CSYS
   . SET OUT("ICD",VSTDT,STR)=""
   . SET OUT("DT",VSTDT\1,"ICD",STR)=""
   QUIT
@@ -436,14 +448,17 @@ NOADDL  ;"This report checks to see if over the course of the last
   . . . IF $P($G(^TIU(8925.7,ADDLIEN,0)),"^",3)=259 SET ADDLFOUND=1
   . . IF ADDLFOUND=0 DO
   . . . NEW TMGDFN SET TMGDFN=$P($G(^TIU(8925,TIUIEN,0)),"^",2)
-  . . . SET ADDLARRAY(DOCIEN,TIUIEN)="  "_$P($G(^DPT(TMGDFN,0)),"^",1)_" ON "_$$EXTDATE^TMGDATE(TIUDATE,1)
+  . . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+  . . . SET ADDLARRAY(DOCIEN,NAME,TIUIEN)="  "_$P($G(^DPT(TMGDFN,0)),"^",1)_" ON "_$$EXTDATE^TMGDATE(TIUDATE,1)
   NEW DOCIEN SET DOCIEN=0
   FOR  SET DOCIEN=$O(ADDLARRAY(DOCIEN)) QUIT:DOCIEN'>0  DO
   . WRITE "==== ",$P($G(^TIU(8925.1,DOCIEN,0)),"^",1)," ====",!
-  . NEW TIUIEN SET TIUIEN=0
-  . FOR  SET TIUIEN=$O(ADDLARRAY(DOCIEN,TIUIEN)) QUIT:TIUIEN'>0  DO
-  . . WRITE $G(ADDLARRAY(DOCIEN,TIUIEN)),!,!
-  . WRITE !
+  . NEW NAME SET NAME=""
+  . FOR  SET NAME=$O(ADDLARRAY(DOCIEN,NAME)) QUIT:NAME=""  DO
+  . . NEW TIUIEN SET TIUIEN=0
+  . . FOR  SET TIUIEN=$O(ADDLARRAY(DOCIEN,NAME,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . . WRITE $G(ADDLARRAY(DOCIEN,NAME,TIUIEN)),!,!
+  . . WRITE !
   DO ^%ZISC  ;" Close the output device
   QUIT
   ;"

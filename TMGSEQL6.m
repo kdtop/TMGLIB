@@ -339,7 +339,8 @@ DOCANCEL(OLD,ERR) ;"Set status of obsolete records to CANCELLED
 ERR(MSG) ;
   ;"Note setting up alert will save all variables on the variable table for
   ;"     use during error handler
-  DO SETALRT^TMGSEQE1(MSG,"","HNDLERR^TMGSEQE1")
+  ;"DO SETALRT^TMGSEQE1(MSG,"","HNDLERR^TMGSEQE1")
+  DO INFRMALT^TMGXQAL(.ALERTRESULT,150,MSG)
   QUIT
   ;
 LOAD(FULLPATHNAME,DELFILE) ;
@@ -355,7 +356,7 @@ LOAD(FULLPATHNAME,DELFILE) ;
   . NEW DAYS SET DAYS="MONDAY,TUESDAY,THURSDAY,FRIDAY"
   . IF DAYS'[X SET TMGRESULT="NOT PROPER DAY"
   IF TMGRESULT="NOT PROPER DAY" GOTO LDDN
-  IF +TMGRESULT'>0 DO ERR(TMGRESULT_" on "_$$FMTE^XLFDT($$NOW^XLFDT)) GOTO LDDN
+  IF +TMGRESULT'>0 DO ERR($P(TMGRESULT,"^",2)_" on "_$$FMTE^XLFDT($$NOW^XLFDT)) GOTO LDDN
   DO PARSE("DATA")
   NEW MINDT SET MINDT=+$ORDER(DATA("DT",0))\1
   NEW MAXDT SET MAXDT=(+$ORDER(DATA("DT",""),-1)\1)+(0.999999)
@@ -367,7 +368,7 @@ LOAD(FULLPATHNAME,DELFILE) ;
   IF ($DATA(DATA("ERR")))!($DATA(DATA("ERR2")))!($DATA(DATA("APPT","ERR"))) DO
   . DO ERR("Error(s) during schedule import") 
   ELSE  IF $GET(DELFILE)=1 DO
-  . ;"DO ERR("NO ERROR: Imported schedule OK... (can remove this in TMGSEQL6.m)") 
+  . DO ERR("NO ERROR: Imported schedule OK... (can remove this in TMGSEQL6.m)") 
   . IF $$DELFILE^TMGIOUTL(FULLPATHNAME)=0 DO ERR("Error deleting file:")  
 LDDN ;  
   QUIT  

@@ -44,8 +44,7 @@ CHANNEL(TMGRESULT,INPUT) ;
   ;"   "SUBFILE ENTRY SUBSET"
   ;"        params: SubfileNum^IENS^ListStartValue^direction^[MaxCount]^[SCREEN]
   ;"   "GET SUB RECS LIST"  -- get all .01 sub record entries for a subfile
-  ;"        params: SubFileNum^ParentIENS^Fields
-  ;"               Fields is a fields string to pass to LIST^DIC
+  ;"        params: SubFileNum^ParentIENS^[Fields]^[Identifier]
   ;"   "GET EXPANDED FILENAME"
   ;"        params: Filenum (or a File Name)
   ;"   "POST DATA"

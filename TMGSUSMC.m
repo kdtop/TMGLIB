@@ -211,7 +211,12 @@ PATSUSMC(TMGDFN)
    . IF CONDITION SET CONDITION="*NOT PROVIDED*"
    . ;"SET TMGRESULT=TMGRESULT_"<b>ICD10:</b> "_ICD_" <b>DESC:</b> "_DESC_" <b>CONDITION:</b> "_CONDITION_"<BR>"
    . SET TMGRESULT=TMGRESULT_"<tr><td><b>ICD10:</b>"_ICD_"</td><td> <b>DESC:</b> "_DESC_"</td><td> <b>CONDITION:</b> "_CONDITION_"</td></tr>"
-   NEW FOOTER SET FOOTER="<tfoot align=""center""><tr><th colspan=""3""><b>Resolve this via paper form</b></th></tr></tfoot>"
+   NEW FOOTMSG
+   IF $$UP^XLFSTR(TMGRESULT)["DR. DEE" DO
+   . SET FOOTMSG="No paper form. Dr. Dee has reviewed these."
+   ELSE  DO  
+   . SET FOOTMSG="Resolve this via paper form."
+   NEW FOOTER SET FOOTER="<tfoot align=""center""><tr><th colspan=""3""><b>"_FOOTMSG_"</b></th></tr></tfoot>"
    IF TMGRESULT'="" SET TMGRESULT="{HTML:<FONT style=""BACKGROUND-COLOR:#ff0000"">}"_TMGRESULT_FOOTER_"</table>{HTML:</FONT>}"
 PSMCDN
    QUIT TMGRESULT
@@ -241,11 +246,13 @@ M1
    SET MENU(1)="Import new Suspect Medication Condition CSV"_$CHAR(9)_"Upload"
    SET MENU(2)="View only open Suspect Medication Conditions for a given date"_$CHAR(9)_"ViewOpen"
    SET MENU(3)="View all patients with Suspect Medication Condition for a given date"_$CHAR(9)_"ViewAll"
-   SET MENU(4)="View available reports"_$CHAR(9)_"Reports"
+   SET MENU(4)="View one patient"_$CHAR(9)_"ViewOne"
+   SET MENU(5)="View available reports"_$CHAR(9)_"Reports"
    SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
    IF USRPICK="Upload" DO PICKIMPT
    IF USRPICK="ViewOpen" DO DISPLAYMC(0)
    IF USRPICK="ViewAll" DO DISPLAYMC(1)
+   IF USRPICK="ViewOne" DO DISPLAY1
    IF USRPICK="Reports" DO MCREPORTS
    IF USRPICK="^" GOTO UMCDN
    IF USRPICK=0 SET USRPICK=""
@@ -283,6 +290,18 @@ M2
    IF $D(MCARRAY(USRPICK)) DO DISPLAYONE(.MCARRAY,USRPICK,RETURNALL) 
    GOTO M2
 DMCDN   
+   QUIT
+   ;"
+DISPLAY1
+   NEW RETURNALL SET RETURNALL=0
+   NEW X,Y,DIC,ANSWER
+   SET DIC=2,DIC(0)="MAEQ"
+   D ^DIC
+   SET Y=+$G(Y)
+   IF Y<1 QUIT
+   NEW ARRAY DO GET1PAT(.ARRAY,+Y,2023,+$G(RETURNALL))
+   NEW SMCARRAY MERGE SMCARRAY(Y)=ARRAY
+   DO DISPLAYONE(.SMCARRAY,+Y,RETURNALL)
    QUIT
    ;"
 DISPLAYONE(MCARRAY,TMGDFN,RETURNALL)  ;"

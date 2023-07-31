@@ -79,7 +79,7 @@ CONSOLE(USECACHE)  ;"Main entry point
   QUIT
   ;
 PREPAVAIL(PARRAY,OPTION)  ;
-  ;"Purpose: To prepair an arrBay with patch status, for use with SCROLLER^TMGUSRIF
+  ;"Purpose: To prepair an array with patch status, for use with SCROLLER^TMGUSRIF
   ;"Input: PARRAY -- PASS BY NAME.  ARRAY to put info into.  Prior data is killed.
   ;"       OPTION -- PASS BY REFERENCE.  Prior data is NOT killed.  See SCROLLER^TMGUSRIF for details
   ;"                 OPTION("HIDE EMPTY")=0 OPTIONAL. Default is 0.  If 1 then, entries with no patches.
@@ -110,7 +110,7 @@ PREPAVAIL(PARRAY,OPTION)  ;
   . . NEW LINE SET LINE=$$RJ^XLFSTR(PCK,4)_" - "_$$PCKNAME(PCK)
   . . IF $$LINEFILTERED(LINE,.OPTION) QUIT ;"Determine if line should NOT be shown, based on filters.
   . . SET LINE=$$LJ^XLFSTR(LINE,40)
-  . . NEW COLOR SET COLOR="{{"_$SELECT(READY=TOTAL:"READY",READY>0:"PARTIAL",1:"BLOCKED")_"}}"
+  . . NEW COLOR SET COLOR="{{"_$SELECT((+READY=0)&(+ACTIONABLE=0):"INSTALLED",READY=TOTAL:"READY",READY>0:"PARTIAL",1:"BLOCKED")_"}}"
   . . NEW N1 SET N1=$$RJ^XLFSTR(READY,3)
   . . NEW N2 SET N2=$$RJ^XLFSTR(ACTIONABLE,3)
   . . SET LINE=LINE_"  "_COLOR_"("_N1_" of "_N2_" ready to install)"_"{{NORM}}"
@@ -130,7 +130,7 @@ PREPAVAIL(PARRAY,OPTION)  ;
   . . NEW LINE SET LINE=$$RJ^XLFSTR(PCK,4)_"- VERSION "_VERSTR
   . . IF $$LINEFILTERED(LINE,.OPTION) QUIT ;"Determine if line should NOT be shown, based on filters.
   . . SET LINE=$$LJ^XLFSTR(LINE,35)
-  . . NEW COLOR SET COLOR="{{"_$SELECT(READY=TOTAL:"READY",READY>0:"PARTIAL",1:"BLOCKED")_"}}"
+  . . NEW COLOR SET COLOR="{{"_$SELECT((+READY=0)&(+ACTIONABLE=0):"INSTALLED",READY=TOTAL:"READY",READY>0:"PARTIAL",1:"BLOCKED")_"}}"
   . . NEW N1 SET N1=$$RJ^XLFSTR(READY,3)
   . . NEW N2 SET N2=$$RJ^XLFSTR(ACTIONABLE,3)
   . . SET LINE=LINE_"  "_COLOR_"("_N1_" of "_N2_" ready to install)"_"{{NORM}}"

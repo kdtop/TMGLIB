@@ -330,6 +330,38 @@ CHKVIEW(SDT,EDT)  ;"Check all labs for a date range to make sure they have
   DO PRESS2GO^TMGUSRI2
   QUIT
   ;"
+LINKORD(OUT,TMGDFN,SDT,EDT)  ;"RPC FOR HAS LINKED ORDER for given date range?
+  ;"Purpose: Return array with any PDF's available for patient for date range.
+  ;"Input:  OUT -- PASS BY REFERENCE, and out parameter.  See output
+  ;"        TMGDFN -- patient IEN
+  ;"        SDT -- Starting date-time (Fileman format).  Optional, default is earliest possible date.  
+  ;"        EDT -- OPTIONAL -- ending date-time.  Default is last possible date
+  ;"Output: OUT is filled as follow:
+  ;"          OUT(0)="1^OK", or "-1^Error message"
+  ;"          OUT(1)=SUBIEN^<RELATIVE PATH>^<FILE NAME>
+  ;"          OUT(2)=SUBIEN^<RELATIVE PATH>^<FILE NAME>   ... etc
+  ;"        If none found, then empty array returned.
+  ;"        OUT=number found, or -1^Message if problem
+  SET OUT="" ;"default
+  SET TMGDFN=$GET(TMGDFN) IF TMGDFN'>0 DO  GOTO RPCDN
+  . SET OUT=""
+  IF $DATA(^TMG(22756,TMGDFN))=0 GOTO RPCDN
+  SET SDT=+$GET(SDT) IF SDT'>0 SET SDT=1
+  SET SDT=$P(SDT,".",1)-1_".999999"  ;"2/18/21 BACK UP TO CATCH PDFS WITH DATE AND NO TIME (e.g. 3210218)
+  SET EDT=$GET(EDT) IF EDT'>0 SET EDT=9999999.999999
+  NEW ADT SET ADT=SDT-0.000001
+  FOR  SET ADT=$ORDER(^TMG(22756,TMGDFN,1,"C",ADT)) QUIT:(ADT'>0)  DO      	  
+  . IF (ADT<SDT)!(ADT>EDT) QUIT  ;"Added this as extra check because $O above wasn't handling the FMDate time correctly
+  . NEW SUBIEN SET SUBIEN=0
+  . FOR  SET SUBIEN=$ORDER(^TMG(22756,TMGDFN,1,"C",ADT,SUBIEN)) QUIT:SUBIEN'>0  DO
+  . . NEW ORDERIEN SET ORDERIEN=$P($G(^TMG(22756,TMGDFN,1,SUBIEN,0)),"^",1)
+  . . IF OUT="" DO 
+  . . . SET OUT=ORDERIEN
+  . . ELSE  DO
+  . . . SET OUT=OUT_"^"_ORDERIEN
+RPCDN  ;
+  QUIT
+  ;  
 HASPDF(OUT,TMGDFN,SDT,EDT)  ;"RPC FOR HAS LAB PDF for given date range?
   DO RPCHASPDF^TMGLRPD1(.OUT,.TMGDFN,.SDT,.EDT)
   QUIT

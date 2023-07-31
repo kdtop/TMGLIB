@@ -173,8 +173,11 @@ MAMMORPT
        . . FOR  SET s=$Order(matches(CONSIEN,dueDate,s)) QUIT:s=""  do
        . . . WRITE "Due: ",$p(s,"^",3),?25,$p(s,"^",2),?60,"Made on visit: ",$p($p(s,"^",1),"@",1),!
        . . . NEW SUBIDX SET SUBIDX=0
+       . . . NEW NEEDBREAK SET NEEDBREAK=0
        . . . FOR  SET SUBIDX=$Order(matches(CONSIEN,dueDate,s,SUBIDX)) QUIT:SUBIDX'>0  DO
        . . . . WRITE ?18,"========>",$G(matches(CONSIEN,dueDate,s,SUBIDX)),!
+       . . . . SET NEEDBREAK=1
+       . . . IF NEEDBREAK=1 WRITE !
        . WRITE !
        ;" 
        QUIT   ;"DON'T PRINT THE FOLLOWING FOR NOW. REMOVE QUIT LATER WHEN READY
@@ -822,7 +825,7 @@ MISSROS(CHKDATE)   ;"TODAY'S OFFICE NOTES MISSING ROS
        NEW TIUARR,DATE,TIUIEN
        IF +$G(CHKDATE)'>0 SET CHKDATE=$$TODAY^TMGDATE
        SET TIUIEN=0
-       SET CHKDATE=3230413
+       ;"SET CHKDATE=3230710
        SET DATE=CHKDATE
        FOR  SET DATE=$O(^TIU(8925,"D",DATE)) QUIT:DATE=""  DO
        . SET TIUIEN=0
@@ -1224,19 +1227,22 @@ CNSLTRPT2() ;
        . . . . SET apptDate=$P(apptDate,"DAY ",2)
        . . . IF apptDate[" at " do
        . . . . SET apptDate=$p(apptDate," at ",1)_"@"_$p(apptDate," at ",2)
+       . . . ;"MOVED BELOW       
        . . . IF $P(apptDate,"@",2)="" SET apptDate=$P(apptDate,"@",1)
        . . . SET Y=$$FMDate^TMGFMUT(apptDate)
-       . . . NEW FMDate SET FMDate=Y
-       . . . IF Y>0 do
-       . . . . DO DD^%DT  ;"standardize date
-       . . . ELSE  do
-       . . . . SET Y=apptDate
-       . . . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
-       . . . SET s=s_"^"_Y_"^"_ORDERTYPE
-       . . . SET matches(ORDERTYPE,FMDate,s)=""
+       . . . ;"NEW FMDate SET FMDate=Y
+       . . . ;"IF Y>0 do
+       . . . ;". DO DD^%DT  ;"standardize date
+       . . . ;"ELSE  do
+       . . . ;". SET Y=apptDate
+       . . . ;". SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
+       . . . ;"SET s=s_"^"_Y_"^"_ORDERTYPE
+       . . . ;"SET matches(ORDERTYPE,FMDate,s)=""
+       . . . ;"
        . . . ;"
        . . . NEW SUBX SET SUBX=1
        . . . NEW SUBIEN SET SUBIEN=0
+       . . . NEW RESCHDATE SET RESCHDATE=0
        . . . FOR  SET SUBIEN=$O(^GMR(123,idx,50,SUBIEN)) QUIT:SUBIEN'>0  DO
        . . . . NEW RESCHIEN SET RESCHIEN=2230
        . . . . NEW TIUIEN SET TIUIEN=$G(^GMR(123,idx,50,SUBIEN,0))
@@ -1248,8 +1254,23 @@ CNSLTRPT2() ;
        . . . . . . NEW LINE SET LINE=$G(^TIU(8925,TIUIEN,"TEXT",TEXTLINE,0))
        . . . . . . IF LINE["New date is" DO
        . . . . . . . NEW NEWDATE SET NEWDATE=$P($P(LINE,"<I>",2),"</B",1)
-       . . . . . . . SET matches(ORDERTYPE,FMDate,s,SUBX)="RESCHEDULED FOR: "_NEWDATE
-       . . . . . . . SET SUBX=SUBX+1
+       . . . . . . . NEW FMNEWDATE SET FMNEWDATE=$$INTDATE^TMGDATE(NEWDATE)  ;"7/25/23
+       . . . . . . . IF FMNEWDATE>Y SET Y=FMNEWDATE  ;"7/25/23
+       . . . . . . . SET apptDate=$P(NEWDATE,"@",1)_"(RESCH)"
+       . . . . . . . ;"SET matches(ORDERTYPE,FMDate,s,SUBX)="RESCHEDULED FOR: "_NEWDATE
+       . . . . . . . ;"SET SUBX=SUBX+1
+       . . . ;"
+       . . . ;" MOVED FROM ABOVE
+       . . . NEW FMDATE SET FMDate=Y
+       . . . IF Y>0 do
+       . . . . DO DD^%DT  ;"standardize date
+       . . . ELSE  do
+       . . . . SET Y=apptDate
+       . . . . SET FMDate=NowDate ;Assume Due Now If Can't Resolve Date
+       . . . SET s=s_"^"_Y_"^"_ORDERTYPE
+       . . . SET matches(ORDERTYPE,FMDate,s)=""
+       . . . ;"MOVED FROM ABOVE
+       . . . ;"
        . . . ;"CHECK FOR UNSIGNED NOTES
        . . . NEW UNSIGNED SET UNSIGNED=""
        . . . NEW TIUIEN SET TIUIEN=0
@@ -1293,8 +1314,12 @@ CNSLTRPT2() ;
        . . FOR  SET s=$Order(matches(ORDERTYPE,dueDate,s)) QUIT:s=""  do
        . . . WRITE $P(s,"^",4),?18,"Appt Date: ",$p(s,"^",3),?50,$p($p(s,"^",2),"-",1),?57,! ;""Made: ",$p($p(s,"^",1),"@",1),!
        . . . NEW SUBIDX SET SUBIDX=0
+       . . . NEW NEEDBREAK SET NEEDBREAK=0
        . . . FOR  SET SUBIDX=$Order(matches(ORDERTYPE,dueDate,s,SUBIDX)) QUIT:SUBIDX'>0  DO
        . . . . WRITE ?18,"========>",$G(matches(ORDERTYPE,dueDate,s,SUBIDX)),!
+       . . . . SET NEEDBREAK=1
+       . . . IF NEEDBREAK=1 WRITE !
+       . . . write !
 CNST2Dn 
        DO ^%ZISC  ;" Close the output device    
        QUIT

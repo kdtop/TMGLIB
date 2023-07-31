@@ -356,6 +356,7 @@ GTQUESTS(ARRAY)
    SET ARRAY(16,1,0)="Have you noticed any hearing difficulties?"
      SET ARRAY(16,1,1)="2750^0^SEVERE^Yes"
      SET ARRAY(16,1,2)="2751^0^^No"
+     SET ARRAY(16,1,3)="5760^0^^Yes, but corrected with hearing aids"
      
  QUIT
  ;"
@@ -438,6 +439,8 @@ HELHRPT(TMGDFN)
   . . . SET NEWDUE=$$INTDATE^TMGDATE($P(NEWDUE,"@",1))
   . . . IF NEWDUE>0 DO
   . . . . SET DUE=$$ADDDAYS^TMGDATE(365,NEWDUE)
+  . . . . IF DUE<$$TODAY^TMGDATE DO
+  . . . . . SET STATUS="DUE NOW"
   . . . . SET DUE=$$EXTDATE^TMGDATE(DUE,2)
   . IF REMIEN=224 SET REMNAME=REMNAME_$G(SUFFIXARR("MAMMO"))
   . IF REMIEN=228 SET REMNAME=REMNAME_$G(SUFFIXARR("BONEDENSITY"))

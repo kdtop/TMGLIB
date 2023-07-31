@@ -1,6 +1,6 @@
 TMGMISC ;TMG/kst/Misc utility library ;03/25/06; 7/31/15, 3/24/21
          ;;1.0;TMG-LIB;**1**;07/12/05
-
+ ;
  ;"TMG MISCELLANEOUS FUNCTIONS
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--

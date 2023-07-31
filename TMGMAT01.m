@@ -1,15 +1,157 @@
-START ;
-  WRITE "Hello World 2!",!
+
+GAUSEL  ;"Gausian Elimination tool
+
+
+
+
+EDITMATRIX(M)  ;
+EML0 ;
+  NEW MENU,IDX,USRPICK,AROW,ACOL
+  IF $DATA(M)=0 DO 
+  . READ "HOW MANY ROWS? ",ROW WRITE !
+  . SET ROW=+$GET(ROW) IF ROW<2 DO
+  . . WRITE "Setting rows to minimum value of 2",! SET ROW=2
+  . READ "HOW MANY COLS? ",COL WRITE !
+  . SET COL=+$GET(COL) IF COL<2 DO
+  . . WRITE "Setting cols to minimum value of 2",! SET COL=2
+  . DO INITM(.M,ROW,COL)
+EML1 ;                    
+  DO DISPMATRIX(.M)
+  NEW MAXROW SET MAXROW=+$GET(M("SPEC","ROW"))
+  NEW MAXCOL SET MAXCOL=+$GET(M("SPEC","COL"))  
+  SET IDX=0  
+  KILL MENU SET MENU(IDX)="Select Option For Editing Matrix"
+  SET AROW=0
+  FOR  SET AROW=$ORDER(M(AROW)) QUIT:AROW'>0  DO
+  . SET IDX=IDX+1,MENU(IDX)="Edit values for row "_AROW_$CHAR(9)_"ROW^"_AROW
+  SET IDX=IDX+1,MENU(IDX)="Swap 2 rows"_$CHAR(9)_"SWAP"
+  SET IDX=IDX+1,MENU(IDX)="Multiply row by constant"_$CHAR(9)_"CONST"
+  SET IDX=IDX+1,MENU(IDX)="Combine rows"_$CHAR(9)_"COMBINE"
+  SET IDX=IDX+1,MENU(IDX)="Restart"_$CHAR(9)_"RESTART"
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO EMDN  
+  IF USRPICK="RESTART" KILL M GOTO EML0
+  IF USRPICK["ROW" DO  GOTO EML1
+  . SET AROW=+$PIECE(USRPICK,"^",2)
+  . FOR ACOL=1:1:$GET(M("SPEC","COL")) DO
+  . . NEW AVAL SET AVAL=$GET(M(AROW,ACOL))
+  . . WRITE "Value for (",AROW,",",ACOL,")? ",AVAL," //"
+  . . NEW NEWVAL READ NEWVAL WRITE !
+  . . IF (NEWVAL="")!(NEWVAL="^") QUIT
+  . . SET M(AROW,ACOL)=NEWVAL
+  IF USRPICK="SWAP" DO
+  . NEW ROWA,ROWB
+  . READ "Enter 1st row of swap pair: ",ROWA WRITE !
+  . READ "Enter 2nd row of swap pair: ",ROWB WRITE !
+  . SET ROWA=+ROWA,ROWB=+ROWB
+  . IF ($$VALIDROW(.M,ROWA)=0)!($$VALIDROW(.M,ROWB)=0) QUIT
+  . NEW TEMPM MERGE TEMPM=M
+  . KILL M(ROWA),M(ROWB)
+  . NEW ACOL FOR ACOL=1:1:MAXCOL DO
+  . . MERGE M(ROWA)=TEMPM(ROWB)
+  . . MERGE M(ROWB)=TEMPM(ROWA)
+  IF USRPICK="CONST" DO
+  . NEW AROW
+  . READ "Enter row: ",AROW WRITE !
+  . SET AROW=+AROW IF $$VALIDROW(.M,AROW)=0 QUIT
+  . READ "Enter value to multiply row by: ",CONST WRITE !
+  . DO MULT(.M,AROW,CONST)
+  IF USRPICK="COMBINE" DO
+  . NEW ROWA,ROWB,CONST,TARGETROW
+  . READ "Enter row number: ",ROWA WRITE !
+  . SET ROWA=+ROWA IF $$VALIDROW(.M,ROWA)=0 QUIT
+  . WRITE "Multiply row# "_ROWA_" by value? (enter number): " READ CONST WRITE !
+  . IF CONST=0 WRITE "INVALID!",! QUIT
+  . READ "then add to which row? ",ROWB WRITE !
+  . SET ROWB=+ROWB IF $$VALIDROW(.M,ROWB)=0 QUIT
+  . DO COMBINE(.M,ROWA,CONST,ROWB)  
+  WRITE !
+  GOTO EML1
+EMDN  ;
   QUIT
   ;
-LOOP ;
-  NEW I
-  ;
-  FOR I=1:1:10 DO
-  . WRITE I,!
-  ;
+MULT(M,AROW,CONST)  ;"Multiply row ROW in matrix M by const CONST
+  ;"IF CONST["/" XECUTE "SET CONST="_CONST 
+  ;"SET CONST=+CONST IF CONST=0 WRITE "INVALID!",! QUIT
+  NEW ACOL FOR ACOL=1:1:MAXCOL DO
+  . NEW AVAL SET AVAL=$GET(M(AROW,ACOL))
+  . ;"SET AVAL=AVAL*CONST
+  . SET AVAL=$$ACTFRACT^TMGMATH1(AVAL,CONST,"*")
+  . ;"SET AVAL=$$ROUND^TMGUTIL0(AVAL,2)
+  . SET M(AROW,ACOL)=AVAL
   QUIT
   ;
+COMBINE(M,ROWA,CONST,ROWB) ;"RowA * const + RowB --> stored in RowB  
+  NEW MAXCOL SET MAXCOL=+$GET(M("SPEC","COL"))  
+  NEW TEMPM MERGE TEMPM=M
+  DO MULT(.TEMPM,ROWA,CONST)
+  NEW ACOL FOR ACOL=1:1:MAXCOL DO
+  . ;"NEW VAL SET VAL=M(ROWB,ACOL)+TEMPM(ROWA,ACOL)
+  . NEW VAL SET VAL=$$ACTFRACT^TMGMATH1(M(ROWB,ACOL),TEMPM(ROWA,ACOL),"+")
+  . SET M(ROWB,ACOL)=VAL
+  QUIT
+  ;
+VALIDROW(M,ROW) ;"Return if row is valid
+  NEW MAXROW SET MAXROW=+$GET(M("SPEC","ROW"))  
+  NEW RESULT SET RESULT=1
+  IF (ROW'>0)!(ROW>MAXROW) DO
+  . WRITE !,ROW," is an invalid row number!",!
+  . SET RESULT=0
+  QUIT RESULT
+  ;
+
+
+INITM(M,ROW,COL) ;
+  NEW AROW
+  FOR AROW=1:1:ROW DO
+  . NEW ACOL
+  . FOR ACOL=1:1:COL DO
+  . . SET M(AROW,ACOL)=0
+  SET M("SPEC","ROW")=ROW
+  SET M("SPEC","COL")=COL
+  QUIT
+  ;
+DISPMATRIX(M,OPTION)  ;
+   ;"Input:  M -- format:  M(row,col)=value
+   ;"                      M("SPEC","ROW")=#rows
+   ;"                      M("SPEC","COL")=#cols
+   ;"        OPTION("EQUATION")=1 means last column is the "=" column.  E.g.  x + y = z.  DEFAULT=1
+   
+   NEW MAXCOL,MAXROW 
+   SET MAXROW=+$GET(M("SPEC","ROW"))
+   SET MAXCOL=+$GET(M("SPEC","COL"))
+   NEW ROW,COL SET ROW=0
+   IF (MAXROW'>0)!(MAXCOL'>0) DO
+   . FOR  SET ROW=$ORDER(M(ROW)) QUIT:ROW'>0  DO
+   . . SET MAXROW=ROW
+   . . SET COL=0
+   . . FOR  SET COL=$ORDER(M(ROW,COL)) QUIT:COL'>0  DO
+   . . . IF COL>MAXCOL SET MAXCOL=COL
+   . SET M("SPEC","ROW")=MAXROW
+   . SET M("SPEC","COL")=MAXCOL
+   NEW ISEQ SET ISEQ=+$GET(OPTION("EQUATION"),1)
+   ;
+   SET (ROW,COL)=0
+   WRITE "            "
+   FOR COL=1:1:MAXCOL DO
+   . IF COL=MAXCOL WRITE "   "
+   . WRITE "  ",$$RJ^XLFSTR(COL,3," ")
+   WRITE !,"          ......................",!
+   SET COL=1
+   FOR  SET ROW=$ORDER(M(ROW)) QUIT:ROW'>0  DO
+   . WRITE " Row ",$$RJ^XLFSTR(ROW,3," "),"  | "
+   . SET COL=0
+   . FOR  SET COL=$ORDER(M(ROW,COL)) QUIT:COL'>0  DO
+   . . NEW ITEM SET ITEM=$GET(M(ROW,COL))
+   . . IF COL=MAXCOL WRITE "  ="
+   . . WRITE "  ",$$RJ^XLFSTR(ITEM,3," ")
+   . . IF COL=MAXCOL WRITE " |",!
+   WRITE "          ......................",!
+   QUIT
+   
+ ;"==============================   
+
+
 SHOWDATA ;
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(^DIC(19,IDX)) QUIT:+IDX'>0  DO
