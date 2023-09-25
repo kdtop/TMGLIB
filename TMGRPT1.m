@@ -304,18 +304,27 @@ NEWCOUMA ;
        . . WRITE "            Was Due On ",$$EXTDATE^TMGDATE(DATE),!
        . . WRITE "     ------------- ",!
        NEW TMGDFN SET TMGDFN=0
+       NEW STOPPEDARR
        FOR  SET TMGDFN=$O(^ORAM(103,TMGDFN)) QUIT:TMGDFN'>0  DO
        . NEW LASTDATE 
        . SET LASTDATE=$O(^ORAM(103,TMGDFN,3,"B",9999999),-1)
+       . NEW STOPDATE SET STOPDATE=$P($G(^ORAM(103,TMGDFN,0)),"^",6)
        . NEW DAYSDIFF SET DAYSDIFF=$$DAYSDIFF^TMGDATE($$TODAY^TMGDATE,LASTDATE)
        . IF DAYSDIFF>44 DO
        . . IF $$ACTIVEPT^TMGPXR03(TMGDFN)'=1 QUIT
        . . IF $$UP^XLFSTR($P($G(^ORAM(103,TMGDFN,0)),"^",7))="COMPLETED" QUIT
        . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
        . . IF NAME["ZZ" QUIT
+       . . IF STOPDATE'="" SET STOPPEDARR(NAME_"("_TMGDFN_") STOPPED ON "_STOPDATE)="" QUIT
        . . WRITE NAME,"(",TMGDFN,")",!
        . . WRITE "            Was Last Done On ",$$EXTDATE^TMGDATE(LASTDATE),"(",DAYSDIFF," ago)",!
        . . WRITE "     ------------- ",!
+       IF $D(STOPPEDARR) DO
+       . WRITE !,!,"STOPPED PATIENTS (CAN BE REMOVED LATER)",!
+       . WRITE "========================================",!
+       . NEW LINE SET LINE=""
+       . FOR  SET LINE=$O(STOPPEDARR(LINE)) QUIT:LINE=""  DO
+       . . WRITE LINE,!
        QUIT
        ;"
 CNSLTRPT(RECORDS,MAKENOTES) ;
@@ -620,6 +629,14 @@ PAINICD(TMGDFN)
        . NEW ICDDATA SET ICDDATA=$$UP^XLFSTR($GET(TMGTABLEARR("KEY-VALUE","ICD-10 Treatment")))
        . IF ICDDATA'="" SET ICD10=ICDDATA 
        QUIT ICD10
+       ;"     
+TDAPMSG(TMGDFN)
+       NEW TMGRESULT SET TMGRESULT=""
+       NEW TMGTABLE,TMGTABLEARR
+       SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(TMGDFN),"[IMMUNIZATIONS]",.TMGTABLEARR)
+       NEW TDAP SET TDAP=$G(TMGTABLEARR("KEY-VALUE","Tdap"))
+       IF TDAP'="" SET TMGRESULT="===="_$C(13,10)_"NOTE: Patient had TdaP on "_TDAP_". Consider Td."_$C(13,10)_"===="
+       QUIT TMGRESULT
        ;"
 PAINRPT(CSPTRESULT,REMRESULT,BDATE,EDATE,CSDBRESULT)   ;"
        ;"Purpose: Print report for patients due for UDS and Pain Contracts
@@ -825,7 +842,7 @@ MISSROS(CHKDATE)   ;"TODAY'S OFFICE NOTES MISSING ROS
        NEW TIUARR,DATE,TIUIEN
        IF +$G(CHKDATE)'>0 SET CHKDATE=$$TODAY^TMGDATE
        SET TIUIEN=0
-       ;"SET CHKDATE=3230710
+       ;"SET CHKDATE=3230908
        SET DATE=CHKDATE
        FOR  SET DATE=$O(^TIU(8925,"D",DATE)) QUIT:DATE=""  DO
        . SET TIUIEN=0

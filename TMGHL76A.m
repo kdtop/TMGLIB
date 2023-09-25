@@ -335,9 +335,9 @@ HL72PRE(ARR,REFHTML,JDX,STYLE) ;"Convert array to PRE block.
         SET @REFHTML@(JDX,0)="</PRE>",JDX=JDX+1
         QUIT
         ;
-SETALERT(ERRTEXT,AMSG,IEN772,IEN773) ;
-        ;"do nothing for now
-        DO SETALERT^TMGHL7E(.ERRTEXT,.AMSG,.IEN772,.IEN773,"ADT")
+SETALERT(ERRTEXT,AMSG,IEN772,IEN773,AMODE,TMGENV) ;
+        ;"NOTE: for now, I am not using AMODE.  Overwritting locally anyway, to ADT
+        DO SETALERT^TMGHL7E(.ERRTEXT,.AMSG,.IEN772,.IEN773,"ADT",.TMGENV)
         QUIT
         ;"        
 LOADTYPS(ARR) ;" Load names of ADT event names into ARR

@@ -332,7 +332,7 @@ FILEMSG(TMGENV,TMGHL7MSG)  ;"Call filer to handle prepped message
 FMSGDN   ;
   QUIT TMGRESULT
   ;
-SETALERT(TMGRESULT,TMGENV,OPTION) ;"Send error alert for HL7 message
+SETALERT(TMGRESULT,TMGENV,OPTION) ;"Send error alert for HL7 message, by calling custom code
   ;"Input:  TMGRESULT
   ;"        TMGENV
   ;"        OPTION("FILEPATHNAME") -- full filepathname of source HL7 file 
@@ -345,17 +345,13 @@ SETALERT(TMGRESULT,TMGENV,OPTION) ;"Send error alert for HL7 message
   IF $$DIRSETUP(1,.OPTION)  ;"Set up OPTION vars to be saved for use during alert processing.
   IF $$DIRSETUP(2,.OPTION)  ;"Set up OPTION vars to be saved for use during alert processing.
   NEW IEN22720 SET IEN22720=+$GET(TMGENV("IEN 22720"))
-  ;"//kt 1/13/21 -- IF IEN22720'>0 GOTO ALTDN   ;"No way to send error message, so just leave
   NEW IEN772 SET IEN772=$GET(TMGENV("IEN 772"))
   NEW IEN773 SET IEN773=$GET(TMGENV("IEN 773"))
   NEW NODE SET NODE=$GET(^TMG(22720,IEN22720,100))
   NEW TAG SET TAG=$PIECE(NODE,"^",3) 
-  ;"//kt 1/13/21 -- IF TAG="" GOTO ALTDN
   NEW ROUTINE SET ROUTINE=$PIECE(NODE,"^",4) 
-  ;"//kt 1/13/21 -- IF ROUTINE="" GOTO ALTDN
-  IF (NODE="")!(TAG="") DO
-  . SET TAG="SETALERT",ROUTINE="TMGHL7E"
-  NEW CODE SET CODE="SET TMGRESULT=$$"_TAG_"^"_ROUTINE_"(.TMGRESULT,,IEN772,IEN773)"
+  IF (NODE="")!(TAG="") SET TAG="SETALERT",ROUTINE="TMGHL7E"
+  NEW CODE SET CODE="SET TMGRESULT=$$"_TAG_"^"_ROUTINE_"(.TMGRESULT,,IEN772,IEN773,,.TMGENV)"
   NEW TRAPECODE SET TRAPECODE=""
   DO
   . NEW $ETRAP SET $ETRAP="SET TRAPECODE=$ECODE,$ETRAP="""",$ECODE="""""

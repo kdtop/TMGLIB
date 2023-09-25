@@ -1283,3 +1283,184 @@ SUBRECID(OREF,IEN,FILENUM) ;"Callback function from LIST^DIC, optionally used
   DO EN^DDIOL(OUT)
   QUIT
   ;  
+ENCEDIT(TMGRESULT,INPUT)  ;"RPC: TMG CPRS ENCOUNTER EDIT
+  ;"Purpose: This RPC is designed to allow editing of the encounter from CPRS
+  ;"Input: TMGRESULT - OUT parameter 
+  ;"      INPUT - Array of data sent from CPRS
+  ;"      INPUT(#)=CMD^CATEGORY^IENINFO^DATA(FLD=VALUE)^DATA^DATA...
+  ;"           CMD: DEL, ADD, or EDIT
+  ;"           Category: ENTRY or SECTION
+  ;"           IEN: IEN22753 value, OR '.01=<value>'  
+  ;"           DATA: Will be FLD=VALUE
+  ;
+  ;"Examples of expected input
+  ;"  INPUT(#)="ADD^SECTION^0^.01=Misc^.02=12"              <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
+  ;"  INPUT(#)="EDIT^SECTION^4567^.01=Ortho Stuff"          <-- rename by changing .01 field  
+  ;"  INPUT(#)="EDIT^SECTION^.01=Ortho Stuff^.01=Derm Stuff"<-- rename Ortho Stuff to Derm Stuff  
+  ;"  INPUT(#)="DEL^SECTION^4567"                           <-- DELETE entry `4567.  NOTE: this will kill all contained child entries!
+  ;"  INPUT(#)="ADD^ENTRY^4567^.01='667788^.03=Pes Planus"  <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  ;"  INPUT(#)="EDIT^ENTRY^4567^.01='667788^.03=Planus,Pes" <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
+  ;"  INPUT(#)="DEL^ENTRY^4567^.01='667788"                 <-- delete entry for ICD (IEN80) 667788, in section `4567
+  ;
+  SET TMGRESULT="1^SUCCESS"
+  NEW TMGDEBUG SET TMGDEBUG=0 ;"Set to 1 at runtime to use stored input
+  IF TMGDEBUG=0 DO
+  . KILL ^TMG("TMP","ENCEDIT")
+  . MERGE ^TMG("TMP","ENCEDIT","INPUT")=INPUT
+  ELSE  DO
+  . KILL INPUT 
+  . MERGE INPUT=^TMG("TMP","ENCEDIT","INPUT")
+  ;
+  NEW ERRORMSG SET ERRORMSG=""
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(INPUT(IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=INPUT(IDX)
+  . NEW ARR DO SPLIT2AR^TMGSTUT2(LINE,"^",.ARR)
+  . NEW TMGCMD SET TMGCMD=$$UP^XLFSTR($GET(ARR(1))) KILL ARR(1)
+  . IF (TMGCMD'="ADD")&(TMGCMD'="DEL")&(TMGCMD'="EDIT") DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"INVALID COMMAND ON ARRAY #"_IDX_". Got ["_TMGCMD_"]")
+  . NEW TMGCAT SET TMGCAT=$$UP^XLFSTR($GET(ARR(2))) KILL ARR(2)
+  . IF (TMGCAT'="ENTRY")&(TMGCAT'="SECTION") DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"INVALID CATEGORY ON ARRAY #"_IDX_". Got ["_TMGCAT_"]")  
+  . NEW IENINFO SET IENINFO=$GET(ARR(3)) KILL ARR(3)
+  . NEW ARR2 DO FMTARR(.ARR,.ARR2)
+  . NEW DIC,X,Y 
+  . NEW TMGIEN SET TMGIEN=0
+  . IF +IENINFO=IENINFO SET TMGIEN=+IENINFO
+  . ELSE  IF IENINFO[".01=" DO
+  . . SET X=$PIECE(IENINFO,"=",2)
+  . . IF $EXTRACT(X,1)="'" SET X=$PIECE(X,"'",2)  ;"STRIP TIC
+  . . SET DIC=22753,DIC(0)="MN" DO ^DIC
+  . . IF Y>0 SET TMGIEN=+Y
+  . IF TMGIEN'>0,TMGCMD'="ADD",TMGCAT'="SECTION" DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"Unable to find SECTION.  Got ["_IENINFO_"]")
+  . SET TMGIEN(22753)=+TMGIEN    
+  . IF TMGCAT="ENTRY" DO
+  . . IF TMGCMD="ADD" SET TMGIEN(22753.01)="+1," QUIT
+  . . SET DIC=$$OREF^DILF($NAME(^TMG(22753,+TMGIEN,1))),DIC(0)="MN",X=$GET(ARR2(.01))
+  . . IF $EXTRACT(X,1)="`" SET X=$EXTRACT(X,2,$LENGTH(X))
+  . . DO ^DIC
+  . . IF +Y'>0 DO  QUIT
+  . . . DO ADDERROR(.ERRORMSG,"Unable to find subfile record.  Got [.01="_$GET(ARR2(.01))_"]")
+  . . SET TMGIEN(22753.01)=+Y
+  . IF TMGCMD="ADD" DO
+  . . DO ADDITEM(TMGCAT,.TMGIEN,.ARR2,.ERRORMSG)
+  . ELSE  IF TMGCMD="DEL" DO
+  . . DO DELITEM(TMGCAT,.TMGIEN,.ARR2,.ERRORMSG)
+  . ELSE  IF TMGCMD="EDIT" DO
+  . . DO EDITITEM(TMGCAT,.TMGIEN,.ARR2,.ERRORMSG)
+  IF ERRORMSG'="" SET TMGRESULT="-1^"_ERRORMSG
+  QUIT
+  ;
+FMTARR(IN,OUT)  ;"Reformat array
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(IN(IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=$GET(IN(IDX))
+  . NEW FLD SET FLD=+LINE
+  . IF FLD'>0 QUIT
+  . NEW VALUE SET VALUE=$PIECE(LINE,"=",2)
+  . SET OUT(FLD)=VALUE
+  QUIT
+  ;
+ADDITEM(TMGCAT,TMGIEN,ARR,ERRORMSG)  ;" add an item to the encounter form
+  ;"Input:  TMGCAT -- should be ENTRY (for a particular entry) or SECTION (for group entry)
+  ;"        IENINFO --PASS BY REFERENCE
+  ;"                    TMGIEN(22753)=<IEN IN 22753>  -- if found
+  ;"                    TMGIEN(22753.01)=<IEN IN 22753.01>  <--- NOT USED
+  ;"        ARR -- PASS BY REFERENCE. Should be in format of ARR(<FLDNUMBER>)=<VALUE>  
+  ;"        ERRORMSG -- PASS BY REFERENCE, an OUT parameter.  Text added for error message.  DONT add -1^ here.
+  ;"Examples of expected input
+  ;"  INPUT(#)="ADD^SECTION^0^.01=Misc^.02=12"              <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
+  ;"  INPUT(#)="ADD^ENTRY^4567^.01='667788^.03=Pes Planus"   <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  NEW TMGFDA,TMGMSG
+  IF TMGCAT="ENTRY" DO
+  . SET TMGIEN=+$GET(TMGIEN(22753)) IF TMGIEN'>0 DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"Unable to find section to add to.  Got ["_TMGINFO_"]")
+  . MERGE TMGFDA(22753.01,"+1,"_TMGIEN_",")=ARR
+  ELSE  IF TMGCAT="SECTION" DO
+  . MERGE TMGFDA(22753,"+1,")=ARR
+  IF $DATA(TMGFDA) DO
+  . KILL TMGIEN DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
+  . IF $DATA(TMGMSG("DIERR")) DO
+  . . NEW ERR SET ERR=$$GETERRST^TMGDEBU2(.TMGMSG) DO ADDERROR(.ERRORMSG,ERR)
+AIDN ;
+  QUIT
+  ;
+DELITEM(TMGCAT,TMGIEN,ARR,ERRORMSG)  ;"delete an item to the encounter form  
+  ;"Input:  TMGCAT -- should be ENTRY (for a particular entry) or SECTION (for group entry)
+  ;"        IENINFO --PASS BY REFERENCE
+  ;"                    TMGIEN(22753)=<IEN IN 22753>  -- if found
+  ;"                    TMGIEN(22753.01)=<IEN IN 22753.01>  -- if relevant
+  ;"        ARR -- PASS BY REFERENCE. Should be in format of ARR(<FLDNUMBER>)=<VALUE>  
+  ;"               NOTE: field .01 will be used to locate subfile record, other values filed as provided.    
+  ;"        ERRORMSG -- PASS BY REFERENCE, an OUT parameter.  Text added for error message.  DONT add -1^ here.
+  ;"Examples of expected input
+  ;"  INPUT(#)="DEL^SECTION^4567"                           <-- DELETE entry `4567.  NOTE: this will kill all contained child entries!
+  ;"  INPUT(#)="DEL^ENTRY^4567^.01='667788"                  <-- delete entry for ICD (IEN80) 667788, in section `4567
+  NEW TMGFDA,TMGMSG
+  SET TMGIEN=+$GET(TMGIEN(22753))
+  IF TMGIEN'>0 DO  QUIT
+  . DO ADDERROR(.ERRORMSG,"Unable to find SECTION IEN.")
+  IF TMGCAT="ENTRY" DO
+  . NEW SUBIEN SET SUBIEN=$GET(TMGIEN(22753.01))
+  . IF SUBIEN'>0 DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"Unable to find SUB-IEN. Got ["_SUBIEN_"]")
+  . SET TMGFDA(22753.01,SUBIEN_","_TMGIEN_",",.01)="@"  
+  ELSE  IF TMGCAT="SECTION" DO
+  . SET TMGFDA(22753,TMGIEN_",",.01)="@"
+  IF $DATA(TMGFDA)'>0 DO  QUIT
+  . DO ADDERROR(.ERRORMSG,"Unable to delete item for unknow reason")
+  DO FILE^DIE("E","TMGFDA","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO
+  . NEW ERR SET ERR=$$GETERRST^TMGDEBU2(.TMGMSG) DO ADDERROR(.ERRORMSG,ERR)
+  QUIT
+  ;
+EDITITEM(TMGCAT,TMGIEN,ARR,ERRORMSG)  ;"EDIT an item on the encounter form
+  ;"Input:  TMGCAT -- should be ENTRY (for a particular entry) or SECTION (for group entry)
+  ;"        IENINFO --PASS BY REFERENCE
+  ;"                    TMGIEN(22753)=<IEN IN 22753>  -- if found
+  ;"                    TMGIEN(22753.01)=<IEN IN 22753.01>  -- if relevant
+  ;"        ARR -- PASS BY REFERENCE. Should be in format of ARR(<FLDNUMBER>)=<VALUE>  
+  ;"               NOTE: field .01 will be used to locate subfile record, other values filed as provided.    
+  ;"        ERRORMSG -- PASS BY REFERENCE, an OUT parameter.  Text added for error message.  DONT add -1^ here. 
+  ;"Examples of expected input
+  ;"  INPUT(#)="EDIT^SECTION^4567^.01=Ortho Stuff"          <-- rename by changing .01 field  
+  ;"  INPUT(#)="EDIT^SECTION^.01=Ortho Stuff^.01=Derm Stuff"<-- rename Ortho Stuff to Derm Stuff  
+  ;"  INPUT(#)="EDIT^ENTRY^4567^.01='667788^.03=Planus,Pes"  <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
+  NEW TMGFDA,TMGMSG
+  SET TMGIEN=+$GET(TMGIEN(22753))
+  IF TMGIEN'>0 DO  QUIT
+  . DO ADDERROR(.ERRORMSG,"Unable to find SECTION IEN.")
+  IF TMGCAT="ENTRY" DO
+  . NEW SUBIEN SET SUBIEN=$GET(TMGIEN(22753.01))
+  . IF SUBIEN'>0 DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"Unable to find SUB-IEN. Got ["_SUBIEN_"]")
+  . MERGE TMGFDA(22753.01,SUBIEN_","_TMGIEN_",")=ARR  
+  ELSE  IF TMGCAT="SECTION" DO
+  . MERGE TMGFDA(22753,TMGIEN_",")=ARR
+  IF $DATA(TMGFDA)'>0 DO  QUIT
+  . DO ADDERROR(.ERRORMSG,"Unable to delete item for unknow reason")
+  DO FILE^DIE("E","TMGFDA","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO
+  . NEW ERR SET ERR=$$GETERRST^TMGDEBU2(.TMGMSG) DO ADDERROR(.ERRORMSG,ERR)
+  QUIT
+  ; 
+ADDERROR(ERRORMSG,ERROR)
+  IF ERRORMSG'="" SET ERRORMSG=ERRORMSG_","
+  SET ERRORMSG=ERRORMSG_ERROR
+  QUIT
+  ;
+TESTEDITENC ;
+  NEW ARR
+  SET ARR(1)="ADD^SECTION^0^.01=Misc^.02=12"                        ; <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
+  SET ARR(2)="EDIT^SECTION^.01=Misc^.01=Misc-Stuff"           ; <-- rename .01 field  
+  SET ARR(3)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus" ; <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  SET ARR(4)="EDIT^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Planus,Pes" ; <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
+  SET ARR(5)="DEL^ENTRY^.01=Misc-Stuff^.01=`572555"                 ; <-- delete entry for ICD (IEN80) 667788, in section `4567
+  SET ARR(6)="DEL^SECTION^.01=Misc-Stuff"                           ; <-- DELETE entry NOTE: this will kill all contained child entries!
+  
+  ;"finish...
+  NEW TMGRESULT
+  DO ENCEDIT(.TMGRESULT,.ARR)  ;"RPC: TMG CPRS ENCOUNTER EDIT
+
+  QUIT

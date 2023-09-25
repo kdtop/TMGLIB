@@ -78,3 +78,15 @@ ACDN
   WRITE !,"Goodbye",!
   QUIT
   ;"
+CPTACTIVE(IEN81) ;"Is CPT code (passed as IEN) active currently?
+  ;"Alternative option, figure out how to use STATCHK^ICPTAPIU
+  NEW RESULT
+  NEW ZN SET ZN=$GET(^ICPT(+IEN81,0))
+  SET RESULT=($PIECE(ZN,"^",4)'=1)
+  QUIT RESULT
+  ;
+CPTACTV2(CPTCODE) ;"Is CPT code (pass by actual CPT code) active currently?
+  NEW IEN81 SET IEN81=+$ORDER(^ICPT("B",CPTCODE,""))
+  IF IEN81'>0 QUIT 0
+  QUIT $$CPTACTIVE(IEN81)
+  ;

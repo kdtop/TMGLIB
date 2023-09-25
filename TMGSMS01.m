@@ -520,7 +520,7 @@ GETFSTAT() ;"Process FINAL status report. <--- SUITABLE ENTRY POINT FOR TASKMAN
  ;" 
 SENDFLUMSG
   NEW MESSAGE 
-  SET MESSAGE="Family Physicians of Greeneville is now offering Flu Vaccinations. We are accepting walk-ins for flu vaccines EVERY THURSDAY, from 9A-12P and 1P-4P. Simply call us from the parking lot and let us know you are here. "
+  SET MESSAGE="Family Physicians of Greeneville is now offering Flu Vaccinations. We are accepting walk-ins for flu vaccines every Mon,Tues,Thurs,and Friday from 9A-11:30A and 1P-4P."
   SET MESSAGE=MESSAGE_" You can also get one during your in-office appointment. If you have any questions, please call us at 423-787-7000."
   DO ONEMSG(MESSAGE)
   QUIT

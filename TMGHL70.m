@@ -138,13 +138,31 @@ UT1     KILL TMGUSERINPUT,TMGMNU
         ;
 UTDN    QUIT
         ;
+FLSTMENU(TMGTESTMSG,INDENTN,FILES) ;"FILE LIST MENU -- Show menu of files to load, from options passed in ARR
+        ;"Input: TMGTESTMSG -- the message to work on.
+        ;"       INDENTN -- the number of spaces to indent the menu display
+        ;"       FILES -- PASS BY REFERENCE.  List of files to pick from.  Format:
+        ;"            FILES(<FULL_FILE_PATH_AND_FILE_NAME>)=""
+        ;
+        NEW MENU,MENUCT,USRPICK
+        NEW FNAME,FPATH 
+FLM0    KILL MENU SET MENUCT=0
+        SET MENU(0)="Pick HL7 file"
+        NEW AFILE SET AFILE=""
+        FOR  SET AFILE=$ORDER(FILES(AFILE)) QUIT:AFILE=""  DO
+        . DO SPLITFPN^TMGIOUTL(AFILE,.FPATH,.FNAME)
+        . SET MENUCT=MENUCT+1,MENU(MENUCT)=FNAME_$CHAR(9)_FPATH_"^"_FNAME
+        IF MENUCT=0 DO  GOTO FLMDN
+        . WRITE !,"No files to pick from",!
+        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        IF USRPICK="^" GOTO FLMDN
+        SET FPATH=$PIECE(USRPICK,"^",1) IF FPATH="" GOTO FLMDN
+        SET FNAME=$PIECE(USRPICK,"^",2) IF FNAME="" GOTO FLMDN
+        DO LOADMSG3^TMGHL7U2(.TMGTESTMSG,FPATH,FNAME)        
+FLMDN   QUIT
+        ;
 FILEMENU(TMGTESTMSG,INDENTN) ;"HANDLE/SHOW FILE MENU
-        ;"Input: TMGENV -- PASS BY REFERENCE.  Lab environment
-        ;"           TMGENV("PREFIX") -- e.g. "LMH"
-        ;"           TMGENV("IEN 68.2") -- IEN in LOAD/WORK LIST (holds orderable items)
-        ;"           TMGENV("IEN 62.4") -- IEN in AUTO INSTRUMENT (holds resultable items)        
-        ;"           TMGENV(<other entries>)= etc.              
-        ;"       TMGTESTMSG -- the message to work on.
+        ;"Input: TMGTESTMSG -- the message to work on.
         ;"       INDENTN -- the number of spaces to indent the menu display
         ;"NOTE: may access IEN772,IEN773,HLMIEN,HLMIENS, but no error IF absent.
         ;"Result: none
@@ -159,10 +177,11 @@ FMU1    KILL TMGUSERINPUT,TMGMNU
         KILL TMGMNUI SET TMGMNUI=0
         SET TMGMNU(-1,"INDENT")=INDENTN
         SET TMGMNU(TMGMNUI)="Pick HL7 Message FILE Option",TMGMNUI=TMGMNUI+1
-        IF $DATA(TMGTESTMSG)=0 DO
-        . SET TMGMNU(TMGMNUI)="Load a test HL7 message from host text file"_$CHAR(9)_"LoadMsg",TMGMNUI=TMGMNUI+1
-        . SET TMGMNU(TMGMNUI)="Paste a test HL7 message into editor"_$CHAR(9)_"PasteMsg",TMGMNUI=TMGMNUI+1
-        . SET TMGMNU(TMGMNUI)="Load a test HL7 message from HL7 MESSAGE TEXT file"_$CHAR(9)_"LoadFMMsg",TMGMNUI=TMGMNUI+1
+        IF $DATA(TMGTESTMSG)=0 DO        
+        . SET TMGMNU(TMGMNUI)="Pick past HL7 for a selected PATIENT"_$CHAR(9)_"Patient",TMGMNUI=TMGMNUI+1
+        . SET TMGMNU(TMGMNUI)="HFS -- Load a host text file as HL7 message"_$CHAR(9)_"LoadMsg",TMGMNUI=TMGMNUI+1
+        . SET TMGMNU(TMGMNUI)="Paste an HL7 message into editor"_$CHAR(9)_"PasteMsg",TMGMNUI=TMGMNUI+1
+        . SET TMGMNU(TMGMNUI)="Load a HL7 message from HL7 MESSAGE TEXT file"_$CHAR(9)_"LoadFMMsg",TMGMNUI=TMGMNUI+1
         ELSE  DO
         . SET TMGMNU(TMGMNUI)="View current HL7 message"_$CHAR(9)_"ViewMsg",TMGMNUI=TMGMNUI+1
         . SET TMGMNU(TMGMNUI)="Clear currently loaded test HL7 message"_$CHAR(9)_"ClearMsg",TMGMNUI=TMGMNUI+1
@@ -175,6 +194,9 @@ FMU1    KILL TMGUSERINPUT,TMGMNU
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
         KILL TMGMNU ;"Prevent from cluttering variable table during debug run
         ;
+        IF TMGUSERINPUT="Patient" DO  GOTO FMU1
+        . NEW FILES DO PKHL7F^TMGLRWU3(,.FILES)
+        . DO FLSTMENU^TMGHL70(.TMGTESTMSG,,.FILES)
         IF TMGUSERINPUT="PasteMsg" DO LOADMSG^TMGHL7U2(.TMGTESTMSG) GOTO FMU1
         IF TMGUSERINPUT="LoadMsg" DO LOADMSG2^TMGHL7U2(.TMGTESTMSG) GOTO FMU1
         IF TMGUSERINPUT="LoadFMMsg" DO LOADMSGF^TMGHL7U2(.TMGTESTMSG) GOTO FMU1        

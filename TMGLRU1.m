@@ -78,7 +78,7 @@ REPORTONE(IEN,REF) ;"Report on 1 element, and all its contained ITEMS
   ;
 COMPILE(DEFPATH)  ;"Read in INI file and compile and file into FM file 22751
   ;"NOTICE!! -- In addition to reading in the INI file, I also have to get
-  ;"     data info 22751 to suppor ORDERING PROVIDER, ORDER FLAGS, ORDER OPTIONS etc.
+  ;"     data info 22751 to support ORDERING PROVIDER, ORDER FLAGS, ORDER OPTIONS etc.
   ;"     Currently, I have added these manually.  But in, in the future, I want
   ;"     to clear all data from 22751, so I can read in INI file again, then 
   ;"     I will need to add functions to programatically add these. I.e. the 

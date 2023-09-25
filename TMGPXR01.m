@@ -179,6 +179,28 @@ PAINMEDS(TMGDFN,TEST,DATE,DATA,TEXT) ;
         . . SET DATE=Y
 PMDN    QUIT
         ;"
+PAINICD(TMGDFN,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Determine if patient needs pain med ICD
+        ;" NOTE: THIS DOES NOT DETERMINE IF THE PATIENT IS ACTUALLY
+        ;"       ON PAIN MEDS. IT SHOULD BE USED IN CONJUNCTION WITH
+        ;"       THE TMG CONTROLLED RX USER CF
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none  
+        SET TEST=0
+        SET DATE=0 
+        NEW ICDMSG SET ICDMSG=$$PAINICD^TMGRPT1(TMGDFN)
+        IF ICDMSG["NEEDS DATA ENTERED" DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"
 PTONASA(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"Purpose: To determine if the patient is on ASA
         ;"Input: same as above
@@ -301,6 +323,27 @@ ADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         . . SET TEST=1
         QUIT
         ;"
+SNPPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: To detmine if the patient is a SNP Patient
+        ;"         
+        SET TEST=0
+        SET DATE=0
+        NEW INSARRAY
+        SET INSARRAY(+$ORDER(^DIC(36,"B","BLUECARE+",0)))=""
+        SET INSARRAY(+$ORDER(^DIC(36,"B","HUMANAGLD+ (EDIT THIS NAME)",0)))=""
+        SET INSARRAY(+$ORDER(^DIC(36,"B","UNITED HEALTHCARE - COMMUNITY",0)))=""
+        ;"SET INSARRAY(+$ORDER(^DIC(36,"B","AARP / Secure Horizon",0)))=""
+        ;"SET INSARRAY(+$ORDER(^DIC(36,"B","UNITED HEALTHCARE - SECURE HORIZONS",0)))=""
+        ;"IF BCBSAIEN'>0 GOTO BCDN
+        NEW INSIDX SET INSIDX=0
+        FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+        . NEW THISIEN SET THISIEN=$G(^DPT(TMGDFN,.312,INSIDX,0))
+        . IF +$P($G(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)'=1 QUIT
+        . SET THISIEN=$P(THISIEN,"^",1)
+        . IF $D(INSARRAY(THISIEN)) DO
+        . . SET TEST=1
+        QUIT
+        ;"        
 MEDCARPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"Purpose: To detmine if the patient is a Medicare patient
         ;"         
@@ -1773,7 +1816,27 @@ PTCKD2(TMGDFN,TEST,DATE,DATA,TEXT)  ;" Determines the patient's CKD
         IF CKDNUM>2 DO
         . SET TEST=1
         . SET DATE=$$TODAY^TMGDATE
-        . SET WHY=CKDLINE        
+        . SET WHY=CKDLINE   
+        ELSE  DO
+        . NEW LCREATV,LEGFRV,LCREATAR,LEGFRDT,CREATARR,EGFRARR
+        . DO GETVALS^TMGLRR01(TMGDFN_"^2",5111,.EGFRARR)   ;"eGFR_WHITE
+        . DO GETVALS^TMGLRR01(TMGDFN_"^2",6028,.EGFRARR)   ;"ESTIMATED GFR (OTHER)
+        . DO GETVALS^TMGLRR01(TMGDFN_"^2",5070,.EGFRARR)   ;"GLOMERULAR FILTRATION RATE PANEL
+        . IF '$D(EGFRARR) DO    ;"PATIENT HAS NOT HAD A EGFR DONE, SO WE WILL REVIEW THE LAST CREATININE
+        . . NEW LASTCREAT,DATEARR,DATE,LASTDATE
+        . . DO GETVALS^TMGLRR01(TMGDFN_"^2",173,.CREATARR)  ;"CREATININE
+        . . NEW LABNAME SET LABNAME=""
+        . . FOR  SET LABNAME=$O(CREATARR(LABNAME)) QUIT:LABNAME=""  DO
+        . . . SET DATE=0
+        . . . FOR  SET DATE=$O(CREATARR(LABNAME,DATE)) QUIT:DATE'>0  DO
+        . . . . IF $GET(CREATARR(LABNAME,DATE))="" QUIT
+        . . . . SET DATEARR(DATE)=$GET(CREATARR(LABNAME,DATE))
+        . . SET DATE=9999999,LASTDATE=$O(DATEARR(DATE),-1)
+        . . SET LASTCREAT=$G(DATEARR(LASTDATE))
+        . . IF LASTCREAT["H" DO
+        . . . SET TEST=1
+        . . . SET DATE=LASTDATE
+        . . . SET WHY="NO EGFR VALUES FOUND. LAST CREATININE WAS "_LASTCREAT_" ON "_$$EXTDATE^TMGDATE(LASTDATE)_"."
         QUIT WHY
         ;"
 PTHASCKD(TMGDFN,TEST,DATE,DATA,TEXT) ;
@@ -2382,3 +2445,32 @@ PTMEMMEDS(TMGRESULT,TMGDFN)
         . SET TMGRESULT="0^NOT ON MEMORY MEDS"
         QUIT
         ;"
+FIB4(TMGDFN)  ;"CALCULATE THE PATIENT'S FIB4 SCORE USING THE FORMULA:
+        ;"AGE * AST / (0.001 * PLATELETS * sqr(ALT))
+        ;"With results being:
+        ;"   <1.45 : Cirrhosis less likely
+        ;"   1.45 to 3.25: Indeterminate
+        ;"   >3.25 : Cirrhosis more likely
+        NEW AGE,AST,PLT,ALT
+        NEW ASTDT,PLTDT,ALTDT
+        K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        NEW TMGRESULT SET TMGRESULT="VALUE CANNOT BE DETERMINIED. "
+        DO GETLLAB(TMGDFN,190,.ASTDT,.AST)
+        DO GETLLAB(TMGDFN,9,.PLTDT,.PLT)
+        DO GETLLAB(TMGDFN,191,.ALTDT,.ALT)
+        NEW REASON SET REASON=""
+        IF AST="" SET REASON="NO AST FOUND"
+        IF PLT="" DO
+        . IF REASON'="" SET REASON=REASON_", "
+        . SET REASON=REASON_"NO PLT FOUND"
+        IF ALT="" DO
+        . IF REASON'="" SET REASON=REASON_", "
+        . SET REASON=REASON_"NO ALT FOUND"
+        IF REASON'="" SET TMGRESULT=TMGRESULT_"("_REASON_")" QUIT TMGRESULT
+        NEW VALUE 
+        SET VALUE=(AGE*AST)/(PLT*$$SQRT^XLFMTH(ALT))  ;"CHECK MATH HERE
+        SET VALUE=$J(VALUE,"",2)
+        IF VALUE<1.45 SET TMGRESULT="FIB-4 = "_VALUE_". Cirrhosis less likely"
+        ELSE  IF VALUE<3.26 SET TMGRESULT="FIB-4 = "_VALUE_". Indeterminate"
+        ELSE  SET TMGRESULT="FIB-4 = "_VALUE_". Cirrhosis more likely"
+        QUIT TMGRESULT

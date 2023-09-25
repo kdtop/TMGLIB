@@ -67,15 +67,32 @@ SETUPENV(TMGMSG,TMGENV,VERBOSE) ;
         NEW TMGINST SET TMGINST=""
         NEW TMGLABPREFIX SET TMGLABPREFIX=""
         ;
-        IF $DATA(TMGMSG)>0 GOTO SU2        
-        WRITE "This code requires a sample HL7 message.",!
-        SET %=1
-        WRITE "Load sample HL7 message now" DO YN^DICN WRITE !
-        IF %=-1 GOTO SUEDN
-        IF %=2 GOTO SU2
+        NEW MENU,MENUCT,USRPICK 
+SUM0    IF $DATA(TMGMSG)>0 GOTO SU2        
+        WRITE "This code requires an HL7 message to work from (sample or real HL7).",!
         DO FILEMENU^TMGHL70(.TMGMSG,2)
         IF $DATA(TMGMSG)'>0 DO  GOTO SUEDN
         . SET TMGRESULT="-1^No message to work from"         
+  ;" SUM1    KILL MENU SET MENUCT=0
+  ;"         SET MENU(0)="Pick option for loading HL7 message"
+  ;"         SET MENUCT=MENUCT+1,MENU(MENUCT)="Pick past HL7 for a selected PATIENT"_$CHAR(9)_"PATIENT"
+  ;"         SET MENUCT=MENUCT+1,MENU(MENUCT)="Load HL7 message file from host file system (HFS)"_$CHAR(9)_"HFS"
+  ;"         SET MENUCT=MENUCT+1,MENU(MENUCT)="Quit"_$CHAR(9)_"^"
+  ;"         SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  ;"         IF USRPICK["^" GOTO SUEDN
+  ;"         IF USRPICK="PATIENT" DO  GOTO SUM0
+  ;"         . NEW FILES DO PKHL7F^TMGLRWU3(,.FILES)
+  ;"         . DO FLSTMENU^TMGHL70(.TMGMSG,,.FILES)
+  ;"         IF USRPICK="HFS" DO  GOTO SUM0
+  ;"         . DO FILEMENU^TMGHL70(.TMGMSG,2)
+  ;"         GOTO SUM0
+  ;"         ;"  SET %=1
+  ;"         ;"  WRITE "Load HL7 message now" DO YN^DICN WRITE !
+  ;"         ;"  IF %=-1 GOTO SUEDN
+  ;"         ;"  IF %=2 GOTO SU2
+  ;"         ;"  DO FILEMENU^TMGHL70(.TMGMSG,2)
+  ;"         ;"  IF $DATA(TMGMSG)'>0 DO  GOTO SUEDN
+  ;"         ;"  . SET TMGRESULT="-1^No message to work from"         
         ;        
 SU2     KILL TMGENV
         ;
@@ -153,8 +170,11 @@ SU8     SET TMGENV("PREFIX")=TMGLABPREFIX
         NEW N100 SET N100=^TMG(22720,IEN22720,100)
         NEW FILER SET FILER=$PIECE(N100,"^",1,2) 
         NEW ALERT SET ALERT=$PIECE(N100,"^",3,4) 
+        NEW ALERTRECIP SET ALERTRECIP=+$PIECE(N100,"^",5)
+        IF ALERTRECIP'>0 SET ALERTRECIP=168  ;"default to KST
         SET TMGENV("FILER CODE")=FILER
         SET TMGENV("ALERT CODE")=ALERT
+        SET TMGENV("ALERT RECIPIENT")=ALERTRECIP
 SUEDN   QUIT TMGRESULT
         ; 
 SETENV()  ;" -- NOT USED, CONSIDER DELETING LATER...
@@ -812,7 +832,7 @@ CMPLTORD(ORDERNUM,TMGHL7MSG) ;"
        IF SSN'>0 SET TMGRESULT="-1^COULD NOT FIND SSN IN HL7 ARRAY IN ORDER "_ORDERNUM GOTO CODN
        NEW ORDSSN SET ORDSSN=+$PIECE($GET(^DPT(ORDDFN,0)),"^",9)
        IF ORDSSN'>0 SET TMGRESULT="-1^NO SSN FOUND FOR PATIENT IN ORDER "_ORDERNUM GOTO CODN 
-       IF ORDSSN'=SSN SET TMGRESULT="-1^SSN ON HL7 DOES NOT MATCH ORDER SSN IN ORDER "_ORDERNUM GOTO CODN
+       IF ORDSSN'=SSN SET TMGRESULT="-1^SSN ON HL7 ("_SSN_") DOES NOT MATCH ORDER SSN ("_ORDSSN_") IN ORDER "_ORDERNUM GOTO CODN
 CHNGE  SET $PIECE(^OR(100,ORDERNUM,3),"^",3)=COMPLETEIEN
        IF $PIECE($GET(^OR(100,ORDERNUM,3)),"^",3)'=COMPLETEIEN DO
        . SET TMGRESULT="-1^STATUS NOT SAVED FOR UNKNOWN REASON."

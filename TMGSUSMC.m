@@ -122,13 +122,15 @@ DR1
    NEW THISYEAR SET THISYEAR=$E(SDT,1,3)+1700
    DO APPT4DT^TMGSMS05(SDT,EDT,.APPTARRAY,1)
    NEW DATE,TMGDFN SET DATE=0
+   NEW OTHERARR
    FOR  SET DATE=$O(APPTARRAY("DT",DATE)) QUIT:DATE'>0  DO
    . IF PASTONES=1 WRITE " ===== PATIENTS FOR ",$P($$EXTDATE^TMGDATE(DATE),"@",1)," =====",!
    . SET TMGDFN=0
    . FOR  SET TMGDFN=$O(APPTARRAY("DT",DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
    . . NEW REASON SET REASON=$G(APPTARRAY(DATE,TMGDFN,"REASON"))
    . . NEW ARRAY DO GET1PAT(.ARRAY,TMGDFN,THISYEAR)
-   . . IF $D(ARRAY) DO
+   . . NEW EXARRAY DO GET1PAT(.EXARRAY,TMGDFN,THISYEAR,1)
+   . . IF ($D(ARRAY))!($D(EXARRAY)) DO
    . . . IF HEADER=0 DO
    . . . . WRITE !
    . . . . WRITE "****************************************************************",!
@@ -141,21 +143,38 @@ DR1
    . . . . WRITE "****************************************************************",!
    . . . . WRITE "                                            (From: TMGSUSMC.m)",!,!
    . . . . SET HEADER=1
-   . . . IF PASTONES=0 DO
-   . . . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," (APPT TIME: ",$P($$EXTDATE^TMGDATE(DATE),"@",2)," FOR: "_REASON_")",!
+   . . . IF '$D(ARRAY) DO
+   . . . . NEW LINE SET LINE=$P($G(^DPT(TMGDFN,0)),"^",1)_" (APPT TIME: "_$P($$EXTDATE^TMGDATE(DATE),"@",2)_" FOR: "_REASON_")"
+   . . . . NEW IDX SET IDX=0
+   . . . . NEW COUNT SET COUNT=0
+   . . . . NEW CONDS SET CONDS=""
+   . . . . FOR  SET IDX=$O(EXARRAY(IDX)) QUIT:IDX'>0  DO
+   . . . . . SET COUNT=COUNT+1
+   . . . . . IF CONDS'="" SET CONDS=CONDS_","
+   . . . . . SET CONDS=CONDS_$P($G(EXARRAY(IDX)),"^",2)
+   . . . . SET OTHERARR(LINE)=CONDS
    . . . ELSE  DO
-   . . . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," (APPT DATETIME: ",$$EXTDATE^TMGDATE(DATE),"@",$P($$EXTDATE^TMGDATE(DATE),"@",2)," FOR: "_REASON_")",!
-   . . . NEW IDX SET IDX=0
-   . . . NEW COUNT SET COUNT=0
-   . . . NEW CONDS SET CONDS=""
-   . . . FOR  SET IDX=$O(ARRAY(IDX)) QUIT:IDX'>0  DO
-   . . . . SET COUNT=COUNT+1
-   . . . . IF CONDS'="" SET CONDS=CONDS_","
-   . . . . SET CONDS=CONDS_$P($G(ARRAY(IDX)),"^",2)
-   . . . IF COUNT=1 DO
-   . . . . WRITE "     -> HAS ",COUNT," CONDITION: ",CONDS,!,!
-   . . . ELSE  DO
-   . . . . WRITE "     -> HAS ",COUNT," CONDITIONS INCLUDING: ",CONDS,!,!   
+   . . . . IF PASTONES=0 DO
+   . . . . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," (APPT TIME: ",$P($$EXTDATE^TMGDATE(DATE),"@",2)," FOR: "_REASON_")",!
+   . . . . ELSE  DO
+   . . . . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," (APPT DATETIME: ",$$EXTDATE^TMGDATE(DATE),"@",$P($$EXTDATE^TMGDATE(DATE),"@",2)," FOR: "_REASON_")",!
+   . . . . NEW IDX SET IDX=0
+   . . . . NEW COUNT SET COUNT=0
+   . . . . NEW CONDS SET CONDS=""
+   . . . . FOR  SET IDX=$O(ARRAY(IDX)) QUIT:IDX'>0  DO
+   . . . . . SET COUNT=COUNT+1
+   . . . . . IF CONDS'="" SET CONDS=CONDS_","
+   . . . . . SET CONDS=CONDS_$P($G(ARRAY(IDX)),"^",2)
+   . . . . IF COUNT=1 DO
+   . . . . . WRITE "     -> HAS ",COUNT," CONDITION: ",CONDS,!,!
+   . . . . ELSE  DO
+   . . . . . WRITE "     -> HAS ",COUNT," CONDITIONS INCLUDING: ",CONDS,!,!
+   IF $D(OTHERARR) DO
+   . WRITE !,"================",!,"CHECK THE PATIENTS BELOW FOR NEWLY ADDED CONDITIONS",!,"================",!
+   . NEW LINE SET LINE=""
+   . FOR  SET LINE=$O(OTHERARR(LINE)) QUIT:LINE=""  DO
+   . . WRITE LINE,!
+   . . WRITE "       SATISFIED CODES: ",$G(OTHERARR(LINE)),!
 DRDN 
    IF DISPLAY'=1 DO
    . DO ^%ZISC  ;" Close the output device

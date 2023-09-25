@@ -65,8 +65,9 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"    E:TEXT
  ;"    W:WP FIELD
  ;"
- ;"Thus ALL data elements individual records.  Those elements that are logically 
- ;"  a child of a parent, will be linked to from a parent.  E.g. 
+ ;"Thus ALL data elements are stored as individual records.  
+ ;"Those elements that are logically a child of a parent, will be linked to from a parent.  
+ ;"E.g. 
  ;"      PARENT RECORD #233
  ;"        ITEMS: CHILD1  #234
  ;"               CHILD2  #235
@@ -171,7 +172,7 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"        To get around this, I am overloading the data fields in a way that will
  ;"          be interpreted in CPRS.  This extra information is stored in field#11 ('HELP MESSAGE'),
  ;"          with the format as follows:
- ;"          -- First character must be '~' to be processed as data text
+ ;"          -- First character must be '~' for text to be processed as DATA
  ;"          -- Elements are delimited by ';'
  ;"          -- Defined Element terms as follows:
  ;"             - IEN      e.g. IEN=123              -- This is IEN from file #22751

@@ -183,7 +183,7 @@ XMSH16  ;"Purpose: Process MSH segment, FLD 16
         ;
 PID     ;"Purpose: To transform the PID segment, esp SSN
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE
-        ;"       Also uses TMGHNDLERR: -- Set up in TMGHL7E, TMGHL7E2, TMGHL76E
+        ;"       Also uses TMGHNDLERR: -- Set up in TMGHL7E, TMGHL7E2
         ;"        TMGHNDLERR("DFN")=DFN
         ;"        TMGHNDLERR("SSN")=SSN
         ;"Will try to put DFN into PID-4 ("alternate PID") field
@@ -438,7 +438,9 @@ NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
         ;"Vars available in global scope: TMGSEGN, TMGHL7MSG,TMGVALUE
         SET TMGVALUE=$TRANSLATE(TMGVALUE,"""","'") ;" quote char disallowed by input transform.
         IF $EXTRACT(TMGVALUE,1)="-" SET TMGVALUE=" "_TMGVALUE   ;""-" not allowed in space 1
-        IF TMGVALUE["^" SET TMGVALUE=$$REPLSTR^TMGSTUT3(TMGVALUE,"^","/\") 
+        IF TMGVALUE["^" SET TMGVALUE=$$REPLSTR^TMGSTUT3(TMGVALUE,"^","/\")
+        IF TMGVALUE[$CHAR(9) DO
+        . SET TMGVALUE=$$REPLSTR^TMGSTUT3(TMGVALUE,$CHAR(9),"   ")
         IF TMGVALUE["""" SET TMGVALUE=$TRANSLATE(TMGVALUE,"""","'") 
         IF $LENGTH(TMGVALUE)>80 DO
         . ;"LINE IS NOW SPLIT INTO ARRAY, BUT NOT SURE HOW TO FILE THE SPLIT LINE

@@ -138,6 +138,60 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   SET OUT(IDX)="</font></body></html>" 
   QUIT
   ;"
+GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
+  ;"Purpose: take an array of dates (ARRAY) and format the data in HTML for
+  ;"         printing or viewing
+  NEW RESULTS,LABS
+  NEW DATEARR
+  DO FRMTDTS(.ARRAY,.DATEARR)
+  DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)
+  NEW IDX SET IDX=2
+  
+  SET OUT(0)="<!DOCTYPE html>"
+  SET OUT(1)="<html><head><title>Page Title</title></head><body><font size=""2"">"
+  ;"SET OUT(2)="<table BORDER=1>"
+  NEW DT SET DT=99999999
+  NEW STR
+  FOR  SET DT=$ORDER(LABS("DT",DT),-1) QUIT:(DT="")  DO
+  . NEW DAY SET DAY=$P(DT,".",1)
+  . ;"IF '$D(DATEARR(DAY)) QUIT
+  . ;"SET OUT(IDX)="<TABLE BORDER=2 WIDTH=""600"">",IDX=IDX+1
+  . ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(DT)_"</B></CAPTION>",IDX=IDX+1
+  . ;"SET OUT(IDX)=$$HEADER(),IDX=IDX+1
+  . NEW SETHEAD SET SETHEAD=0
+  . NEW NODE SET NODE=""
+  . NEW COMMENT SET COMMENT=""
+  . NEW COUNT SET COUNT=0
+  . FOR  SET NODE=$ORDER(LABS("DT",DT,NODE)) QUIT:(NODE="")  DO
+  . . IF +NODE=NODE DO
+  . . . IF SETHEAD=0 DO
+  . . . . IF IDX>2 DO
+  . . . . . SET OUT(IDX)="<p style=""page-break-before: always"">",IDX=IDX+1
+  . . . . DO CAPTION(.OUT,.IDX,DT,TMGDFN)
+  . . . . SET SETHEAD=1
+  . . . ;"SET STR="LAB^"_DT_"^"_NODE_"^"_$GET(LABS("DT",DT,NODE))
+  . . . NEW ROWHEAD 
+  . . . IF ($P($GET(LABS("DT",DT,NODE)),"^",4)'="")&($P($GET(LABS("DT",DT,NODE)),"^",4)'="N") DO
+  . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
+  . . . ELSE  DO
+  . . . . SET ROWHEAD="<TR>"
+  . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",DT,NODE)))_"</TR>"
+  . . . SET COUNT=COUNT+1
+  . . . SET OUT(IDX)=STR,IDX=IDX+1
+  . . ELSE  IF NODE="COMMENT" DO
+  . . . NEW JDX SET JDX=0
+  . . . FOR  SET JDX=$ORDER(LABS("DT",DT,"COMMENT",JDX)) QUIT:+JDX'>0  DO
+  . . . . ;"SET STR="LAB^"_DT_"^COMMENT^"_JDX_"^"_$GET(LABS("DT",DT,"COMMENT",JDX))
+  . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<BR>"
+  . . . . SET COMMENT=COMMENT_$GET(LABS("DT",DT,"COMMENT",JDX))
+  . . . . ;"SET OUT(IDX)=STR,IDX=IDX+1     
+  . IF (COMMENT'="")&(COUNT>0) DO
+  . . SET OUT(IDX)="<tr><td colspan=""6"">"_COMMENT_"</td></tr>",IDX=IDX+1
+  . ;"SET OUT(3)=$G(ARRAY(1))
+  . SET OUT(IDX)="</td></tr></table><BR>",IDX=IDX+1
+  SET OUT(IDX)="</font></body></html>" 
+  QUIT
+  ;"
 CAPTION(OUT,IDX,LABDATE,TMGDFN)
   NEW NAME,DOB,AGE,DT
   SET LABDATE=$P(LABDATE,".",1)

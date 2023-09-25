@@ -16,7 +16,7 @@ TMGHL7E ;TMG/kst-HL7 Processing Error/Alert handling;  5/10/21
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"HNDLERR2 -- Handler for alert created during POC filing system.
- ;"SETALERT(ERRTEXT,AMSG,IEN772,IEN773) --set up alerts for error handling of POC filer problems. 
+ ;"SETALERT(ERRTEXT,AMSG,IEN772,IEN77,ERRMODE,TMGENV) --set up alerts for error handling of POC filer problems. 
  ;"
  ;"=======================================================================
  ;" API - Private Functions
@@ -28,7 +28,7 @@ TMGHL7E ;TMG/kst-HL7 Processing Error/Alert handling;  5/10/21
  ;"=======================================================================
  ;
  ;"==============================================================
-SETALERT(ERRTEXT,AMSG,IEN772,IEN773,ERRMODE) ;
+SETALERT(ERRTEXT,AMSG,IEN772,IEN773,ERRMODE,TMGENV) ;
   ;"Purpose: Set up alerts for error handling of POC filer problems.
   ;"Input: ERRTEXT -- Text of error.
   ;"       AMSG -- Additional message, IF any.
@@ -69,7 +69,9 @@ SETALERT(ERRTEXT,AMSG,IEN772,IEN773,ERRMODE) ;
   ;"MAKE AN ALERT WITH ERROR MESSAGE.
   NEW XQA,XQAARCH,XQADATA,XQAFLG,XQAGUID,XQAID,XQAOPT,XQAROU,XQASUPV,XQASURO,XQATEXT
   SET XQA("LA7V IPL")=""
-  SET XQA(168)=""   ;"//to Kevin Toppenberg
+  NEW RECIPIENT SET RECIPIENT=+$GET(TMGENV("ALERT RECIPIENT"))
+  IF RECIPIENT'>0 SET RECIPIENT=168  ;"default to Kevin Toppenberg
+  SET XQA(RECIPIENT)=""   ;"//to Kevin Toppenberg
   SET XQADATA=$J_"^"_NOWH_"^"_IEN772_"^"_IEN773
   SET XQAID="TMG-HL7"
   SET XQAROU=$SELECT(ERRMODE="RAD":"HNDLERR^TMGHL7E2",1:"HNDLERR^TMGHL7E")
@@ -230,7 +232,9 @@ M2  ;
   SET TMGMNU(TMGMNUI)="Try reprocessing HL7 Message (using DEBUGGER)"_$CHAR(9)_"TryAgainDebugger",TMGMNUI=TMGMNUI+1
   SET TMGMNU(TMGMNUI)="HL7 Message FILE MENU"_$CHAR(9)_"HL7FileMenu",TMGMNUI=TMGMNUI+1
   IF TMGERROR["Missing CPT: File# 71" DO
-  . SET TMGMNU(TMGMNUI)="Fix missing CPT"_$CHAR(9)_"FixCPT",TMGMNUI=TMGMNUI+1        
+  . SET TMGMNU(TMGMNUI)="Fix missing CPT"_$CHAR(9)_"FixCPT",TMGMNUI=TMGMNUI+1 
+  IF TMGERROR["PROCEDURE in EXAMINATIONS SUB-FIELD in REGISTERED EXAMS SUB-FIELD in file RAD/NUC MED PATIENT is not valid." DO
+  . SET TMGMNU(TMGMNUI)="Fix invalid PROCEDURE CPT mapping"_$CHAR(9)_"FixCPTMap",TMGMNUI=TMGMNUI+1  
   IF PTNOTFOUND DO
   . SET TMGMNU(TMGMNUI)="Ignore missing patient"_$CHAR(9)_"IgnorePt",TMGMNUI=TMGMNUI+1
   . SET TMGMNU(TMGMNUI)="Patient Search: Find matching patient"_$CHAR(9)_"SearchPt",TMGMNUI=TMGMNUI+1        
@@ -247,7 +251,8 @@ M3 ;
   IF TMGUSERINPUT="TryAgain" IF +$$TRYAGAN2(.TMGTESTMSG,0,.TMGENV,.OPTION)=1 GOTO HE2DN
   IF TMGUSERINPUT="TryAgainDebugger" IF $$TRYAGAN2(.TMGTESTMSG,1,.TMGENV,.OPTION)=1 GOTO HE2DN
   IF TMGUSERINPUT="InvalidValue" DO INVAL(IEN22720,.TMGERROR,INDENTN+2) GOTO M2
-  IF TMGUSERINPUT="FixCPT" DO FIXCPT^TMGHL7E2(TMGERROR,INDENTN+2) WRITE !,! GOTO M2          
+  IF TMGUSERINPUT="FixCPT" DO FIXCPT^TMGHL7E2(TMGERROR,INDENTN+2) WRITE !,! GOTO M2
+  IF TMGUSERINPUT="FixCPTMap" DO FIXCPTMAP^TMGHL7E2(TMGERROR,INDENTN+2) WRITE !,! GOTO M2  
   IF TMGUSERINPUT="SetupTest" DO HESUTST2(.TMGENV,.TMGTESTMSG,INDENTN+2) GOTO M2 
   IF TMGUSERINPUT="SearchPt" SET TMGSRCH=0 DO  GOTO HE1DN:TMGSRCH=1,M2
   . NEW TEMP
@@ -506,7 +511,7 @@ DEBG2DN  ;
   . IF %'=1 QUIT
   . NEW IEN772,IEN773
   . SET IEN772=$GET(TMGENV("IEN 772")),IEN773=$GET(TMGENV("IEN 773"))
-  . DO SETALERT(TMGRESULT,,IEN772,IEN773) 
+  . DO SETALERT(TMGRESULT,,IEN772,IEN773,"",.TMGENV) 
   . WRITE "Alert has been created.  Exit this handler and select NEW alert to process.",!        
   DO PRESS2GO^TMGUSRI2
 DBDN2  ;

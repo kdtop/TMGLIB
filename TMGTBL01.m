@@ -1,4 +1,4 @@
-TMGTIUOJ ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15, 3/24/21
+TMGTBL01 ;TMG/kst-Text objects for use in CPRS ; 2/2/14, 3/30/15, 3/24/21
          ;;1.0;TMG-LIB;**1,17**;03/25/06
  ;
  ;"Kevin Toppenberg MD
@@ -305,6 +305,10 @@ GCOLDN
         ;". SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)
         ;". SET TMGRESULT=TMGRESULT_"** NOTE: THIS PATIENT IS OVER 75. CONSIDER DISCONTINUING. .**"
         SET TMGRESULT=TMGRESULT_"** NOTE: AT 76+ YEARS OF AGE YOU CAN CONSIDER DISCONTINUING. .**"
+        NEW SPEC
+        SET SPEC("positive")="POSITIVE"
+        SET SPEC("Positive")="POSITIVE"
+        SET TMGRESULT=$$REPLACE^XLFSTR(TMGRESULT,.SPEC)
         QUIT TMGRESULT
         ;
 GETOCCLT(TMGRESULT,TMGDFN) ;"Return dates of last iFOBTs and FOBT
@@ -362,6 +366,21 @@ FOBTNOTE(TMGRESULT,TMGDFN)  ;"Return a note if FOBT was done this year w/ result
         ;"
         IF THISRESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)_"****NOTE: "_THISRESULT       
         QUIT
+        ;"
+GTEGDTIU(TMGDFN)  ;"Return dates of last EGD notes
+        NEW TMGRESULT SET TMGRESULT=""
+        ;"Get EGD notes
+        NEW EGDARRAY,NOTEDATE,COUNT
+        SET NOTEDATE=9999999,COUNT=0
+        DO TIUDATES^TMGPXR01(TMGDFN,"EGD REPORT (IMAGE)",.EGDARRAY)
+        IF $DATA(EGDARRAY) SET TMGRESULT=TMGRESULT_$C(13,10)_"EGD NOTE DATES : "
+        FOR  SET NOTEDATE=$ORDER(EGDARRAY(NOTEDATE),-1) QUIT:(NOTEDATE'>0)!(COUNT>3)  DO
+        . NEW Y
+        . SET Y=NOTEDATE
+        . X ^DD("DD")
+        . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
+        IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_$C(13,10)
+        QUIT TMGRESULT
         ;"
 GETLADIR(TMGDFN) ;"Return date of last advance directives        
         NEW TMGRESULT,RESULTARR

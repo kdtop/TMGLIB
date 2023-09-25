@@ -35,6 +35,7 @@ TMGHL7U2 ;TMG/kst-HL7 transformation utility functions ;3/7/18, 5/22/18, 4/26/19
  ;"LOADMSGF(TMGTESTMSG) -- Load an HL7 message from files 772/773
  ;"LOADMSG(TMGTESTMSG) --load in message
  ;"LOADMSG2(TMGTESTMSG) -- Get message by allowing user to pick from HFS
+ ;"LOADMSG3(TMGTESTMSG,FPATH,FNAME) -- Get message from path, name 
  ;"EDITMSG(TMGTESTMSG) --Edit message array via HFS (Linux) joe text editor.
  ;"VIEWMSG(MSG) -- Display currently loaded HL7 Message.
  ;"VIEWDIFF(OUT,FPNAME1,FPNAME2,PARAMS) -- GET DIFF OUTPUT BETWEEN 2 HL7 MESSAGE FILES
@@ -590,15 +591,37 @@ LOADMSG2(TMGTESTMSG) ;"Get message by allowing user to pick from HFS
         . WRITE "No HL7 Message Selected.",!
         . KILL TMGTESTMSG
         . DO PRESS2GO^TMGUSRI2
+        DO LOADMSG3(.TMGTESTMSG,PATH,NAME)
+        ;" NEW OPTION SET OPTION("OVERFLOW")=1
+        ;" ;"SET OPTION("LINE-TERM")=$CHAR(10)        
+        ;" SET OPTION("LINE-TERM")=$CHAR(13)   ;"NOTE: HL7 messages have just #13 as line terminator. 
+        ;" DO HFS2ARR^TMGIOUT3(PATH,NAME,"TMGTESTMSG",.OPTION)
+        ;" IF '$DATA(TMGTESTMSG) DO
+        ;" . WRITE "Sorry.  No HL7 Message.",!
+        ;" . KILL TMGTESTMSG
+        ;" . DO PRESS2GO^TMGUSRI2
+LM2DN   QUIT
+        ;                
+LOADMSG3(TMGTESTMSG,FPATH,FNAME) ;"Get message from path, name
+        ;"Purpose: load in message
+        ;"Input:  TMGTESTMSG -- Pass by REFERENCE.  OUT PARAMETER.  Format:
+        ;"           TMGTESTMSG(#)=<line of text>
+        ;"        FPATH -- path for file to be loaded
+        ;"        FNAME  -- name of file to be loaded.  
+        NEW TMGRESULT,TMGINSTRUCT
+        IF $DATA(TMGTESTMSG) DO
+        . NEW % SET %=2
+        . WRITE "Clear current test message and load another"
+        . DO YN^DICN
+        . IF %=1 KILL TMGTESTMSG
+        IF $DATA(TMGTESTMSG) GOTO LM3DN
         NEW OPTION SET OPTION("OVERFLOW")=1
-        ;"SET OPTION("LINE-TERM")=$CHAR(10)        
         SET OPTION("LINE-TERM")=$CHAR(13)   ;"NOTE: HL7 messages have just #13 as line terminator. 
-        DO HFS2ARR^TMGIOUT3(PATH,NAME,"TMGTESTMSG",.OPTION)
+        DO HFS2ARR^TMGIOUT3(FPATH,FNAME,"TMGTESTMSG",.OPTION)
         IF '$DATA(TMGTESTMSG) DO
         . WRITE "Sorry.  No HL7 Message.",!
-        . KILL TMGTESTMSG
         . DO PRESS2GO^TMGUSRI2
-LM2DN   QUIT
+LM3DN   QUIT
         ;                
 EDITMSG(TMGTESTMSG) ;"Edit message array via HFS (Linux) joe text editor. 
         ;"Input:

@@ -15,10 +15,13 @@ TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18, 2/16/21
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
+ ;"PKLABDT(TMGDFN,LABSARR,YR,M,D) -- Pick a date of labs, asking for patient if needed.
+ ;"PICKLAB(TMGDFN) -- Pick a specific lab, asking for patient if needed.
  ;"DELLAB(LRDFN,DT,FLD)  -- DELETE 1 LAB 
  ;"PRIORLDT(TMGHL7MSG,DATESUSED,MSGINFO) -- PRIOR LAB DATES
  ;"ASKDELAB  -- Interact with user and delete stored LAB
  ;"ASKDELRAD(TMGDFN) -- Interact with user and delete stored RAD STUDY
+ ;"LABDTS(LRDFN,OUT) -- Get array listing all "CH" lab dates for patient
  ;"
  ;"DUPSCAN  -- Scan for duplicate labs
  ;"=======================================================================
@@ -29,32 +32,146 @@ TMGLRWU4 ;TMG/kst-Utility for entering data to LAB DATA file ;4/1/18, 2/16/21
  ;"Dependancies
  ;"=======================================================================
  ;
-ASKDELAB(TMGDFN) ;
-        ;"INPUT: DFN-- optional
-        WRITE !,!,"--------------------------------------------------------",!
-        WRITE "This utility will cause PERMANENT DELETION of stored lab values. CAUTION!",!
-        WRITE "--------------------------------------------------------",!
+LABDTS(LRDFN,OUT)  ;"Get array listing all "CH" lab dates for patient
+        ;"Input: LRDFN -- patient LR index value 
+        ;"       OUT -- PASS BY REFERENCE, AN OUT PARAMETER. Format:
+        ;"       OUT(LRDFN,"DTSTR",<Y>,<M>,<D>,<T>)=RDT_"^"_FMDT_"^"_DTSTR
+        ;"       OUT(LRDFN,"DTSTR")=<total count>
+        ;"       OUT(LRDFN,"DTSTR",<Y>)=<total count>
+        ;"       OUT(LRDFN,"DTSTR",<Y>,<M>)=<total count>
+        ;"       OUT(LRDFN,"DTSTR",<Y>,<M>,<D>)=<total count>
+        ;"Results: none
+        NEW FMDT,RDT,DTSTR SET (FMDT,RDT)=0
+        FOR  SET RDT=$ORDER(^LR(LRDFN,"CH",RDT)) QUIT:RDT'>0  DO
+        . SET FMDT=$$RDT2FMDT^TMGLRWU1(RDT)   
+        . SET DTSTR=$$FMTE^XLFDT(FMDT,"7Z")
+        . NEW DTSTR2 SET DTSTR2=$PIECE(DTSTR,"@",1)
+        . NEW Y,M,D,T
+        . SET Y=+$PIECE(DTSTR2,"/",1),M=+$PIECE(DTSTR2,"/",2),D=+$PIECE(DTSTR2,"/",3)
+        . SET T=$PIECE(DTSTR,"@",2) IF T="" SET T=0
+        . ;"SET OUT(LRDFN,"RDT",RDT)=FMDT
+        . ;"SET OUT(LRDFN,"FMDT",FMDT)=RDT
+        . SET OUT(LRDFN,"DTSTR",Y,M,D,T)=RDT_"^"_FMDT_"^"_DTSTR
+        . SET OUT(LRDFN,"DTSTR")=$GET(OUT(LRDFN,"DTSTR"))+1
+        . SET OUT(LRDFN,"DTSTR",Y)=$GET(OUT(LRDFN,"DTSTR",Y))+1
+        . SET OUT(LRDFN,"DTSTR",Y,M)=$GET(OUT(LRDFN,"DTSTR",Y,M))+1
+        . SET OUT(LRDFN,"DTSTR",Y,M,D)=$GET(OUT(LRDFN,"DTSTR",Y,M,D))+1
+        QUIT
+        ;
+PKLABDT(TMGDFN,LABSARR,YR,M,D) ;"Pick a date of labs, asking for patient if needed.
+        ;"INPUT: TMGDFN-- optional
+        ;"       LABSARR -- OPTIONAL.  PASS BY REFERENCE, filled with all lab dates for patient.
+        ;"       YR -- OPTIONAL. OUT PARAMETER. If passed by reference, will be filled with chosen YEAR
+        ;"       M -- OPTIONAL.  OUT PARAMETER. If passed by reference, will be filled with chosen MONTH
+        ;"       D -- OPTIONAL.  OUT PARAMETER. If passed by reference, will be filled with chosen DAY
+        ;"Result: 0^NONE or  LRDFN^FMDT
+        ;
+        NEW TMGRESULT SET TMGRESULT="0^NONE"
+        NEW MENU,MENUCT,USRPICK,ADT
+        NEW MONTHS SET MONTHS="January^February^March^April^May^June^July^August^September^October^November^December"
         NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
         SET TMGDFN=$GET(TMGDFN) 
         IF TMGDFN>0 SET Y=TMGDFN
         ELSE  DO ^DIC WRITE !
-ADL1    IF Y'>0 DO  GOTO ADLDN
+        IF Y'>0 DO  GOTO PKDTDN
         . WRITE "No patient selected.  Aborting.",!
-        NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(+Y,"LR")),"^",1)
-        IF LRDFN'>0 DO  GOTO ADLDN
-        . WRITE "Unable to determine LRDFN in ^DPT("_+Y_",""LR"").  Aborting.",!
-        NEW %DT,X,Y SET %DT="AEP"
-        SET %DT("A")="Enter date of labs to delete: "
-        DO ^%DT WRITE !
-        IF Y'>0 DO  GOTO ADLDN
-        . WRITE "No date selected.  Aborting.",!
+        SET TMGDFN=+Y
+        NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(TMGDFN,"LR")),"^",1)
+        IF LRDFN'>0 DO  GOTO PKDTDN
+        . WRITE "Unable to determine LRDFN in ^DPT("_TMGDFN_",""LR"").  Aborting.",!
+        KILL LABSARR DO LABDTS(LRDFN,.LABSARR)  ;"Get array listing all "CH" lab dates for patient
+PKY     KILL MENU SET MENUCT=0
+        SET MENU(0)="Pick YEAR of labs"
+        SET (YR,M,D)=0
+        FOR  SET YR=$ORDER(LABSARR(LRDFN,"DTSTR",YR)) QUIT:YR'>0  DO
+        . NEW LABCT SET LABCT=+$GET(LABSARR(LRDFN,"DTSTR",YR))
+        . SET MENUCT=MENUCT+1,MENU(MENUCT)=YR_" year labs ("_LABCT_" total)"_$CHAR(9)_YR
+        IF MENUCT=0 DO  GOTO PKDTDN
+        . WRITE "No year selected.  Aborting."
+        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        SET YR=+USRPICK
+        IF ("^"[USRPICK)!(YR'>0)!($DATA(LABSARR(LRDFN,"DTSTR",YR))=0) GOTO PKDTDN
+        ;
+PKM     KILL MENU SET MENUCT=0
+        NEW MSTR SET MSTR=""
+        SET MENU(0)="Pick MONTH of labs from "_YR
+        SET M=0 
+        FOR  SET M=$ORDER(LABSARR(LRDFN,"DTSTR",YR,M)) QUIT:M'>0  DO
+        . SET MSTR=$PIECE(MONTHS,"^",M)
+        . NEW LABCT SET LABCT=+$GET(LABSARR(LRDFN,"DTSTR",YR,M))
+        . SET MENUCT=MENUCT+1,MENU(MENUCT)=MSTR_", "_YR_" labs ("_LABCT_" total)"_$CHAR(9)_M
+        IF MENUCT=0 DO  GOTO PKY
+        . WRITE "No month selected."
+        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        SET M=+USRPICK
+        IF ("^"[USRPICK)!(M'>0) GOTO PKY
+        SET MSTR=$PIECE(MONTHS,"^",M)
+        ;
+PKD     KILL MENU SET MENUCT=0
+        SET MENU(0)="Pick DAY of labs from "_MSTR_", "_YR
+        SET D=0
+        FOR  SET D=$ORDER(LABSARR(LRDFN,"DTSTR",YR,M,D)) QUIT:D'>0  DO
+        . NEW LABCT SET LABCT=+$GET(LABSARR(LRDFN,"DTSTR",YR,M,D))
+        . SET MENUCT=MENUCT+1,MENU(MENUCT)=D_" "_MSTR_", "_YR_" labs ("_LABCT_" total)"_$CHAR(9)_D
+        IF MENUCT=0 DO  GOTO PKM
+        . WRITE "No DAY selected. "
+        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+        SET D=+USRPICK
+        IF ("^"[USRPICK)!(D'>0) GOTO PKM
+        ;    
+        SET %DT="P" SET X=M_"/"_D_"/"_YR DO ^%DT
+        SET ADT=Y IF ADT'>0 GOTO PKLDN
+        SET TMGRESULT=LRDFN_"^"_ADT
+PKDTDN  QUIT TMGRESULT
+        ;
+PKHL7F(TMGDFN,OUT) ;"Pick a HL7 source file for labs, asking for patient if needed.
+        ;"INPUT: TMGDFN-- optional
+        ;"       OUT -- PASS BY REFERENCE.  OUT PARAMETER.  Format:
+        ;"         OUT(<FULL_FILE_PATH_AND_FILE_NAME>)=""
+        ;"Result: none.  
+        NEW TMGRESULT SET TMGRESULT="0^NONE"
+        NEW YR,M,D,LABSARR
+        NEW TEMP SET TEMP=$$PKLABDT(.TMGDFN,.LABSARR,.YR,.M,.D) ;"Pick a date of labs, asking for patient if needed.
+        IF +TEMP'>0 QUIT
+        NEW LRDFN SET LRDFN=+TEMP
+        NEW FMDT SET FMDT=+$PIECE(TEMP,"^",2) IF FMDT'>0 QUIT         
+        ;"use selected FMDT to return array of HL7 source files
+        NEW BDT,EDT SET BDT=FMDT_".000001",EDT=FMDT_".235959"
+        DO GTHL7MSG(.OUT,TMGDFN,BDT,EDT)
+        QUIT
+        ;
+GTHL7MSG(OUT,TMGDFN,BDT,EDT)  ;"Use GTHL7LST^TMGHL7U4 to get HL7 messages and return the path/file names
+        NEW RETARR,FILTER
+        ;"FILTER IS 3 PIECES (1 TO EXCLUDE, 0 TO INCLUDE) ADT^RAD^LAB
+        ;"NOTE, IF ADT OR RAD ARE NEEDED, THE FILTER CAN BECOME A PARAMETER
+        SET FILTER="1^1^0"  ;"FILTER OUT ADT AND RAD, ONLY RETURNING LAB HL7 MSG
+        DO GTHL7LST^TMGHL7U4(.RETARR,TMGDFN,BDT,EDT,FILTER)
+        ;"
+        ;"SET THE RETURN AS OUT(FILEPATH FILENAME)=""
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$O(RETARR(IDX)) QUIT:IDX'>0  DO
+        . NEW ENTRY SET ENTRY=$GET(RETARR(IDX))
+        . NEW FPATH SET FPATH=$PIECE(ENTRY,"^",2)
+        . NEW FNAME SET FNAME=$PIECE(ENTRY,"^",3)
+        . SET OUT(FPATH_FNAME)=""
+        QUIT
+        ;"
+PICKLAB(TMGDFN) ;"Pick a specific lab, asking for patient if needed.
+        ;"INPUT: TMGDFN-- optional
+        ;"Result: 0^NONE or  LRDFN^FMDT^FLD
+        ;
+        NEW TMGRESULT SET TMGRESULT="0^NONE"
         NEW MENU,MENUCT,USRPICK,ADT,FLD
-ADLL0   KILL MENU SET MENUCT=0
-        SET MENU(0)="Pick labs to delete"
-        NEW SRDT SET SRDT=$$FMDT2RDT^TMGLRWU1(Y+1)  ;"//WAS Y+1
-        NEW ERDT SET ERDT=$$FMDT2RDT^TMGLRWU1(Y)  ;"WAS Y
-        NEW RDT SET RDT=SRDT
-        FOR  SET RDT=+$ORDER(^LR(LRDFN,"CH",RDT)) QUIT:(RDT>ERDT)!(RDT=0)  DO
+        NEW YR,M,D,LABSARR
+        NEW TEMP SET TEMP=$$PKLABDT(.TMGDFN,.LABSARR,.YR,.M,.D) ;"Pick a date of labs, asking for patient if needed.
+        IF +TEMP'>0 QUIT
+        NEW LRDFN SET LRDFN=+TEMP
+PKL0    KILL MENU SET MENUCT=0
+        SET MENU(0)="Pick labs"
+        SET T=""
+        FOR  SET T=$ORDER(LABSARR(LRDFN,"DTSTR",YR,M,D,T)) QUIT:T=""  DO
+        . NEW VALUE SET VALUE=$GET(LABSARR(LRDFN,"DTSTR",YR,M,D,T))
+        . NEW RDT SET RDT=$PIECE(VALUE,"^",1)
         . NEW LABFLD SET LABFLD=1
         . FOR  SET LABFLD=+$ORDER(^LR(LRDFN,"CH",RDT,LABFLD)) QUIT:LABFLD'>0  DO
         . . NEW DATANAME SET DATANAME=$PIECE($GET(^DD(63.04,LABFLD,0)),"^",1)
@@ -62,12 +179,60 @@ ADLL0   KILL MENU SET MENUCT=0
         . . NEW LINE SET LINE=$GET(^LR(LRDFN,"CH",RDT,LABFLD))
         . . NEW VALUE SET VALUE=$PIECE(LINE,"^",1)
         . . SET MENUCT=MENUCT+1,MENU(MENUCT)=DATANAME_" = "_VALUE_$CHAR(9)_LRDFN_";"_RDT_";"_LABFLD
-        IF MENUCT=0 DO  GOTO ADLDN
-        . WRITE "No labs found for patient on specified data.  Aborting."
+        IF MENUCT=0 DO  GOTO PKM
+        . WRITE "No labs found for patient on specified data."
         SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
-        IF "^"[USRPICK GOTO ADLDN
+        IF "^"[USRPICK GOTO PKLDN
         SET ADT=$$RDT2FMDT^TMGLRWU1($PIECE(USRPICK,";",2))
         SET FLD=$PIECE(USRPICK,";",3)
+        SET TMGRESULT=LRDFN_"^"_ADT_"^"_FLD
+PKLDN   QUIT TMGRESULT
+        ;   
+ASKDELAB(TMGDFN) ;
+        ;"INPUT: DFN-- optional
+        WRITE !,!,"--------------------------------------------------------",!
+        WRITE "This utility will cause PERMANENT DELETION of stored lab values. CAUTION!",!
+        WRITE "--------------------------------------------------------",!            
+ ;"        NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
+ ;"        SET TMGDFN=$GET(TMGDFN) 
+ ;"        IF TMGDFN>0 SET Y=TMGDFN
+ ;"        ELSE  DO ^DIC WRITE !
+ ;"ADL1    IF Y'>0 DO  GOTO ADLDN
+ ;"        . WRITE "No patient selected.  Aborting.",!
+ ;"        NEW LRDFN SET LRDFN=+$PIECE($GET(^DPT(+Y,"LR")),"^",1)
+ ;"        IF LRDFN'>0 DO  GOTO ADLDN
+ ;"        . WRITE "Unable to determine LRDFN in ^DPT("_+Y_",""LR"").  Aborting.",!
+ ;"        NEW %DT,X,Y SET %DT="AEP"
+ ;"        SET %DT("A")="Enter date of labs to delete: "
+ ;"        DO ^%DT WRITE !
+ ;"        IF Y'>0 DO  GOTO ADLDN
+ ;"        . WRITE "No date selected.  Aborting.",!
+ ;"        NEW MENU,MENUCT,USRPICK,ADT,FLD
+ ;"ADLL0   KILL MENU SET MENUCT=0
+ ;"        SET MENU(0)="Pick labs to delete"
+ ;"        NEW SRDT SET SRDT=$$FMDT2RDT^TMGLRWU1(Y+1)  ;"//WAS Y+1
+ ;"        NEW ERDT SET ERDT=$$FMDT2RDT^TMGLRWU1(Y)  ;"WAS Y
+ ;"        NEW RDT SET RDT=SRDT
+ ;"        FOR  SET RDT=+$ORDER(^LR(LRDFN,"CH",RDT)) QUIT:(RDT>ERDT)!(RDT=0)  DO
+ ;"        . NEW LABFLD SET LABFLD=1
+ ;"        . FOR  SET LABFLD=+$ORDER(^LR(LRDFN,"CH",RDT,LABFLD)) QUIT:LABFLD'>0  DO
+ ;"        . . NEW DATANAME SET DATANAME=$PIECE($GET(^DD(63.04,LABFLD,0)),"^",1)
+ ;"        . . IF DATANAME="" SET DATANAME="(?? LAB NAME ??)"
+ ;"        . . NEW LINE SET LINE=$GET(^LR(LRDFN,"CH",RDT,LABFLD))
+ ;"        . . NEW VALUE SET VALUE=$PIECE(LINE,"^",1)
+ ;"        . . SET MENUCT=MENUCT+1,MENU(MENUCT)=DATANAME_" = "_VALUE_$CHAR(9)_LRDFN_";"_RDT_";"_LABFLD
+ ;"        IF MENUCT=0 DO  GOTO ADLDN
+ ;"        . WRITE "No labs found for patient on specified data.  Aborting."
+ ;"        SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+ ;"        IF "^"[USRPICK GOTO ADLDN
+ ;"        SET ADT=$$RDT2FMDT^TMGLRWU1($PIECE(USRPICK,";",2))
+ ;"        SET FLD=$PIECE(USRPICK,";",3)
+ADLL0   NEW ALAB SET ALAB=$$PICKLAB(.TMGDFN) 
+        IF +ALAB=0 DO  QUIT
+        . WRITE !,"Nothing deleted.",!
+        NEW LRDFN SET LRDFN=$PIECE(ALAB,"^",1)
+        NEW ADT SET ADT=$PIECE(ALAB,"^",2)
+        NEW FLD SET FLD=$PIECE(ALAB,"^",3)
         SET %=1 WRITE !,"ARE YOU SURE YOU WANT TO DELETE THIS LAB?" DO YN^DICN WRITE !
         IF %'=1 GOTO ADLL0
         DO DELLAB(LRDFN,ADT,FLD)
