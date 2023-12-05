@@ -226,6 +226,7 @@ XFRMAPP(APP,TMGU) ;"Transform sending application before any processing is done.
         NEW RESULT SET RESULT=0
         SET APP=$PIECE(APP,TMGU(2),1)
         IF $$CHK4OBGWCG(.APP,.TMGU)=1 SET RESULT=1 GOTO XFRMADN 
+        IF $$CHK4RAD(.APP,.TMGU)=1 SET RESULT=1 GOTO XFRMADN 
         NEW SHOULDMAP SET SHOULDMAP=0
         ;"Can add tests for should map here, see XFRMFACILITY code
         IF APP="" SET SHOULDMAP=1
@@ -238,6 +239,25 @@ XFRMAPP(APP,TMGU) ;"Transform sending application before any processing is done.
 XFRMADN ;        
         QUIT RESULT
         ;
+CHK4RAD(APP,TMGU) ;"check for RAD message that otherwise would seem to be lab messages
+        ;"Input: APP -- an IN AND OUT PARAMETER
+        ;"       TMGU -- Array with section delimiters
+        ;"NOTE: Uses TMGMSG via global scope.  
+        ;"RESULT: 1 if modified, 0 if no change.  
+        NEW RESULT SET RESULT=0
+        NEW ZPFIDX SET ZPFIDX=0
+        NEW IDX SET IDX=0
+        FOR  SET IDX=$ORDER(TMGMSG(IDX)) QUIT:(IDX'>0)!(ZPFIDX>0)  DO
+        . NEW LINE SET LINE=$GET(TMGMSG(IDX)) QUIT:LINE=""
+        . NEW SEG SET SEG=$EXTRACT(LINE,1,3)
+        . IF SEG="ZPF" SET ZPFIDX=IDX
+        NEW ZPFLINE SET ZPFLINE=$$UP^XLFSTR($GET(TMGMSG(ZPFIDX))) IF ZPFLINE="" GOTO CHK4RADDN
+        IF ZPFLINE["IMAGING" SET RESULT=1
+        IF RESULT=1 DO
+        . SET APP="EPIC"  ;"<-- this signals a RADIOLOGY study.          
+CHK4RADDN ;        
+        QUIT RESULT
+        ;        
 CHK4OBGWCG(APP,TMGU) ;"check for bad message from GCHW OB WCG
         ;"Input: APP -- an IN AND OUT PARAMETER
         ;"       TMGU -- Array with section delimiters

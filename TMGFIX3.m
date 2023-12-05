@@ -626,7 +626,7 @@ FIXORDER(ORDERARR)  ;"
         . . . SET FOUNDTEST=0 
         . . . NEW RADTEST,CARDIOTEST
         . . . ;"Separate will split the tests out
-        . . . SET TESTSORDERED=$TR(TESTSORDERED,".",",")
+        . . . ;"SET TESTSORDERED=$TR(TESTSORDERED,".",",")
         . . . DO SEPARATE(.ORDERARR,.OUTIDX,.TESTSORDERED,PREFIX,.RADTEST,.CARDIOTEST)
         . . . ;"If ordered, add in the rad and cardio tests afterward
         . . . IF ($D(RADTEST))!($D(CARDIOTEST)) DO ADDOTHER(.ORDERARR,.ORDIDX,.RADTEST,.CARDIOTEST,PREFIX)
@@ -662,7 +662,7 @@ FINDGHP(OUTARRAY,PREFIX)  ;"DETERMINE IF ORDER HAS CMP, CBC, AND TSH. IF SO, REM
         . FOR  SET IDX=$O(TEMPARRAY(IDX)) QUIT:IDX'>0  DO
         . . NEW LINE SET LINE=$G(TEMPARRAY(IDX))
         . . IF LINE["CMP" DO  QUIT
-        . . . SET OUTARRAY(OUTIDX)=PREFIX_"BUNDLED Gen Health 80050 (CBC w/ diff & CMP & TSH)",OUTIDX=OUTIDX+1
+        . . . SET OUTARRAY(OUTIDX)=PREFIX_"Gen Health 80050 (CBC w/ diff & CMP & TSH)",OUTIDX=OUTIDX+1
         . . IF LINE["CBC-P" QUIT
         . . IF (LINE["TSH")&(LINE'["Thyroid") QUIT
         . . SET OUTARRAY(OUTIDX)=LINE,OUTIDX=OUTIDX+1

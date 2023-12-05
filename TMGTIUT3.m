@@ -27,6 +27,8 @@ TMGTIUT3 ;TMG/kst-TIU-related code ; 5/20/15, 4/11/17, 3/15/23
   ;"ICDLIST(OUT,ADFN,SDT) -- Get listing of ICD's used for patient in past  
   ;"PROCLIST(OUT,ADFN,CMD,SDT) -- Get list of possible procedures for user to pick from, during patient encounter. RPC NAME:  TMG CPRS ENCOUNTER GET CPT LST
   ;"VISITLIST(OUT,ADFN,CMD,SDT) -- Get list of possible procedures for user to pick from, during patient encounter.  RPC NAME:  TMG CPRS ENCOUNTER GET VST LST
+  ;"SUBRECID(OREF,IEN,FILENUM) -- Callback function from LIST^DIC, optionally used
+  ;"ENCEDIT(TMGRESULT,INPUT)  --RPC: TMG CPRS ENCOUNTER EDIT
   ;  
   ;"=======================================================================
   ;"PRIVATE API FUNCTIONS
@@ -44,8 +46,13 @@ TMGTIUT3 ;TMG/kst-TIU-related code ; 5/20/15, 4/11/17, 3/15/23
   ;"ADDENTRYCPT(OUT,NODENUM,FNUM,IDX,IEN,USEDARR,ALLARRAY) --utility function for common CPT's above
   ;"ADDSUBENTRYCPT(OUT,NODENUM,FNUM,IDX,IEN,SUBIEN,ALLARRAY) --utility function for common CPT's above  
   ;"CPTLIST(OUT,ADFN,SDT) --Get listing of CPT's used for patient in past. Utility function for PROCLIST above. 
-  ;"TESTCPT ;
-  ;"TESTVST ;
+  ;"TESTCPT 
+  ;"TESTVST 
+  ;"ADDITEM(TMGCAT,TMGIEN,ARR,ERRORMSG)  -- add an item to the encounter form
+  ;"DELITEM(TMGCAT,TMGIEN,ARR,ERRORMSG)  -- delete an item to the encounter form  
+  ;"EDITITEM(TMGCAT,TMGIEN,ARR,ERRORMSG) -- EDIT an item on the encounter form
+  ;"ADDERROR(ERRORMSG,ERROR)
+  ;"TESTEDITENC 
   ;
   ;"=======================================================================
   ;"DEPENDENCIES: 
@@ -1292,17 +1299,16 @@ ENCEDIT(TMGRESULT,INPUT)  ;"RPC: TMG CPRS ENCOUNTER EDIT
   ;"           Category: ENTRY or SECTION
   ;"           IEN: IEN22753 value, OR '.01=<value>'  
   ;"           DATA: Will be FLD=VALUE
+  ;"           Examples of expected input  
+  ;"             INPUT(#)="ADD^SECTION^0^.01=Misc^.02=12"                        ; <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
+  ;"             INPUT(#)="EDIT^SECTION^.01=Misc^.01=Misc-Stuff"                 ; <-- rename .01 field  
+  ;"             INPUT(#)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus"  ; <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  ;"             INPUT(#)="EDIT^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Planus,Pes" ; <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
+  ;"             INPUT(#)="DEL^ENTRY^.01=Misc-Stuff^.01=`572555"                 ; <-- delete entry for ICD (IEN80) 667788, in section `4567
+  ;"             INPUT(#)="DEL^SECTION^.01=Misc-Stuff"                           ; <-- DELETE entry NOTE: this will kill all contained child entries!
+  ;"RESULT: (ARRAY TYPE)
+  ;"        RESULT(#)=<success or failure of line of input.>, i.e. 1^SUCCESS, or -1^ErrorMessage
   ;
-  ;"Examples of expected input
-  ;"  INPUT(#)="ADD^SECTION^0^.01=Misc^.02=12"              <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
-  ;"  INPUT(#)="EDIT^SECTION^4567^.01=Ortho Stuff"          <-- rename by changing .01 field  
-  ;"  INPUT(#)="EDIT^SECTION^.01=Ortho Stuff^.01=Derm Stuff"<-- rename Ortho Stuff to Derm Stuff  
-  ;"  INPUT(#)="DEL^SECTION^4567"                           <-- DELETE entry `4567.  NOTE: this will kill all contained child entries!
-  ;"  INPUT(#)="ADD^ENTRY^4567^.01='667788^.03=Pes Planus"  <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
-  ;"  INPUT(#)="EDIT^ENTRY^4567^.01='667788^.03=Planus,Pes" <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
-  ;"  INPUT(#)="DEL^ENTRY^4567^.01='667788"                 <-- delete entry for ICD (IEN80) 667788, in section `4567
-  ;
-  SET TMGRESULT="1^SUCCESS"
   NEW TMGDEBUG SET TMGDEBUG=0 ;"Set to 1 at runtime to use stored input
   IF TMGDEBUG=0 DO
   . KILL ^TMG("TMP","ENCEDIT")
@@ -1311,45 +1317,48 @@ ENCEDIT(TMGRESULT,INPUT)  ;"RPC: TMG CPRS ENCOUNTER EDIT
   . KILL INPUT 
   . MERGE INPUT=^TMG("TMP","ENCEDIT","INPUT")
   ;
-  NEW ERRORMSG SET ERRORMSG=""
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(INPUT(IDX)) QUIT:IDX'>0  DO
+  . NEW ERRORMSG SET ERRORMSG=""
   . NEW LINE SET LINE=INPUT(IDX)
   . NEW ARR DO SPLIT2AR^TMGSTUT2(LINE,"^",.ARR)
   . NEW TMGCMD SET TMGCMD=$$UP^XLFSTR($GET(ARR(1))) KILL ARR(1)
   . IF (TMGCMD'="ADD")&(TMGCMD'="DEL")&(TMGCMD'="EDIT") DO  QUIT
   . . DO ADDERROR(.ERRORMSG,"INVALID COMMAND ON ARRAY #"_IDX_". Got ["_TMGCMD_"]")
+  . . SET TMGRESULT(IDX)="-1^"_ERRORMSG
   . NEW TMGCAT SET TMGCAT=$$UP^XLFSTR($GET(ARR(2))) KILL ARR(2)
   . IF (TMGCAT'="ENTRY")&(TMGCAT'="SECTION") DO  QUIT
   . . DO ADDERROR(.ERRORMSG,"INVALID CATEGORY ON ARRAY #"_IDX_". Got ["_TMGCAT_"]")  
+  . . SET TMGRESULT(IDX)="-1^"_ERRORMSG
   . NEW IENINFO SET IENINFO=$GET(ARR(3)) KILL ARR(3)
   . NEW ARR2 DO FMTARR(.ARR,.ARR2)
   . NEW DIC,X,Y 
   . NEW TMGIEN SET TMGIEN=0
   . IF +IENINFO=IENINFO SET TMGIEN=+IENINFO
   . ELSE  IF IENINFO[".01=" DO
-  . . SET X=$PIECE(IENINFO,"=",2)
-  . . IF $EXTRACT(X,1)="'" SET X=$PIECE(X,"'",2)  ;"STRIP TIC
-  . . SET DIC=22753,DIC(0)="MN" DO ^DIC
-  . . IF Y>0 SET TMGIEN=+Y
+  . . SET TMGIEN=+$$SECTIONIEN(.IENINFO) ;Get IEN of passed section
   . IF TMGIEN'>0,TMGCMD'="ADD",TMGCAT'="SECTION" DO  QUIT
   . . DO ADDERROR(.ERRORMSG,"Unable to find SECTION.  Got ["_IENINFO_"]")
+  . . SET TMGRESULT(IDX)="-1^"_ERRORMSG
   . SET TMGIEN(22753)=+TMGIEN    
   . IF TMGCAT="ENTRY" DO
-  . . IF TMGCMD="ADD" SET TMGIEN(22753.01)="+1," QUIT
-  . . SET DIC=$$OREF^DILF($NAME(^TMG(22753,+TMGIEN,1))),DIC(0)="MN",X=$GET(ARR2(.01))
-  . . IF $EXTRACT(X,1)="`" SET X=$EXTRACT(X,2,$LENGTH(X))
-  . . DO ^DIC
-  . . IF +Y'>0 DO  QUIT
-  . . . DO ADDERROR(.ERRORMSG,"Unable to find subfile record.  Got [.01="_$GET(ARR2(.01))_"]")
-  . . SET TMGIEN(22753.01)=+Y
+  . . SET TMGIEN(22753.01)=+$$SECTSUBIEN(+TMGIEN,$GET(ARR2(.01))) 
+  . . IF TMGIEN(22753.01)'>0,TMGCMD="ADD" SET TMGIEN(22753.01)="+1," QUIT
+  . . ;"IF TMGCMD="ADD" SET TMGIEN(22753.01)="+1," QUIT
+  . . ;"SET DIC=$$OREF^DILF($NAME(^TMG(22753,+TMGIEN,1))),DIC(0)="",X=$GET(ARR2(.01))
+  . . ;"IF $EXTRACT(X,1)="`" SET X=$EXTRACT(X,2,$LENGTH(X)),DIC(0)="U"
+  . . ;"DO ^DIC
+  . . ;"IF +Y'>0 DO  QUIT
+  . . ;". DO ADDERROR(.ERRORMSG,"Unable to find subfile record.  Got [.01="_$GET(ARR2(.01))_"]")
+  . . ;"SET TMGIEN(22753.01)=+Y
   . IF TMGCMD="ADD" DO
   . . DO ADDITEM(TMGCAT,.TMGIEN,.ARR2,.ERRORMSG)
   . ELSE  IF TMGCMD="DEL" DO
   . . DO DELITEM(TMGCAT,.TMGIEN,.ARR2,.ERRORMSG)
   . ELSE  IF TMGCMD="EDIT" DO
   . . DO EDITITEM(TMGCAT,.TMGIEN,.ARR2,.ERRORMSG)
-  IF ERRORMSG'="" SET TMGRESULT="-1^"_ERRORMSG
+  . IF ERRORMSG'="" SET TMGRESULT(IDX)="-1^"_ERRORMSG
+  . ELSE  SET TMGRESULT(IDX)="1^SUCCESS"
   QUIT
   ;
 FMTARR(IN,OUT)  ;"Reformat array
@@ -1373,11 +1382,20 @@ ADDITEM(TMGCAT,TMGIEN,ARR,ERRORMSG)  ;" add an item to the encounter form
   ;"  INPUT(#)="ADD^SECTION^0^.01=Misc^.02=12"              <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
   ;"  INPUT(#)="ADD^ENTRY^4567^.01='667788^.03=Pes Planus"   <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
   NEW TMGFDA,TMGMSG
+  NEW FLD01 SET FLD01=$GET(ARR(.01))
+  IF FLD01="" DO  QUIT
+  . DO ADDERROR(.ERRORMSG,"Value for .01 not provided.  Unable to add unnamed record.")
   IF TMGCAT="ENTRY" DO
   . SET TMGIEN=+$GET(TMGIEN(22753)) IF TMGIEN'>0 DO  QUIT
   . . DO ADDERROR(.ERRORMSG,"Unable to find section to add to.  Got ["_TMGINFO_"]")
+  . NEW SUBIEN SET SUBIEN=$GET(TMGIEN(22753.01))
+  . IF SUBIEN'="+1," DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"Section ["_FLD01_"] already exists: "_SUBIEN_","_TMGIEN_",")
   . MERGE TMGFDA(22753.01,"+1,"_TMGIEN_",")=ARR
   ELSE  IF TMGCAT="SECTION" DO
+  . NEW TEMPIEN SET TEMPIEN=$$SECTIONIEN(".01="_FLD01)
+  . IF TEMPIEN>0 DO  QUIT
+  . . DO ADDERROR(.ERRORMSG,"Section ["_FLD01_"] already exists")
   . MERGE TMGFDA(22753,"+1,")=ARR
   IF $DATA(TMGFDA) DO
   . KILL TMGIEN DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
@@ -1444,23 +1462,165 @@ EDITITEM(TMGCAT,TMGIEN,ARR,ERRORMSG)  ;"EDIT an item on the encounter form
   IF $DATA(TMGMSG("DIERR")) DO
   . NEW ERR SET ERR=$$GETERRST^TMGDEBU2(.TMGMSG) DO ADDERROR(.ERRORMSG,ERR)
   QUIT
-  ; 
+  ;
+SECTIONIEN(IENINFO) ;Get IEN of passed section
+  ;"        IENINFO --PASS BY REFERENCE
+  ;"                    TMGIEN(22753)=<IEN IN 22753>  -- if found
+  ;"                    TMGIEN(22753.01)=<IEN IN 22753.01>  -- if relevant
+  NEW X,Y,DIC
+  SET X=$PIECE(IENINFO,"=",2)
+  IF $EXTRACT(X,1)="`" SET X=$PIECE(X,"`",2)  ;"STRIP TIC
+  SET DIC=22753,DIC(0)="MNX" DO ^DIC
+  ;"IF Y>0 SET TMGIEN=+Y
+  QUIT +Y
+  ;
+SECTSUBIEN(IEN22753,FLD01,ERRORMSG)   ;
+  NEW DIC,X,Y
+  SET DIC=$$OREF^DILF($NAME(^TMG(22753,IEN22753,1))),DIC(0)="",X=FLD01
+  IF $EXTRACT(X,1)="`" SET X=$EXTRACT(X,2,$LENGTH(X)),DIC(0)="U"
+  DO ^DIC
+  IF +Y'>0 DO  QUIT
+  . DO ADDERROR(.ERRORMSG,"Unable to find subfile record.  Got [.01="_$GET(ARR2(.01))_"]")
+  QUIT Y
+  ;
 ADDERROR(ERRORMSG,ERROR)
-  IF ERRORMSG'="" SET ERRORMSG=ERRORMSG_","
-  SET ERRORMSG=ERRORMSG_ERROR
+  IF $get(ERRORMSG)'="" SET ERRORMSG=ERRORMSG_","
+  SET ERRORMSG=$GET(ERRORMSG)_ERROR
   QUIT
   ;
 TESTEDITENC ;
   NEW ARR
   SET ARR(1)="ADD^SECTION^0^.01=Misc^.02=12"                        ; <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
-  SET ARR(2)="EDIT^SECTION^.01=Misc^.01=Misc-Stuff"           ; <-- rename .01 field  
-  SET ARR(3)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus" ; <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  SET ARR(1.5)="ADD^SECTION^0^.01=Misc^.02=12"                        ; <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
+  SET ARR(2)="EDIT^SECTION^.01=Misc^.01=Misc-Stuff"                 ; <-- rename .01 field  
+  SET ARR(3)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus"  ; <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  SET ARR(3.5)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus"  ; <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
   SET ARR(4)="EDIT^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Planus,Pes" ; <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
   SET ARR(5)="DEL^ENTRY^.01=Misc-Stuff^.01=`572555"                 ; <-- delete entry for ICD (IEN80) 667788, in section `4567
   SET ARR(6)="DEL^SECTION^.01=Misc-Stuff"                           ; <-- DELETE entry NOTE: this will kill all contained child entries!
-  
-  ;"finish...
   NEW TMGRESULT
   DO ENCEDIT(.TMGRESULT,.ARR)  ;"RPC: TMG CPRS ENCOUNTER EDIT
-
   QUIT
+  ;"
+LABTEST(TMGRESULT,TMGDFN,TESTS,ICDS)  ;"RPC TMG LAB SAVE PRETEST
+  SET TMGRESULT="1^SUCCESS"
+  NEW HEADING SET HEADING="YOUR ENCOUNTER INFORMATION HAS THE FOLLOWING WARNINGS"
+  NEW PROMPT SET PROMPT="Would you like to edit this encounter?"
+  NEW LF SET LF="@@BR@@"
+  NEW MESSAGE SET MESSAGE="YOU NEED MORE DIAGNOSES CODES (TEST)"
+  SET TMGRESULT="-1^"_HEADING_LF_LF_MESSAGE_LF_LF_PROMPT
+  QUIT;
+  ;"
+ENCTEST(TMGRESULT,TMGDFN,CPTS,ICDS) ;"RPC TMG ENC SAVE PRETEST
+  SET TMGRESULT="1^SUCCESS"
+  NEW HEADING SET HEADING="YOUR ENCOUNTER INFORMATION HAS THE FOLLOWING WARNINGS"
+  NEW PROMPT SET PROMPT="Would you like to edit this encounter?"
+  NEW LF SET LF="@@BR@@"
+  NEW TMGTEST SET TMGTEST=0
+  IF TMGTEST=1 DO
+  . SET TMGDFN=$G(^TMG("ENCTEST","DFN"))
+  . SET CPTS=$G(^TMG("ENCTEST","CPTS"))
+  . SET ICDS=$G(^TMG("ENCTEST","ICDS"))
+  ELSE  DO
+  . SET ^TMG("ENCTEST","DFN")=$G(TMGDFN)
+  . SET ^TMG("ENCTEST","CPTS")=$G(CPTS)
+  . SET ^TMG("ENCTEST","ICDS")=$G(ICDS)
+  NEW CPTARR,ICDARR,MESSAGE
+  DO STR2ARR(.CPTARR,CPTS,"^")
+  DO STR2ARR(.ICDARR,ICDS,"^")
+  ;"
+  ;"NOW BEGIN TESTING
+  SET MESSAGE=""
+  DO INSCPE(.CPTARR,TMGDFN,.MESSAGE,LF)
+  DO CPEAGE(.CPTARR,TMGDFN,.MESSAGE,LF)
+  ;"
+    
+  IF MESSAGE'="" SET TMGRESULT="-1^"_HEADING_LF_LF_MESSAGE_LF_LF_PROMPT
+  QUIT
+  ;"
+STR2ARR(ARRAY,STR,DELIM)
+  ;"PARSE A LINE INTO AN ARRAY, USING GIVEN DELIM
+  NEW CODE,PIECE SET PIECE=1
+  NEW DN SET DN=""
+  FOR  SET CODE=$P(STR,DELIM,PIECE) QUIT:CODE=""  DO
+  . SET PIECE=PIECE+1
+  . SET ARRAY(CODE)=""
+  QUIT
+  ;"
+INSCPE(CPTARR,TMGDFN,MESSAGE,LF)
+  NEW CPEBILLED SET CPEBILLED=0
+  NEW CODE SET CODE=""
+  NEW CPT SET CPT=0
+  FOR  SET CPT=$O(CPTARR(CPT)) QUIT:CPT'>0  DO
+  . IF (CPT>99393)&(CPT<99398) SET CPEBILLED=1,CODE="("_CPT_")"
+  . IF (CPT>99343)&(CPT<99388) SET CPEBILLED=1
+  IF CPEBILLED'=1 QUIT
+  NEW INS SET INS=$$GETPINS(TMGDFN)
+  IF INS="MEDICARE" DO ADDMSG(.MESSAGE,LF,"CPE "_CODE_" cannot be billed to Medicare.")
+  IF INS="UMR" DO ADDMSG(.MESSAGE,LF,"CPE "_CODE_" may not be paid by UMR.")
+  NEW LASTCPE SET LASTCPE=$$LASTCPE(TMGDFN)
+  IF LASTCPE>$$FIRSTYR^TMGDATE DO
+  . DO ADDMSG(.MESSAGE,LF,"CPE "_CODE_" was selected but it appears a CPE was done on "_$$EXTDATE^TMGDATE(LASTCPE,1))
+  QUIT
+  ;"
+LASTCPE(TMGDFN)
+ ;"Return the date of the last CPE that was billed for the patient
+ ;"also return "(MEDICARE)" at the end if they have Medicare
+ NEW TMGRESULT SET TMGRESULT="-1"
+ NEW CPTARRAY,IEN,VISITIEN,CPTIEN,VISITDATE
+ SET IEN=0
+ FOR  SET IEN=$O(^AUPNVCPT("C",TMGDFN,IEN)) QUIT:IEN'>0  DO 
+ . SET CPTIEN=$P($G(^AUPNVCPT(IEN,0)),"^",1)
+ . IF (CPTIEN'["9939")&(CPTIEN'["9938") QUIT
+ . SET VISITIEN=$P($G(^AUPNVCPT(IEN,0)),"^",3)
+ . SET VISITDATE=$P($G(^AUPNVSIT(VISITIEN,0)),"^",1)
+ . SET VISITDATE=$P(VISITDATE,".",1)
+ . IF VISITDATE=$$TODAY^TMGDATE QUIT
+ . SET CPTARRAY(VISITDATE)=CPTIEN
+ IF $D(CPTARRAY) DO
+ . SET TMGRESULT=$O(CPTARRAY(9999999),-1) 
+ . ;"SET TMGRESULT=$$EXTDATE^TMGDATE(TMGRESULT,1)
+ QUIT TMGRESULT
+ ;"
+CPEAGE(CPTARR,TMGDFN,MESSAGE,LF)
+  NEW AGE K VADM SET AGE=+$$AGE^TIULO(TMGDFN)
+  NEW CPT SET CPT=0
+  FOR  SET CPT=$O(CPTARR(CPT)) QUIT:CPT'>0  DO
+  . IF (CPT=99384)!(CPT=99394) DO
+  . . IF (AGE<12)!(AGE>17) DO
+  . . . NEW LINE SET LINE=CPT_" was selected but patient's age ("_AGE_") is not in range of 12-17 for that code"
+  . . . DO ADDMSG(.MESSAGE,LF,LINE)
+  . IF (CPT=99385)!(CPT=99395) DO
+  . . IF (AGE<18)!(AGE>39) DO
+  . . . NEW LINE SET LINE=CPT_" was selected but patient's age ("_AGE_") is not in range of 18-39 for that code"
+  . . . DO ADDMSG(.MESSAGE,LF,LINE)
+  . IF (CPT=99386)!(CPT=99396) DO
+  . . IF (AGE<40)!(AGE>64) DO
+  . . . NEW LINE SET LINE=CPT_" was selected but patient's age ("_AGE_") is not in range of 40-64 for that code"
+  . . . DO ADDMSG(.MESSAGE,LF,LINE)
+  . IF (CPT=99387)!(CPT=99397) DO
+  . . IF AGE<65 DO
+  . . . NEW LINE SET LINE=CPT_" was selected but patient's age ("_AGE_") is not in range of >64 for that code"
+  . . . DO ADDMSG(.MESSAGE,LF,LINE)  
+  QUIT
+  ;"
+ADDMSG(MESSAGE,LF,LINE)
+  IF MESSAGE'="" SET MESSAGE=MESSAGE_LF
+  SET MESSAGE=MESSAGE_LINE
+  QUIT
+  ;"
+GETPINS(TMGDFN)  ;"GET PATIENT'S PRIMARY INSURANCE
+  NEW TMGRESULT SET TMGRESULT=""
+  NEW INSIDX SET INSIDX=0
+  NEW INSIEN
+  FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+  . SET INSIEN=$P($GET(^DPT(TMGDFN,.312,INSIDX,0)),"^",1)
+  . NEW INSNAME SET INSNAME=$PIECE($GET(^DIC(36,INSIEN,0)),"^",1)
+  . NEW COB SET COB=+$P($G(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)
+  . IF COB'>0 QUIT
+  . IF INSNAME["(" DO
+  . . SET INSNAME=$P(INSNAME,"(",1)
+  . SET INSNAME=$$TRIM^XLFSTR(INSNAME)
+  . SET TMGRESULT=INSNAME
+  QUIT TMGRESULT
+  

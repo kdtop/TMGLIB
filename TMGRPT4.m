@@ -424,7 +424,7 @@ NOADDL  ;"This report checks to see if over the course of the last
   USE IO  
   WRITE !
   WRITE "****************************************************************",!
-  WRITE "         RAD, MAM, AND D/C SUMMARIES WITH NO ADDL SIGNERS",!
+  WRITE "         RAD, MAM, D/C SUMMARIES, & XRAY/LAB RESULTS WITH NO ADDL SIGNERS",!
   WRITE "             DATE RANGE: ",$$EXTDATE(BDATE)," TO ",$$EXTDATE(EDATE),!
   WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
   WRITE "",!
@@ -438,7 +438,7 @@ NOADDL  ;"This report checks to see if over the course of the last
   . FOR  SET TIUIEN=$O(^TIU(8925,"D",TIUDATE,TIUIEN)) QUIT:TIUIEN'>0  DO
   . . NEW DOCIEN SET DOCIEN=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
   . . ;"ONLY CHECK MAM REPORT, RAD REPORT, AND HOSPITAL D/C
-  . . IF (DOCIEN'=26)&(DOCIEN'=1428)&(DOCIEN'=1470)&(DOCIEN'=1471)&(DOCIEN'=81) QUIT
+  . . IF (DOCIEN'=26)&(DOCIEN'=1428)&(DOCIEN'=1470)&(DOCIEN'=1471)&(DOCIEN'=81)&(DOCIEN'=1397) QUIT
   . . NEW AUTHOR SET AUTHOR=$P($G(^TIU(8925,TIUIEN,12)),"^",2)
   . . IF (((DOCIEN=81)&(AUTHOR'=83))&((DOCIEN=81)&(AUTHOR'=168))) QUIT
   . . ;"IS SABRINA AN ADD'L SIGNER?
@@ -462,6 +462,52 @@ NOADDL  ;"This report checks to see if over the course of the last
   DO ^%ZISC  ;" Close the output device
   QUIT
   ;"
+UNSIGNAPPT  ;"
+  NEW PTARRAY,SCHARRAY,BDATE,EDATE
+  SET BDATE=$$TODAY^TMGDATE,EDATE=$$TODAY^TMGDATE
+  DO GETSCHED^TMGPXR03(.SCHARRAY,BDATE,EDATE)
+  NEW TMGDFN SET TMGDFN=0
+  FOR  SET TMGDFN=$O(SCHARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+  . SET PTARRAY(TMGDFN)=""
+  NEW TMGDUZ SET TMGDUZ=0
+  NEW HEADER SET HEADER=0
+  FOR  SET TMGDUZ=$O(^XTV(8992,TMGDUZ)) QUIT:TMGDUZ'>0  DO
+  . NEW DISPLAY SET DISPLAY=0
+  . NEW XTVDT SET XTVDT=0
+  . FOR  SET XTVDT=$O(^XTV(8992,TMGDUZ,"XQA",XTVDT)) QUIT:XTVDT=""  DO
+  . . NEW XTVOBJ SET XTVOBJ=$P($G(^XTV(8992,TMGDUZ,"XQA",XTVDT,0)),"^",2)
+  . . IF XTVOBJ'["TIU" QUIT
+  . . SET XTVOBJ=$P($P(XTVOBJ,"TIU",2),";",1)
+  . . NEW TIUTYPE,TIUHLIGHT
+  . . SET TIUTYPE=+$P($G(^TIU(8925,XTVOBJ,0)),"^",1)
+  . . IF TIUTYPE'>0 QUIT
+  . . SET TMGDFN=$P($G(^TIU(8925,XTVOBJ,0)),"^",2)
+  . . SET TIUHLIGHT=$P($G(^TIU(8925.1,TIUTYPE,"TMGH")),"^",1)
+  . . IF TIUHLIGHT="" QUIT
+  . . ;"IF DISPLAY=0 WRITE " **** ",$P($G(^VA(200,TMGDUZ,0)),"^",1)," **** ",! SET DISPLAY=1
+  . . IF '$D(PTARRAY(TMGDFN)) QUIT
+  . . IF HEADER=0 DO
+  . . . NEW %ZIS
+  . . . SET %ZIS("A")="Enter Output Device: "
+  . . . SET IOP="S121-LAUGHLIN-LASER"
+  . . . DO ^%ZIS  ;"standard device call
+  . . . USE IO  
+  . . . WRITE !
+  . . . WRITE "****************************************************************",!
+  . . . WRITE "             APPTS TODAY WITH UNSIGNED OFFICE NOTES",!
+  . . . WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
+  . . . WRITE "",!
+  . . . WRITE "                  PLEASE DELIVER TO TAMMY",!
+  . . . WRITE "        !!!!BRING TO DR. DEE'S ATTENTION IMMEDIATELY!!!!",!
+  . . . WRITE "****************************************************************",!
+  . . . WRITE "                                        (From TMGRPT4.m)",!,!
+  . . . WRITE " ",!
+  . . . SET HEADER=1
+  . . WRITE "  - ",$P($G(^DPT(TMGDFN,0)),"^",1),", ",$$EXTDATE^TMGDATE($P($G(^TIU(8925,XTVOBJ,13)),"^",1),1)," -> ",$P($G(^TIU(8925.1,TIUTYPE,0)),"^",1),!
+  . IF DISPLAY=1 WRITE !
+  IF HEADER=1 DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"  
 UNSIGNTIU  ;"
   NEW %ZIS
   SET %ZIS("A")="Enter Output Device: "
@@ -571,3 +617,28 @@ WRONGTIUDATE
   . . IF NOTETEXT'["FOLLOWUP" QUIT
   . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1),",",TIUIEN,",",REFDATE,",",ENTRYDT,",",$P($G(^TIU(8925.1,NOTETYPE,0)),"^",1),!
   QUIT
+  ;"
+INSCHECK  ;"JUST CHECKS TO SEE WHAT INSURANCE >65 HAS.... CAN BE DELETED LATER
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  USE IO 
+  NEW TMGDFN SET TMGDFN=0
+  FOR  SET TMGDFN=$O(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
+  . NEW AGE K VADM SET AGE=+$$AGE^TIULO(TMGDFN)
+  . IF $$ACTIVEPT^TMGPXR03(TMGDFN)'=1 QUIT
+  . IF AGE<65 QUIT
+  . NEW INSIDX,INSIEN,INSCOUNT SET (INSCOUNT,INSIDX)=0
+  . FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+  . . SET INSIEN=$P($GET(^DPT(TMGDFN,.312,INSIDX,0)),"^",1)
+  . . IF (INSIEN'=23)&(INSIEN'=10)&(INSIEN'=15)&(INSIEN'=9)&(INSIEN'=17)&(INSIEN'=15)&(INSIEN'=4) QUIT
+  . . NEW INSNAME SET INSNAME=$PIECE($GET(^DIC(36,INSIEN,0)),"^",1)
+  . . NEW COB SET COB=+$P($G(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)
+  . . IF COB'>0 QUIT
+  . . WRITE $P($G(^DPT(TMGDFN,0)),"^",1)," is ",AGE," yrs old and has ",INSNAME,!,!,!
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+  
+  

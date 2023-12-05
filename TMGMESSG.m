@@ -66,17 +66,20 @@ GETUSERS(TMGRESULT)  ;"
  ZWR TMGRESULT
  QUIT
  ;"
-SEND1MSG(TMGRESULT,USERTO,USERFROM,MESSAGE)  ;"
+SEND1MSG(TMGRESULT,USERTO,USERFROM,MESSAGE,NOTECREATED)  ;"
  ;"Purpose: This routine will send a message to the Network Messenger
  ;"Input: USERTO - Receiving user's name
  ;"       USERFROM - Sending user's name
  ;"       MESSAGE - ARRAY Message to be displayed in lines
+ SET NOTECREATED=+$GET(NOTECREATED)
  SET TMGRESULT="1^SUCCESS"
  ;"ADD TIME TO Z-NODE!!
  NEW OUTFILENAME SET OUTFILENAME=$$UNIQUEFN(USERTO,USERFROM)
  IF $P(OUTFILENAME,"^",1)="-1" DO  QUIT
  . SET TMGRESULT=OUTFILENAME
- SET MESSAGE(0)="["_$$MSGDATE_"] -- "_$G(MESSAGE(0))
+ NEW SUFFIX SET SUFFIX=""
+ IF NOTECREATED SET SUFFIX=$C(13,10)_"(A NOTE HAS BEEN CREATED IN CPRS FOR THIS MESSAGE)"
+ SET MESSAGE(0)="["_$$MSGDATE_"] -- "_$G(MESSAGE(0))_SUFFIX
  DO AR2HFSFP^TMGIOUT3("MESSAGE",OUTFILENAME)
  QUIT
  ;"
@@ -147,5 +150,21 @@ MSGDATE()  ;"
 GETMSGS(TMGRESULT,USER)  ;"
   ;"Purpose: Get one user's messages
   
+  QUIT
+  ;"
+CPRSUSR(TMGRESULT,MGRNAME)  ;"RPC: TMG GET USER FROM MGR NAME   
+  ;"This RPC will convert a user's MESSENGER NAME to their CPRS equavalant
+  ;"This function needs to be properly fleshed out to be more robust, but due
+  ;"  to time constraints I am hard coding values for now. I would imagine
+  ;"  the best way to take care of this would be to add a new field
+  ;"  to the NEW PERSON file to hold the Messenger name
+  SET TMGRESULT="-1^CANNOT DETERMINE THE CPRS USER TO ASSIGN AS ADDL SIGNER."
+  SET MGRNAME=$$UP^XLFSTR(MGRNAME)
+  IF MGRNAME="EDDIE" SET TMGRESULT="150^Hagood,Eddie L^- System Manager"
+  IF MGRNAME="TAMMY" SET TMGRESULT="123^Hensley,Tammy G"
+  IF MGRNAME="LINDSEY" SET TMGRESULT="1053^Garst,Lindsey"
+  IF MGRNAME="SABRINA" SET TMGRESULT="259^Shipley,Sabrina^- CMA"
+  IF MGRNAME="DRKEVIN" SET TMGRESULT="168^Toppenberg,Kevin S^- MD"
+  IF MGRNAME="DRDEE" SET TMGRESULT="83^Toppenberg,Marcia Dee^- MD"
   QUIT
   ;"
