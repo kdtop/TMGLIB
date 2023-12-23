@@ -1,4 +1,4 @@
-TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
+TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/19/2023
               ;;1.0;TMG-LIB;**1**;12/18/22
  ;
  ;"TMG LAB ORDER DIALOG UTILITY2
@@ -23,10 +23,11 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"=======================================================================
  ;" API - Private Functions
  ;"=======================================================================
- ;"ENSUREBUNDLE(TOPIEN,ARR,RANGE)  ;
+ ;"FIXNAME(ARR) ;
  ;"ENSURERECS(TOPIEN,ARR,RANGE,TYPE)  ;
  ;"ENSURE1(TOPIEN,LINE,TYPE,ITEMSARR) ;
- ;"PREPVARS(LINE,RESULT,IEN22751,NAME,ATYPE,FASTING) ;
+ ;"SAVEPARENT(ARR)  -- Return if parent should be saved as record
+ ;"PREPVARS(LINE,RESULT,IEN22751,NAME,ATYPE,FASTING,LINKDX,DXLST) ;
  ;"ENSUREDATA(TOPIEN,SUBIEN,LINE,ITEMSARR) ;
  ;"GETDATASTR(TOPIEN,LINE,ITEMSARR) ;
  ;"SETDATA(TOPIEN,SUBIEN,DATASTR) ;
@@ -35,6 +36,8 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"GETIEN(NAME) --Search file 101.41 for .01 = NAME
  ;"LASTSEQ(RANGE) --Return last used SEQ in RANGE
  ;"SAFENAME(NAME) --Remove and replace disallowed chars
+ ;"RESTORENAME(NAME) -- Restore replaced disallowed chars
+ ;"SETUPINFO(INFO) 
  ;
  ;"=======================================================================
  ;"Dependancies
@@ -50,6 +53,9 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"    3   -0;1              .01   -ITEMS             <-Pntr  [P22751']
  ;"    4   -0;2              .02   -SEQUENCE                    [NJ9,4]
  ;"    5  10;1                10  FASTING                           [S]
+ ;"    6  10;2                11  NEEDS LINKED DX                   [S]
+ ;"       20;0                20  ALLOWED LINKED DX'S <-Mult [22751.02P]
+ ;"    7   -0;1              .01   -ALLOWED LINKED DX'S <-Pntr  [P22751']
  ;"   <> <> <>
  ;"TYPE is a set as follows
  ;"    D:DIALOG
@@ -114,7 +120,8 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"            Entry #17
  ;"               .01-ITEMS : TMG LAB ORDER COMMENTS (`113 in #22751) <-- no children items         <-- type: WP FIELD
  ;"            Entry #18
- ;"               .01-ITEMS : TMG LAB ORDER FREE TEXT LAB (`114 in #22751) <-- no children items    <-- type: TEXT     
+ ;"               .01-ITEMS : TMG LAB ORDER FREE TEXT LAB (`114 in #22751) <-- no children items    <-- type: TEXT
+ ;"            NOTE: other elements are likely to have been added over time.  
  ;"  -------------------------------
  ;"
  ;"Many (but not all) entries in the top level contains grandchildren elements, as below:
@@ -165,7 +172,7 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"Notice: All elements of the dialog, i.e. each entry in the ITEMS sufile, 
  ;"          have to be matched to another element from 101.41, depending
  ;"          on the type of the element from 22751.  For example, a CPRS order dialog 
- ;"          checkbox entrywill be matched to 101.41 record 'TMG LAB ORDER Y/N', 
+ ;"          checkbox entry will be matched to 101.41 record 'TMG LAB ORDER Y/N', 
  ;"          which is defined to be of type Yes/No.
  ;"        All elements are put into subfile ITEMS (#101.412).  There is no
  ;"          ability to put sub-sub-items here, so it is all flat, on one level.  
@@ -191,8 +198,9 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/18/22
  ;"                                                      W for WordProcessor fields 
  ;"             - ITEMS    e.g. ITEMS=54,28,194,73   -- Used by types with children, a way of defining elements in list
  ;"             - FASTING  e.g. FASTING=1            -- Used by lab/proc elements to show that default for labs should be fasting
+ ;"             - LINKDX   e.g. LINKDX=1             -- Used by elements that need a specific linked Dx to be attached to them when ordering.
+ ;"             - DX       e.g. DX=56,21,19,103      -- List of known Dx's that can be used when LINKDX=1
  ;"        The matching of types in file 22751 to type elements in 101.41 are as follows: 
- 
  ;"           L --> TMG LAB ORDER Y/N  
  ;"           I --> TMG LAB COMMON DX ENTRY
  ;"           P --> TMG LAB DISPLAY GROUP
@@ -321,12 +329,14 @@ SAVEPARENT(ARR)  ;"Return if parent should be saved as record
   IF $PIECE($GET(ARR),"^",2)="DISPLAY PAGES" SET RESULT=0
   QUIT RESULT;
   ;
-PREPVARS(LINE,RESULT,IEN22751,NAME,TYPE,FASTING) ;
+PREPVARS(LINE,RESULT,IEN22751,NAME,TYPE,FASTING,LINKDX,DXLST) ;
   SET RESULT="1^OK"
   SET IEN22751=$PIECE(LINE,"^",1)
   SET NAME=$$SAFENAME($PIECE(LINE,"^",2)) ;"Remove and replace disallowed chars
   SET TYPE=$PIECE(LINE,"^",3)
   SET FASTING=($PIECE(LINE,"^",4)="Y")
+  SET LINKDX=($PIECE(LINE,"^",5)="Y")
+  SET DXLST=$PIECE(LINE,"^",6)  ;"CSV list of IEN's in 22751
   QUIT
   ;
 ENSUREDATA(TOPIEN,SUBIEN,LINE,ITEMSARR) ;
@@ -337,8 +347,8 @@ ENSUREDATA(TOPIEN,SUBIEN,LINE,ITEMSARR) ;
   QUIT RESULT
   ;
 GETDATASTR(TOPIEN,LINE,ITEMSARR) ;
-  NEW IEN22751,NAME,TYPE,FASTING
-  DO PREPVARS(LINE,.RESULT,.IEN22751,.NAME,.TYPE,.FASTING) 
+  NEW IEN22751,NAME,TYPE,FASTING,LINKDX,DXLST
+  DO PREPVARS(LINE,.RESULT,.IEN22751,.NAME,.TYPE,.FASTING,.LINKDX,.DXLST) 
   SET FASTING=+$GET(FASTING)
   NEW IENLIST SET IENLIST=""
   NEW IDX SET IDX=0
@@ -349,6 +359,8 @@ GETDATASTR(TOPIEN,LINE,ITEMSARR) ;
   NEW DATA SET DATA="~IEN="_IEN22751_";"
   SET DATA=DATA_"TYPE="_TYPE_";"
   IF FASTING SET DATA=DATA_"FASTING=1;"
+  IF LINKDX SET DATA=DATA_"LINKDX=1;"
+  IF DXLST'="" SET DATA=DATA_"DX="_DXLST_";"
   IF IENLIST]"" SET DATA=DATA_"ITEMS="_IENLIST_";"
   QUIT DATA
   ;
@@ -483,5 +495,345 @@ SETUPINFO(INFO) ;
   SET INFO("TYPES","X")="TMG LAB ITEM DATA"
   SET INFO("TYPES","E")="TMG LAB TEXT FIELD" 
   SET INFO("TYPES","W")="TMG LAB WP FIELD"   
+  QUIT
+  ;
+  ;"===========================================================================
+  ;"===========================================================================
+EDITORDER  ;"Edit lab order data
+  NEW MENU,IDX,USRPICK
+  ;
+EOML1 ;                    
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Option For Editing TMG Order Dialog"
+  SET IDX=IDX+1,MENU(IDX)="Labs/Procedures View/Edit"_$CHAR(9)_"LabProc"
+  SET IDX=IDX+1,MENU(IDX)="GROUP (TAB PAGE) for Labs/Procs View/Edit"_$CHAR(9)_"GROUPS"
+  SET IDX=IDX+1,MENU(IDX)="Diagnosis View/Edit"_$CHAR(9)_"Dx"
+  SET IDX=IDX+1,MENU(IDX)="Other View/Edit"_$CHAR(9)_"Other"
+  SET IDX=IDX+1,MENU(IDX)="COMPILE to Final ORDER DIALOG (101.41)"_$CHAR(9)_"COMPILE"
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO EODN  
+  IF USRPICK="LabProc" DO  GOTO EOML1
+  . DO EDITLABPROC()   
+  IF USRPICK="Dx" DO  GOTO EOML1
+  . DO EDITDX()
+  IF USRPICK="GROUPS" DO  GOTO EOML1
+  . DO EDITGRPS()
+  IF USRPICK="COMPILE" DO  GOTO EOML1
+  . DO REFRESH()
+  IF USRPICK="Other" DO  GOTO EOML1
+  . ;"finish 
+  . WRITE !,"TO BE IMPLEMENTED...",!
+  . DO PRESS2GO^TMGUSRI2
+  GOTO EOML1
+EODN  ;
+  QUIT
+  ;
+EDITLABPROC() ;"Edit/manage labs/procedures
+  NEW MENU,IDX,USRPICK,IEN,RECS,NAME
+  DO GETRECS(.RECS,"L")
+  IF $DATA(RECS)=0 DO  QUIT
+  . WRITE !,!,"Unable find records from top-level record!",!
+  . DO PRESS2GO^TMGUSRI2
+ELPL1 ;                    
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Labs/Procedure For Viewing/Editing"
+  SET NAME="" FOR  SET NAME=$ORDER(RECS("NAME",NAME)) QUIT:NAME=""  DO
+  . NEW IEN SET IEN=$GET(RECS("NAME",NAME)) QUIT:IEN'>0
+  . SET IDX=IDX+1,MENU(IDX)=NAME_$CHAR(9)_IEN
+  IF IDX>0 SET MENU(IDX,1)=$CHAR(8)_"--------------------------------------"
+  SET IDX=IDX+1,MENU(IDX)="Search for Record to View/Edit"_$CHAR(9)_"SEARCH"
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO ELPDN  
+  IF USRPICK="SEARCH" DO  GOTO ELPL1
+  . DO SRCHMANAGE1("L")
+  IF +USRPICK=USRPICK DO  GOTO ELPL1
+  . DO MANAGE1(+USRPICK) 
+  GOTO ELPL1
+ELPDN  ;
+  QUIT
+  ;
+EDITDX() ;"Edit/manage diagnoses
+  NEW MENU,IDX,USRPICK,IEN,RECS,NAME
+  DO GETRECS(.RECS,"I")
+  IF $DATA(RECS)=0 DO  QUIT
+  . WRITE !,!,"Unable find records",!
+  . DO PRESS2GO^TMGUSRI2
+EDX1 ;                    
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Option For Editing Diagnoses"
+  SET NAME="" FOR  SET NAME=$ORDER(RECS("NAME",NAME)) QUIT:NAME=""  DO
+  . NEW IEN SET IEN=$GET(RECS("NAME",NAME)) QUIT:IEN'>0
+  . SET IDX=IDX+1,MENU(IDX)=NAME_" -- View/Edit"_$CHAR(9)_IEN
+  IF IDX>0 SET MENU(IDX,1)=$CHAR(8)_"--------------------------------------"
+  SET IDX=IDX+1,MENU(IDX)="ADD a Diagnosis"_$CHAR(9)_"ADD"
+  SET IDX=IDX+1,MENU(IDX)="DELETE a Diagnosis"_$CHAR(9)_"DEL"
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO EDXDN  
+  IF USRPICK="ADD" DO  GOTO EDX1
+  . DO ADDITEM("DX")
+  IF USRPICK="DEL" DO  GOTO EDX1
+  . DO DELITEM("DX")
+  IF USRPICK="SEARCH" DO  GOTO EDX1
+  . DO SRCHMANAGE1("D")
+  IF +USRPICK=USRPICK DO  GOTO EDX1
+  . DO MANAGE1(+USRPICK) 
+  GOTO ELPL1
+EDXDN  ;
+  QUIT
+  ;
+EDITGRPS() ;"Edit/manage GROUPS (Tab Pages)
+  NEW MENU,IDX,USRPICK,IEN,RECS,NAME
+EGPS0 ;                    
+  KILL RECS DO GETRECS(.RECS,"P")
+  IF $DATA(RECS)=0 DO  QUIT
+  . WRITE !,!,"Unable find and Page Group records from top-level record!",!
+  . DO PRESS2GO^TMGUSRI2
+EGPS1 ;                    
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Option For Editing Groups / Tab Pages"
+  SET NAME="" FOR  SET NAME=$ORDER(RECS("NAME",NAME)) QUIT:NAME=""  DO
+  . NEW SUBIEN SET SUBIEN=$GET(RECS("NAME",NAME)) QUIT:SUBIEN'>0
+  . SET IDX=IDX+1,MENU(IDX)=$$LJ^XLFSTR(NAME,10)_" -- View/Edit"_$CHAR(9)_SUBIEN
+  IF IDX>0 SET MENU(IDX,1)=$CHAR(8)_"--------------------------------------"
+  SET IDX=IDX+1,MENU(IDX)="ADD Group/Page"_$CHAR(9)_"ADD"
+  SET IDX=IDX+1,MENU(IDX)="DELETE Group/Page"_$CHAR(9)_"DEL"
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO EGPSDN
+  IF USRPICK="ADD" DO  GOTO EGPS0
+  . DO ADDITEM("GROUP")
+  IF USRPICK="DEL" DO  GOTO EGPS0
+  . DO DELITEM("GROUP")
+  IF +USRPICK=USRPICK DO  GOTO EGPS0
+  . DO MANAGE1(+USRPICK) 
+  GOTO ELPL1
+EGPSDN  ;
+  QUIT
+  ;
+EDIT1GRP(SUBIEN) ;"EDIT 1 GROUP (TAB PAGE)
+  NEW MENU,IDX,USRPICK,NAME
+  SET NAME=$PIECE($GET(^TMG(22751,+SUBIEN,0)),"^",1)
+  ;
+E1GP1 ;                  
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Option For "_NAME
+  SET IDX=IDX+1,MENU(IDX)="DUMP record"_$CHAR(9)_"DUMP"
+  SET IDX=IDX+1,MENU(IDX)="EDIT record"_$CHAR(9)_"EDIT"
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO E1GPDN
+  IF USRPICK="DUMP" DO  GOTO E1GP1
+  . DO DUMPREC^TMGDEBU3(22751,+SUBIEN)
+  . DO PRESS2GO^TMGUSRI2
+  IF USRPICK="EDIT" DO  GOTO E1GP1
+  . DO EDIT1REC(+SUBIEN)
+  . WRITE !,!,"NOTE: If record was renamed, then please RESTART.",!
+  . DO PRESS2GO^TMGUSRI2
+  GOTO E1GP1
+E1GPDN  ;
+  QUIT
+  ;
+MANAGE1(IEN) ;"EDIT 1 RECORD
+  NEW MENU,IDX,USRPICK,NAME
+  SET NAME=$PIECE($GET(^TMG(22751,+IEN,0)),"^",1)
+  ;
+E1LP1 ;                  
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Option For Editing: "_NAME
+  SET MENU(IDX,1)="  TYPE="_$$GET1^DIQ(22751,IEN,.02)  
+  SET IDX=IDX+1,MENU(IDX)="DUMP record: "_NAME_$CHAR(9)_"DUMP"
+  SET IDX=IDX+1,MENU(IDX)="EDIT record:"_NAME_$CHAR(9)_"EDIT"
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO E1LPDN
+  IF USRPICK="DUMP" DO  GOTO E1LP1
+  . DO DUMPREC^TMGDEBU3(22751,+IEN)
+  . DO PRESS2GO^TMGUSRI2
+  IF USRPICK="EDIT" DO  GOTO E1LP1
+  . DO EDIT1REC(+IEN)
+  . WRITE !,!,"NOTE: If record was deleted or renamed, then please RESTART.",!
+  . DO PRESS2GO^TMGUSRI2
+  GOTO E1LP1
+E1LPDN  ;
+  QUIT
+  ;  
+SRCHMANAGE1(TYPE)  ;"Search for and manage 1 record, of specified type
+  ;"TYPE must be value of .02 TYPE field (intervalue)
+  NEW DIC,X,Y SET DIC=22751,DIC(0)="MAEQ"
+  SET DIC("S")="I $P(^(0),U,2)="""_TYPE_""""
+  DO ^DIC WRITE ! 
+  IF +Y'>0 DO  QUIT
+  . WRITE "No Record Selected.",!
+  . DO PRESS2GO^TMGUSRI2
+  DO MANAGE1(+Y)
+  QUIT
+  ;
+EDIT1REC(IEN) ;"edit 1 record
+  WRITE !,"Edit record",!
+  WRITE "-----------",!
+  WRITE "NOTE: Records should NOT be deleted via fileman '@' functionality.",!
+  WRITE "      This will cause problems with overall functioning.",!,!
+  SET IEN=+$GET(IEN) QUIT:IEN'>0
+  NEW FIELDS SET FIELDS=".01:20"
+  NEW TYPE SET TYPE=$PIECE($GET(^TMG(22751,IEN,0)),"^",2)
+  IF TYPE="P" DO
+  . SET FIELDS=".01;1"
+  IF TYPE="I" DO
+  . SET FIELDS=".01;2;10;11;20"
+  NEW DA,DR,DIE
+  SET DIE="^TMG(22751,",DA=IEN,DR=FIELDS
+  LOCK +^TMG(22751,IEN):0 
+  IF $TEST DO
+  . DO ^DIE WRITE !
+  . LOCK -^TMG(22751,IEN)
+  ELSE  DO
+  . WRITE !,"Sorry, Another user is editing this entry. Aborting." 
+E1RDN ;  
+  QUIT
+  ;
+ROOTIEN() ;"Return IEN of top level record
+  QUIT $$GET1IEN("TMG LAB ORDER DIALOG") 
+  ;
+GRPGRPIEN() ;"Return IEN of group of groups. 
+  QUIT $$GET1IEN("TMG LAB ORDER GROUP DISPLAY PAGES") 
+  ;
+LPGRPIEN() ;"Return IEN of lab/procedure group
+  QUIT $$GET1IEN("TMG LAB ORDER GROUP DXS") 
+  ;
+GET1IEN(NAME) ;"
+  NEW IEN SET IEN=$ORDER(^TMG(22751,"B",$E(NAME,1,30),0))
+  IF IEN'>0 DO 
+  . WRITE "This is required for proper operation.  Aborting.",!
+  . DO PRESS2GO^TMGUSRI2  
+  QUIT IEN 
+  ;
+GETRECS(OUT,TYPE) ;"RETURN ARRAY OF RECORD WHICH MATCH TYPE OF 'TYPE'
+  KILL OUT
+  ;"NEW TOPIEN SET TOPIEN=$$ROOTIEN
+  ;"IF TOPIEN'>0 DO  QUIT
+  ;". WRITE !,!,"Unable to find IEN of top-level record!",!
+  ;". DO PRESS2GO^TMGUSRI2
+  NEW IEN SET IEN=0
+  ;"FOR  SET IEN=$ORDER(^TMG(22751,TOPIEN,1,IEN)) QUIT:IEN'>0  DO
+  ;". NEW ZN SET ZN=$GET(^TMG(22751,TOPIEN,1,IEN,0)) QUIT:ZN=""
+  FOR  SET IEN=$ORDER(^TMG(22751,IEN)) QUIT:IEN'>0  DO
+  . NEW ZN SET ZN=$GET(^TMG(22751,IEN,0)) QUIT:ZN=""
+  . ;"NEW SUBIEN SET SUBIEN=+ZN QUIT:SUBIEN'>0
+  . ;"SET ZN=$GET(^TMG(22751,SUBIEN,0))
+  . ;"SET ZN=$GET(^TMG(22751,IEN,0))
+  . NEW ATYPE SET ATYPE=$PIECE(ZN,"^",2) QUIT:ATYPE'=TYPE
+  . ;"SET OUT("IEN",SUBIEN)=""
+  . SET OUT("IEN",IEN)=""
+  . NEW NAME SET NAME=$PIECE(ZN,"^",1) QUIT:NAME=""
+  . ;"SET OUT("NAME",NAME)=SUBIEN
+  . SET OUT("NAME",NAME)=IEN
+  IF TYPE="P" DO
+  . ;"Don't allow manual manipulation of master group.  It is a group of groups. 
+  . SET IEN=+$GET(RECS("NAME","TMG LAB ORDER GROUP DISPLAY PAGES"))
+  . KILL RECS("NAME","TMG LAB ORDER GROUP DISPLAY PAGES") 
+  . KILL RECS("IEN",IEN)
+  QUIT
+  ;
+SETUPINFO2(INFO,MODE) ;"Setup infor for ADDITEM,DELITEM
+  IF MODE="GROUP" DO
+  . SET INFO("TYPE")="P"
+  . SET INFO("PROMPT")="Group name (Tab page name)"
+  . SET INFO("HOLDERGROUPNAME")="TMG LAB ORDER GROUP DISPLAY PAGES"
+  . SET INFO("NOUN")="lab/procedures"
+  ELSE  IF MODE="DX" DO
+  . SET INFO("TYPE")="I"
+  . SET INFO("PROMPT")="Diagnosis"  
+  . SET INFO("HOLDERGROUPNAME")="TMG LAB ORDER GROUP DXS"
+  . SET INFO("NOUN")="diagnoses"
+  SET INFO("GRPIEN")=$$GET1IEN(INFO("HOLDERGROUPNAME"))
+  IF GRPIEN'>0 DO
+  . WRITE !,"Unable to find group '"_HOLDERGROUPNAME_"' to enter new record into.",!
+  QUIT
+  ;
+ADDITEM(MODE)  ;"ADD DX, or GROUP (TAB PAGE)
+  NEW NAME,TMGFDA,TMGIEN,TMGMSG,IEN
+  SET MODE=$GET(MODE)
+  NEW INFO DO SETUPINFO2(.INFO,MODE)
+  IF $GET(INFO("GRPIEN"))'>0 DO  QUIT
+  . WRITE "Aborting.",! 
+  WRITE !,"Enter name of NEW "_INFO("PROMPT")_": "  
+  READ NAME WRITE ! 
+  IF (NAME="")!(NAME["^") DO  QUIT
+  . WRITE "No name or invalid name.  Quitting.",!
+  ;"First make record entry
+  SET TMGFDA(22751,"+1,",.01)=NAME
+  SET TMGFDA(22751,"+1,",.02)=INFO("TYPE")
+  DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  QUIT
+  . WRITE !,$$GETERRST^TMGDEBU2(.TMGMSG),!
+  . DO PRESS2GO^TMGUSRI2
+  SET IEN=+$GET(TMGIEN(1))
+  IF IEN'>0 DO  QUIT
+  . WRITE "No record created, or new record could not be found.  Quitting",!
+  ;"Next, put entry into holder group. 
+  SET TMGFDA(22751.01,"+1,"_GRPIEN_",",.01)="`"_IEN  
+  DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  QUIT
+  . WRITE !,"Error while adding new record as ITEM in record: "_INFO("HOLDERGROUPNAME"),!
+  . WRITE !,$$GETERRST^TMGDEBU2(.TMGMSG),!
+  . WRITE "Aborting",!
+  . DO PRESS2GO^TMGUSRI2
+  WRITE !,"Record has been created.  Now EDIT details, but DON'T change TYPE.",!
+  IF MODE="GROUP" DO
+  . WRITE "To have Group (Tab page) contain lab/procedure entries, they should be",!
+  . WRITE "added into ITEMS field (a multiple-type subfile).",!
+  . WRITE "NOTE: Labs/procedures should be created elsewhere first, so they are ready for addition here.",!
+  DO PRESS2GO^TMGUSRI2
+  DO EDIT1REC(IEN)
+  DO PRESS2GO^TMGUSRI2  
+  QUIT
+  ;
+DELITEM(MODE)  ;"Pick and delete GROUP (TAB PAGE)
+  NEW MENU,IDX,USRPICK,IEN,RECS,NAME,NOUN
+  SET MODE=$GET(MODE)
+  NEW INFO DO SETUPINFO2(.INFO,MODE)
+  IF $GET(INFO("GRPIEN"))'>0 DO  QUIT
+  . WRITE "Aborting.",! 
+DGPS1 ;                    
+  KILL RECS DO GETRECS(.RECS,INFO("TYPE"))
+  IF $DATA(RECS)=0 DO  QUIT
+  . WRITE !,!,"Unable find records!",!
+  . DO PRESS2GO^TMGUSRI2
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Option For DELETING "_INFO("PROMPT")
+  SET NAME="" FOR  SET NAME=$ORDER(RECS("NAME",NAME)) QUIT:NAME=""  DO
+  . NEW IEN SET IEN=$GET(RECS("NAME",NAME)) QUIT:IEN'>0
+  . SET IDX=IDX+1,MENU(IDX)="DELETE "_NAME_$CHAR(9)_IEN_"^"_NAME
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO DGPSDN 
+  SET IEN=+USRPICK,NAME=$PIECE(USRPICK,"^",2)
+  IF IEN'>0 GOTO DGPS1
+  WRITE !,!,"Are you sure you want to DELETE "_INFO("PROMPT")_" '"_NAME_"'?",!
+  WRITE "This will delete all contained references to other "_INFO("NOUN"),!
+  WRITE "but will NOT delete any "_INFO("NOUN")_" elements themselves.",!
+  WRITE "DELETE" SET %=2 DO YN^DICN WRITE !
+  IF %'=1 QUIT
+  ;"First delete entry from holder group
+  IF $DATA(^TMG(22751,GRPIEN,1,IEN))=0 DO  GOTO DGPSDN
+  . WRITE "Unable to find "_NAME_" as entry.  Aborting",!  ;"Shouldn't happen...
+  NEW DA SET DA=IEN,DA(1)=GRPIEN
+  NEW DIK SET DIK="^TMG(22751,"_DA(1)_",1,"
+  DO ^DIK
+  ;"Now delete entry itself.
+  SET DIK="^TMG(22751,",DA=IEN 
+  DO ^DIK
+  GOTO DGPS1
+DGPSDN  ;
   QUIT
   ;

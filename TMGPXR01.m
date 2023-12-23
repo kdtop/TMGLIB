@@ -2474,3 +2474,19 @@ FIB4(TMGDFN)  ;"CALCULATE THE PATIENT'S FIB4 SCORE USING THE FORMULA:
         ELSE  IF VALUE<3.26 SET TMGRESULT="FIB-4 = "_VALUE_". Indeterminate"
         ELSE  SET TMGRESULT="FIB-4 = "_VALUE_". Cirrhosis more likely"
         QUIT TMGRESULT
+        ;"
+BDAPPLIC(TMGDFN,TEST,DATE,DATA,TEXT)   ;
+	    ;"Purpose: Determine if patient's bone density not indicated for this year 
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;" FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: WHY - returns why HTNMEDS is true 
+        DO HFTHISYR(TMGDFN,.TEST,.DATE,"TMG BONE DENSITY NOT INDICATED THIS YEAR")
+        QUIT
+        ;"

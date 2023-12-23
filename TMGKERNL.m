@@ -1033,13 +1033,14 @@ GSCRNSZ3(ROWS,COLS) ;"YET ANOTHER TRY....  8/30/17
   QUIT
   ;  
 GSCRNSZ4(ROWS,COLS) ;"Using Sam's latest routine  5/29/20
-  NEW TEMP SET TEMP=$$AUTOMARG^XVEMKY
+  NEW TEMP SET TEMP="0^0"
+  NEW X SET X="XVEMKY" X ^%ZOSF("TEST") IF $T SET TEMP=$$AUTOMARG^XVEMKY
   SET COLS=+$PIECE(TEMP,"^",1)
   SET ROWS=+$PIECE(TEMP,"^",2)
   IF COLS'>0 SET COLS=80
   IF ROWS'>24 SET ROWS=24
   QUIT
-
+  ;
 GTMUMPW(ROWS,COLS) ;" GET MUMPS WIDTH        
   ;"Purpose: To query the GT.M mumps environment and get the dimensions of
   ;"       the terminal device.  E.g. this would be the width where a mumps 

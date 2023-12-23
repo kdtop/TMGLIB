@@ -525,6 +525,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         IF DUZ=168 DO
         . IF GROUPORDER'="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("Items arranged in Following Order:"_GROUPORDER_"<BR>","#e0ac11",.OPTION)
         . IF GROUPING=1 DO
+        . . IF GROUPORDER="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("NOTE: No group order was found in last note.<BR>","#39a5fc",.OPTION)  ;"at this point if a group is not returned set a message 
         . . NEW UNGROUPED
         . . SET UNGROUPED=$$GETNOGRP(.ITEMARRAY)
         . . NEW GRPSTR,GRPNAME

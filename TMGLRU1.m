@@ -61,14 +61,26 @@ REPORTONE(IEN,REF) ;"Report on 1 element, and all its contained ITEMS
   ;"Input: IEN -- IEN in 22751 
   ;"       REF -- PASS BY NAME.  An OUT PARAMETER
   ;"Output -- @REF is filled, format as follows
-  ;"       @REF@(#)=<IEN>^<Name>^<Type>^<Fasting>
-  ;"       @REF@(#,#)=<Name>^<Type>^<Fasting>  <-- 1 entry for each element in ITEMS
+  ;"       @REF@(#)=<IEN>^<Name>^<Type>^<Fasting>^<LinkDx>^<LinkableDxList "," separated>
+  ;"       @REF@(#,#)=<Name>^<Type>^<Fasting>^<LinkDx>  <-- 1 entry for each element in ITEMS
   ;"Result: None
   NEW ZN SET ZN=$GET(^TMG(22751,IEN,0))
   NEW NAME SET NAME=$PIECE(ZN,"^",1)
+  NEW TYPE SET TYPE=$PIECE(ZN,"^",2)
+  IF TYPE="I" DO
+  . NEW ICDPTR SET ICDPTR=+$PIECE($GET(^TMG(22751,IEN,2)),"^",1) QUIT:ICDPTR'>0
+  . NEW CODE SET CODE=$PIECE($GET(^ICD9(ICDPTR,0)),"^",1) QUIT:CODE=""
+  . SET NAME=NAME_" - "_CODE
   NEW TN SET TN=$GET(^TMG(22751,IEN,10))
-  ;"NEW IDX SET IDX=$ORDER(@REF@(""),-1)+1
-  SET @REF=IEN_"^"_NAME_"^"_$PIECE(ZN,"^",2)_"^"_$PIECE(TN,"^",1)
+  NEW FASTING SET FASTING=$PIECE(TN,"^",1)
+  NEW NEEDSLINKDX SET NEEDSLINKDX=$PIECE(TN,"^",2)
+  NEW DXLST SET DXLST="" IF $DATA(^TMG(22751,IEN,20)) DO
+  . NEW IDX SET IDX=0 
+  . FOR  SET IDX=$ORDER(^TMG(22751,IEN,20,IDX)) QUIT:IDX'>0  DO
+  . . NEW PTR SET PTR=+$GET(^TMG(22751,IEN,20,IDX,0)) QUIT:PTR'>0
+  . . IF DXLST'="" SET DXLST=DXLST_","
+  . . SET DXLST=DXLST_PTR
+  SET @REF=IEN_"^"_NAME_"^"_$PIECE(ZN,"^",2)_"^"_FASTING_"^"_NEEDSLINKDX_"^"_DXLST
   NEW JDX SET JDX=0
   FOR  SET JDX=$ORDER(^TMG(22751,IEN,1,JDX)) QUIT:JDX'>0  DO
   . NEW PTIEN SET PTIEN=+$GET(^TMG(22751,IEN,1,JDX,0))

@@ -584,7 +584,7 @@ SUGST4PROB(TEMP,TOPICNAME,PROBIEN) ;"Utility function for LKSUGEST above
   ;
 ICDDATA(CSYS,CODE,DATE,FRMT,LOC) ;"API Wrapper for ICDDATA^ICDXCODE(), with custom status checking
   ;"Input:  CSYS -- code system.  OPTIONAL.  If not provided, then first matching code system will be used. 
-  ;"        CODE -- Code/IEN/variable pointer 
+  ;"        CODE -- Code/IEN/variable pointer  <-- UPDATE: I don't think IEN works....
   ;"        DATE -- Code-Set Date (default = TODAY)
   ;"        FRMT -- "E" external (default)    
   ;"                "I" internal (IEN)
@@ -1508,7 +1508,7 @@ LABTEST(TMGRESULT,TMGDFN,TESTS,ICDS)  ;"RPC TMG LAB SAVE PRETEST
   NEW PROMPT SET PROMPT="Would you like to edit this encounter?"
   NEW LF SET LF="@@BR@@"
   NEW MESSAGE SET MESSAGE="YOU NEED MORE DIAGNOSES CODES (TEST)"
-  SET TMGRESULT="-1^"_HEADING_LF_LF_MESSAGE_LF_LF_PROMPT
+  ;"SET TMGRESULT="-1^"_HEADING_LF_LF_MESSAGE_LF_LF_PROMPT
   QUIT;
   ;"
 ENCTEST(TMGRESULT,TMGDFN,CPTS,ICDS) ;"RPC TMG ENC SAVE PRETEST
