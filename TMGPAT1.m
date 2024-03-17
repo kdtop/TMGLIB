@@ -679,16 +679,24 @@ FIXPATCH ;
         DO FIXPATCH^TMGPAT5
         QUIT
         ;
+STOREROOT() ;
+        QUIT $NAME(^TMP("TMGPAT1",$J))
+        ;
+STOREROOTVA() ;
+        NEW REF SET REF=$$STOREROOT()
+        SET REF=$NAME(@REF@("VA"))
+        QUIT REF
+        ;
 SETZRO1 ;"Restore $ZRO from save
         ;"NOTE: This function is for an Astronaut VistA layout (e.g. has /p and /r routines), on UNIX
-        NEW REF SET REF=$NAME(^TMG("TMP",$J))
+        NEW REF SET REF=$$STOREROOT()
         IF $DATA(@REF@("SAVED $ZRO")) DO SETZRO1X(REF) ;"Restore $ZRO from save
         QUIT
         ;
 SETZRO1V ;"Restore $ZRO from save
         ;"NOTE: this function is for use with normal VA KIDS patching menu, not the TMG one.
         ;"NOTE: This function is for an Astronaut VistA layout (e.g. has /p and /r routines), on UNIX
-        NEW REF SET REF=$NAME(^TMG("TMP",$J,"VA"))
+        NEW REF SET REF=$$STOREROOTVA()
         DO SETZRO1X(REF) ;"Restore $ZRO from save
         QUIT
         ;
@@ -719,7 +727,7 @@ SZ1DN   QUIT
 SETZRO2 ;"Save ZRO, and set $ZRO to value for use with patching (remove "/p" directory)
         ;"NOTE: This function is for an Astronaut VistA layout (e.g. has /p and /r routines), on UNIX
         NEW % SET %=1
-        NEW REF SET REF=$NAME(^TMG("TMP",$J))
+        NEW REF SET REF=$$STOREROOT()
         WRITE !,"Change $ZRO to correct folder for patching" DO YN^DICN WRITE !
         IF %=1 DO
         . DO SETZRO2X(REF)
@@ -729,7 +737,7 @@ SETZRO2 ;"Save ZRO, and set $ZRO to value for use with patching (remove "/p" dir
         ;
 SETZRO2V ;"Save ZRO, and set $ZRO to value for use with patching (remove "/p" directory)
         ;"NOTE: This function is for an Astronaut VistA layout (e.g. has /p and /r routines), on UNIX
-        NEW REF SET REF=$NAME(^TMG("TMP",$J,"VA"))
+        NEW REF SET REF=$$STOREROOTVA()
         DO SETZRO2X(REF)
         QUIT
         ;

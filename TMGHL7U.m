@@ -307,6 +307,7 @@ LMAPAPI(TMGENV,TEST,OUT) ;
         NEW ALTTESTID SET ALTTESTID=$PIECE(TEST,TMGU(2),4)
         NEW ALTTESTNAME SET ALTTESTNAME=$PIECE(TEST,TMGU(2),5)
         NEW X,Y,IEN61,IEN62,IEN64,TEMP,SYNONYM,TEMPNAME
+        NEW DBGIDX SET DBGIDX=0
         NEW IEN60 SET IEN60=0
 VMA1    FOR TEMPNAME=TESTID,TESTNAME,ALTTESTID,ALTTESTNAME QUIT:(+IEN60>0)  DO
         . IF $$TRIM^XLFSTR(TEMPNAME)="" QUIT
@@ -316,12 +317,15 @@ VMA1    FOR TEMPNAME=TESTID,TESTNAME,ALTTESTID,ALTTESTNAME QUIT:(+IEN60>0)  DO
         . SET OUT(TESTID,"SYN60")=SYN60  ;"//kt changed 30 -> 60
         . SET IEN60=+$ORDER(^LAB(60,"B",SYN60,""))  ;"//kt changed 30 -> 60
         . SET OUT(TESTID,"IEN60 source is via ^LAB(60,""B"","""_SYN60_""")")=IEN60
+        . SET DBGIDX=DBGIDX+1,OUT(TESTID,"DEBUG",DBGIDX)="Mapping '"_SYN60_"'-->IEN 60:  LAB TEST (60) IEN = "_IEN60_"  via ^LAB(60,""B"",["""_SYN60_"""])"
         IF IEN60'>0 DO  GOTO VMADN
         . SET TMGRESULT="-1^1^Can't find an existing map for test '"_TESTID_"'"
         . SET IEN60="??"
         NEW TMPOUT
         SET TMGRESULT=$$IEN60API(.TMGENV,.IEN60,.TMPOUT)
+        NEW DEBUGARR MERGE DEBUGARR=TMPOUT("DEBUG") KILL TMPOUT("DEBUG")        
         MERGE OUT(TESTID)=TMPOUT
+        MERGE OUT(TESTID,"DEBUG",2)=DEBUGARR KILL DEBUGARR
         ;" <------------------------------------>
         GOTO VMADN
         ;"NEW TESTNAME SET TESTNAME=$$GET1^DIQ(60,IEN60_",",.01)
@@ -383,6 +387,7 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         ;"          OUT("RESULTABLES","MAP 62.41->60")=NEWIEN60^NAME
         ;"          OUT("SPECIMEN (64.061)")=IEN64D061^Name
         ;"          OUT("SPECIMEN (61)")=IEN61^Name
+        ;"          OUT("DEBUG",#,#)=<text to help with debugging>
         ;"       ERR -- OPTIONAL.  PASS BY REFERENCE.  An OUT parameter.  Format:
         ;"         ERR(index)=<error message>
         ;"Result: 1 if OK, or 0^Message of mapping problem, or -1^Step#^Message if error.
@@ -396,19 +401,24 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         IF IEN60'>0 DO  GOTO I60DN
         . SET TMGRESULT="-1^No IEN60 provided."
         . SET ERR(EIDX)=TMGRESULT,EIDX=EIDX+1
+        NEW DBGIDX SET DBGIDX=0
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="Input IEN60="_IEN60
         ;"NEW TESTNAME SET TESTNAME=$$GET1^DIQ(60,IEN60_",",.01)     
         NEW TESTNAME SET TESTNAME=$PIECE($GET(^LAB(60,+IEN60,0)),"^",1)
         NEW LABPRNAME SET LABPRNAME=$PIECE($GET(^LAB(60,+IEN60,.1)),"^",1)        
         SET OUT("MAP SYN->60")=IEN60_"^"_TESTNAME_"^"_LABPRNAME
         SET OUT("IEN60")=IEN60_"^"_TESTNAME_"^"_LABPRNAME
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="IEN60 info: "_IEN60_"^"_TESTNAME_"^"_LABPRNAME
         NEW IEN64D061 SET IEN64D061=+$PIECE($GET(^LAB(60,+IEN60,"TMG")),"^",1)
         ;"SET OUT("NOTE: IEN SPECIMEN (64.061) source is via ""^LAB(60,"_+IEN60_",""TMG""), piece #1")=IEN64D061 
         SET OUT("SPECIMEN (64.061)")=IEN64D061_"^"_$PIECE($GET(^LAB(64.061,IEN64D061,0)),"^",1)
-        SET OUT("SPECIMEN (64.061)","NOTE: IEN SPECIMEN (64.061) source is via ""^LAB(60,"_+IEN60_",""TMG""), piece #1")=IEN64D061 
+        SET OUT("SPECIMEN (64.061)","NOTE: IEN SPECIMEN (64.061) source is via ""^LAB(60,"_+IEN60_",""TMG""), piece #1")=IEN64D061
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="SPECIMEN (64.061) IEN = "_IEN64D061_", via source ""^LAB(60,["_+IEN60_"],""TMG""), piece #1"
         NEW IEN61 SET IEN61=+$PIECE($GET(^LAB(60,+IEN60,"TMG")),"^",2)
         ;"SET OUT("NOTE: IEN SPECIMEN (61) source is via ""^LAB(60,"_+IEN60_",""TMG""), piece #2")=IEN61 
         SET OUT("SPECIMEN (61)")=IEN61_"^"_$PIECE($GET(^LAB(61,IEN61,0)),"^",1)
         SET OUT("SPECIMEN (61)","NOTE: IEN SPECIMEN (61) source is via ""^LAB(60,"_+IEN60_",""TMG""), piece #2")=IEN61 
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="SPECIMEN (61) IEN = "_IEN61_", via source ""^LAB(60,["_+IEN60_"],""TMG""), piece #2"
         SET IEN64=+$PIECE($GET(^LAB(60,IEN60,64)),"^",1)  ;"64;1 = NATIONAL VA LAB CODE
         ;"SET OUT("NOTE: IEN 64 (NLT) source is via ""^LAB(60,"_+IEN60_",64), piece #1")=IEN64 
         IF IEN64'>0 DO
@@ -420,10 +430,13 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         SET OUT("VA CODE")=IEN64_"^"_$P(TEMP,"^",2)_"^"_$P(TEMP,"^",1) 
         SET OUT("VA CODE","NOTE: IEN 64 (NLT) source is via ""^LAB(60,"_+IEN60_",64), piece #1")=IEN64 
         ;"SET OUT("NOTE: VA CODE info source is via ""^LAM("_+IEN64_",0)")=TEMP 
-        SET OUT("VA CODE","NOTE: VA CODE info source is via ""^LAM("_+IEN64_",0)")=TEMP 
+        SET OUT("VA CODE","NOTE: VA CODE info source is via ""^LAM("_+IEN64_",0)")=TEMP
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="NLT (64) IEN = "_IEN64_", via source ""^LAB(60,["_+IEN60_"],64), piece #1"
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="VA CODE = '"_OUT("VA CODE")_"' via ""^LAM(["_+IEN64_"],0)"
         SET IEN64=$PIECE($GET(^LAB(60,IEN60,64)),"^",2)   ;"64;2= RESULT NLT CODE
         ;"SET OUT("NOTE: 2nd IEN 64 (National VA Lab Code) source is via ""^LAB(60,"_+IEN60_",64), piece #2")=IEN64 
         SET OUT("VA CODE","NOTE: 2nd IEN 64 (National VA Lab Code) source is via ""^LAB(60,"_+IEN60_",64), piece #2")=IEN64 
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="2nd IEN 64 (National VA Lab Code) = "_IEN64_" via ""^LAB(60,["_+IEN60_"],64), piece #2"
         IF IEN64'>0 DO
         . IF TMGRESULT'<0 DO
         . . SET TMGRESULT="-1^Unable to find value for IEN64 at ^LAB(60,"_IEN60_",64), piece 2)"
@@ -434,21 +447,26 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         SET OUT("NLT CODE")=IEN64_"^"_NLTCODE_"^"_$P(TEMP,"^",1)
         ;"SET OUT("NOTE: NLT CODE source is via ""^LAM("_+IEN64_",0), piece #2")=NLTCODE 
         SET OUT("NLT CODE","NOTE: NLT CODE source is via ""^LAM("_+IEN64_",0), piece #2")=NLTCODE 
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="NLT CODE = '"_OUT("NLT CODE")_"' via ""^LAM(["_+IEN64_"],0), piece #2"
         NEW FLD63D04 SET FLD63D04=+$PIECE($GET(^LAB(60,IEN60,.2)),"^",1)
         NEW DATANAME SET DATANAME=$PIECE($GET(^DD(63.04,FLD63D04,0)),"^",1)
         SET OUT("STORAGE FLD 63.04")=FLD63D04_"^"_DATANAME
         ;"SET OUT("NOTE: STORAGE FLD 63.04 source is via ""^LAB(60,"_+IEN60_",.2), piece #1")=FLD63D04_"^"_DATANAME 
-        SET OUT("STORAGE FLD 63.04","NOTE: STORAGE FLD 63.04 source is via ""^LAB(60,"_+IEN60_",.2), piece #1")=FLD63D04_"^"_DATANAME 
+        SET OUT("STORAGE FLD 63.04","NOTE: STORAGE FLD 63.04 source is via ""^LAB(60,"_+IEN60_",.2), piece #1")=OUT("STORAGE FLD 63.04") 
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="STORAGE FLD 63.04 ='"_OUT("STORAGE FLD 63.04")_"' via ""^LAB(60,["_+IEN60_"],.2), piece #1, and ^DD(63.04,"_FLD63D04_",0)),piece #1"
         NEW PROFILE SET PROFILE=1  ;"CHECK!!! <-- I don't know if this is always correct
         NEW IEN68D24 SET IEN68D24=+$ORDER(^LRO(68.2,+IEN68D2,10,PROFILE,1,"B",+IEN60,"")) ;
         ;"SET OUT("NOTE: IEN 68.24 source is via ""^LRO(68.2,"_+IEN68D2_",10,"_PROFILE_",1,""B"","_+IEN60_","""")")=IEN68D24 
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="IEN 68.24 source = "_IEN68D24_" via ""^LRO(68.2,["_+IEN68D2_"],10,"_PROFILE_",1,""B"",["_+IEN60_"],"""")"
         IF IEN68D24'>0 DO  ;"GOTO VMADN
         . SET TMGRESULT="-1^2^Test not found -- i.e. not individually orderable)"
         . SET ERR(EIDX)=TMGRESULT,EIDX=EIDX+1
         . SET IEN68D24="??"
         ;"SET OUT("ORDERABLES","MAP 60->68.24")=IEN68D24
         SET OUT("ORDERABLES","MAP 60->68.24","NOTE: IEN 68.24 source is via ""^LRO(68.2,"_+IEN68D2_",10,"_PROFILE_",1,""B"","_+IEN60_","""")")=IEN68D24 
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="Orderable map 60->68.24: IEN 68.24 = "_IEN68D24_" via ""^LRO(68.2,["_+IEN68D2_"],10,["_PROFILE_"],1,""B"",["_+IEN60_"],"""")"
         ;"Look up NLT code in auto instrument file, and get pointed to ien60.
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="Next, look up NLT code in auto instrument file, and get pointed-to ien60."
         IF NLTCODE'>0 GOTO VMADN
         NEW IEN62D41 SET IEN62D41=+$ORDER(^LAB(62.4,IEN62D4,3,"AC",NLTCODE,""))
         ;"SET OUT("NOTE: IEN62.41 source is via ""^LAB(62.4,"_+IEN62D4_",3,""AC"","""_NLTCODE_""","")")=IEN62D41
@@ -459,12 +477,15 @@ IEN60API(TMGENV,IEN60,OUT,ERR) ;
         . . SET ERR(EIDX)=TMGRESULT,EIDX=EIDX+1
         SET OUT("RESULTABLES","MAP NLT->62.41")=IEN62D41
         SET OUT("RESULTABLES","MAP NLT->62.41","NOTE: IEN62.41 source is via ""^LAB(62.4,"_+IEN62D4_",3,""AC"","""_NLTCODE_""","")")=IEN62D41        
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="MAP NLT->62.41: IEN62.41 ="_IEN62D41_" via ""^LAB(62.4,["_+IEN62D4_"],3,""AC"",["""_NLTCODE_"""],"")"
         NEW NEWIEN60 SET NEWIEN60=+$PIECE($GET(^LAB(62.4,IEN62D4,3,IEN62D41,0)),"^",1)
         ;"SET OUT("NOTE: NEWIEN60 source is via ""^LAB(62.4,"_IEN62D4_",3,"_IEN62D41_",0)"", piece #1)")=NEWIEN60
         SET OUT("IEN60 #2")=NEWIEN60
         SET OUT("IEN60 #2","NOTE: NEWIEN60 source is via ""^LAB(62.4,"_IEN62D4_",3,"_IEN62D41_",0)"", piece #1)")=NEWIEN60        
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="NEWIEN60 = "_NEWIEN60_" via ""^LAB(62.4,["_IEN62D4_"],3,["_IEN62D41_"],0)"", piece #1)"
         IF NEWIEN60'>0 SET NEWIEN60="??"
         SET OUT("RESULTABLES","MAP 62.41->60")=NEWIEN60_"^"_$PIECE($GET(^LAB(60,NEWIEN60,0)),"^",1)
+        SET DBGIDX=DBGIDX+1,OUT("DEBUG",1,DBGIDX)="RESULTABLES, MAP 62.41->60: NEWIEN60 = "_OUT("RESULTABLES","MAP 62.41->60")
         IF NEWIEN60'=IEN60 DO
         . IF TMGRESULT'<0 DO
         . . SET TMGRESULT="0^Notice that pointed-to tests (file #60) are different!"

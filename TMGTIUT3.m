@@ -19,6 +19,7 @@ TMGTIUT3 ;TMG/kst-TIU-related code ; 5/20/15, 4/11/17, 3/15/23
   ;"TOPRBLNK(OUT,IN)  --TOPIC-PROBLEM LINK entry point.  RPC: TMG CPRS TOPIC LINKS
   ;"TOPICLST(OUT,ADFN,STARTING,DIR,MAX) -- List all topics in file 22719.51 (a subfile), or subset thereof. RPC: TMG CPRS TOPIC SUBSET
   ;"LKSUGEST(OUT,TOPIC)  -- Suggest info for problems to create for given topic. RPC ENTRY POINT FOR: TMG CPRS TOPIC CODE SUGGEST
+  ;"ORDERDXS(OUT,ADFN) -- Get list of possible diagnoses for user to pick from, to be used in lab order dialog  
   ;"DXLIST(OUT,ADFN,CMD,SDT) -- Get list of possible diagnoses for user to pick from, during patient encounter.  RPC NAME:  TMG CPRS ENCOUNTER GET DX LIST
   ;"SUMNOTE(IEN8925,ARRAY) -- Get back summary data from prior parsing and storage. 
   ;"THREADS(OUT,ADFN,IEN8925,ARRAY) -- Get THREADS info for note
@@ -678,6 +679,59 @@ TESTSGST2 ;
   ZWR OUT
   QUIT
   ;"==========================================================
+  ;
+ORDERDXS(OUT,ADFN,SDT) ;"Get list of possible diagnoses for user to pick from, to be used in lab order dialog
+  ;"RPC NAME:  TMG CPRS LAB ORDER GET DX LIST
+  ;"Input:  OUT  -- output.  Format depends on command
+  ;"        ADFN -- patient DFN
+  ;"        SDT -- optional
+  ;"OUTPUT:  OUT -- 
+  ;"           OUT(0)="1^OK", OR "-1^<ErrorMessage>"
+  ;"           OUT(#)="2^<PROBLEM INFORMATION>  <--- format as created by LIST^ORQQPL3
+  ;"               FORMAT of PROBLEM INFORMATION by pieces.  
+  ;"                  1    2       3         4   5       6          7   8      9       10    11      12     13      14       15             16           17              18                19                 20                    
+	;"                 ifn^status^description^ICD^onset^last modified^SC^SpExp^Condition^Loc^loc.type^prov^service^priority^has comment^date recorded^SC condition(s)^inactive flag^ICD long description^ICD coding system
+	;"                   NOTE: ifn = Pointer to Problem #9000011
+  ;"               NOTES:
+  ;"                 PIECE#1 = 3 means node is a listing of PROBLEM
+  ;"                 If problem already listed in a 1 or 2 node, then it will NOT be listed here
+  ;"           OUT(#)="3^<PRIOR ICD>^<ICD LONG NAME>^<FMDT LAST USED>^<ICDCODESYS>" 
+  ;"               NOTES:
+  ;"                 PIECE#1 = 4 means that information is for an ICD code that was previously set for a patient visit.
+  ;"                 If ICD has already been included in a piece#1=1 node, then it will NOT be listed here.  
+  ;"RESULT: none. But OUT(0) = 1^OK, or -1^ErrorMessage
+  ;
+  NEW TMGZZDB SET TMGZZDB=0
+  IF TMGZZDB=1 DO
+  . SET ADFN=$GET(^TMG("TMP","ORDERDXS^TMGTIIUT3","ADFN"))
+  . SET CMD=$GET(^TMG("TMP","ORDERDXS^TMGTIIUT3","CMD"))
+  . SET SDT=$GET(^TMG("TMP","ORDERDXS^TMGTIIUT3","SDT"))
+  ELSE  DO
+  . KILL ^TMG("TMP","ORDERDXS^TMGTIIUT3")
+  . SET ^TMG("TMP","ORDERDXS^TMGTIIUT3","ADFN")=$GET(ADFN)
+  . SET ^TMG("TMP","ORDERDXS^TMGTIIUT3","CMD")=$GET(CMD)
+  . SET ^TMG("TMP","ORDERDXS^TMGTIIUT3","SDT")=$GET(SDT)
+  ;    
+  SET OUT(0)="1^OK"  ;"default
+  SET ADFN=+$GET(ADFN)
+  SET SDT=+$GET(SDT)
+  NEW IDX SET IDX=1
+  NEW JDX SET JDX=0
+  NEW PROBLIST DO PROBLST(.PROBLIST,ADFN,SDT)
+  NEW ICDLIST DO ICDLIST(.ICDLIST,ADFN,3160101)  ;"SET THE START DATE TO 1/1/2016 TO LIMIT ICD-9 CODES
+  ;"------- listing of PROBLEMs ----------------------------  
+  SET JDX=0
+  FOR  SET JDX=$ORDER(PROBLIST(JDX)) QUIT:JDX'>0  DO
+  . NEW LINE SET LINE=$GET(PROBLIST(JDX)) QUIT:JDX=""
+  . NEW IEN SET IEN=+LINE QUIT:IEN'>0
+  . SET OUT(IDX)="2^"_LINE,IDX=IDX+1
+  ;"------- Listing of prior ICD codes -----------------------  
+  SET JDX=0
+  FOR  SET JDX=$ORDER(ICDLIST(JDX)) QUIT:JDX'>0  DO
+  . NEW LINE SET LINE=$GET(ICDLIST(JDX)) QUIT:JDX=""
+  . SET OUT(IDX)="3^"_LINE,IDX=IDX+1
+  ;"-------------------------------------------------------------  
+  QUIT
   ;
 DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from, during patient encounter
   ;"RPC NAME:  TMG CPRS ENCOUNTER GET DX LIST
@@ -1483,32 +1537,59 @@ SECTSUBIEN(IEN22753,FLD01,ERRORMSG)   ;
   . DO ADDERROR(.ERRORMSG,"Unable to find subfile record.  Got [.01="_$GET(ARR2(.01))_"]")
   QUIT Y
   ;
-ADDERROR(ERRORMSG,ERROR)
+ADDERROR(ERRORMSG,ERROR)  ;
   IF $get(ERRORMSG)'="" SET ERRORMSG=ERRORMSG_","
   SET ERRORMSG=$GET(ERRORMSG)_ERROR
   QUIT
   ;
 TESTEDITENC ;
   NEW ARR
-  SET ARR(1)="ADD^SECTION^0^.01=Misc^.02=12"                        ; <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
-  SET ARR(1.5)="ADD^SECTION^0^.01=Misc^.02=12"                        ; <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
-  SET ARR(2)="EDIT^SECTION^.01=Misc^.01=Misc-Stuff"                 ; <-- rename .01 field  
-  SET ARR(3)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus"  ; <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
-  SET ARR(3.5)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus"  ; <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
-  SET ARR(4)="EDIT^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Planus,Pes" ; <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
-  SET ARR(5)="DEL^ENTRY^.01=Misc-Stuff^.01=`572555"                 ; <-- delete entry for ICD (IEN80) 667788, in section `4567
-  SET ARR(6)="DEL^SECTION^.01=Misc-Stuff"                           ; <-- DELETE entry NOTE: this will kill all contained child entries!
+  SET ARR(1)="ADD^SECTION^0^.01=Misc^.02=12"                          ;" <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
+  SET ARR(1.5)="ADD^SECTION^0^.01=Misc^.02=12"                        ;" <-- ADD new section named Misc with sequence of 12.  NOTE: don't include any child entries here.  
+  SET ARR(2)="EDIT^SECTION^.01=Misc^.01=Misc-Stuff"                   ;" <-- rename .01 field  
+  SET ARR(3)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus"    ;" <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  SET ARR(3.5)="ADD^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Pes Planus"  ;" <-- add 'Pes Planus', for ICD (IEN80) 667788, into section `4567
+  SET ARR(4)="EDIT^ENTRY^.01=Misc-Stuff^.01=`572555^.03=Planus,Pes"   ;" <-- edit ICD (IEN80) 667788, in section `4567, to have new .03 value
+  SET ARR(5)="DEL^ENTRY^.01=Misc-Stuff^.01=`572555"                   ;" <-- delete entry for ICD (IEN80) 667788, in section `4567
+  SET ARR(6)="DEL^SECTION^.01=Misc-Stuff"                             ;" <-- DELETE entry NOTE: this will kill all contained child entries!
   NEW TMGRESULT
   DO ENCEDIT(.TMGRESULT,.ARR)  ;"RPC: TMG CPRS ENCOUNTER EDIT
   QUIT
   ;"
 LABTEST(TMGRESULT,TMGDFN,TESTS,ICDS)  ;"RPC TMG LAB SAVE PRETEST
+  NEW TMGDEBUG SET TMGDEBUG=0
+  IF TMGDEBUG=1 DO
+  . SET TMGDFN=$G(^TMG("LABTEST","TMGDFN"))
+  . SET TESTS=$G(^TMG("LABTEST","TESTS"))
+  . SET ICDS=$G(^TMG("LABTEST","ICDS"))
+  ELSE  DO
+  . SET ^TMG("LABTEST","TMGDFN")=TMGDFN
+  . SET ^TMG("LABTEST","TESTS")=TESTS
+  . SET ^TMG("LABTEST","ICDS")=ICDS
   SET TMGRESULT="1^SUCCESS"
-  NEW HEADING SET HEADING="YOUR ENCOUNTER INFORMATION HAS THE FOLLOWING WARNINGS"
-  NEW PROMPT SET PROMPT="Would you like to edit this encounter?"
+  NEW HEADING SET HEADING="YOUR LAB ORDER HAS THE FOLLOWING WARNINGS"
+  NEW PROMPT SET PROMPT="Would you like to edit this lab order?"
   NEW LF SET LF="@@BR@@"
-  NEW MESSAGE SET MESSAGE="YOU NEED MORE DIAGNOSES CODES (TEST)"
-  ;"SET TMGRESULT="-1^"_HEADING_LF_LF_MESSAGE_LF_LF_PROMPT
+  NEW TODAY SET TODAY=$$TODAY^TMGDATE
+  NEW AGE
+  K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+  NEW SEX SET SEX=$P($G(^DPT(TMGDFN,0)),"^",2)
+  NEW MESSAGE SET MESSAGE=""   ;"SET MESSAGE="YOU NEED MORE DIAGNOSES CODES (TEST)"
+  IF $$UP^XLFSTR(TESTS)["HGBA1C" DO
+  . NEW LASTA1CDT,LASTA1C DO GETLLAB^TMGPXR01(TMGDFN,97,.LASTA1CDT,.LASTA1C)
+  . SET LASTA1CDT=$P(LASTA1CDT,".",1)
+  . NEW DAYSDIFF SET DAYSDIFF=$$DAYSDIFF^TMGDATE(TODAY,LASTA1CDT)
+  . IF DAYSDIFF="" SET DAYSDIFF=999999
+  . IF (ICDS["R73.09")!(ICDS["E11.9")!(ICDS["E11.65") QUIT
+  . IF DAYSDIFF<1095 DO
+  . . IF MESSAGE'="" SET MESSAGE=MESSAGE_LF
+  . . SET MESSAGE=MESSAGE_"LAST A1C WAS DONE ON: "_$$EXTDATE^TMGDATE(LASTA1CDT)_". A SCREENING CODE MAY NOT COVER THIS ONE. (ONLY 1 EVERY 3 YRS IS ALLOWED)"
+  IF ($$UP^XLFSTR(ICDS)["BPH")!($$UP^XLFSTR(ICDS)["PROSTATE")!($$UP^XLFSTR(ICDS)["N40.0") DO
+  . IF SEX="F" DO 
+  . . IF MESSAGE'="" SET MESSAGE=MESSAGE_LF
+  . . SET MESSAGE=MESSAGE_"A DIAGNOSIS CONCERNING PROSTATE WAS SELECTED FOR A FEMALE PATIENT."
+  IF MESSAGE'="" DO
+  . SET TMGRESULT="-1^"_HEADING_LF_LF_MESSAGE_LF_LF_PROMPT
   QUIT;
   ;"
 ENCTEST(TMGRESULT,TMGDFN,CPTS,ICDS) ;"RPC TMG ENC SAVE PRETEST
@@ -1518,13 +1599,13 @@ ENCTEST(TMGRESULT,TMGDFN,CPTS,ICDS) ;"RPC TMG ENC SAVE PRETEST
   NEW LF SET LF="@@BR@@"
   NEW TMGTEST SET TMGTEST=0
   IF TMGTEST=1 DO
-  . SET TMGDFN=$G(^TMG("ENCTEST","DFN"))
-  . SET CPTS=$G(^TMG("ENCTEST","CPTS"))
-  . SET ICDS=$G(^TMG("ENCTEST","ICDS"))
+  . SET TMGDFN=$GET(^TMG("ENCTEST","DFN"))
+  . SET CPTS=$GET(^TMG("ENCTEST","CPTS"))
+  . SET ICDS=$GET(^TMG("ENCTEST","ICDS"))
   ELSE  DO
-  . SET ^TMG("ENCTEST","DFN")=$G(TMGDFN)
-  . SET ^TMG("ENCTEST","CPTS")=$G(CPTS)
-  . SET ^TMG("ENCTEST","ICDS")=$G(ICDS)
+  . SET ^TMG("ENCTEST","DFN")=$GET(TMGDFN)
+  . SET ^TMG("ENCTEST","CPTS")=$GET(CPTS)
+  . SET ^TMG("ENCTEST","ICDS")=$GET(ICDS)
   NEW CPTARR,ICDARR,MESSAGE
   DO STR2ARR(.CPTARR,CPTS,"^")
   DO STR2ARR(.ICDARR,ICDS,"^")
@@ -1533,18 +1614,33 @@ ENCTEST(TMGRESULT,TMGDFN,CPTS,ICDS) ;"RPC TMG ENC SAVE PRETEST
   SET MESSAGE=""
   DO INSCPE(.CPTARR,TMGDFN,.MESSAGE,LF)
   DO CPEAGE(.CPTARR,TMGDFN,.MESSAGE,LF)
-  ;"
-    
+  DO ADDON(.CPTARR,TMGDFN,.MESSAGE,LF)
+  ;"   
   IF MESSAGE'="" SET TMGRESULT="-1^"_HEADING_LF_LF_MESSAGE_LF_LF_PROMPT
   QUIT
   ;"
-STR2ARR(ARRAY,STR,DELIM)
+STR2ARR(ARRAY,STR,DELIM)  ;
   ;"PARSE A LINE INTO AN ARRAY, USING GIVEN DELIM
   NEW CODE,PIECE SET PIECE=1
   NEW DN SET DN=""
-  FOR  SET CODE=$P(STR,DELIM,PIECE) QUIT:CODE=""  DO
+  FOR  SET CODE=$PIECE(STR,DELIM,PIECE) QUIT:CODE=""  DO
   . SET PIECE=PIECE+1
   . SET ARRAY(CODE)=""
+  QUIT
+  ;"
+ADDON(CPTARR,TMGDFN,MESSAGE,LF)  ;
+  NEW INS SET INS="^"_$$GETPINS(TMGDFN)_"^"
+  NEW TESTINS SET TESTINS="^AARP / Secure Horizon^BC/BS ADVANTAGE^HUMANA GOLD^MEDICARE^"
+  ;"NEW TESTINS SET TESTINS="^MEDICARE^"  ;"only medicare for now
+  NEW GCODE SET GCODE=0
+  NEW EMCODE SET EMCODE=0
+  NEW CPT SET CPT=""
+  FOR  SET CPT=$O(CPTARR(CPT)) QUIT:CPT=""  DO
+  . IF CPT="G2211" SET GCODE=1
+  . IF CPT["99214" SET EMCODE=CPT
+  . IF CPT["99215" SET EMCODE=CPT
+  IF (GCODE=0)&(EMCODE>0) DO
+  . DO ADDMSG(.MESSAGE,LF,"You coded "_EMCODE_" but did not code G2211")
   QUIT
   ;"
 INSCPE(CPTARR,TMGDFN,MESSAGE,LF)
@@ -1570,11 +1666,11 @@ LASTCPE(TMGDFN)
  NEW CPTARRAY,IEN,VISITIEN,CPTIEN,VISITDATE
  SET IEN=0
  FOR  SET IEN=$O(^AUPNVCPT("C",TMGDFN,IEN)) QUIT:IEN'>0  DO 
- . SET CPTIEN=$P($G(^AUPNVCPT(IEN,0)),"^",1)
+ . SET CPTIEN=$PIECE($GET(^AUPNVCPT(IEN,0)),"^",1)
  . IF (CPTIEN'["9939")&(CPTIEN'["9938") QUIT
- . SET VISITIEN=$P($G(^AUPNVCPT(IEN,0)),"^",3)
- . SET VISITDATE=$P($G(^AUPNVSIT(VISITIEN,0)),"^",1)
- . SET VISITDATE=$P(VISITDATE,".",1)
+ . SET VISITIEN=$PIECE($GET(^AUPNVCPT(IEN,0)),"^",3)
+ . SET VISITDATE=$PIECE($GET(^AUPNVSIT(VISITIEN,0)),"^",1)
+ . SET VISITDATE=$PIECE(VISITDATE,".",1)
  . IF VISITDATE=$$TODAY^TMGDATE QUIT
  . SET CPTARRAY(VISITDATE)=CPTIEN
  IF $D(CPTARRAY) DO
@@ -1614,12 +1710,12 @@ GETPINS(TMGDFN)  ;"GET PATIENT'S PRIMARY INSURANCE
   NEW INSIDX SET INSIDX=0
   NEW INSIEN
   FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
-  . SET INSIEN=$P($GET(^DPT(TMGDFN,.312,INSIDX,0)),"^",1)
+  . SET INSIEN=$PIECE($GET(^DPT(TMGDFN,.312,INSIDX,0)),"^",1)
   . NEW INSNAME SET INSNAME=$PIECE($GET(^DIC(36,INSIEN,0)),"^",1)
-  . NEW COB SET COB=+$P($G(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)
+  . NEW COB SET COB=+$PIECE($GET(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)
   . IF COB'>0 QUIT
   . IF INSNAME["(" DO
-  . . SET INSNAME=$P(INSNAME,"(",1)
+  . . SET INSNAME=$PIECE(INSNAME,"(",1)
   . SET INSNAME=$$TRIM^XLFSTR(INSNAME)
   . SET TMGRESULT=INSNAME
   QUIT TMGRESULT

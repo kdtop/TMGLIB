@@ -313,6 +313,7 @@ ADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         SET INSARRAY(+$ORDER(^DIC(36,"B","AARP",0)))=""
         SET INSARRAY(+$ORDER(^DIC(36,"B","AARP / Secure Horizon",0)))=""
         SET INSARRAY(+$ORDER(^DIC(36,"B","UNITED HEALTHCARE - SECURE HORIZONS",0)))=""
+        ;"SET INSARRAY(+$ORDER(^DIC(36,"B","UHC-DSNP",0)))=""   ;"THIS MAY NEED TO BE ALTERED FOR TINCY CUTSHAW'S INSURANCE
         ;"IF BCBSAIEN'>0 GOTO BCDN
         NEW INSIDX SET INSIDX=0
         FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
@@ -956,7 +957,9 @@ PTHASTOP(TMGDFN,TOPICNAME)  ;"DOES THIS PATIENT HAS TOPIC
         NEW FOUNDOFFNOTE SET FOUNDOFFNOTE=0  ;"10/28/21 ONLY USE LAST OFFICE NOTE
         FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719),-1) QUIT:(IEN22719'>0)!(FOUNDOFFNOTE=1)  DO
         . NEW NOTEIEN SET NOTEIEN=$P($G(^TMG(22719,IEN22719,0)),"^",1);"10/28/21
+        . IF +NOTEIEN'>0 QUIT
         . NEW NOTETYPE SET NOTETYPE=$P($G(^TIU(8925,NOTEIEN,0)),"^",1);"10/28/21
+        . IF +NOTETYPE'>0 QUIT
         . SET OFFICENOTE=$P($G(^TIU(8925.1,NOTETYPE,"TMGH")),"^",1);"10/28/21
         . IF OFFICENOTE="Y" SET FOUNDOFFNOTE=1  ;"10/28/21
         . NEW TOPICTEXT SET TOPICTEXT=""
@@ -2407,6 +2410,30 @@ BMICOHRT(TMGDFN,TEST,DATE,DATA,TEXT)
         . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
+B12COHRT(TMGDFN,TEST,DATE,DATA,TEXT)       
+        ;"Purpose: Return whether patient should be considered for B-12
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0,DATE=0
+        SET WHY=""
+        NEW TMGRESULT,MEDARR SET TMGRESULT=$$ONB12TX^TMGC0QT4(TMGDFN,$$TODAY^TMGDATE,.MEDARR)
+        IF $D(MEDARR) DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE       
+        . SET WHY="REMINDER DUE BECAUSE PATIENT IS ON: "_$C(13,10)
+        . NEW MEDNAME SET MEDNAME="" 
+        . FOR  SET MEDNAME=$ORDER(MEDARR(MEDNAME)) QUIT:MEDNAME=""  DO
+        . . SET WHY=WHY_MEDNAME_$C(13,10)
+        QUIT WHY
+        ;"        
 ONMEMMEDS(TMGDFN,TEST,DATE,DATA,TEXT)       
         ;"Purpose: CF if patient is on memory meds 
         ;"Input: TMGDFN -- the patient IEN

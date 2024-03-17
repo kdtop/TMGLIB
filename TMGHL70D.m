@@ -186,18 +186,50 @@ EXFMDN        QUIT
 DELMAP(TMGENV,TMGTESTMSG,TMGHL7MSG)  ;"DELETE MAPPING 
         ;"Purpose: remove maping between lab code and LABORATORY TEST entry.
         ;"Input: TMGENV -- Environment array.  See definition elsewhere. 
-        ;"       TMGTESTMSG (not yet used)
-        ;"       TMGHL7MSG (not yet used)
+        ;"       TMGTESTMSG 
+        ;"       TMGHL7MSG 
         ;"Note: uses globally-scoped vars" TMGLABPREFIX
         ;"NOTE:  Future fix needed!!
         ;"  this removes maping between TESTID and IEN60.  However, it should ALSO ensure
         ;"  that the mapping between corresponding TESTNAME is removed.  
         ;"  It should allow user to pick from HL7 message (as is done for showing map), and then
-        ;"  remove map for each...  TO DO...  
-        write !,"TO DO: change DELMAP^TMGHL70D such that can pick code, as in GETTESTFROM^TMGHL70",!,!
-        WRITE "Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
-        NEW TESTID READ TESTID:$GET(DTIME,3600),!
-        IF "^"[TESTID GOTO DMDN
+        ;"  remove map for each...  TO DO...
+        ;
+        ;"WRITE !,"TO DO: change DELMAP^TMGHL70D such that can pick code, as in GETTESTFROM^TMGHL70",!,!        
+        ;"WRITE "Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
+        ;"NEW TESTID READ TESTID:$GET(DTIME,3600),!
+        ;
+        NEW TESTID
+        IF $DATA(TMGTESTMSG)=0 DO  GOTO DLM2
+        . WRITE !,"Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
+        . READ TESTID:$GET(DTIME,3600),!
+        ;        
+        NEW TMGU MERGE TMGU=TMGENV("TMGU")
+        NEW TEST SET TEST=$$GETTESTFROM^TMGHL70(.TMGTESTMSG,.TMGHL7MSG,.TMGU) ;"GET LAB TEST FROM TEST HL7 MESSAGE
+        ;"sample return: 1989-3^Vitamin D 25-Hydroxy^LN'  //kt changed 6/5/20.  Had returned just TestID before.
+        SET TESTID=$PIECE(TEST,TMGU(2),1)
+        IF TEST'["^" GOTO DLM2
+        NEW TESTNAME SET TESTNAME=$PIECE(TEST,TMGU(2),2)
+        WRITE !,"NOTE: Mapping should be deleted by BOTH TestID AND TestName",!
+        WRITE "      This is because when processing HL7 message, if test can't be",!
+        WRITE "      found by ID, then the system falls back to lookup by name.",!
+        WRITE "      Thus after removing TESTID map, the map might persist via TESTNAME",! 
+        ;
+        NEW TMGUSERINPUT,TMGMNU,TMGMNUI
+DLM1    KILL TMGMNUI SET TMGMNUI=0
+        SET TMGMNU(TMGMNUI)="Pick Which Mapping To DELETE",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="TestID: "_TESTID_$CHAR(9)_"TestID",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Test Name: "_TESTNAME_$CHAR(9)_"TestName",TMGMNUI=TMGMNUI+1
+        WRITE !
+        SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
+        ;
+        IF TMGUSERINPUT="TestID" GOTO DLM2
+        IF TMGUSERINPUT="TestName" SET TESTID=TESTNAME GOTO DLM2
+        IF TMGUSERINPUT="^" GOTO DMDN
+        IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
+        GOTO DLM1
+        ;                
+DLM2    IF "^"[TESTID GOTO DMDN
         NEW TMGLABPREFIX SET TMGLABPREFIX=$GET(TMGENV("PREFIX"))
         NEW SYNONYM SET SYNONYM=TMGLABPREFIX_"-"_TESTID
         NEW SYN60 SET SYN60=$E(SYNONYM,1,30)  ;"//kt changed 30 -> 60

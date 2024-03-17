@@ -1041,13 +1041,13 @@ ScanMod(Module,pArray)
         ;"
         ;"Output: Results are put into array
         ;"Result: none
-
         NEW smIdx SET smIdx=1
         NEW LabelNum SET LabelNum=0
         NEW smLine SET smLine=""
         IF $GET(Module)="" GOTO SMDone
-
+        ;
         FOR  DO  QUIT:(smLine="")
+        . NEW $ETRAP SET $ETRAP="WRITE ""Error Trapped."",! SET $ETRAP="""",$ECODE="""",smLine="""""
         . NEW smCh
         . SET smLine=$text(+smIdx^@Module)
         . IF smLine="" QUIT
@@ -1055,17 +1055,23 @@ ScanMod(Module,pArray)
         . SET smCh=$EXTRACT(smLine,1)
         . IF (smCh'=" ")&(smCh'=";") DO
         . . NEW label
-        . . SET label=$PIECE(smLine," ",1)
+        . . NEW POS SET POS=$$POSSET^TMGSTUT3(smLine," (")
+        . . IF POS>0 DO
+        . . . SET label=$EXTRACT(smLine,1,POS-1)
+        . . ELSE  DO        
+        . . . SET label=$PIECE(smLine," ",1)
         . . SET LabelNum=LabelNum+1
         . . SET @pArray@(LabelNum,"TAG")=label
         . . SET @pArray@(LabelNum,"OFFSET")=smIdx
         . . SET @pArray@(label)=LabelNum
         . SET smIdx=smIdx+1
-
-SMDone
+        ;
+SMDone  ;
         QUIT
-
-
+        ;
+CONVERTPOS(POS,PARRAY) ;"Uppercase case wrapper. 
+        QUIT $$ConvertPos(.POS,.PARRAY) ;h
+        ;
 ConvertPos(Pos,pArray)
         ;"Purpose: to convert a text positioning line from one that is relative to the last tag/label, into
         ;"              one that is relative to the start of the file
@@ -1090,36 +1096,34 @@ ConvertPos(Pos,pArray)
         ;"            NOTE: -- IF array passed is empty, then this function will call ScanModule to fill it
         ;"Result: returns the NEW position line, relative to the start of the file/module
         ;"
-
         NEW cpS
         NEW cpResult SET cpResult=""
         NEW cpRoutine,cpLabel,cpOffSET
-
-       SET cpS=$PIECE(Pos,"$",1)  ;"e.g. X+2^ROUTINE$DMOD-->X+2^ROUTINE
-       IF cpS="" GOTO CPDone
-
-       SET cpRoutine=$PIECE(cpS,"^",2)
-       IF cpRoutine="" GOTO CPDone
-
-       SET cpS=$PIECE(cpS,"^",1)
-       SET cpOffSET=+$PIECE(cpS,"+",2)
-       ;"if cpOffSET="" SET cpOffSET=1
-       ;"ELSE  SET cpOffSET=+cpOffSET
-       SET cpLabel=$PIECE(cpS,"+",1)
-
-       IF $DATA(@pArray@(cpRoutine))=0 DO
-       . NEW p2Array SET p2Array=$name(@pArray@(cpRoutine))
-       . DO ScanMod(cpRoutine,p2Array)
-
-       NEW cpIdx SET cpIdx=+$GET(@pArray@(cpRoutine,cpLabel))
-       IF cpIdx=0 GOTO CPDone
-       NEW cpGOffSET SET cpGOffSET=@pArray@(cpRoutine,cpIdx,"OFFSET")
-       SET cpResult="+"_+(cpGOffSET+cpOffSET)_"^"_cpRoutine
-
-CPDone
+        ;
+        SET cpS=$PIECE(Pos,"$",1)  ;"e.g. X+2^ROUTINE$DMOD-->X+2^ROUTINE
+        IF cpS="" GOTO CPDone
+        ;
+        SET cpRoutine=$PIECE(cpS,"^",2)
+        IF cpRoutine="" GOTO CPDone
+        ;
+        SET cpS=$PIECE(cpS,"^",1)
+        SET cpOffSET=+$PIECE(cpS,"+",2)
+        ;"if cpOffSET="" SET cpOffSET=1
+        ;"ELSE  SET cpOffSET=+cpOffSET
+        SET cpLabel=$PIECE(cpS,"+",1)
+        ;
+        IF $DATA(@pArray@(cpRoutine))=0 DO
+        . NEW p2Array SET p2Array=$name(@pArray@(cpRoutine))
+        . DO ScanMod(cpRoutine,p2Array)
+        ;
+        NEW cpIdx SET cpIdx=+$GET(@pArray@(cpRoutine,cpLabel))
+        IF cpIdx=0 GOTO CPDone
+        NEW cpGOffSET SET cpGOffSET=@pArray@(cpRoutine,cpIdx,"OFFSET")
+        SET cpResult="+"_+(cpGOffSET+cpOffSET)_"^"_cpRoutine
+        ;
+CPDone  ;
         QUIT cpResult
-
-
+        ;
 COMPARRAY(PARR1,PARR2)  ;"upper case wrapper for CompArray(pArray1,pArray2)
         QUIT $$CompArray(PARR1,PARR2)  
         ;

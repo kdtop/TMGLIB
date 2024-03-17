@@ -1,4 +1,4 @@
-TMGMISC2 ;TMG/kst/sacc-COMPLIANT Misc utility library 1/6/17
+TMGMISC2 ;TMG/kst/sacc-COMPLIANT Misc utility library 1/6/17, 3/14/24
          ;;1.0;TMG-LIB;**1**;7/23/12
  ;"
  ;"TMG MISCELLANEOUS FUNCTIONS
@@ -30,12 +30,12 @@ TMGMISC2 ;TMG/kst/sacc-COMPLIANT Misc utility library 1/6/17
  ;"DEPENDENCIES: ^XLFDT
  ;"=======================================================================
  ;"
-LISTCT(PARRAY,OPTION) ;" SAAC complient entry point.
+LISTCT(PARRAY,LCTOPT) ;" SAAC complient entry point.
   ;"SCOPE: PUBLIC
   ;"Purpose: to count the number of entries in an array
   ;"Input: PARRAY -- PASS BY NAME.  pointer to (name of) array to test.
-  ;"       OPTION -- OPTIONAL.  
-  ;"           OPTION("NUMERIC")=1  If provided, then only numeric entries counted. 
+  ;"       LCTOPT -- OPTIONAL.  
+  ;"           LCTOPT("NUMERIC")=1  If provided, then only numeric entries counted. 
   ;"OUTPUT: the number of entries at highest level
   ;"      e.g.  ARRAY("TELEPHONE")=1234
   ;"            ARRAY("CAR")=4764
@@ -47,7 +47,7 @@ LISTCT(PARRAY,OPTION) ;" SAAC complient entry point.
   NEW RESULT SET RESULT=0
   DO
   . NEW $ETRAP SET $ETRAP="WRITE ""?? Error Trapped ??"",! SET $ECODE="""" QUIT"
-  . IF +$GET(OPTION("NUMERIC"))=0 DO
+  . IF +$GET(LCTOPT("NUMERIC"))=0 DO
   . . FOR  SET IDX=$ORDER(@PARRAY@(IDX)) QUIT:IDX=""  SET RESULT=RESULT+1
   . ELSE  DO
   . . FOR  SET IDX=$ORDER(@PARRAY@(IDX)) QUIT:(+IDX'=IDX)  SET RESULT=RESULT+1

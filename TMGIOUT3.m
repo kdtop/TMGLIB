@@ -151,8 +151,10 @@ HFS2ARR(PATH,FILENAME,REF,OPTION)  ;
         ;"                        If 2 then over lines are left with index values with decimal (e.g. 123.1)
         ;"NOTE: This will support loading lines of length 255*1000000 = ~255 MB
         ;"Result: 0 if failure, 1 if success      
-        NEW TMGRESULT,%ZZWP
+        NEW TMGRESULT,%ZZWP,%TEMP
+        ZSHOW "D":%TEMP SET %TEMP=+$PIECE($PIECE($GET(%TEMP("D",1)),"WIDTH=",2)," ",1)  ;"//kt start mod 3/9/24  $$FTG^%ZISH seems to change the WIDTH device parameter of $IO.  So save and then restore
         SET TMGRESULT=$$FTG^%ZISH(PATH,FILENAME,"%ZZWP(1,0)",1)
+        IF %TEMP>0 USE $IO:WIDTH=%TEMP  ;"//kt mod 3/9/24 
         IF TMGRESULT=0 GOTO H2ARDN
         NEW LINETERM SET LINETERM=$GET(OPTION("LINE-TERM"))
         ;"Scan for overflow nodes, and integrate into main body

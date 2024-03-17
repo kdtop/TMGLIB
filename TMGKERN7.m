@@ -45,7 +45,7 @@ MAKEBC(Message,Option)
         NEW msgFNAME SET msgFNAME=$$UNIQUE^%ZISUTL("/tmp/msg.txt")
         NEW imageFNAME SET imageFNAME=$$UNIQUE^%ZISUTL("/tmp/barcode.png")
         NEW imageType SET imageType=$$LOW^XLFSTR($GET(OPTION("IMAGE TYPE"),"png"))
-        SET ^TMG("TMP","MAKEBC^TMGKERN7",$H)="START"     
+        ;"//kt removed 3/14/24  SET ^TMG("TMP","MAKEBC^TMGKERN7",$H)="START"     
 
         ;"Write Message to host file .txt file
         NEW %ZIS,IOP,POP
@@ -83,7 +83,7 @@ MAKEBC(Message,Option)
         DO SPLITFPN^TMGIOUTL(msgFNAME,.FPath,.FNAME,"/")
         SET FileSpec(FNAME)=""
         NEW temp SET temp=$$DEL^%ZISH(FPath,$name(FileSpec))
-        SET ^TMG("TMP","MAKEBC^TMGKERN7",$H)="END"
+        ;"//kt removed 3/14/24 SET ^TMG("TMP","MAKEBC^TMGKERN7",$H)="END"
 
 MBCDone
         QUIT result

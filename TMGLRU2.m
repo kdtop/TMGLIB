@@ -19,6 +19,7 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/19/2023
  ;"COMPILE()  -- Complile from file TMG LAB ORDER DIALOG ELEMENTS (22751) to ORDER DIALOG (101.41)
  ;"KILLRANGE(RANGE) -- Delete all records with SEQ in RANGE  
  ;"KILLALL ;
+ ;"EDITORDER  --Edit lab order data
  ;
  ;"=======================================================================
  ;" API - Private Functions
@@ -38,6 +39,20 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/19/2023
  ;"SAFENAME(NAME) --Remove and replace disallowed chars
  ;"RESTORENAME(NAME) -- Restore replaced disallowed chars
  ;"SETUPINFO(INFO) 
+ ;"EDITLABPROC() --Edit/manage labs/procedures
+ ;"EDITDX() --Edit/manage diagnoses
+ ;"EDITGRPS() --Edit/manage GROUPS (Tab Pages)
+ ;"MANAGE1(IEN) --EDIT 1 RECORD
+ ;"SRCHMANAGE1(TYPE)  --Search for and manage 1 record, of specified type
+ ;"EDIT1REC(IEN) --edit 1 record
+ ;"ROOTIEN() --Return IEN of top level record
+ ;"GRPGRPIEN() --Return IEN of group of groups. 
+ ;"LPGRPIEN() --Return IEN of lab/procedure group
+ ;"GET1IEN(NAME) ;"
+ ;"GETRECS(OUT,TYPE) --RETURN ARRAY OF RECORD WHICH MATCH TYPE OF 'TYPE'
+ ;"SETUPINFO2(INFO,MODE) --Setup infor for ADDITEM,DELITEM
+ ;"ADDITEM(MODE)  --ADD DX, or GROUP (TAB PAGE)
+ ;"DELITEM(MODE,INFO)  --Pick and delete GROUP (TAB PAGE)
  ;
  ;"=======================================================================
  ;"Dependancies
@@ -507,9 +522,10 @@ EOML1 ;
   KILL MENU 
   SET MENU(IDX)="Select Option For Editing TMG Order Dialog"
   SET IDX=IDX+1,MENU(IDX)="Labs/Procedures View/Edit"_$CHAR(9)_"LabProc"
-  SET IDX=IDX+1,MENU(IDX)="GROUP (TAB PAGE) for Labs/Procs View/Edit"_$CHAR(9)_"GROUPS"
-  SET IDX=IDX+1,MENU(IDX)="Diagnosis View/Edit"_$CHAR(9)_"Dx"
-  SET IDX=IDX+1,MENU(IDX)="Other View/Edit"_$CHAR(9)_"Other"
+  SET IDX=IDX+1,MENU(IDX)="Group/TabPage for Labs/Procs View/Edit"_$CHAR(9)_"GROUPS"
+  SET IDX=IDX+1,MENU(IDX)="Diagnoses View/Edit"_$CHAR(9)_"Dx"
+  SET IDX=IDX+1,MENU(IDX)="Dx Bundles View/Edit"_$CHAR(9)_"DXBUNDLE"
+  SET IDX=IDX+1,MENU(IDX)="Other View/Edit"_$CHAR(9)_"OTHER"
   SET IDX=IDX+1,MENU(IDX)="COMPILE to Final ORDER DIALOG (101.41)"_$CHAR(9)_"COMPILE"
   WRITE !
   SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
@@ -518,14 +534,14 @@ EOML1 ;
   . DO EDITLABPROC()   
   IF USRPICK="Dx" DO  GOTO EOML1
   . DO EDITDX()
+  IF USRPICK="DXBUNDLE" DO  GOTO EOML1
+  . DO EDITBUNDLE()
   IF USRPICK="GROUPS" DO  GOTO EOML1
   . DO EDITGRPS()
+  IF USRPICK="OTHER" DO  GOTO EOML1
+  . DO EDITOTHER()
   IF USRPICK="COMPILE" DO  GOTO EOML1
   . DO REFRESH()
-  IF USRPICK="Other" DO  GOTO EOML1
-  . ;"finish 
-  . WRITE !,"TO BE IMPLEMENTED...",!
-  . DO PRESS2GO^TMGUSRI2
   GOTO EOML1
 EODN  ;
   QUIT
@@ -559,9 +575,7 @@ ELPDN  ;
 EDITDX() ;"Edit/manage diagnoses
   NEW MENU,IDX,USRPICK,IEN,RECS,NAME
   DO GETRECS(.RECS,"I")
-  IF $DATA(RECS)=0 DO  QUIT
-  . WRITE !,!,"Unable find records",!
-  . DO PRESS2GO^TMGUSRI2
+  KILL RECS("TMG LAB ORDER GROUP DXS")  ;"exclude holder record
 EDX1 ;                    
   SET IDX=0  
   KILL MENU 
@@ -583,8 +597,36 @@ EDX1 ;
   . DO SRCHMANAGE1("D")
   IF +USRPICK=USRPICK DO  GOTO EDX1
   . DO MANAGE1(+USRPICK) 
-  GOTO ELPL1
+  GOTO EDX1
 EDXDN  ;
+  QUIT
+  ;
+EDITBUNDLE() ;"Edit/manage diagnosis Bundles
+  NEW MENU,IDX,USRPICK,IEN,RECS,NAME,INFO
+  NEW INFO DO SETUPINFO2(.INFO,"BUNDLE")
+EBND1 ;                    
+  KILL RECS DO GETRECS(.RECS,"B")
+  SET IDX=0  
+  KILL MENU 
+  SET MENU(IDX)="Select Option For Editing Diagnosis Bundles"
+  SET NAME="" FOR  SET NAME=$ORDER(RECS("NAME",NAME)) QUIT:NAME=""  DO
+  . NEW IEN SET IEN=$GET(RECS("NAME",NAME)) QUIT:IEN'>0
+  . NEW SHORTNAME SET SHORTNAME=$PIECE(NAME,INFO("NAME PREFIX"),2)
+  . SET IDX=IDX+1,MENU(IDX)=SHORTNAME_" -- View/Edit"_$CHAR(9)_IEN
+  IF IDX>0 SET MENU(IDX,1)=$CHAR(8)_"--------------------------------------"
+  SET IDX=IDX+1,MENU(IDX)="ADD a Diagnosis Bundle"_$CHAR(9)_"ADD"
+  SET IDX=IDX+1,MENU(IDX)="DELETE a Diagnosis Bundle"_$CHAR(9)_"DEL"
+  WRITE !
+  SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRPICK="^" GOTO EBNDN  
+  IF USRPICK="ADD" DO  GOTO EBND1
+  . DO ADDITEM("BUNDLE")
+  IF USRPICK="DEL" DO  GOTO EBND1
+  . DO DELITEM("BUNDLE",.INFO)
+  IF +USRPICK=USRPICK DO  GOTO EBND1
+  . DO MANAGE1(+USRPICK,.INFO) 
+  GOTO EBND1
+EBNDN  ;
   QUIT
   ;
 EDITGRPS() ;"Edit/manage GROUPS (Tab Pages)
@@ -613,45 +655,54 @@ EGPS1 ;
   . DO DELITEM("GROUP")
   IF +USRPICK=USRPICK DO  GOTO EGPS0
   . DO MANAGE1(+USRPICK) 
-  GOTO ELPL1
+  GOTO EGPS1
 EGPSDN  ;
   QUIT
   ;
-EDIT1GRP(SUBIEN) ;"EDIT 1 GROUP (TAB PAGE)
-  NEW MENU,IDX,USRPICK,NAME
-  SET NAME=$PIECE($GET(^TMG(22751,+SUBIEN,0)),"^",1)
-  ;
-E1GP1 ;                  
+EDITOTHER() ;"Edit other types of records. 
+  NEW MENU,IDX,USRPICK,IEN,RECS,NAME,TYPE
+  NEW MAP DO SETUPTYPES(.MAP)
+  FOR TYPE="L","I","P","B" KILL MAP(TYPE)  ;"These types are managed elsewhere
+EO1 ;                    
   SET IDX=0  
   KILL MENU 
-  SET MENU(IDX)="Select Option For "_NAME
-  SET IDX=IDX+1,MENU(IDX)="DUMP record"_$CHAR(9)_"DUMP"
-  SET IDX=IDX+1,MENU(IDX)="EDIT record"_$CHAR(9)_"EDIT"
+  SET MENU(IDX)="Select Option For OTHER records"
+  SET TYPE="" FOR  SET TYPE=$ORDER(MAP(TYPE)) QUIT:TYPE=""  DO
+  . NEW TYPENAME SET TYPENAME=MAP(TYPE)
+  . KILL RECS DO GETRECS(.RECS,TYPE)
+  . SET NAME="" FOR  SET NAME=$ORDER(RECS("NAME",NAME)) QUIT:NAME=""  DO
+  . . NEW SUBIEN SET SUBIEN=$GET(RECS("NAME",NAME)) QUIT:SUBIEN'>0
+  . . NEW S SET S=TYPENAME_" "_NAME
+  . . SET IDX=IDX+1,MENU(IDX)=$$LJ^XLFSTR(S,15)_" -- View/Edit"_$CHAR(9)_SUBIEN
+  IF IDX>0 SET MENU(IDX,1)=$CHAR(8)_"--------------------------------------"
   WRITE !
   SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
-  IF USRPICK="^" GOTO E1GPDN
-  IF USRPICK="DUMP" DO  GOTO E1GP1
-  . DO DUMPREC^TMGDEBU3(22751,+SUBIEN)
-  . DO PRESS2GO^TMGUSRI2
-  IF USRPICK="EDIT" DO  GOTO E1GP1
-  . DO EDIT1REC(+SUBIEN)
-  . WRITE !,!,"NOTE: If record was renamed, then please RESTART.",!
-  . DO PRESS2GO^TMGUSRI2
-  GOTO E1GP1
-E1GPDN  ;
+  IF USRPICK="^" GOTO EOTHDN
+  IF +USRPICK=USRPICK DO  GOTO EO1
+  . DO MANAGE1(+USRPICK) 
+  GOTO EO1
+EOTHDN  ;
   QUIT
   ;
-MANAGE1(IEN) ;"EDIT 1 RECORD
-  NEW MENU,IDX,USRPICK,NAME
-  SET NAME=$PIECE($GET(^TMG(22751,+IEN,0)),"^",1)
+MANAGE1(IEN,INFO) ;"EDIT 1 RECORD
+  ;"Input: IEN -- IEN 22751
+  ;"       INFO -- optional
+  NEW MENU,IDX,USRPICK
+  NEW NAME SET NAME=$PIECE($GET(^TMG(22751,+IEN,0)),"^",1)
+  NEW TYPE SET TYPE=$PIECE($GET(^TMG(22751,IEN,0)),"^",2)
+  NEW PREFIX SET PREFIX=$GET(INFO("NAME PREFIX"))
+  IF PREFIX'="" SET NAME=$PIECE(NAME,PREFIX,2)
+  NEW MAP DO SETUPTYPES(.MAP)
+  NEW CANEDIT SET CANEDIT=($GET(MAP(TYPE,"FIELDS"))'="")
   ;
 E1LP1 ;                  
   SET IDX=0  
   KILL MENU 
-  SET MENU(IDX)="Select Option For Editing: "_NAME
+  SET MENU(IDX)="Select Option For: "_NAME
   SET MENU(IDX,1)="  TYPE="_$$GET1^DIQ(22751,IEN,.02)  
+  IF 'CANEDIT SET MENU(IDX,2)="  EDITING NOT ALLOWED"
   SET IDX=IDX+1,MENU(IDX)="DUMP record: "_NAME_$CHAR(9)_"DUMP"
-  SET IDX=IDX+1,MENU(IDX)="EDIT record:"_NAME_$CHAR(9)_"EDIT"
+  IF CANEDIT SET IDX=IDX+1,MENU(IDX)="EDIT record:"_NAME_$CHAR(9)_"EDIT"
   WRITE !
   SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
   IF USRPICK="^" GOTO E1LPDN
@@ -678,17 +729,19 @@ SRCHMANAGE1(TYPE)  ;"Search for and manage 1 record, of specified type
   QUIT
   ;
 EDIT1REC(IEN) ;"edit 1 record
+  NEW MAP DO SETUPTYPES(.MAP)
   WRITE !,"Edit record",!
   WRITE "-----------",!
   WRITE "NOTE: Records should NOT be deleted via fileman '@' functionality.",!
   WRITE "      This will cause problems with overall functioning.",!,!
   SET IEN=+$GET(IEN) QUIT:IEN'>0
-  NEW FIELDS SET FIELDS=".01:20"
   NEW TYPE SET TYPE=$PIECE($GET(^TMG(22751,IEN,0)),"^",2)
-  IF TYPE="P" DO
-  . SET FIELDS=".01;1"
-  IF TYPE="I" DO
-  . SET FIELDS=".01;2;10;11;20"
+  NEW FIELDS SET FIELDS=MAP(TYPE,"FIELDS")
+  IF FIELDS="" DO  QUIT
+  . WRITE !,"Sorry, this type of record should NOT be edited. ",!
+  . WRITE "Any change will cause problems, so aborting.",!
+  . DO PRESS2GO^TMGUSRI2
+  WRITE "Record type is '"_$GET(MAP(TYPE))_"', so editing fields '",FIELDS,"'",!
   NEW DA,DR,DIE
   SET DIE="^TMG(22751,",DA=IEN,DR=FIELDS
   LOCK +^TMG(22751,IEN):0 
@@ -743,20 +796,51 @@ GETRECS(OUT,TYPE) ;"RETURN ARRAY OF RECORD WHICH MATCH TYPE OF 'TYPE'
   . KILL RECS("IEN",IEN)
   QUIT
   ;
-SETUPINFO2(INFO,MODE) ;"Setup infor for ADDITEM,DELITEM
+SETUPINFO2(INFO,MODE) ;"Setup info for ADDITEM,DELITEM
   IF MODE="GROUP" DO
   . SET INFO("TYPE")="P"
   . SET INFO("PROMPT")="Group name (Tab page name)"
   . SET INFO("HOLDERGROUPNAME")="TMG LAB ORDER GROUP DISPLAY PAGES"
   . SET INFO("NOUN")="lab/procedures"
+  . SET INFO("ITEM NAME")="lab/procedures"
+  . SET INFO("NAME PREFIX")=""
   ELSE  IF MODE="DX" DO
   . SET INFO("TYPE")="I"
   . SET INFO("PROMPT")="Diagnosis"  
   . SET INFO("HOLDERGROUPNAME")="TMG LAB ORDER GROUP DXS"
   . SET INFO("NOUN")="diagnoses"
+  . SET INFO("ITEM NAME")=""
+  . SET INFO("NAME PREFIX")=""
+  ELSE  IF MODE="BUNDLE" DO
+  . SET INFO("TYPE")="B"
+  . SET INFO("PROMPT")="Diagnosis Bundle"  
+  . SET INFO("HOLDERGROUPNAME")="TMG LAB ORDER DIALOG"
+  . SET INFO("NOUN")="diagnoses bundle"
+  . SET INFO("ITEM NAME")="diagnosis"
+  . SET INFO("NAME PREFIX")="TMG LAB ORDER GROUP BUNDLE "
   SET INFO("GRPIEN")=$$GET1IEN(INFO("HOLDERGROUPNAME"))
-  IF GRPIEN'>0 DO
-  . WRITE !,"Unable to find group '"_HOLDERGROUPNAME_"' to enter new record into.",!
+  IF INFO("GRPIEN")'>0 DO
+  . WRITE !,"Unable to find group '"_$GET(INFO("HOLDERGROUPNAME"))_"' to enter new record into.",!
+  QUIT
+  ;
+SETUPTYPES(MAP) ;"Setup info for RECORD TYPES
+  NEW TEMP SET TEMP=$PIECE(^DD(22751,.02,0),"^",3)
+  NEW IDX FOR IDX=1:1:$LENGTH(TEMP,";") DO
+  . NEW ITEM SET ITEM=$PIECE(TEMP,";",IDX) QUIT:ITEM=""
+  . NEW KEY,VALUE SET KEY=$PIECE(ITEM,":",1),VALUE=$PIECE(ITEM,":",2)
+  . SET MAP(KEY)=VALUE
+  SET MAP("D","FIELDS")="1"                               ;"DIALOG"
+  SET MAP("L","FIELDS")=".01;10;11;20"                    ;"LAB/PROCEDURE"
+  SET MAP("B","FIELDS")="1"                               ;"BUNDLE"
+  SET MAP("I","FIELDS")=".01;2"                           ;"ICD DX"
+  SET MAP("P","FIELDS")=".01;1"                           ;"PAGE GROUP"
+  SET MAP("O","FIELDS")=""                                ;"ORDERING PROVIDER"
+  SET MAP("T","FIELDS")=""                                ;"LAB TIME"
+  SET MAP("F","FIELDS")=""                                ;"ORDER FLAG"
+  SET MAP("N","FIELDS")=""                                ;"ORDER OPTIONS"
+  SET MAP("X","FIELDS")=""                                ;"ITEM DATA"
+  SET MAP("E","FIELDS")=""                                ;"TEXT"
+  SET MAP("W","FIELDS")=""                                ;"WP FIELD"
   QUIT
   ;
 ADDITEM(MODE)  ;"ADD DX, or GROUP (TAB PAGE)
@@ -770,7 +854,7 @@ ADDITEM(MODE)  ;"ADD DX, or GROUP (TAB PAGE)
   IF (NAME="")!(NAME["^") DO  QUIT
   . WRITE "No name or invalid name.  Quitting.",!
   ;"First make record entry
-  SET TMGFDA(22751,"+1,",.01)=NAME
+  SET TMGFDA(22751,"+1,",.01)=INFO("NAME PREFIX")_NAME
   SET TMGFDA(22751,"+1,",.02)=INFO("TYPE")
   DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO  QUIT
@@ -780,27 +864,29 @@ ADDITEM(MODE)  ;"ADD DX, or GROUP (TAB PAGE)
   IF IEN'>0 DO  QUIT
   . WRITE "No record created, or new record could not be found.  Quitting",!
   ;"Next, put entry into holder group. 
-  SET TMGFDA(22751.01,"+1,"_GRPIEN_",",.01)="`"_IEN  
+  SET TMGFDA(22751.01,"+1,"_INFO("GRPIEN")_",",.01)="`"_IEN  
   DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO  QUIT
   . WRITE !,"Error while adding new record as ITEM in record: "_INFO("HOLDERGROUPNAME"),!
   . WRITE !,$$GETERRST^TMGDEBU2(.TMGMSG),!
   . WRITE "Aborting",!
   . DO PRESS2GO^TMGUSRI2
-  WRITE !,"Record has been created.  Now EDIT details, but DON'T change TYPE.",!
-  IF MODE="GROUP" DO
-  . WRITE "To have Group (Tab page) contain lab/procedure entries, they should be",!
+  WRITE !,"Record has been created.  Now EDIT details.",!
+  IF (MODE="GROUP")!(MODE="BUNDLE") DO
+  . WRITE "To have ",INFO("PROMPT")," contain ",INFO("ITEM NAME")," entries, they should be",!
   . WRITE "added into ITEMS field (a multiple-type subfile).",!
-  . WRITE "NOTE: Labs/procedures should be created elsewhere first, so they are ready for addition here.",!
+  . WRITE "NOTE: Entries should be created elsewhere first, so they are ready for addition here.",!
   DO PRESS2GO^TMGUSRI2
   DO EDIT1REC(IEN)
   DO PRESS2GO^TMGUSRI2  
   QUIT
   ;
-DELITEM(MODE)  ;"Pick and delete GROUP (TAB PAGE)
+DELITEM(MODE,INFO)  ;"Pick and delete GROUP (TAB PAGE)
+  ;"Input:  MODE  -- name of mode.
+  ;"        INFO  -- optional.  
   NEW MENU,IDX,USRPICK,IEN,RECS,NAME,NOUN
   SET MODE=$GET(MODE)
-  NEW INFO DO SETUPINFO2(.INFO,MODE)
+  IF $DATA(INFO)'>0 DO SETUPINFO2(.INFO,MODE)
   IF $GET(INFO("GRPIEN"))'>0 DO  QUIT
   . WRITE "Aborting.",! 
 DGPS1 ;                    
@@ -813,7 +899,9 @@ DGPS1 ;
   SET MENU(IDX)="Select Option For DELETING "_INFO("PROMPT")
   SET NAME="" FOR  SET NAME=$ORDER(RECS("NAME",NAME)) QUIT:NAME=""  DO
   . NEW IEN SET IEN=$GET(RECS("NAME",NAME)) QUIT:IEN'>0
-  . SET IDX=IDX+1,MENU(IDX)="DELETE "_NAME_$CHAR(9)_IEN_"^"_NAME
+  . NEW NAME2 SET NAME2=NAME
+  . IF $DATA(INFO("NAME PREFIX")) SET NAME2=$PIECE(NAME,INFO("NAME PREFIX"),2)
+  . SET IDX=IDX+1,MENU(IDX)="DELETE "_NAME2_$CHAR(9)_IEN_"^"_NAME2
   WRITE !
   SET USRPICK=$$MENU^TMGUSRI2(.MENU,"^")
   IF USRPICK="^" GOTO DGPSDN 
@@ -825,9 +913,9 @@ DGPS1 ;
   WRITE "DELETE" SET %=2 DO YN^DICN WRITE !
   IF %'=1 QUIT
   ;"First delete entry from holder group
-  IF $DATA(^TMG(22751,GRPIEN,1,IEN))=0 DO  GOTO DGPSDN
+  IF $DATA(^TMG(22751,INFO("GRPIEN"),1,IEN))=0 DO  GOTO DGPSDN
   . WRITE "Unable to find "_NAME_" as entry.  Aborting",!  ;"Shouldn't happen...
-  NEW DA SET DA=IEN,DA(1)=GRPIEN
+  NEW DA SET DA=IEN,DA(1)=INFO("GRPIEN")
   NEW DIK SET DIK="^TMG(22751,"_DA(1)_",1,"
   DO ^DIK
   ;"Now delete entry itself.

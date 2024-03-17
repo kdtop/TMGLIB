@@ -143,6 +143,7 @@ STEPTRAP(tmgIDEPos,tmgMsg)
        NEW tmgViewOffset SET tmgViewOffset=0
        NEW tmgSavedIO,tmgSavedX,tmgSavedY
        SET tmgSavedIO=$IO
+       DO DEVICE2ARR^TMGIDE6($IO,.tmgSavedIO)
        SET tmgSavedX=$X,tmgSavedY=$Y
        SET tmgScrHeight=$GET(tmgScrHeight,10)
        SET tmgScrWidth=+$GET(tmgScrWidth)
@@ -239,6 +240,7 @@ SPDone ;"Finish up and return to GTM execution
 
        ;"Restore environment
        IF $DATA(tmgSavedIO) USE tmgSavedIO ;"turn IO back to what it was when coming into this function.
+       ;"to do, GET USESAVEDEV^TMGIDE6(.tmgSavedIO) working
        SET $X=+$GET(tmgSavedX),$Y=+$GET(tmgSavedY)  ;"Restore screen POS variables.
        SET %=%TMG
        IF (tmgDbgNakedRef'["""""")&(tmgDbgNakedRef'="") DO   ;"If holds "" index, skip over

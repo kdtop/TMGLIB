@@ -497,6 +497,41 @@ SENDSMS1(DAYLEAD) ;"Send out SMS messages for upcoming appts, via HTTP method
   ;"TO DO -- Handle the people that were NOT sent SMS messages, In NONE array
   QUIT
   ;
+FNAME(TMGDFN)
+  NEW NAME
+  SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+  SET NAME=$P(NAME,",",2)
+  SET NAME=$P(NAME," ",1)
+  QUIT NAME
+  ;"
+SENDLAB1(DAYLEAD) ;"Send out SMS messages for upcoming appts, via HTTP method
+  ;"NOTE: This a suitable entry point for a TASKMAN task. 
+  ;"NOTICE: This uses SMSSEND1^TMGKERN5, which sends out SMS messages
+  ;"       one by one, via HTTP call achieved in script sms_send_msg.
+  ;"       This method doesn't allow tracking of success of message, so
+  ;"       will change to alternative method (FTP upload).  See SENDSMS()
+  DO MSGLOG^TMGSMS02("RUNNING SENDSMS1^TMGSMS01")
+  NEW OUT,ARR,STORE
+  NEW RESULT SET RESULT=$$SUHEADER^TMGSMS01(.ARR)
+  NEW EXCLBYDL DO SUEXCLUD(.EXCLBYDL)
+  DO SETUPSM0(.OUT,.DAYLEAD,.EXCLBYDL) ;
+  NEW LIVE SET LIVE=1  ;"SET TO 1 TO TURN SYSTEM ON.
+  NEW TMGDFN SET TMGDFN=""
+  FOR  SET TMGDFN=$ORDER(OUT("MSG",TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+  . NEW PHONE SET PHONE=""
+  . FOR  SET PHONE=$ORDER(OUT("MSG",TMGDFN,PHONE)) QUIT:(PHONE="")  DO
+  . . NEW MSG SET MSG=$GET(OUT("MSG",TMGDFN,PHONE)) QUIT:MSG=""
+  . . SET MSG="Good morning "_$$FNAME(TMGDFN)_". Dr. Toppenberg's office and our lab will be closed today due to current road conditions. We will reopen on Monday Jan 22,2024. Thank you and have a great day."
+  . . IF LIVE=1 DO 
+  . . . DO ADDLINE^TMGSMS01(.ARR,"csv:"_PHONE_"|"_MSG)
+  . . . ;"DO SMSSEND1^TMGKERN5(PHONE,MSG,TMGDFN) ;
+  . . ELSE  WRITE PHONE," -- ",$LENGTH(MSG)," -- ",MSG,!
+  ;"NEW NONE MERGE NONE=OUT("NONE")
+  DO ADDLINE^TMGSMS01(.ARR,"csv:14234260236|"_"TEST2")
+  ZWR ARR
+  DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
+  QUIT
+  ;"
 SMSGTALL()  ;"SMS GET ALL <-- suitable entry point for TASKMAN task
   ;"DO MSGLOG^TMGSMS02("RUNNING SMSGTALL^TMGSMS01")
   DO SMSGTALL^TMGKERN5()

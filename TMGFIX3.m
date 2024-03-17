@@ -621,7 +621,8 @@ FIXORDER(ORDERARR)  ;"
         . . IF ($$TRIM^XLFSTR(LINE)=".")!(LINE["DIAG:") DO  ;"The test section ends with either a period or the diag
         . . . NEW DIAGSTR SET DIAGSTR=""
         . . . IF LINE["DIAG:" DO   ;"Pull the diag out to be added later
-        . . . . SET DIAGSTR="DIAG: "_$P(TESTSORDERED,"DIAG:",2)
+        . . . . ;"SET DIAGSTR="DIAG: "_$P(TESTSORDERED,"DIAG:",2)
+        . . . . SET DIAGSTR=$P(TESTSORDERED,"DIAG:",2)
         . . . . SET TESTSORDERED=$P(TESTSORDERED,"DIAG:",1)
         . . . SET FOUNDTEST=0 
         . . . NEW RADTEST,CARDIOTEST
@@ -631,7 +632,19 @@ FIXORDER(ORDERARR)  ;"
         . . . ;"If ordered, add in the rad and cardio tests afterward
         . . . IF ($D(RADTEST))!($D(CARDIOTEST)) DO ADDOTHER(.ORDERARR,.ORDIDX,.RADTEST,.CARDIOTEST,PREFIX)
         . . . ;"If we found a diag string, add back here
-        . . . IF DIAGSTR'="" SET ORDERARR(OUTIDX)=".",OUTIDX=OUTIDX+1,LINE=DIAGSTR
+        . . . IF DIAGSTR'="" DO
+        . . . . SET ORDERARR(OUTIDX)=".",OUTIDX=OUTIDX+1
+        . . . . NEW DIAGARR DO FMTDIAG(DIAGSTR,.DIAGARR)
+        . . . . IF $D(DIAGARR) DO
+        . . . . . NEW DIAGIDX SET DIAGIDX=0
+        . . . . . FOR  SET DIAGIDX=$O(DIAGARR(DIAGIDX)) QUIT:DIAGIDX'>0  DO
+        . . . . . . NEW THISDIAG SET THISDIAG=$G(DIAGARR(DIAGIDX))
+        . . . . . . IF DIAGIDX=1 SET THISDIAG="DIAG: "_THISDIAG
+        . . . . . . IF DIAGIDX>1 SET THISDIAG="  -"_THISDIAG
+        . . . . . . SET ORDERARR(OUTIDX)=$G(THISDIAG),OUTIDX=OUTIDX+1
+        . . . . . SET LINE=""
+        . . . . ELSE  DO
+        . . . . . SET LINE="DIAG: "_DIAGSTR
         . . . SET ORDERARR(OUTIDX)=LINE,OUTIDX=OUTIDX+1
         . ELSE  DO
         . . IF $$UP^XLFSTR(LINE)["BALLAD" SET PREFIX="  -"    ;"ELH ADDED 2/4/22 SO BALLAD ORDERS DO NOT HAVE CHECKBOXES (WHICH CAUSED THEM SOME CONFUSION AS THEY THOUGHT IT WAS AN ORDER FORM WITHOUT ANYTHING SELECTED)
@@ -643,6 +656,27 @@ FIXORDER(ORDERARR)  ;"
         . SET ORDERARR(OUTIDX)=".",OUTIDX=OUTIDX+1
         DO FINDGHP(.ORDERARR,PREFIX)
         QUIT
+        ;"
+FMTDIAG(DIAGIN,OUTARR)  ;"FORMAT THE DIAG LIST
+        IF DIAGIN'["^" QUIT
+        NEW DIAGOUT SET DIAGOUT=""
+        NEW OUTIDX SET OUTIDX=1
+        NEW IDX SET IDX=1
+        NEW ONEDIAG 
+        FOR  SET ONEDIAG=$P(DIAGIN,"^",IDX) QUIT:ONEDIAG=""  DO
+        . NEW ICDTEXT SET ICDTEXT=$$ICDDATA^TMGTIUT3(,ONEDIAG)
+        . IF $P(ICDTEXT,"^",1)="-1" DO
+        . . SET ICDTEXT=ONEDIAG
+        . ELSE  DO
+        . . NEW DESC SET DESC=$P(ICDTEXT,"^",4)
+        . . IF $L(DESC)>25 SET DESC=$E(DESC,1,25)_"..."
+        . . SET ICDTEXT=ONEDIAG_" ("_DESC_")"
+        . ;"IF DIAGOUT'="" SET DIAGOUT=DIAGOUT_$C(13,10)
+        . ;"SET DIAGOUT=DIAGOUT_ICDTEXT
+        . SET OUTARR(OUTIDX)=ICDTEXT,OUTIDX=OUTIDX+1
+        . SET IDX=IDX+1
+        ;"SET DIAGOUT="DIAG: "_DIAGOUT
+        QUIT 
         ;"
 FINDGHP(OUTARRAY,PREFIX)  ;"DETERMINE IF ORDER HAS CMP, CBC, AND TSH. IF SO, REMOVE AND ONLY PRINT GHP
         NEW IDX SET IDX=0

@@ -36,7 +36,7 @@ TMGUSRIF ;TMG/kst/USER INTERFACE API FUNCTIONS ;7/6/22
  ;"=======================================================================
  ;
 MENU(OPTION,DEFCHOICE,USERRAW) ;
-  ;"Depreciatged.  Use code in ^TMGUSRI2
+  ;"Depreciated.  Use code in ^TMGUSRI2
   QUIT $$MENU^TMGUSRI2(.OPTION,.DEFCHOICE,.USERRAW)
   ;
   ;"============================================================
@@ -51,15 +51,23 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"              Example: 'Here is {{BOLD}}something{{NORM}} to see.'
   ;"              IF NAME is not defined in OPTION("COLORS",NAME), it is ignored, and code is shown. 
   ;"         @TMGPSCRLARR@("SELECTED",<#>)=1 if selected
-  ;"         @TMGPSCRLARR@("COL",<COL#>,<index>,<#>)=Display text for column 2.  <index> is the # from above to link it to.
+  ;"         OLD--> @TMGPSCRLARR@("COL",<COL#>,<index>,<#>)=Display text for columns 2 or higher.  <index> is the # from above to link it to.
+  ;"         @TMGPSCRLARR@("COL",<COL#>,<index_for_col_1>,<index_for_col_2>,<index_for_col_3>,...,"TXT",<LINE#>)=Display text for columns 2 or higher.
   ;"                         NOTE: This is ignored unless OPTION("COLUMNS","NUM") > 1
-  ;"            e.g. @TMGPSCRLARR@("COL",2,3,1)="This text will be shown when index 3 is" 
-  ;"                 @TMGPSCRLARR@("COL",2,3,2)="  selected in the left-hand column (Col#1)" 
-  ;"                 @TMGPSCRLARR@("COL",2,3,3)="  ..."   
+  ;"                         NOTE: The data for column 1 is stored normally (not in "COL" subnode)
+  ;"            e.g. @TMGPSCRLARR@("COL",2,5,"TXT",1)="Hello world"  <-- This text will be shown in column 2 when index 5 is selected in column #1 
+  ;"                 @TMGPSCRLARR@("COL",2,5,"TXT",2)="  2nd line of text here"   
+  ;"                 @TMGPSCRLARR@("COL",2,5,"TXT",3)="  3rd line of text here"   
   ;"                 @TMGPSCRLARR@("COL",2,"SELECTED",<#>)=1 if selected
+  ;"            e.g. @TMGPSCRLARR@("COL",3,5,7,"TXT",1)="All we are saying..."  <--- This shown in col 3 when index 5 selected in column #1 and index 7 selected in column #2 
+  ;"                 @TMGPSCRLARR@("COL",3,5,7,"TXT",2)="  is give peace a chance" 
+  ;"                 @TMGPSCRLARR@("COL",3,5,7,"TXT",3)="  3rd line can go here. "   
+  ;"                 @TMGPSCRLARR@("COL",3,"SELECTED",<#>)=1 if selected
   ;"       OPTION -- PASS BY REFERENCE.  format:
   ;"          OPTION("HEADER",1)=Header line TEXT
   ;"          OPTION("HEADER",2)=More Header line TEXT (any number of lines)
+  ;"          OPTION("HEADER","COL",<COL#>)=Header for specified column #.  IGNORED unless OPTION("COLUMNS","NUM") > 1
+  ;"                      NOTE: Any entry > then number of columns is ignored.  
   ;"          OPTION("FOOTER",1)=Footer line TEXT  <--- OPTION 1
   ;"          OPTION("FOOTER",1,1)=linePart <--- OPTION 2  (these will be all strung together to make one footer line.
   ;"          OPTION("FOOTER",1,2)=linePart                (can be used to display switches etc)
@@ -67,7 +75,14 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"          OPTION("SHOW INDEX")=1 OPTIONAL.  If 1, then each line displayed with line number at beginning
   ;"          OPTION("SCRN WIDTH")= OPTIONAL screen width. (default is terminal width)
   ;"          OPTION("SCRN HEIGHT")= OPTIONAL screen height. (default is terminal height (IOSL) - 2)
+  ;"          OPTION("SCRN TOP OFFSET")= OPTIONAL # of blank lines to have a top of display
+  ;"                                   NOTE: OPTION("SCRN HEIGHT") should be set to shortened value to account for top blank lines.
+  ;"                                   This was primarly implemented to allow debugger to run on top of screen with scroller on bottom. 
   ;"          ---- COLORs (optional) ------
+  ;"          NOTE: This routine doesn't intrinsically know about the names of colors, e.g. 'RED', or 'BLUE'. 
+  ;"                It expect '#^#' pairs instead
+  ;"                In order to convert names to pairs, use --> e.g. $$COLORPAIR^TMGTERM("WHITE","BLUE",.TMPCLR)
+  ;"                ALSO, a color name can be defined; see 'SomeName' example below.   
   ;"          OPTION("COLORS","NORM")=FG^BG  -- default foreground (FG) and background(colors)
   ;"                 If not provided, White on Blue used.
   ;"          OPTION("COLORS","HIGH")=FG^BG  -- Highlight colors. If not provided, White on Cyan used.
@@ -128,6 +143,19 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"                  INFO("CURSOR")=Cursor Key pressed
   ;"                  INFO("CURSOR","HANDLED")=1 <-- this is what called code should set if it handled
   ;"                                  the cursor event. This will prevent scroller from acting on it.   
+  ;"          OPTION("ON CURSOR DONE")="FnName^Module" -- code to execute AFTER user cursor key press      E.g. DO FnName^Module(TMGPSCRLARR,.OPTION,.INFO)
+  ;"                  Event is fired when a cursor key is pressed, AFTER the scroller moves the highlighted line.  
+  ;"                  INFO("CURSOR")=Cursor Key pressed
+  ;"          OPTION("ON DRAW MAIN LINE")="FnName^Module" -- code to execute before drawing line in MAIN area     E.g. DO FnName^Module(TMGPSCRLARR,.OPTION,.INFO)
+  ;"                  Event is fired before line is drawn, giving user chance to change.
+  ;"                  If values in INFO shown below are modified, it will change display of line (except for read-only values can't be changed)
+  ;"                  INFO("DRAW MAIN","TEXT")=TEXT
+  ;"                  INFO("DRAW MAIN","SELECTED")=SELECTED
+  ;"                  INFO("DRAW MAIN","ON HIGHLIGHT LINE")=ONHIGHLINE
+  ;"                  INFO("DRAW MAIN","TEXT COLOR")=TEXTCOLOR
+  ;"                  INFO("DRAW MAIN","SHOW INDEX")=SHOWIDX
+  ;"                  INFO("DRAW MAIN","DATA INDEX")=IDX      
+  ;"                  INFO("DRAW MAIN","COLUMN NUM")=COLNUM    <-- READ ONLY
   ;"          NOTES about events.  Functions will be called as follows:
   ;"              DO FnName^Module(TMGPSCRLARR,.OPTION,.INFO)
   ;"                TMGPSCRLARR and OPTION are the same data received by this function
@@ -171,7 +199,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   . . DO SETCOLWIDTHS(.WIDTH,.COLS,SCRNW,.OPTION)    ;"Set up column widths.    
   . . DO ENSURHLONSCRN(.HIGHLINE,.TOPLINE,ACTIVECOL) ;"Ensure the highline is on screen 
   . . ;  
-  . . DO DRAWHEADER(.OPTION,.SCRNW,.MAINTOP) ;"DRAW HEADER AREA
+  . . DO DRAWHEADER(.OPTION,.SCRNW,.MAINTOP,.WIDTH) ;"DRAW HEADER AREA
   . . DO DRAWMAIN(.OPTION,.WIDTH,.MAINTOP)   ;"DRAW MAIN AREA
   . . DO DRAWFOOTER(.OPTION)                 ;"DRAW FOOTER AREA
   . . ;
@@ -205,8 +233,10 @@ USER(OPTION);"Read user input and interact
   NEW HANDLED SET HANDLED=0
   IF $EXTRACT(INPUT,1)="^",$LENGTH(INPUT)>1 SET ESCKEY="CTRL-"_$EXTRACT(INPUT,2,$LENGTH(INPUT)),INPUT=""
   IF $GET(OPTION("ON CURSOR"))'="",INPUT="",$$ISCURSOR(ESCKEY) DO  GOTO:DONE USI2
-  . SET DONE=$$EVENTCURSOR(ESCKEY)  ;"trigger on cursor event
-  . IF DONE SET NEEDREFRESH=2
+  . SET DONE=$$EVENTCURSOR(ESCKEY,"ON CURSOR")  ;"trigger on cursor event
+  . IF DONE DO
+  . . SET NEEDREFRESH=2
+  . . IF $$EVENTCURSOR(ESCKEY,"ON CURSOR DONE")  ;"trigger on cursor done event.  Ignore result
   IF FNCYCLE'="",ESCKEY=FNCYCLE DO  GOTO USI2
   . DO HNDLCOLCYCLE
   . SET RESULT=2
@@ -229,6 +259,7 @@ USER(OPTION);"Read user input and interact
   IF INPUT="^" SET RESULT="^" GOTO USI2
   IF (INPUT["CURSOR^") DO  GOTO USI2:HANDLED
   . SET HANDLED=$$HNDLCURSOR(INPUT,.HIGHLINE,.TOPLINE,.XOFFSET,ACTIVECOL,.OPTION)
+  . IF $$EVENTCURSOR(ESCKEY,"ON CURSOR DONE")  ;"trigger on cursor done event.  Ignore result
   . IF HANDLED=0 SET INPUT="" QUIT
   . SET RESULT=1
   IF INPUT="=" DO  GOTO USI2
@@ -251,12 +282,12 @@ USI2  ;
   IF NEEDREFRESH=1 SET RESULT=1
   QUIT RESULT
   ;   
-EVENTCURSOR(ESCKEY)  ;"trigger on cursor event
-  ;"Note: uses var in global scope, defined in SCROLLER scope
+EVENTCURSOR(ESCKEY,EVENT)  ;"trigger on cursor event
+  ;"Note: uses INFO, OPTION vars in global scope, defined in SCROLLER scope
   ;"Result: 1 if event handled cursor, 0 otherwise.  
   SET INFO("CURSOR")=ESCKEY
   SET INFO("CURSOR","HANDLED")=0
-  DO EVENT(.OPTION,"ON CURSOR")
+  DO EVENT(.OPTION,EVENT)
   NEW RESULT SET RESULT=(+$GET(INFO("CURSOR","HANDLED"))=1)
   QUIT RESULT
   ;
@@ -363,12 +394,15 @@ HNDLSETSIZE ;"Handle user setting screen size
   WRITE #
   QUIT
   ;
-DRAWHEADER(OPTION,SCRNW,MAINTOP) ;
-  DO HOME^TMGTERM SET MAINTOP=1  
+DRAWHEADER(OPTION,SCRNW,MAINTOP,WIDTH) ; 
+  ;"NOTE: Uses vars in global scope, defined in SCROLLER scope: 
+  ;"          SCRNLINE
+  SET MAINTOP=$GET(OPTION("SCRN TOP OFFSET"),1)
+  DO CUP^TMGTERM(1,MAINTOP)
   IF $DATA(OPTION("HEADER")) DO
   . DO SETCOLOR("HEADER",.OPTION)
   . NEW IDX SET IDX=""
-  . FOR  SET IDX=$ORDER(OPTION("HEADER",IDX)) QUIT:(IDX="")  DO
+  . FOR  SET IDX=$ORDER(OPTION("HEADER",IDX)) QUIT:(IDX'>0)  DO
   . . NEW TEXT SET TEXT=$GET(OPTION("HEADER",IDX))
   . . NEW LEN SET LEN=$$NOCOLEN(TEXT)
   . . NEW PAD SET PAD=SCRNW-LEN
@@ -377,11 +411,30 @@ DRAWHEADER(OPTION,SCRNW,MAINTOP) ;
   . . IF HALFPAD'=(PAD/2) SET HALFPAD=(PAD\2)+1
   . . NEW IDX FOR IDX=1:1:HALFPAD SET TEXT=TEXT_" "  
   . . DO WCLTEXT(TEXT,SCRNW,.OPTION) WRITE ! SET MAINTOP=MAINTOP+1
+  . NEW NUMCOLS SET NUMCOLS=+$GET(OPTION("COLUMNS","NUM"))
+  . IF $DATA(OPTION("HEADER","COL")),NUMCOLS>1 DO
+  . . NEW TEXT SET TEXT=""
+  . . NEW COLNUM FOR COLNUM=1:1:NUMCOLS DO
+  . . . NEW W SET W=+$GET(WIDTH(COLNUM))
+  . . . NEW COLTEXT SET COLTEXT=$GET(OPTION("HEADER","COL",COLNUM))
+  . . . NEW LEN SET LEN=$$NOCOLEN(COLTEXT)
+  . . . NEW PAD SET PAD=W-LEN
+  . . . NEW HALFPAD SET HALFPAD=PAD\2
+  . . . SET TEXT(COLNUM)=COLTEXT
+  . . . NEW IDX FOR IDX=1:1:HALFPAD SET TEXT(COLNUM)=" "_TEXT(COLNUM)   
+  . . . IF HALFPAD'=(PAD/2) SET HALFPAD=(PAD\2)+1
+  . . . NEW IDX FOR IDX=1:1:HALFPAD-1 SET TEXT(COLNUM)=TEXT(COLNUM)_" "
+  . . . SET TEXT(COLNUM)=TEXT(COLNUM)_$SELECT(COLNUM<NUMCOLS:"|",1:" ")
+  . . FOR COLNUM=1:1:NUMCOLS SET TEXT=TEXT_TEXT(COLNUM)
+  . . DO SETCOLOR("TOP LINE",.OPTION)
+  . . WRITE SCRNLINE,! SET MAINTOP=MAINTOP+1  
+  . . DO SETCOLOR("HEADER",.OPTION)
+  . . DO WCLTEXT(TEXT,SCRNW,.OPTION,1) WRITE ! SET MAINTOP=MAINTOP+1
   QUIT
   ;
 DRAWMAIN(OPTION,WIDTH,MAINTOP) ;
   ;"NOTE: Uses vars in global scope, defined in SCROLLER scope: 
-  ;"          SCRNLINE,COLS,HIGHLINE,TOPLINE,NUMIDXDIGITS,MAINLINES
+  ;"          SCRNLINE,COLS,HIGHLINE,TOPLINE,NUMIDXDIGITS,MAINLINES,INFO
   NEW SHOWIDX
   DO SETCOLOR("TOP LINE",.OPTION)
   WRITE SCRNLINE,! SET MAINTOP=MAINTOP+1
@@ -399,6 +452,21 @@ DRAWMAIN(OPTION,WIDTH,MAINTOP) ;
   . . NEW ONHIGHLINE SET ONHIGHLINE=(IDX=HIGHLINE(COLNUM))&(COLNUM=ACTIVECOL)
   . . NEW TEXTCOLOR IF SELECTED SET TEXTCOLOR=$SELECT(ONHIGHLINE:"HI-SEL",1:"SELECTED")
   . . ELSE  SET TEXTCOLOR=$SELECT(ONHIGHLINE:"HIGH",1:"NORM")
+  . . IF $$EVENTDEF(.OPTION,"ON DRAW MAIN LINE") DO   ;"Give user opportunity to modify line before drawing
+  . . . SET INFO("DRAW MAIN","TEXT")=TEXT
+  . . . SET INFO("DRAW MAIN","SELECTED")=SELECTED
+  . . . SET INFO("DRAW MAIN","ON HIGHLIGHT LINE")=ONHIGHLINE
+  . . . SET INFO("DRAW MAIN","TEXT COLOR")=TEXTCOLOR
+  . . . SET INFO("DRAW MAIN","SHOW INDEX")=SHOWIDX
+  . . . SET INFO("DRAW MAIN","DATA INDEX")=IDX
+  . . . SET INFO("DRAW MAIN","COLUMN NUM")=COLNUM    ;"<-- READ ONLY
+  . . . DO EVENT(.OPTION,"ON DRAW MAIN LINE")
+  . . . SET TEXT=$GET(INFO("DRAW MAIN","TEXT"))
+  . . . SET SELECTED=$GET(INFO("DRAW MAIN","SELECTED"))
+  . . . SET ONHIGHLINE=$GET(INFO("DRAW MAIN","ON HIGHLIGHT LINE"))
+  . . . SET TEXTCOLOR=$GET(INFO("DRAW MAIN","TEXT COLOR"))
+  . . . SET SHOWIDX=$GET(INFO("DRAW MAIN","SHOW INDEX"))  
+  . . . SET IDX=+$GET(INFO("DRAW MAIN","DATA INDEX"))
   . . NEW INDEXSTR SET INDEXSTR=""
   . . IF SHOWIDX SET INDEXSTR="{{INDEX}}"_$$RJ^XLFSTR(IDX,NUMIDXDIGITS(COLNUM))_"."
   . . SET TEXT=INDEXSTR_"{{"_TEXTCOLOR_"}}"_TEXT
@@ -456,8 +524,10 @@ GETDATATEXT(COLNUM,IDX,HIGHLINE,XOFFSET)
   IF COLNUM=1 DO
   . SET TEXT=$ORDER(@TMGPSCRLARR@(IDX,""))
   ELSE  DO
-  . NEW LEFTSEL SET LEFTSEL=HIGHLINE(COLNUM-1)
-  . SET TEXT=$GET(@TMGPSCRLARR@("COL",COLNUM,LEFTSEL,IDX))
+  . ;"NEW LEFTSEL SET LEFTSEL=HIGHLINE(COLNUM-1)
+  . ;"SET TEXT=$GET(@TMGPSCRLARR@("COL",COLNUM,LEFTSEL,IDX))
+  . NEW REF SET REF=$$DATAREF(COLNUM)    
+  . SET TEXT=$GET(@REF@(IDX))      
   IF TEXT[$CHAR(9) SET TEXT=$$REPLSTR^TMGSTUT3(TEXT,$CHAR(9),"  ")
   IF $GET(XOFFSET(COLNUM))>0 DO
   . SET TEXT=$$MIDSTRCOLOR^TMGSTUT3(TEXT,XOFFSET(COLNUM)+1,$LENGTH(TEXT))
@@ -468,6 +538,7 @@ INITSCREEN() ;
   ;"        MAINLINES,COLS,ACTIVECOL,HIGHLINE,TOPLINE,ENTRYCT,NUMIDXDIGITS,
   ;"        F1CYCLE,OPTION
   NEW SIZEHDR SET SIZEHDR=$$LISTCT^TMGMISC2($NAME(OPTION("HEADER")))+1
+  IF $DATA(OPTION("HEADER","COL")) SET SIZEHDR=SIZEHDR+2 ;"1 LINE FOR DATA SHOWN, 1 DIVIDER LINE
   NEW SIZEFTR SET SIZEFTR=$$LISTCT^TMGMISC2($NAME(OPTION("FOOTER")))+1
   SET MAINLINES=SCRNH-SIZEHDR-SIZEFTR   ;"This is number of lines do draw for Main part.  
   SET COLS=+$GET(OPTION("COLUMNS","NUM"),1) SET COLS=$SELECT(COLS<1:1,COLS>MAXCOLS:MAXCOLS,1:COLS)  
@@ -486,7 +557,14 @@ INITSCREEN() ;
   ;
 DATAREF(COLNUM) ;"return reference to data, given COLNUM
   ;"NOTE: uses TMGPSCRLARR in global scope
-  NEW REF SET REF=$SELECT(COLNUM=1:TMGPSCRLARR,1:$NAME(@TMGPSCRLARR@("COL",COLNUM)))
+  IF COLNUM=1 QUIT TMGPSCRLARR
+  ;"NEW REF SET REF=$SELECT(COLNUM=1:TMGPSCRLARR,1:$NAME(@TMGPSCRLARR@("COL",COLNUM)))
+  NEW REF SET REF=TMGPSCRLARR_"(""COL"","_COLNUM_","
+  NEW ACOL 
+  FOR ACOL=1:1:COLNUM-1 DO
+  . SET REF=REF_+$GET(HIGHLINE(ACOL))_","
+  SET REF=REF_"""TXT"","
+  SET REF=$$CREF^DILF(REF)
   QUIT REF
   ;
 COLLEFT(WIDTH,COLNUM) ;"Return left X position for given COLNUM
@@ -502,7 +580,7 @@ COLRIGHT(WIDTH,COLNUM) ;"Return right X position for given COLNUM
 CHECKSCRNWIDTH(SCRNW,OPTION)  ;
   ;"note: Uses in global scope: LASTSCRNW, SCRNLINE, SPACELINE
   SET SCRNW=+$GET(OPTION("SCRN WIDTH"))
-  IF (SCRNW'>0) IF $$GETSCRSZ^TMGKERNL(,.SCRNW) SET SCRNW=+SCRNW-1
+  IF (SCRNW'>0) IF $$GETSCRSZ^TMGKERNL(,.SCRNW) SET SCRNW=+SCRNW-2
   IF SCRNW'>0 SET SCRNW=$GET(IOM,66)-2
   ;"//kt --> removed to force query of window each time --> SET OPTION("SCRN WIDTH")=SCRNW
   IF (SCRNW'=LASTSCRNW) DO    ;"if screen is resized, then clear screen, etc
@@ -510,11 +588,16 @@ CHECKSCRNWIDTH(SCRNW,OPTION)  ;
   . SET SCRNLINE="" SET $PIECE(SCRNLINE,"-",SCRNW)="-"
   . SET SPACELINE="" SET $PIECE(SPACELINE," ",SCRNW)=" "
   SET LASTSCRNW=SCRNW  
+  DO  ;"//kt mod 3/9/24 to ensure $IO device WIDTH is not smaller than 
+  . NEW %TEMP ZSHOW "D":%TEMP SET %TEMP=+$PIECE($PIECE($GET(%TEMP("D",1)),"WIDTH=",2)," ",1)   
+  . IF %TEMP>0,SCRNW>(%TEMP+1) DO
+  . . USE $IO:WIDTH=(SCRNW+1)
   QUIT
   ;
 CHECKSCRNHEIGHT(SCRNH,OPTION) ;
   ;"note: I don't want height to autoresize, i.e. I often don't want full height
   SET SCRNH=+$GET(OPTION("SCRN HEIGHT"))   
+  IF (SCRNH'>0) IF $$GETSCRSZ^TMGKERNL(.SCRNH,) SET SCRNH=+SCRNH-2
   IF SCRNH'>0 SET SCRNH=$GET(IOSL,25)-2 
   IF SCRNH'>0 SET SCRNH=15 SET OPTION("SCRN HEIGHT")=SCRNH
   QUIT
@@ -599,25 +682,34 @@ ISCURSOR(ESCKEY) ;
   ;"FYI: FIND=home key and SELECT=end key
   QUIT "UP^DOWN^LEFT^RIGHT^PREV^NEXT^FIND^SELECT^"[ESCKEY_"^"
   ;  
-WCLTEXT(TEXT,MAXX,OPTION) ;"WRITE (OPTIONALLY) COLORED TEXT
+WCLTEXT(TEXT,MAXX,OPTION,CLIP) ;"WRITE (OPTIONALLY) COLORED TEXT
   NEW TEXTA,TEXTB,TEXTCOLOR,WIDTH
   FOR  QUIT:(TEXT'["{{")!($X'<MAXX)  DO
   . SET TEXTCOLOR=$$PARSCOLR(.TEXT,.TEXTA)  ;" Text --> TextA,Text and {{COLOR}} to TEXTCOLOR
-  . DO TRIMWRITE(TEXTA,MAXX)
+  . DO TRIMWRITE(TEXTA,MAXX,.CLIP)
   . IF $$COLORDEFINED(TEXTCOLOR,.OPTION) DO
   . . DO SETCOLOR(TEXTCOLOR,.OPTION)
   . ELSE  WRITE "{{"_TEXTCOLOR_"}}"
-  DO TRIMWRITE(TEXT,MAXX)
+  DO TRIMWRITE(TEXT,MAXX,.CLIP)
   QUIT
   ;
-TRIMWRITE(TEXT,MAXX)  ;"trimmed write to screen
+TRIMWRITE(TEXT,MAXX,CLIP)  ;"trimmed write to screen
+  ;"Input: TEXT -- text to write
+  ;"       MAXX -- max width
+  ;"       CLIP -- OPTIONAL.  If 1, then text is just cut off, rather than trimmed, with "..."
   IF $X<1 SET $X=1  ;"$X is where next char will be written.  Shouldn't be 0, but sometimes is. 
-  NEW CURSORX SET CURSORX=$X   
+  NEW CURSORX SET CURSORX=$X
+  SET CLIP=($GET(CLIP)=1)
   NEW WIDTH SET WIDTH=CURSORX+$LENGTH(TEXT)-1
   IF WIDTH>MAXX DO
-  . NEW TRIMLEN SET TRIMLEN=((MAXX-CURSORX+1)-3)
-  . NEW TEMPSTR SET TEMPSTR=$EXTRACT(TEXT,1,TRIMLEN)
-  . IF TEMPSTR'="" WRITE TEMPSTR_"..."
+  . IF CLIP=0 DO
+  . . NEW TRIMLEN SET TRIMLEN=((MAXX-CURSORX+1)-3)
+  . . NEW TEMPSTR SET TEMPSTR=$EXTRACT(TEXT,1,TRIMLEN)
+  . . IF TEMPSTR'="" WRITE TEMPSTR_"..."
+  . ELSE  IF CLIP=1 DO
+  . . NEW TRIMLEN SET TRIMLEN=((MAXX-CURSORX+1))
+  . . NEW TEMPSTR SET TEMPSTR=$EXTRACT(TEXT,1,TRIMLEN)
+  . . IF TEMPSTR'="" WRITE TEMPSTR
   ELSE  WRITE TEXT
   QUIT
   ;
@@ -643,6 +735,10 @@ GETCODEFN(LABEL,OPTION) ;"Setup CODEFN for event, if available
 SETETRAP ;
   SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
   QUIT
+  ;
+EVENTDEF(OPTION,EVENT) ;"Return in event is defined.
+  NEW RESULT SET RESULT=($GET(OPTION(EVENT))'="")
+  QUIT RESULT
   ;
 EVENT(OPTION,EVENT) ;"Trigger event, if defined.
   ;"NOTE: The event code uses INFO, which is in global scope.
@@ -816,13 +912,15 @@ DEMOSCRL ;"A DEMONSTRATION OF SCROLLER
   DO SCROLLER("DEMOARR",.OPTION)
   QUIT
   ;  
+  ;"============================================================
+  ;
 DEMOCOLS ;"DEMONSTRATE SCROLLER WITH COLUMNS.  
   ;"NOTE: There is also DEMOSCRL below 
   NEW ARRAY,OPTION,TEMPCLR
   SET OPTION("COLUMNS","NUM")=3 
   SET OPTION("COLUMNS",1,"WIDTH")=30
   SET OPTION("COLUMNS","FN TOGGLE NUM")="F1"
-  SET OPTION("LR SCROLLING")=1
+  SET OPTION("LR SCROLLING")=0
   NEW RTN SET RTN="TMG"
   NEW IDX FOR IDX=1:1:60 DO
   . SET RTN=$ORDER(^DIC(9.8,"B",RTN)) QUIT:RTN=""
@@ -831,12 +929,15 @@ DEMOCOLS ;"DEMONSTRATE SCROLLER WITH COLUMNS.
   . FOR  SET JDX=JDX+1 DO  QUIT:JDX=0
   . . NEW LINE SET LINE=$TEXT(+JDX^@RTN)
   . . IF LINE="" SET JDX=0 QUIT
-  . . SET ARRAY("COL",2,IDX,JDX)=LINE
+  . . SET ARRAY("COL",2,IDX,"TXT",JDX)=LINE
+  . . ;"Note: Above is storing all possible display text for column 2 into array ahead of time, 
+  . . ;"      NOT dynamically after selection from column 1
+  . . ;"      HOWEVER, data for column 3 is added a runtime in HNDONCURSOR below.  Could be added here, but this demo is showing another option
   SET OPTION("HEADER",1)=" - < Here is a header line > -"
   SET OPTION("HEADER",2)=" Have a great day!"
   SET OPTION("FOOTER",1)="Enter ^ to exit"
-  SET OPTION("ON SELECT")="HNDONSEL^TMGUSRIF"
-  SET OPTION("ON CMD")="HNDONCMD^TMGUSRIF"
+  SET OPTION("ON SELECT")="HNDONSEL2^TMGUSRIF"
+  SET OPTION("ON CMD")="HNDONCMD2^TMGUSRIF"
   SET OPTION("ON CURSOR")="HNDONCURSOR^TMGUSRIF"
   ;
   SET OPTION("COLORS","NORM")=$$COLORPAIR^TMGTERM("WHITE","BLUE",.TMPCLR) 
@@ -851,34 +952,82 @@ DEMOCOLS ;"DEMONSTRATE SCROLLER WITH COLUMNS.
   SET OPTION("COLUMNS",2,"COLORS","HIGH")=$$COLORPAIR^TMGTERM("WHITE","CYAN",.TMPCLR) 
   SET OPTION("COLUMNS",2,"COLORS","INDEX")=$$COLORPAIR^TMGTERM("BLACK","WHITE",.TMPCLR)
   ;
+  SET OPTION("COLUMNS",3,"COLORS","NORM")=$$COLORPAIR^TMGTERM("WHITE","CYAN",.TMPCLR)
+  SET OPTION("COLUMNS",3,"COLORS","HIGH")=$$COLORPAIR^TMGTERM("WHITE","GREEN",.TMPCLR) 
+  SET OPTION("COLUMNS",3,"COLORS","INDEX")=$$COLORPAIR^TMGTERM("BLACK","WHITE",.TMPCLR)
+  ;
+  ;"BELOW IS GOOD FOR DEBUGGING
+  SET OPTION("SCRN TOP OFFSET")=25
+  SET OPTION("SCRN HEIGHT")=15
+  SET OPTION("SCRN WIDTH")=100
+  ;
   SET OPTION("SHOW INDEX")=0
   ;
+  WRITE #
   DO SCROLLER("ARRAY",.OPTION)
   QUIT
   ;
 HNDONCURSOR(TMGPSCRLARR,OPTION,INFO)  ;"Part of DEMOCOLS
-  ;"Purpose: handle ON SELECT event from SCROLLER
+  ;"Purpose: Handle ON CURSOR event from SCROLLER
+  ;"         Event is fired when a cursor key is pressed, before the scroller moves the highlighted line.  
   ;"Input: TMGPSCRLARR,OPTION,INFO -- see documentation in SCROLLER
   ;"       INFO has this:
   ;"          INFO("USER INPUT")=INPUT
   ;"          INFO("CURRENT LINE","NUMBER")=number currently highlighted line
   ;"          INFO("CURRENT LINE","TEXT")=Text of currently highlighted line
   ;"          INFO("CURRENT LINE","RETURN")=return value of currently highlighted line
+  ;"          INFO("CURSOR")=Cursor Key pressed
+  ;"          INFO("CURSOR","HANDLED")=1 <-- this is what called code should set if it handled
+  ;"                          the cursor event. This will prevent scroller from acting on it.     
   NEW CURSOR SET CURSOR=$GET(INFO("CURSOR"))
   NEW ACTIVECOL SET ACTIVECOL=+$GET(OPTION("COLUMNS","ACTIVE"),1)
   NEW MAXCOLS SET MAXCOLS=+$GET(OPTION("COLUMNS","NUM"),1)
-  IF 1=0,CURSOR="RIGHT" DO  QUIT
+  IF 1=1,CURSOR="RIGHT" DO  
   . IF ACTIVECOL>=MAXCOLS QUIT
   . SET ACTIVECOL=ACTIVECOL+1
   . SET TMGSCLRMSG="FULL"  
   . SET OPTION("COLUMNS","ACTIVE")=ACTIVECOL
   . SET INFO("CURSOR","HANDLED")=1
-  IF 1=0,CURSOR="LEFT" DO  QUIT
+  IF 1=1,CURSOR="LEFT" DO  
   . IF ACTIVECOL=1 QUIT
   . SET ACTIVECOL=ACTIVECOL-1
   . SET TMGSCLRMSG="FULL"  
   . SET OPTION("COLUMNS","ACTIVE")=ACTIVECOL
   . SET INFO("CURSOR","HANDLED")=1
+  IF OPTION("COLUMNS","ACTIVE")=2 DO   ;"Ensure data present for column 3
+  . NEW IDX1 SET IDX1=$GET(HIGHLINE(1),1)
+  . NEW IDX2 SET IDX2=$GET(HIGHLINE(2),1)
+  . IF $GET(INFO("CURSOR"))="DOWN" SET IDX2=IDX2+1
+  . IF $GET(INFO("CURSOR"))="UP" SET IDX2=IDX2-1 IF IDX2<1 SET IDX2=1
+  . IF $DATA(ARRAY("COL",3,IDX1,IDX2))>0 QUIT
+  . SET ARRAY("COL",3,IDX1,IDX2,"TXT",1)="Dynamically added data for ["_IDX1_","_IDX2_"]"
+  . SET ARRAY("COL",3,IDX1,IDX2,"TXT",2)=" sample text for ["_IDX1_","_IDX2_"]"
+  . SET ARRAY("COL",3,IDX1,IDX2,"TXT",3)=" sample text for ["_IDX1_","_IDX2_"]"
+  . SET TMGSCLRMSG="FULL"
   QUIT
+  ;
+HNDONCMD2(TMGPSCRLARR,OPTION,INFO)  ;"Part of DEMOCOLS
+  ;"Purpose: handle ON CMD event from SCROLLER
+  ;"Input: TMGPSCRLARR,OPTION,INFO -- see documentation in SCROLLER
+  ;"       INFO has this:
+  ;"          INFO("USER INPUT")=INPUT
+  ;"          INFO("CURRENT LINE","NUMBER")=number currently highlighted line
+  ;"          INFO("CURRENT LINE","TEXT")=Text of currently highlighted line
+  ;"          INFO("CURRENT LINE","RETURN")=return value of currently highlighted line
+  WRITE !,$GET(INFO("USER INPUT")),!
+  DO PRESS2GO^TMGUSRI2
+  QUIT
+  ;
+HNDONSEL2(TMGPSCRLARR,OPTION,INFO)  ;"Part of DEMOCOLS
+  ;"Purpose: handle ON SELECT event from SCROLLER
+  ;"Input: TMGPSCRLARR,OPTION,INFO -- see documentation in SCROLLER
+  ;"       INFO has this:
+  ;"          INFO("CURRENT LINE","NUMBER")=number currently highlighted line
+  ;"          INFO("CURRENT LINE","TEXT")=Text of currently highlighted line
+  ;"          INFO("CURRENT LINE","RETURN")=return value of currently highlighted line
+  WRITE $GET(INFO("CURRENT LINE","TEXT")),!
+  DO PRESS2GO^TMGUSRI2
+  QUIT
+  ;
   ;"============================================================
   ;

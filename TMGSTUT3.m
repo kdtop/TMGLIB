@@ -604,17 +604,19 @@ NEXTCH2(STR,STARTPOS,FRAGS) ;"Get first next character (or string fragment), mat
   . SET MINIDX=JDX
   QUIT $GET(POS(MINIDX,"TEST"))
   ;      
-NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) ;"Get first next character (or string fragment), matching from 7 possible inputs.  
+NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G,H,I) ;"Get first next character (or string fragment), matching from 7 possible inputs.  
+  ;"ELH  ADDED H AND I TO THE SEARCH
   ;"Purpose: Check string to determine which string fragment comes first and return it
   ;"INPUTS: STR -- the string to check
   ;"        STARTPOS -- the index to start $FIND at, default is 0
   ;"        A..G the inputs to test for.  
   ;"Results: returns which of inputs is found first, or "" if none found.
-  SET A=$GET(A),B=$GET(B),C=$GET(C),D=$GET(D),E=$GET(E),F=$GET(F),G=$GET(G)
+  SET A=$GET(A),B=$GET(B),C=$GET(C),D=$GET(D),E=$GET(E),F=$GET(F),G=$GET(G),H=$GET(H),I=$GET(I)
   NEW FRAGS                  SET:A'="" FRAGS(A)=""      
   SET:B'="" FRAGS(B)=""      SET:C'="" FRAGS(C)=""      
   SET:D'="" FRAGS(D)=""      SET:E'="" FRAGS(E)=""      
   SET:F'="" FRAGS(F)=""      SET:G'="" FRAGS(G)=""
+  SET:H'="" FRAGS(H)=""      SET:I'="" FRAGS(I)=""
   QUIT $$NEXTCH2(.STR,.STARTPOS,.FRAGS)     
   ;    
 LMATCH(STR,SUBSTR,CASESPEC) ;"Does left part of STR match SUBSTR?

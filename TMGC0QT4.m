@@ -60,6 +60,10 @@ ONDMTX(TMGDFN,DT) ;"Is patient diabetic?
   NEW BOOL DO PTHASDM^TMGPXR01(TMGDFN,.BOOL)  
   QUIT ($GET(BOOL)=1)  
   ;
+ONB12TX(TMGDFN,DT,OUT)  ;"Is patient on a med that requires B12 test
+  NEW TMGRESULT SET TMGRESULT=$$TABHASRX(TMGDFN,"B12 TESTING MEDS",.OUT,DT)
+  QUIT (TMGRESULT=1)
+  ;"
 TABHASRX(TMGDFN,TABLNAME,OUT,DT)  ;"DOES TABLE HAVE ASSOCIATED MEDICATIONS?
   ;"Input: TMGDFN -- Patient IEN
   ;"       TABLNAME -- Name of table to check
@@ -123,3 +127,23 @@ HASASCVD(TMGDFN,DT) ;"Does patient have ASCVD health factor, as of DT?
   IF LASTHF=2253 SET TMGRESULT=1
   QUIT TMGRESULT
   ;"
+PTHASCVD(TMGDFN,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Determine if patient has ASCVD, based on Health Factors
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ; FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  Optional.
+        ;"Results: none
+        SET TEST=0
+        SET DATE=0
+        NEW ASCVD SET ASCVD=$$HASASCVD(+$G(TMGDFN))        
+        IF ASCVD=1 DO
+        . SET TEST=1
+        . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"

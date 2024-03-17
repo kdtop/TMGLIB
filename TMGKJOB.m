@@ -29,6 +29,8 @@ TMGKJOB ;TMG/kst/ GT.M Job Exam as API ;1/18/15
  ;"ZJOB
  ;"=======================================================================
  ;"
+ ;"NOTE:  See also TMGZJOB for graphical ^ZJOB interface
+ ;
 ZJOB(PID,ACTION,OUT) ;
   ;"Purpose: To provide API service to ^ZJOB functionality
   ;"Input: PID -- $JOB number of target session to query

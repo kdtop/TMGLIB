@@ -208,7 +208,7 @@ CAPTION(OUT,IDX,LABDATE,TMGDFN)
   SET OUT(IDX)="<P><HR><P>",IDX=IDX+1
   SET OUT(IDX)="<DIV align left>",IDX=IDX+1
   SET OUT(IDX)="<TABLE width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
-  SET OUT(IDX)="cellpadding=""1"" style=""background-color:gray"">",IDX=IDX+1
+  SET OUT(IDX)="cellpadding=""1"" style=""background-color: #F2F2F2;"">",IDX=IDX+1
   SET OUT(IDX)="<TR valign=""bottom"" align=""left"">",IDX=IDX+1
   SET OUT(IDX)="<TD nowrap><B>Patient: "_NAME_"</B></TD>",IDX=IDX+1
   ;"SET OUT(IDX)="<TD nowrap><B>DOB: "_DOB_"</B></TD>",IDX=IDX+1
@@ -516,7 +516,7 @@ CAPTION2(OUT,IDX,LABDATE,TMGDFN)
   SET @OUT@(IDX)="<DIV align left>",IDX=IDX+1
   ;"WIDTH=""600""SET @OUT@(IDX)="<TABLE width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
   SET @OUT@(IDX)="<TABLE WIDTH=""600"" border=""0"" cellspacing=""0""",IDX=IDX+1
-  SET @OUT@(IDX)="cellpadding=""1"" style=""background-color:gray"">",IDX=IDX+1
+  SET @OUT@(IDX)="cellpadding=""1"" style=""background-color:#F2F2F2;"">",IDX=IDX+1
   SET @OUT@(IDX)="<TR valign=""bottom"" align=""left"">",IDX=IDX+1
   SET @OUT@(IDX)="<TD nowrap><B>Patient: "_NAME_"</B></TD>",IDX=IDX+1
   SET @OUT@(IDX)="<TD nowrap><B>DOB: "_DOB_"</B></TD>",IDX=IDX+1

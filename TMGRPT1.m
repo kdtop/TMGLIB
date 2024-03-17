@@ -607,6 +607,66 @@ PRTPAINR  ;"
        ;"DO PRESS2GO^TMGUSRI2
 PPDN   QUIT
        ;"
+PRTALRGY  ;"
+       ;"Purpose: Provide an Non-interactive entry point for Allergies Report
+       ;"Get patient arrays
+       ;"
+       NEW BDATE,EDATE 
+       NEW TODAY SET TODAY=$$TODAY^TMGDATE
+       SET BDATE=TODAY,EDATE=TODAY
+       ;"
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO PADN
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
+       use IO
+       NEW PTARRAY,DATE
+       DO GETSCHED^TMGPXR03(.PTARRAY,BDATE,EDATE)
+       NEW TMGDFN SET TMGDFN=0
+       IF $D(PTARRAY) DO
+       . DO NOW^%DTC
+       . WRITE !
+       . WRITE "****************************************************************",!
+       . WRITE "         Allergy lists for all of today's patient ",!
+       . WRITE "                " SET Y=X DO DD^%DT WRITE Y,!
+       . WRITE "****************************************************************",!
+       . WRITE "                                        (From TMGRPT1.m)",!!
+       . WRITE " ",!
+       FOR  SET TMGDFN=$ORDER(PTARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+       . ;"NEW ALLERGIES SET ALLERGIES=$$ALLERGY^TMGTIUO3(TMGDFN)
+       . ;"IF (ALLERGIES["NEEDS ALLERGY ASSESSMENT")!(ALLERGIES="") DO
+       . NEW NAME,DOB,Y SET DOB=$PIECE($GET(^DPT(TMGDFN,0)),"^",3)
+       . SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+       . SET Y=DOB DO DD^%DT SET DOB=Y
+       . WRITE NAME," (",DOB,")",!
+       . NEW ALLSTR SET ALLSTR=$$ALLERGY^TMGTIUO3(TMGDFN)
+       . IF ALLSTR["NEEDS ALLERGY ASSESSMENT" DO
+       . . WRITE "[ ] NEEDS ALLERGY ASSESSMENT!!",!
+       . ELSE  DO
+       . . NEW RESULT,IEN120D8,ALRGYARR,LINE,IEN,Y,REACTIONS
+       . . SET IEN120D8=0
+       . . NEW THISALRGY SET THISALRGY=""
+       . . SET IEN=0                     
+       . . FOR  SET IEN120D8=$ORDER(^GMR(120.8,"B",TMGDFN,IEN120D8)) QUIT:IEN120D8'>0  DO
+       . . . ;WRITE $GET(^GMR(120.8,IEN120D8,0)),!
+       . . . IF $D(^GMR(120.8,IEN120D8,"ER")) QUIT  ;"Exclude if Entered In Error
+       . . . SET LINE=$GET(^GMR(120.8,IEN120D8,0))
+       . . . SET THISALRGY=LINE
+       . . . SET Y=$P(LINE,"^",4)  ;date
+       . . . X ^DD("DD")
+       . . . SET REACTIONS=$$GETREACT^TMGTIUO3(IEN120D8,1)
+       . . . WRITE "[ ]",$P(LINE,"^",2),"(Entered: ",$P(Y,"@",1),") ",!
+       . . . IF $$TRIM^XLFSTR(REACTIONS)="" SET REACTIONS="*NO REACTION ENTERED*"
+       . . . WRITE "   ",REACTIONS,!
+       . . . ;"SET IEN=IEN+1
+       . . IF THISALRGY="" WRITE "[ ] No Known Allergies",!
+       . WRITE "=========================================",!,!
+       DO ^%ZISC  ;" Close the output device
+       ;"DO PRESS2GO^TMGUSRI2
+PADN   QUIT
+       ;"       
 GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
        ;"Get CS Patients
        DO GETCSPAT^TMGPXR03(.CSPTRESULT,BDATE,EDATE)
@@ -1187,13 +1247,14 @@ CNSLTRPT2() ;
        NEW DCIEN SET DCIEN=+$ORDER(^ORD(100.01,"B","DISCONTINUED",""))
        NEW CANCELIEN SET CANCELIEN=+$ORDER(^ORD(100.01,"B","CANCELLED",""))
        NEW X,Y DO NOW^%DTC NEW NowDate SET NowDate=X
+       ;"GOTO TESTRPT       
        NEW %ZIS
        SET %ZIS("A")="Enter Output Device: "
        SET IOP="S121-LAUGHLIN-LASER"
        DO ^%ZIS  ;"standard device call
        IF POP DO  GOTO CSPDn
        . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
-       use IO
+       use IO     
        ;
        WRITE !
        WRITE "************************************************************",!
@@ -1222,7 +1283,7 @@ CNSLTRPT2() ;
        . . DO DD^%DT SET s=Y
        . . NEW PtIEN SET PtIEN=+$PIECE(znode,"^",2)
        . . IF PtIEN'=0 do
-       . . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)_"-"_PtIEN
+       . . . SET s=s_"^"_$PIECE($GET(^DPT(PtIEN,0)),"^",1)_" ("_$$EXTDATE^TMGDATE($PIECE($GET(^DPT(PtIEN,0)),"^",3))_")-"_PtIEN
        . . ELSE  do
        . . . SET s=s_"^"_"?? Patient Name not found.  Record # "_idx_" in file #123"
        . . IF s["ZZ" QUIT
@@ -1301,7 +1362,7 @@ CNSLTRPT2() ;
        . . . . . ;"IF TITLE["HL7" QUIT
        . . . . . ;"IF TITLE["HOSPITAL" QUIT
        . . . . . ;"IF TITLE["MAMMO" QUIT
-       . . . . . SET TITLE=$E(TITLE,1,7)
+       . . . . . SET TITLE=$E(TITLE,1,4)
        . . . . . IF ORDERTYPE'[TITLE QUIT
        . . . . . IF UNSIGNED[TITLE QUIT
        . . . . . IF UNSIGNED'="" SET UNSIGNED=UNSIGNED_","

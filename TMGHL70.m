@@ -1,4 +1,4 @@
-TMGHL70 ;TMG/kst-Installation/config tools for POC HL7 processing ;11/14/16, 5/18/21
+TMGHL70 ;TMG/kst-Installation/config tools for POC HL7 processing ;11/14/16, 3/14/24
               ;;1.0;TMG-LIB;**1**;03/12/11
  ;
  ;"TMG POC-UTILITY FUNCTIONS 
@@ -23,12 +23,17 @@ TMGHL70 ;TMG/kst-Installation/config tools for POC HL7 processing ;11/14/16, 5/1
  ;" API - Private Functions
  ;"=======================================================================
  ;"UTILITY(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) --HANDLE/SHOW UTILITY MENU
- ;"TESTPARS(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) -- add one test to system, so it's result can be accepted into VistA
- ;"PRSMSH(LINE,ARRAY) -- Parse MSH segment  DEPRECIATED
+ ;"FLSTMENU(TMGTESTMSG,INDENTN,FILES) --FILE LIST MENU -- Show menu of files to load, from options passed in ARR
+ ;"FILEMENU(TMGTESTMSG,INDENTN) -- HANDLE/SHOW FILE MENU
+ ;"TESTPARS(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) -- add one test to system, so it's result can be accepted into VistADEBUGTRY(TMGTESTMSG,TMGENV)  ;"Try processing message via debugger.  
+ ;"DEBUGTRY(TMGTESTMSG,TMGENV)  --Try processing message via debugger.  
+ 
  ;"MAPMENU(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) -- show Mapping menu, and interact with user...
  ;"VMPCK(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN)  -- VIEW MAP, PICKING TYPE TO VIEW. 
  ;"VIEWMNLT(TMGENV,NLT) -- VIEW NATIONAL LABORATORY TEST (NLT) MAPPING. 
  ;"VIEWMAP(TMGENV,TESTID,TMGTESTMSG,TMGHL7MSG,INDENTN) -- Show maping between lab code and LABORATORY TEST entry.
+ ;"GETTESTFROM(TESTMSG,TMGHL7MSG,TMGU) --GET TEST ID&NAME FROM TEST HL7 MESSAGE
+ ;"GETCFG2(MSH,TMGU,HL7INST,HL7APP) 
  ;
  ;"=======================================================================
  ;"Dependancies
@@ -400,24 +405,55 @@ VIEWMAP(TMGENV,TESTID,TMGTESTMSG,TMGHL7MSG,INDENTN) ;
         NEW TEST,TESTNAME,%,VACODE,NEWIEN60,IEN62D41,SYN60,SYNONYM,TMGRESULT
         SET TESTID=$GET(TESTID)
 VM1     SET TEST=TESTID
-        IF TESTID="" DO
-        . IF $DATA(TMGTESTMSG) DO
-        . . NEW TMGU MERGE TMGU=TMGENV("TMGU")
-        . . SET TEST=$$GETTESTFROM(.TMGTESTMSG,.TMGHL7MSG,.TMGU) ;"GET LAB TEST FROM TEST HL7 MESSAGE
-        . . ;"sample return: 1989-3^Vitamin D 25-Hydroxy^LN'  //kt changed 6/5/20.  Had returned just TestID before.
-        . . SET TESTID=$PIECE(TEST,TMGU(2),1)
-        . . ;"NOTE: To fix in future.  Needs to also try looking up by TESTNAME, not just TESTID.  This is
-        . . ;"  because when processing HL7 message, if test can't be found by ID, then it falls back to 
-        . . ;"  lookup by name.  Thus TESTID might not have map but TESTNAME might.  So need to show both. 
-        . ELSE  DO
-        . . WRITE !,"Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
-        . . READ TESTID:$GET(DTIME,3600),!
-        IF "^"[TESTID GOTO VMDN
+        IF TESTID'="" GOTO VM15
+        IF $DATA(TMGTESTMSG)=0 DO  GOTO VM15
+        . WRITE !,"Enter lab code as found in HL7 message, e.g. OSMOC (^ to abort): "
+        . READ TESTID:$GET(DTIME,3600),!
+        ;        
+        NEW TMGU MERGE TMGU=TMGENV("TMGU")
+        SET TEST=$$GETTESTFROM(.TMGTESTMSG,.TMGHL7MSG,.TMGU) ;"GET LAB TEST FROM TEST HL7 MESSAGE
+        ;"sample return: 1989-3^Vitamin D 25-Hydroxy^LN'  //kt changed 6/5/20.  Had returned just TestID before.
+        SET TESTID=$PIECE(TEST,TMGU(2),1)
+        ;"NOTE: To fix in future.  Needs to also try looking up by TESTNAME, not just TESTID.  This is
+        ;"  because when processing HL7 message, if test can't be found by ID, then it falls back to 
+        ;"  lookup by name.  Thus TESTID might not have map but TESTNAME might.  So need to show both.                               
+        SET TESTID=$PIECE(TEST,TMGU(2),1)
+        IF TEST'["^" GOTO VM15
+        NEW TESTNAME SET TESTNAME=$PIECE(TEST,TMGU(2),2)
+        WRITE !,"NOTE: Mapping should be checked for BOTH TestID AND TestName",!
+        WRITE "      This is because when processing HL7 message, if test can't be",!
+        WRITE "      found by ID, then the system falls back to lookup by name.",!
+        WRITE "      Thus even if TESTID map fails, mapping by TESTNAME might succeed.",! 
+        ;
+        NEW TMGUSERINPUT,TMGMNU,TMGMNUI
+VM14    KILL TMGMNUI SET TMGMNUI=0
+        SET TMGMNU(TMGMNUI)="Pick Which Mapping To View",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="TestID: "_TESTID_$CHAR(9)_"TestID",TMGMNUI=TMGMNUI+1
+        SET TMGMNU(TMGMNUI)="Test Name: "_TESTNAME_$CHAR(9)_"TestName",TMGMNUI=TMGMNUI+1
+        WRITE !
+        SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"^")
+        ;
+        IF TMGUSERINPUT="TestID" GOTO VM15
+        IF TMGUSERINPUT="TestName" SET TESTID=TESTNAME GOTO VM15
+        IF TMGUSERINPUT="^" GOTO VMDN
+        IF TMGUSERINPUT=0 SET TMGUSERINPUT=""
+        GOTO VM14
+        ;                
+VM15    IF "^"[TESTID GOTO VMDN
         WRITE "-----",!
         WRITE "Using this TMGENV:",!
         IF $DATA(TMGENV) ZWRITE TMGENV(*)
         WRITE "-----",!
+        ;"//kt added 2/12/24
         NEW ARR
+        SET TMGRESULT=$$GETMAP^TMGHL70B(.TMGENV,TEST,"R",.ARR)
+        DO
+        . WRITE "-----",!
+        . WRITE "Showing mapping array from $$GETMAP^TMGHL70B^TMGHL7U:",!
+        . DO ArrayDump^TMGIDE("ARR")
+        . WRITE "-----",!
+        ;"//kt end 2/12/24 addition
+        KILL ARR
         ;"SET TMGRESULT=$$LMAPAPI^TMGHL7U(.TMGENV,TESTID,.ARR) ;"Get actual mapping
         SET TMGRESULT=$$LMAPAPI^TMGHL7U(.TMGENV,TEST,.ARR) ;"Get actual mapping   //KT 8/26/21
         DO
@@ -571,7 +607,7 @@ GETCFG2(MSH,TMGU,HL7INST,HL7APP) ;
         . NEW SUBIEN SET SUBIEN=0
         . NEW SKIP SET SKIP=1
         . FOR  SET SUBIEN=$ORDER(^TMG(22720,IEN22720,23,SUBIEN)) QUIT:SUBIEN'>0  DO
-        . .  ;"TO DO, EXAMINE RECORD TO SEE IF MATCHES MESSAGE TYPE.  
+        . . ;"TO DO, EXAMINE RECORD TO SEE IF MATCHES MESSAGE TYPE.  
         . . IF $P($G(^TMG(22720,IEN22720,23,SUBIEN,0)),"^",1)=MSGTYPE SET SKIP=0
         . IF SKIP=1 QUIT
         . IF $DATA(^TMG(22720,"EAPP",HL7APP,IEN22720))>0 SET FOUND=1 QUIT
