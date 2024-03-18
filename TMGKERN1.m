@@ -490,8 +490,7 @@ RESTORDEV(PRIORARR,INFO) ;"Use device specified in PRIORARR, setting parameters 
   USE DEVICE:@PARAMSTR
 RDDN ;  
   QUIT RESULT
-  
-  
+  ;  
 SETUPSAV(ARR)  ;"Get information about TERMINAL device parameters
   ;"INPUT: ARR -- PASS BY REFERENCE, AN OUT PARAMETER. Format
   ;"        ARR("ENTRY",<ParameterLabel>)=<TurnOnCmd>^<OnDisplay>^<TurnOffCmd>^<OffDisplay>^<DefaultValue>^<IsKeyValue>
@@ -544,7 +543,3 @@ ZZ ;
    ;;"ECHO_INPUT / ECHO         /           / NOECHO        / NOECHO    / ON       /  0
    ;;"CANONICAL  / CANONICAL    / CANONICAL / NOCANONICAL   /           / OFF      /  0
    ;;"<DONE>
-   
-  
-  
- 
