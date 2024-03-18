@@ -180,7 +180,7 @@ REPLARR(REF,SRCHSTR,REPLSTR) ;"REPLACE each instance of SRCHSTR with REPLSTR fro
 MATCHXTR(STR,DIVCH,GROUP,MAP,RESTRICT) ;"MATCH EXTRACT
   ;"Purpose to extract a string bounded by DIVCH, honoring matching encapsulators
   ;"Note: the following markers are honored as paired encapsulators:
-  ;"      ( ),  { },  | |,  < >,  # #, [ ],
+  ;"      ( ),  { },  | |,  < >,  # #, [ ], " "
   ;"      To specify which SET to use, DIVCH should specify only OPENING character
   ;"E.g. DIVCH="{"
   ;"       s="Hello {There}" --> return "There"

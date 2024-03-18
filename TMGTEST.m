@@ -597,3 +597,65 @@ printResults(sieve,showResults,duration,passes) n num,count
  ;"=============================================================================
  ;"=============================================================================
 	
+SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX,OPTION)  ;"CleaveToArray
+  ;"Purpose: To take a string, delineated by 'divider' and
+  ;"        to split it up into all its parts, putting each part
+  ;"        into an array.  e.g.:
+  ;"        This/is/A/Test, with '/' divider would result in
+  ;"        ARRAY(1)="This"
+  ;"        ARRAY(2)="is"
+  ;"        ARRAY(3)="A"
+  ;"        ARRAY(4)="Test"
+  ;"        ARRAY(CMAXNODE)=4    ;CMAXNODE="MAXNODE"
+  ;"Input: TEXT - the input string -- should NOT be passed by reference.
+  ;"       DIVIDER - the delineating string
+  ;"                If DIVIDER="{!AN}", then string will be divided by any string of non Alphanumeric characters
+  ;"                e.g. 'slow_*_down', then "_*_" would be used as delimiter since it is not made of alpha or numeric chars.    
+  ;"       ARRAY - The array to receive output **SHOULD BE PASSED BY REFERENCE.
+  ;"       INITINDEX - OPTIONAL -- The index of the array to start with, I.e. 0 or 1. Default=1
+  ;"       OPTION - OPTIONAL
+  ;"              OPTION("TRIM DIV") = 1 will cause repeat dividers to be ignored like whitespace.  E.g. "cat cow    duck" gives only 3 entries.
+  ;"              OPTION("NO SPLIT IN QUOTES")=1 will prevent splitting inside quotes.  
+  ;"                  E.g. 'A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"' and divider is " ", would not split on spaces inside quotes.  
+  ;"Output: ARRAY is changed, as outlined above
+  ;"Result: none
+  ;"Notes:  Note -- TEXT is NOT changed (unless passed by reference, in
+  ;"                which case the next to the last piece is put into TEXT)
+  ;"        ARRAY is killed, the filled with data **ONLY** IF DIVISIONS FOUND
+  ;"        Limit of 256 nodes
+  ;"        If CMAXNODE is not defined, "MAXNODE" will be used
+  SET INITINDEX=$GET(INITINDEX,1)
+  NEW PARTB
+  NEW COUNT SET COUNT=INITINDEX
+  NEW CMAXNODE SET CMAXNODE=$GET(CMAXNODE,"MAXNODE")
+  KILL ARRAY  ;"Clear out any old data
+  NEW OPT MERGE OPT=OPTION
+  NEW PROTECTQT SET PROTECTQT=($GET(OPT("NO SPLIT IN QUOTES"))=1)
+  NEW PROTECTARR
+  IF PROTECTQT DO
+  . SET TEXT=$$REMOVEQTS^TMGSTUT2(TEXT,.PROTECTARR)
+  . KILL OPT("NO SPLIT IN QUOTES")  ;"don't want CLEAVSTR^TMGSTUT2 to use this since we handled. 
+  ;
+C2AL1  ;
+  IF '(TEXT[DIVIDER) DO  GOTO C2ADN
+  . SET ARRAY(COUNT)=TEXT ;"put it all into line.
+  . SET ARRAY(CMAXNODE)=COUNT
+  DO CLEAVSTR^TMGSTUT2(.TEXT,DIVIDER,.PARTB,,.OPT)
+  SET ARRAY(COUNT)=TEXT
+  SET ARRAY(CMAXNODE)=COUNT
+  SET COUNT=COUNT+1
+  IF '(PARTB[DIVIDER) DO  GOTO C2ADN
+  . SET ARRAY(COUNT)=PARTB
+  . SET ARRAY(CMAXNODE)=COUNT
+  ELSE  DO  GOTO C2AL1
+  . SET TEXT=$GET(PARTB)
+  . SET PARTB=""
+C2ADN  ;
+  IF PROTECTQT DO
+  . NEW IDX SET IDX=INITINDEX-1
+  . FOR  SET IDX=$ORDER(ARRAY(IDX)) QUIT:IDX'>0  DO
+  . . NEW STR SET STR=$GET(ARRAY(IDX)) QUIT:STR=""
+  . . SET STR=$$RESTOREQTS^TMGSTUT2(STR,.PROTECTARR)
+  . . SET ARRAY(IDX)=STR
+  QUIT
+  ;

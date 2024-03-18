@@ -228,128 +228,273 @@ KLJ2 ;
   ;  
  ;"================================================================
 DEV2ARR(DEVICE,OUT,FILTER,INFO)  ;"Store off a device, with all it's parameters
-   ;"NOTE: This depends on YottaDB ZSHOW "D" command, which does NOT show all 
-   ;"      device parameters (unfortunately).  Known to be missing are: CONVERT, HOSTSYNC, TTSYNC
-   ;"INPUT:  DEVICE -- the name of the device to query.  Can call with $P or $IO etc. 
-   ;"        OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
-   ;"              finishe....
-   ;"        FILTER -- OPTIONAL.  If provided, then string of flags for desired info to be return
-   ;"                If FILTER ="" then default is "GNRS", to return ALL
-   ;"                If FILTER["G" -- return GENERAL info
-   ;"                If FILTER["N" -- return NON-DEFAULT info
-   ;"                If FILTER["R" -- return RAW PARAMS info
-   ;"                If FILTER["S" -- return STATE info
-   ;"        INFO -- OPTIONAL.  PASS BY FREFERENCE.  An array that has setup information from prior run (for faster execution)
-   NEW TEMP ZSHOW "D":TEMP
-   NEW DONE SET DONE=0
-   SET FILTER=$GET(FILTER,"GNRS")
-   NEW APARAM
-   NEW ARR,TOKEN,ADEVICE,MATCHDEV SET MATCHDEV=0
-   NEW IDX,JDX,KDX SET IDX=0,KDX=1
-   FOR  SET IDX=$ORDER(TEMP("D",IDX)) QUIT:(IDX'>0)  DO  QUIT:MATCHDEV
-   . NEW ENTRY SET ENTRY=$GET(TEMP("D",IDX)) QUIT:ENTRY="" 
-   . KILL ARR SET ADEVICE=""
-   . FOR JDX=1:1:$LENGTH(ENTRY," ") DO
-   . . SET TOKEN=$PIECE(ENTRY," ",JDX) QUIT:TOKEN=""
-   . . IF JDX=1 SET OUT("GENERAL","NAME")=TOKEN,ADEVICE=TOKEN QUIT
-   . . IF JDX=2 SET OUT("GENERAL","STATUS")=TOKEN QUIT
-   . . IF JDX=3 SET OUT("GENERAL","TYPE")=TOKEN QUIT
-   . . SET ARR(KDX)=TOKEN,KDX=KDX+1
-   . SET MATCHDEV=(ADEVICE=DEVICE)
-   . IF MATCHDEV=0 KILL ARR QUIT 
-   IF (MATCHDEV=0)!(IDX'>0) GOTO D2ADN
-   MERGE OUT("RAW PARAMS")=ARR
-   FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
-   . SET APARAM=$GET(ARR(IDX)) QUIT:APARAM=""
-   . IF APARAM["=" SET APARAM=$PIECE(APARAM,"=",1)_"="
-   . SET OUT("RAW PARAMS","B",APARAM)=IDX
-   IF $DATA(INFO)=0 DO SETUPSAV(.INFO)
-   SET IDX=0
-   FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
-   . SET APARAM=$GET(ARR(IDX)) QUIT:APARAM=""
-   . NEW TRIMPARAM SET TRIMPARAM=APARAM
-   . NEW KEYVAL SET KEYVAL=0
-   . IF TRIMPARAM["=" DO
-   . . SET TRIMPARAM=$PIECE(APARAM,"=",1)_"="
-   . . SET KEYVAL=1,KEYVAL("VAL")=$PIECE(APARAM,"=",2)
-   . ;"First look for easy entries that have a value if ON
-   . IF $DATA(INFO("ONDISP",TRIMPARAM)) DO
-   . . NEW ENTRY SET ENTRY=$ORDER(INFO("ONDISP",TRIMPARAM,"")) QUIT:ENTRY=""
-   . . ;"SET ENTRY=$GET(INFO("ENTRY",ENTRY)) ;"format:  Turn_on^On_disp^Turn_off^Off_disp
-   . . SET OUT("STATE",ENTRY)=$SELECT(KEYVAL=1:$GET(KEYVAL("VAL")),1:"ON")
-   . ;"First look for easy entries that have a value if OFF
-   . IF $DATA(INFO("OFFDISP",APARAM)) DO
-   . . NEW ENTRY SET ENTRY=$ORDER(INFO("OFFDISP",TRIMPARAM,"")) QUIT:ENTRY=""
-   . . SET OUT("STATE",ENTRY)=$SELECT(KEYVAL=1:$GET(KEYVAL("VAL")),1:"OFF")
-   ;"Next check for all the NULL when ON entries.  
-   NEW ENTRY SET ENTRY=""
-   FOR  SET ENTRY=$ORDER(INFO("NULLWHENON",ENTRY)) QUIT:ENTRY=""  DO
-   . NEW DATA SET DATA=$GET(INFO("ENTRY",ENTRY)) QUIT:DATA=""
-   . NEW OFFVALUE SET OFFVALUE=$PIECE(DATA,"^",4)
-   . IF $DATA(OUT("RAW PARAMS","B",OFFVALUE)) QUIT
-   . NEW TURNONCMD SET TURNONCMD=$PIECE(DATA,"^",1)  ;"piece 1 is the TURN ON command.
-   . IF TURNONCMD["""""" SET TURNONCMD=""
-   . SET OUT("STATE",ENTRY)="ON"  ;"TURNONCMD
-   ;"Next check for all the NULL when OFF entries.  
-   NEW ENTRY SET ENTRY=""
-   FOR  SET ENTRY=$ORDER(INFO("NULLWHENOFF",ENTRY)) QUIT:ENTRY=""  DO
-   . NEW DATA SET DATA=$GET(INFO("ENTRY",ENTRY)) QUIT:DATA=""
-   . NEW ONVALUE SET ONVALUE=$PIECE(DATA,"^",2)
-   . IF $DATA(OUT("RAW PARAMS","B",ONVALUE)) QUIT
-   . NEW TURNOFFCMD SET TURNOFFCMD=$PIECE(DATA,"^",3)  ;"piece 1 is the TURN OFF command.  
-   . IF TURNOFFCMD["""""" SET TURNOFFCMD=""
-   . SET OUT("STATE",ENTRY)="OFF"  ;"TURNOFFCMD
-   ;"Next, show the entries for which we can't tell state
-   FOR  SET ENTRY=$ORDER(INFO("UNKNOWN",ENTRY)) QUIT:ENTRY=""  DO
-   . NEW DATA SET DATA=$GET(INFO("ENTRY",ENTRY)) QUIT:DATA=""
-   . NEW TURNONCMD SET TURNONCMD=$PIECE(DATA,"^",1)  ;"piece 1 is the TURN ON command.
-   . NEW TURNOFFCMD SET TURNOFFCMD=$PIECE(DATA,"^",3)  ;"piece 1 is the TURN OFF command.  
-   . ;"SET OUT("STATE",ENTRY)=TURNONCMD_"/"_TURNOFFCMD_"--> ? STATUS"
-   . SET OUT("STATE",ENTRY)="?"
-   ;"Check Special cases
-   SET ENTRY="TERMINATOR"  ;"Both "" and TERM=$C() can indicate found.  NULL means $C(13)
-   IF $DATA(OUT("RAW PARAMS","B","TERM="))=0 DO
-   . SET OUT("STATE","TERMINATOR")="$C(13)"
-   ;"Now compare to default state
-   SET APARAM=""
-   FOR  SET APARAM=$ORDER(INFO("ENTRY",APARAM)) QUIT:APARAM=""  DO
-   . NEW ENTRY SET ENTRY=$GET(INFO("ENTRY",APARAM)) QUIT:ENTRY=""
-   . NEW DEFAULTVAL SET DEFAULTVAL=$PIECE(ENTRY,"^",5)
-   . NEW CURRENTVAL SET CURRENTVAL=$GET(OUT("STATE",APARAM))
-   . IF CURRENTVAL=DEFAULTVAL QUIT
-   . IF DEFAULTVAL="#",CURRENTVAL=+CURRENTVAL QUIT
-   . SET OUT("NON-DEFAULT",APARAM)=CURRENTVAL
-   ;"Get $x,$y for device
-   USE DEVICE
-   SET OUT("STATE","$X")=$X,OUT("NON-DEFAULT","$X")=$X
-   SET OUT("STATE","$Y")=$Y,OUT("NON-DEFAULT","$Y")=$Y
-   USE $IO
-   ;"Now filter out undesired nodes
-   NEW FLAG FOR FLAG="G,g,GENERAL","N,n,NON-DEFAULT","R,r,RAW PARAMS","S,s,STATE" DO
-   . NEW F1,F2 SET F1=$PIECE(FLAG,",",1),F2=$PIECE(FLAG,",",2)
-   . IF (FILTER[F1)!(FILTER[F2) QUIT
-   . NEW NODE SET NODE=$PIECE(FLAG,",",3)
-   . KILL OUT(NODE)
-   KILL OUT("RAW PARAMS","B")
+  ;"NOTE: This depends on YottaDB ZSHOW "D" command, which does NOT show all 
+  ;"      device parameters (unfortunately).  Known to be missing are: CONVERT, HOSTSYNC, TTSYNC
+  ;"INPUT:  DEVICE -- the name of the device to query.  Can call with $P or $IO etc. 
+  ;"        OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
+  ;"           OUT("GENERAL","NAME")="/dev/pts/0"
+  ;"           OUT("GENERAL","STATUS")="OPEN"
+  ;"           OUT("GENERAL","TYPE")="TERMINAL"
+  ;"           OUT("NON-DEFAULT","$X")=0
+  ;"           OUT("NON-DEFAULT","$Y")=2
+  ;"           OUT("RAW PARAMS",1)="NOPAST"
+  ;"           OUT("RAW PARAMS",2)="NOESCA"
+  ;"           OUT("RAW PARAMS",3)="NOREADS"
+  ;"           OUT("RAW PARAMS",4)="TYPE"
+  ;"           OUT("RAW PARAMS",5)="WIDTH=147"
+  ;"           OUT("RAW PARAMS",6)="LENG=39"
+  ;"           OUT("STATE","$X")=0
+  ;"           OUT("STATE","$Y")=2
+  ;"           OUT("STATE","CANONICAL")="OFF"
+  ;"           OUT("STATE","CTRLC_BRK")="ON"
+  ;"           OUT("STATE","CTRL_TRAP")="OFF"
+  ;"           OUT("STATE","ECHO_INPUT")="ON"
+  ;"           OUT("STATE","EDIT_MODE")="OFF"
+  ;"           OUT("STATE","EMPTERM")="OFF"
+  ;"           OUT("STATE","ESC_PROS")="OFF"
+  ;"           OUT("STATE","EXCEPTION")="OFF"
+  ;"           OUT("STATE","FILTERXY")="OFF"
+  ;"           OUT("STATE","HOSTSYNC")="?"
+  ;"           OUT("STATE","INSERT")="ON"
+  ;"           OUT("STATE","PAGE_LEN")=39
+  ;"           OUT("STATE","PAGE_WIDTH")=147
+  ;"           OUT("STATE","PASSTHRU")="OFF"
+  ;"           OUT("STATE","READSYNC")="OFF"
+  ;"           OUT("STATE","TERMINATOR")="$C(13)"
+  ;"           OUT("STATE","TTSYNC")="?"
+  ;"           OUT("STATE","TYPEAHEAD")="ON"
+  ;"           OUT("STATE","UPPERCASE")="?"
+  ;"           OUT("STATE","WRAP_LINE")="ON"
+  ;"        FILTER -- OPTIONAL.  If provided, then string of flags for desired info to be return
+  ;"                If FILTER ="" then default is "GNRS", to return ALL
+  ;"                If FILTER["G" -- return GENERAL info
+  ;"                If FILTER["N" -- return NON-DEFAULT info
+  ;"                If FILTER["R" -- return RAW PARAMS info
+  ;"                If FILTER["S" -- return STATE info
+  ;"        INFO -- OPTIONAL.  PASS BY FREFERENCE.  An array that has setup information from prior run (for faster execution)
+  ;"RESULT: none
+  NEW TEMP ZSHOW "D":TEMP
+  NEW DONE SET DONE=0
+  SET FILTER=$GET(FILTER,"GNRS")
+  NEW APARAM
+  KILL OUT
+  NEW ARR,TOKEN,ADEVICE,MATCHDEV SET MATCHDEV=0
+  NEW IDX,JDX,KDX SET IDX=0,KDX=1
+  NEW OPTION SET OPTION("NO SPLIT IN QUOTES")=1
+  ;"SPLIT EACH LINE FROM ZSHOW "D" INTO ARR, USING ONLY LINE THAT MATCHES DEVICE
+  FOR  SET IDX=$ORDER(TEMP("D",IDX)) QUIT:(IDX'>0)  DO  QUIT:MATCHDEV
+  . NEW ENTRY SET ENTRY=$GET(TEMP("D",IDX)) QUIT:ENTRY="" 
+  . IF ENTRY["FIL=(" DO   ;"Example: FIL=(CHARACTERS, ESCAPES), convert --> FIL=(CHARACTERS,ESCAPES)
+  . . NEW PARTA,PARTB,PARTC SET PARTA=$PIECE(ENTRY,"FIL=(",1),PARTC=$PIECE(ENTRY,"FIL=(",2,999),PARTB=$PIECE(PARTC,")",1),PARTC=$PIECE(PARTC,")",2,999)
+  . . SET PARTB=$$REPLSTR^TMGSTUT3(PARTB,", ",",") 
+  . . SET ENTRY=PARTA_"FIL=("_PARTB_")"_PARTC
+  . KILL ARR SET ADEVICE=""
+  . NEW SPLITARR DO SPLIT2AR^TMGSTUT2(ENTRY," ",.SPLITARR,,.OPTION)  ;"<-- can handle spaces inside strings
+  . KILL SPLITARR("MAXNODE")
+  . SET JDX=0 FOR  SET JDX=$ORDER(SPLITARR(JDX)) QUIT:JDX'>0  DO
+  . . SET TOKEN=$GET(SPLITARR(JDX)) QUIT:TOKEN=""
+  . . IF JDX=1 SET OUT("GENERAL","NAME")=TOKEN,ADEVICE=TOKEN QUIT
+  . . IF JDX=2 SET OUT("GENERAL","STATUS")=TOKEN QUIT
+  . . IF JDX=3 SET OUT("GENERAL","TYPE")=TOKEN QUIT
+  . . SET ARR(KDX)=TOKEN,KDX=KDX+1
+  . SET MATCHDEV=(ADEVICE=DEVICE)
+  . IF MATCHDEV=0 KILL ARR QUIT 
+  IF (MATCHDEV=0)!(IDX'>0) GOTO D2ADN
+  MERGE OUT("RAW PARAMS")=ARR
+  ;"SETUP A 'B' INDEX
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  . SET APARAM=$GET(ARR(IDX)) QUIT:APARAM=""
+  . IF APARAM["=" SET APARAM=$PIECE(APARAM,"=",1)_"="
+  . SET OUT("RAW PARAMS","B",APARAM)=IDX
+  ;"ENSURE INFO IS POPULATED
+  IF $DATA(INFO)=0 DO SETUPSAV(.INFO)
+  ;"Now process each element of line, each corresponding to a parameter value
+  SET IDX=0
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  . SET APARAM=$GET(ARR(IDX)) QUIT:APARAM=""
+  . NEW TRIMPARAM SET TRIMPARAM=APARAM
+  . NEW KEYVAL SET KEYVAL=0
+  . IF TRIMPARAM["=" DO  ;"Determine if parameter is a key=value type entry
+  . . SET TRIMPARAM=$PIECE(APARAM,"=",1)_"="
+  . . SET KEYVAL=1,KEYVAL("VAL")=$PIECE(APARAM,"=",2)
+  . ;"First look for easy entries that have a value if ON
+  . IF $DATA(INFO("ONDISP",TRIMPARAM)) DO
+  . . NEW ENTRY SET ENTRY=$ORDER(INFO("ONDISP",TRIMPARAM,"")) QUIT:ENTRY=""
+  . . ;"SET ENTRY=$GET(INFO("ENTRY",ENTRY)) ;"format:  Turn_on^On_disp^Turn_off^Off_disp
+  . . SET OUT("STATE",ENTRY)=$SELECT(KEYVAL=1:$GET(KEYVAL("VAL")),1:"ON")
+  . ;"First look for easy entries that have a value if OFF
+  . IF $DATA(INFO("OFFDISP",APARAM)) DO
+  . . NEW ENTRY SET ENTRY=$ORDER(INFO("OFFDISP",TRIMPARAM,"")) QUIT:ENTRY=""
+  . . SET OUT("STATE",ENTRY)=$SELECT(KEYVAL=1:$GET(KEYVAL("VAL")),1:"OFF")
+  ;"Next check for all the NULL when ON entries.  
+  NEW ENTRY SET ENTRY=""
+  FOR  SET ENTRY=$ORDER(INFO("NULLWHENON",ENTRY)) QUIT:ENTRY=""  DO
+  . NEW DATA SET DATA=$GET(INFO("ENTRY",ENTRY)) QUIT:DATA=""
+  . NEW OFFVALUE SET OFFVALUE=$PIECE(DATA,"^",4)
+  . IF $DATA(OUT("RAW PARAMS","B",OFFVALUE)) QUIT
+  . NEW TURNONCMD SET TURNONCMD=$PIECE(DATA,"^",1)  ;"piece 1 is the TURN ON command.
+  . IF TURNONCMD["""""" SET TURNONCMD=""
+  . SET OUT("STATE",ENTRY)="ON"  ;"TURNONCMD
+  ;"Next check for all the NULL when OFF entries.  
+  NEW ENTRY SET ENTRY=""
+  FOR  SET ENTRY=$ORDER(INFO("NULLWHENOFF",ENTRY)) QUIT:ENTRY=""  DO
+  . NEW DATA SET DATA=$GET(INFO("ENTRY",ENTRY)) QUIT:DATA=""
+  . NEW ONVALUE SET ONVALUE=$PIECE(DATA,"^",2)
+  . IF $DATA(OUT("RAW PARAMS","B",ONVALUE)) QUIT
+  . NEW TURNOFFCMD SET TURNOFFCMD=$PIECE(DATA,"^",3)  ;"piece 1 is the TURN OFF command.  
+  . IF TURNOFFCMD["""""" SET TURNOFFCMD=""
+  . SET OUT("STATE",ENTRY)="OFF"  ;"TURNOFFCMD
+  ;"Next, show the entries for which we can't tell state
+  FOR  SET ENTRY=$ORDER(INFO("UNKNOWN",ENTRY)) QUIT:ENTRY=""  DO
+  . NEW DATA SET DATA=$GET(INFO("ENTRY",ENTRY)) QUIT:DATA=""
+  . NEW TURNONCMD SET TURNONCMD=$PIECE(DATA,"^",1)  ;"piece 1 is the TURN ON command.
+  . NEW TURNOFFCMD SET TURNOFFCMD=$PIECE(DATA,"^",3)  ;"piece 1 is the TURN OFF command.  
+  . ;"SET OUT("STATE",ENTRY)=TURNONCMD_"/"_TURNOFFCMD_"--> ? STATUS"
+  . SET OUT("STATE",ENTRY)="?"
+  ;"Check Special cases
+  SET ENTRY="TERMINATOR"  ;"Both "" and TERM=$C() can indicate found.  NULL means $C(13)
+  IF $DATA(OUT("RAW PARAMS","B","TERM="))=0 DO
+  . SET OUT("STATE","TERMINATOR")="$C(13)"
+  ;"Now compare to default state
+  SET APARAM=""
+  FOR  SET APARAM=$ORDER(INFO("ENTRY",APARAM)) QUIT:APARAM=""  DO
+  . NEW ENTRY SET ENTRY=$GET(INFO("ENTRY",APARAM)) QUIT:ENTRY=""
+  . NEW DEFAULTVAL SET DEFAULTVAL=$PIECE(ENTRY,"^",5)
+  . NEW CURRENTVAL SET CURRENTVAL=$GET(OUT("STATE",APARAM))
+  . IF CURRENTVAL=DEFAULTVAL QUIT
+  . IF DEFAULTVAL="#",CURRENTVAL=+CURRENTVAL QUIT
+  . SET OUT("NON-DEFAULT",APARAM)=CURRENTVAL
+  ;"Get $x,$y for device
+  USE DEVICE
+  SET OUT("STATE","$X")=$X,OUT("NON-DEFAULT","$X")=$X
+  SET OUT("STATE","$Y")=$Y,OUT("NON-DEFAULT","$Y")=$Y
+  USE $IO
+  ;"Now filter out undesired nodes
+  NEW FLAG FOR FLAG="G,g,GENERAL","N,n,NON-DEFAULT","R,r,RAW PARAMS","S,s,STATE" DO
+  . NEW F1,F2 SET F1=$PIECE(FLAG,",",1),F2=$PIECE(FLAG,",",2)
+  . IF (FILTER[F1)!(FILTER[F2) QUIT
+  . NEW NODE SET NODE=$PIECE(FLAG,",",3)
+  . KILL OUT(NODE)
+  KILL OUT("RAW PARAMS","B")
 D2ADN ;   
-   QUIT
-   ;
-USESAVEDDEV(ARR) ;
-   ;"NOTICE!! This function is designed for use with YottaDB TERMINAL devices only
-  NEW PARAMSTR SET PARAMSTR=""
-  NEW IDX SET IDX=0
-  FOR  SET IDX=$ORDER(ARR("PARAMS",IDX)) QUIT:IDX'>0  DO
-  . NEW APARAM SET APARAM=$GET(ARR("PARAMS",IDX)) QUIT:APARAM=""
-  . IF PARAMSTR'="" SET PARAMSTR=PARAMSTR_":"
-  . SET PARAMSTR=PARAMSTR_APARAM
-  NEW DEVNAME SET DEVNAME=$GET(ARR("NAME"))
-  ;"USE DEVNAME:(@PARAMSTR)  ;"<--- NOT CORRERCT, NEED FIX
   QUIT
+  ;
+DEVDELTA(DEVICE,PRIORARR,OUT,INFO)  ;"Get difference between current device and prior saved array
+  ;"INPUT:  DEVICE -- the name of the device to query.  Can call with $P or $IO etc. 
+  ;"        PRIORARR -- PASS BY REFERENCE. This should be output from DEV2ARR^TMGKERN1
+  ;"           Must have GENERAL and STATE nodes (i.e. these should not be filtered out)
+  ;"        OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  This only returns entries if values DIFFER between current and PRIORARR
+  ;"             OUT("STATE","$Y")=13
+  ;"             OUT("STATE","WRAP_LINE")="OFF"
+  ;"        INFO -- OPTIONAL.  PASS BY FREFERENCE.  An array that has setup information from prior run (for faster execution)
+  ;"RESULT: 1^OK, or -1^ERROR MESSAGE
+  NEW CURARR,CURVAL,PRIORVAL,LABEL
+  NEW RESULT SET RESULT="1^OK"  ;"default
+  KILL OUT
+  IF $DATA(PRIORARR("STATE"))=0 DO  GOTO DDDN
+  . SET RESULT="-1^PRIORARR does not contain STATE node. Aborting"
+  IF $DATA(PRIORARR("GENERAL"))=0 DO  GOTO DDDN
+  . SET RESULT="-1^PRIORARR does not contain GENERAL node. Aborting"
+  SET PRIORVAL=$GET(PRIORARR("GENERAL","NAME"))
+  IF PRIORVAL="" DO  GOTO DDDN
+  . SET RESULT="-1^No device name in PRIORARR. Aborting."
+  DO DEV2ARR(DEVICE,.CURARR,"GS",.INFO)  ;"Store off a device, with all it's parameters   
+  ;"Now, compare CURARR and PRIORARR
+  SET CURVAL=$GET(CURARR("GENERAL","NAME"))
+  IF CURVAL="" DO  GOTO DDDN
+  . SET RESULT="-1^Unable to get name of DEVICE. Aborting."
+  IF CURVAL'=PRIORVAL DO  GOTO DDDN
+  . SET RESULT="-1^Unable to compare different devices"
+  FOR LABEL="NAME","STATUS","TYPE" DO
+  . SET CURVAL=$GET(CURARR("GENERAL",LABEL))
+  . SET PRIORVAL=$GET(PRIORARR("GENERAL",LABEL))
+  . IF CURVAL=PRIORVAL KILL CURARR("GENERAL",LABEL)
+  SET LABEL=""
+  FOR  SET LABEL=$ORDER(CURARR("STATE",LABEL)) QUIT:LABEL=""  DO
+  . SET CURVAL=$GET(CURARR("STATE",LABEL))
+  . SET PRIORVAL=$GET(PRIORARR("STATE",LABEL))
+  . IF CURVAL=PRIORVAL KILL CURARR("STATE",LABEL)
+  MERGE OUT=CURARR  
+DDDN ;
+  QUIT RESULT
+  ;
+RESTORDEV(PRIORARR,INFO) ;"Use device specified in PRIORARR, setting parameters to saved values
+  ;"NOTICE!! This function is designed for use with YottaDB TERMINAL devices only
+  ;"INPUT:  PRIORARR -- PASS BY REFERENCE. This should be output from DEV2ARR^TMGKERN1
+  ;"           Must have GENERAL and STATE nodes (i.e. these should not be filtered out)
+  ;"        INFO -- OPTIONAL.  PASS BY FREFERENCE.  An array that has setup information from prior run (for faster execution)
+  ;"RESULT: 1^OK, or -1^ERROR MESSAGE
+  NEW RESULT SET RESULT="1^OK"  ;"default
+  NEW DEVICE SET DEVICE=$GET(PRIORARR("GENERAL","NAME"))
+  IF DEVICE="" DO  GOTO RDDN
+  . SET RESULT="-1^Unable to get device name from PRIORARR. Aborting"
+  NEW DELTA
+  SET RESULT=$$DEVDELTA(DEVICE,.PRIORARR,.DELTA,.INFO)  ;"Get difference between current device and prior saved array
+  IF RESULT'>0 GOTO RDDN
+  NEW PARAMSTR SET PARAMSTR=""
+  NEW LABEL SET LABEL=""
+  FOR  SET LABEL=$ORDER(DELTA("STATE",LABEL)) QUIT:(LABEL="")!(+RESULT'>0)  DO  ;"DELTA only contains entries for values that have CHANGED
+  . NEW DATA SET DATA=$GET(INFO("ENTRY",LABEL)) QUIT:DATA=""   ;"e.g. $Y not in INFO
+  . NEW TURNONCMD SET TURNONCMD=$PIECE(DATA,"^",1)  ;"piece 1 is the TURN ON command.
+  . NEW TURNOFFCMD SET TURNOFFCMD=$PIECE(DATA,"^",3)  ;"piece 1 is the TURN OFF command.  
+  . NEW ISKEYVAL SET ISKEYVAL=$PIECE(DATA,"^",6)
+  . NEW OUTPUTPARAM SET OUTPUTPARAM=""
+  . NEW PRIORVAL SET PRIORVAL=$GET(PRIORARR("STATE",LABEL))
+  . NEW CURVAL SET CURVAL=$GET(DELTA("STATE",LABEL))
+  . IF ISKEYVAL=1 DO       
+  . . ;"                  Label      Turn_on        Turn_off        KEY:VALUE
+  . . ;"HANDLE THESE -> EXCEPTION  / EXCE=@       / EXCEPTION=""  /  1
+  . . ;"HANDLE THESE -> CTRL_TRAP  / CTRAP=@      / CTRAP=""      /  1
+  . . ;"HANDLE THESE -> TERMINATOR / TERMINATOR=@ / NOTERMINATOR  /  1
+  . . ;"HANDLE THESE -> FILTERXY   / FILTER=@     / NOFILTER      /  1
+  . . ;"HANDLE THESE -> PAGE_LEN   / LENGTH=@     / LENGTH=0      /  1
+  . . ;"HANDLE THESE -> PAGE_WIDTH / WIDTH=@      / WIDTH=0       /  1
+  . . IF PRIORVAL="OFF" DO  QUIT                                                              
+  . . . SET OUTPARAM=TURNOFFCMD          
+  . . IF TURNONCMD["=@" DO
+  . . . NEW CMD SET CMD=$PIECE(TURNONCMD,"=@",1)
+  . . . IF LABEL="FILTERXY" DO  QUIT
+  . . . . IF PRIORVAL["," DO  QUIT  ;"HANDLE PRIORVAL: FIL=(ESCAPES,CHARACTERS) --> FILTER="ESCAPES":FILTER="CHARACTERS"
+  . . . . . SET OUTPARAM="NOFILTER"  ;"<-- this should clear prior values, allowing addition of just those wanted. 
+  . . . . . IF PRIORVAL["(" SET PRIORVAL=$PIECE(PRIORVAL,"(",2)
+  . . . . . IF PRIORVAL[")" SET PRIORVAL=$PIECE(PRIORVAL,")",1)
+  . . . . . NEW IDX FOR IDX=1:1:$LENGTH(PRIORVAL,",") DO
+  . . . . . . NEW PART SET PART=$PIECE(PRIORVAL,",",IDX) QUIT:PART=""
+  . . . . . . IF OUTPARAM'="" SET OUTPARAM=OUTPARAM_":"
+  . . . . . . SET OUTPARAM=OUTPARAM_CMD_"="""_PART_""""
+  . . . . SET OUTPARAM=CMD_"="""_PART_""""
+  . . . ELSE  SET OUTPARAM=CMD_"="_PRIORVAL
+  . ELSE  IF ISKEYVAL=0 DO 
+  . . ;"                  Label      Turn_on        Turn_off       KEY:VALUE
+  . . ;"HANDLE THESE -> CTRLC_BRK  / CENABLE      / NOCENABLE    /  0
+  . . ;"HANDLE THESE -> EDIT_MODE  / EDITING      / NOEDITING    /  0
+  . . ;"HANDLE THESE -> EMPTERM    / EMPTERM      / NOEMPTERM    /  0
+  . . ;"HANDLE THESE -> ESC_PROS   / ESCAPE       / NOESCAPE     /  0
+  . . ;"HANDLE THESE -> INSERT     / INSERT       / NOINSERT     /  0
+  . . ;"HANDLE THESE -> PASSTHRU   / PASTHRU      / NOPASTHRU    /  0
+  . . ;"HANDLE THESE -> READSYNC   / READSYNC     / NOREADSYNC   /  0
+  . . ;"HANDLE THESE -> TYPEAHEAD  / TYPEAHEAD    / NOTYPEAHEAD  /  0
+  . . ;"HANDLE THESE -> WRAP_LINE  / WRAP         / NOWRAP       /  0
+  . . ;"HANDLE THESE -> ECHO_INPUT / ECHO         / NOECHO       /  0
+  . . ;"HANDLE THESE -> CANONICAL  / CANONICAL    / NOCANONICAL  /  0
+  . . IF PRIORVAL="OFF" DO                                              
+  . . . SET OUTPARAM=TURNOFFCMD
+  . . ELSE  IF PRIORVAL="ON" DO
+  . . . SET OUTPARAM=TURNONCMD
+  . . ELSE  IF PRIORVAL="?" DO
+  . . . ;"Nothing to do here since we don't have these working right now. 
+  . IF PARAMSTR'="" SET PARAMSTR=PARAMSTR_":"
+  . SET PARAMSTR=PARAMSTR_OUTPARAM
+  IF PARAMSTR'="" SET PARAMSTR="("_PARAMSTR_")"
+  ;"WRITE !,!,"USE "_DEVICE_":@PARAMSTR     PARAMSTR=",PARAMSTR,!
+  USE DEVICE:@PARAMSTR
+RDDN ;  
+  QUIT RESULT
   
   
 SETUPSAV(ARR)  ;"Get information about TERMINAL device parameters
   ;"INPUT: ARR -- PASS BY REFERENCE, AN OUT PARAMETER. Format
-  ;"        ARR("ENTRY",<ParameterLabel>)=<TurnOnCmd>^<OnDisplay>^<TurnOffCmd>^<OffDisplay>^<DefaultValue>
+  ;"        ARR("ENTRY",<ParameterLabel>)=<TurnOnCmd>^<OnDisplay>^<TurnOffCmd>^<OffDisplay>^<DefaultValue>^<IsKeyValue>
   ;"        ARR("ONDISP",<OnDisplay>,<ParameterLabel>)=""
   ;"        ARR("OFFDISP",<OffDisplay>,<ParameterLabel>)=""
   ;"        ARR("UNKNOWN",<OffDisplay>,<ParameterLabel>)=""  <-- entries that have NULL OnDisplay and OffDisplay values
@@ -367,7 +512,8 @@ SETUPSAV(ARR)  ;"Get information about TERMINAL device parameters
   . SET TURNOFF=$$TRIM^XLFSTR($PIECE(LINE,"/",4))
   . SET OFFDISP=$$TRIM^XLFSTR($PIECE(LINE,"/",5))
   . SET DEFAULT=$$TRIM^XLFSTR($PIECE(LINE,"/",6))
-  . SET ARR("ENTRY",LABEL)=TURNON_"^"_ONDISP_"^"_TURNOFF_"^"_OFFDISP_"^"_DEFAULT
+  . SET ISKEYVAL=$$TRIM^XLFSTR($PIECE(LINE,"/",7))
+  . SET ARR("ENTRY",LABEL)=TURNON_"^"_ONDISP_"^"_TURNOFF_"^"_OFFDISP_"^"_DEFAULT_"^"_ISKEYVAL
   . IF ONDISP'="" SET ARR("ONDISP",ONDISP,LABEL)=""
   . IF OFFDISP'="" SET ARR("OFFDISP",OFFDISP,LABEL)=""
   . IF ONDISP="",OFFDISP'="" SET ARR("NULLWHENON",LABEL)=""
@@ -375,28 +521,28 @@ SETUPSAV(ARR)  ;"Get information about TERMINAL device parameters
   . IF OFFDISP="",ONDISP="" SET ARR("UNKNOWN",LABEL)=""
   QUIT
    ;"format: 
-   ;"   Label       Turn_on      On_disp     Turn_off        Off_disp  / Default
-ZZ ;                                               
-   ;;"EXCEPTION  / EXEC=@      / EXEC=     / EXECEPTION="" /           / OFF
-   ;;"CTRLC_BRK  / CENABLE     /           / NOCENABLE     / NOCENE    / ON
-   ;;"CTRL_TRAP  / CTRAP=@     / CTRA=     / CTRAP=""      /           / OFF
-   ;;"EDIT_MODE  / EDITING     / EDIT      / NOEDITING     /           / OFF
-   ;;"EMPTERM    / EMPTERM     / EMPTERM   / NOEMPTERM     /           / OFF
-   ;;"ESC_PROS   / ESCAPE      /           / NOESCAPE      / NOESCA    / OFF
-   ;;"INSERT     / INSERT      /           / NOINSERT      / NOINSE    / ON 
-   ;;"PASSTHRU   / PASTHRU     / PAST      / NOPASTHRU     / NOPAST    / OFF
-   ;;"TERMINATOR / TERMINATOR= / TERM=     / NOTERMINATOR  / TERM=$C() / $C(13)  
-   ;;"UPPERCASE  / CONVERT     /           / NOCONVERT     /           / ?
-   ;;"FILTERXY   / FILTER=     / FIL=      / NOFILTER      /           / OFF
-   ;;"HOSTSYNC   / HOSTSYNC    /           / NOHOSTSYNC    /           / ?
-   ;;"READSYNC   / READSYNC    / READS     / NOREADSYNC    / NOREADS   / OFF
-   ;;"TTSYNC     / TTSYNC      /           / NOTTSYNC      /           / ?
-   ;;"TYPEAHEAD  / TYPEAHEAD   / TYPE      / NOTYPEAHEAD   / NOTYPE    / ON
-   ;;"PAGE_LEN   / LENGTH=     / LENG=     / LENGTH=0      / LENG=0    / #
-   ;;"PAGE_WIDTH / WIDTH=      / WIDTH=    / WIDTH=0       / WIDTH=0   / #
-   ;;"WRAP_LINE  / WRAP        /           / NOWRAP        / NOWRAP    / ON
-   ;;"ECHO_INPUT / ECHO        /           / NOECHO        / NOECHO    / ON
-   ;;"CANONICAL  / CANONICAL   / CANONICAL / NOCANONICAL   /           / OFF
+   ;"   Label       Turn_on       On_disp     Turn_off        Off_disp  / Default    KEY:VALUE
+ZZ ;                                                
+   ;;"EXCEPTION  / EXCE=@       / EXCE=     / EXCEPTION=""  /           / OFF      /  1
+   ;;"CTRLC_BRK  / CENABLE      /           / NOCENABLE     / NOCENE    / ON       /  0
+   ;;"CTRL_TRAP  / CTRAP=@      / CTRA=     / CTRAP=""      /           / OFF      /  1
+   ;;"EDIT_MODE  / EDITING      / EDIT      / NOEDITING     /           / OFF      /  0
+   ;;"EMPTERM    / EMPTERM      / EMPTERM   / NOEMPTERM     /           / OFF      /  0
+   ;;"ESC_PROS   / ESCAPE       /           / NOESCAPE      / NOESCA    / OFF      /  0
+   ;;"INSERT     / INSERT       /           / NOINSERT      / NOINSE    / ON       /  0
+   ;;"PASSTHRU   / PASTHRU      / PAST      / NOPASTHRU     / NOPAST    / OFF      /  0
+   ;;"TERMINATOR / TERMINATOR=@ / TERM=     / NOTERMINATOR  / TERM=$C() / $C(13)   /  1
+   ;;"UPPERCASE  / CONVERT      /           / NOCONVERT     /           / ?        /  0
+   ;;"FILTERXY   / FILTER=@     / FIL=      / NOFILTER      /           / OFF      /  1
+   ;;"HOSTSYNC   / HOSTSYNC     /           / NOHOSTSYNC    /           / ?        /  0
+   ;;"READSYNC   / READSYNC     / READS     / NOREADSYNC    / NOREADS   / OFF      /  0
+   ;;"TTSYNC     / TTSYNC       /           / NOTTSYNC      /           / ?        /  0
+   ;;"TYPEAHEAD  / TYPEAHEAD    / TYPE      / NOTYPEAHEAD   / NOTYPE    / ON       /  0
+   ;;"PAGE_LEN   / LENGTH=@     / LENG=     / LENGTH=0      / LENG=0    / #        /  1
+   ;;"PAGE_WIDTH / WIDTH=@      / WIDTH=    / WIDTH=0       / WIDTH=0   / #        /  1
+   ;;"WRAP_LINE  / WRAP         /           / NOWRAP        / NOWRAP    / ON       /  0
+   ;;"ECHO_INPUT / ECHO         /           / NOECHO        / NOECHO    / ON       /  0
+   ;;"CANONICAL  / CANONICAL    / CANONICAL / NOCANONICAL   /           / OFF      /  0
    ;;"<DONE>
    
   

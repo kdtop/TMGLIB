@@ -22,12 +22,12 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
   ;"$$CAPWORDS(S,DIV) -- Capitalize the first letter of each word in a string
   ;"$$CAP1ST(WORD)  -- Capitalize only first letter of word.
   ;"$$CAP1STAL(SENTENCE,DIVCHS) -- Capitalize only first letter of word, for each word in sentence
-  ;"CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB) ;Split string by divider
+  ;"CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;Split string by divider
   ;"SPLITSTR(TMGTEXT,TMGWIDTH,TMGPARTB) ;Wrap string to specified width.
   ;"SETSTLEN(TMGTEXT,TMGWIDTH) ;Make string exactly TMGWIDTH in length
   ;"$$PAD2POS(POS,CH) -- return a string that can be used to pad up to POS
   ;"$$SPLITLN(STR,LINEARRAY,WIDTH,SPECIALINDENT,INDENT,DIVSTR) -- Wrap by WIDTH to array
-  ;"SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX) -- Slit into array, by DIVIDER
+  ;"SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX,OPTION) -- Slit into array, by DIVIDER
   ;"ARR2STR(ARR,DIVIDER)  -- COMBINE ARRAY ELEMENTS INTO LONG STRING, OPPOSITE OF SPLIT2AR  
   ;"ADDWRAPARR(ARR,STR,MAXWIDTH,NEWLINE) -- Add STR to ARR, wrapping if needed
   ;"STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE) -- Take a long string and wrap it into formal WP format
@@ -111,6 +111,53 @@ CAP1STAL(SENTENCE,DIVCHS)  ;"Capitalize only first letter of word, for each word
   . SET TEMPS=$EXTRACT(TEMPS,$LENGTH(AWORD)+1,$LENGTH(TEMPS))        
   QUIT RESULT
   ; 
+REMOVEQTS(TMGTEXT,ARR)  ;"Remove all parts of TMGTEXT that are in quotes, replacing them with coded string, and puting vals in ARR
+  ;"Example: if TMGTEXT='A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"', then output would be:
+  ;"         'A=%@1@% B=%@2@% C=%@3@%' and ARR(1)="APPLE JACKS",ARR(2)="BILLY BOB",ARR(3)="CRACKED CORN"
+  ;"Purpose: this is a utility function, to remove quotes, so that manpulation can be done that ignores anything inside quotes.
+  ;"NOTE: Later, if I need a different replacement value than %@ @%, I could add an OPTION parameter.  
+  ;"INPUT: TMGTEXT -- text to work on
+  ;"       ARR -- PASS BY REFERENCE, AN OUT PARAMETER.  
+  ;"RESULT: Returns encoded string.  
+  ;
+  NEW MAP DO MAPMATCH^TMGSTUT3(TMGTEXT,.MAP,"""")
+  NEW OPENTAG SET OPENTAG="%@"
+  NEW CLOSETAG SET CLOSETAG="@%"
+  NEW PARTA,PARTB SET (PARTA,PARTB)=""
+  NEW STARTPOS SET STARTPOS=1
+  NEW RESULT SET RESULT=""
+  NEW IDX SET IDX=1
+  NEW GROUP SET GROUP=0
+  FOR  SET GROUP=$ORDER(MAP(GROUP)) QUIT:GROUP'>0  DO
+  . NEW DEPTH SET DEPTH=1  ;"ONLY SUPPORTING DEPTH=1 FOR NOW
+  . NEW P1 SET P1=$GET(MAP(GROUP,DEPTH,"Pos",1))
+  . NEW P2 SET P2=$GET(MAP(GROUP,DEPTH,"Pos",2))
+  . NEW XSTR SET XSTR=$EXTRACT(TMGTEXT,P1+1,P2-1)
+  . SET RESULT=RESULT_$EXTRACT(TMGTEXT,STARTPOS,P1-1)_OPENTAG_IDX_CLOSETAG
+  . SET ARR(IDX)=XSTR,IDX=IDX+1
+  . SET STARTPOS=P2+1
+  SET RESULT=RESULT_$EXTRACT(TMGTEXT,STARTPOS,$LENGTH(TMGTEXT))
+  QUIT RESULT
+  ;
+RESTOREQTS(TMGTEXT,ARR) ;"Undo changes done by REMOVEQTS  
+  ;"Example: if TMGTEXT='A=%@1@% B=%@2@% C=%@3@%' and ARR(1)="APPLE JACKS",ARR(2)="BILLY BOB",ARR(3)="CRACKED CORN"
+  ;"      Then output would be: 'A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"'
+  ;"Purpose: this is a utility function, to restore quotes, after manpulation has be done that ignores anything inside quotes.
+  ;"NOTE: Later, if I need a different replacement value than %@ @%, I could add an OPTION parameter.  
+  ;"INPUT: TMGTEXT
+  NEW OPENTAG SET OPENTAG="%@"
+  NEW CLOSETAG SET CLOSETAG="@%"
+  NEW RESULT SET RESULT=$GET(TMGTEXT)
+  NEW DONE SET DONE=0
+  FOR  DO  QUIT:DONE=1
+  . SET DONE=(RESULT'[OPENTAG) QUIT:DONE=1
+  . NEW PARTA SET PARTA=$PIECE(RESULT,OPENTAG,1)
+  . NEW PARTB SET PARTB=$PIECE(RESULT,OPENTAG,2,999)
+  . NEW IDX SET IDX=+PARTB
+  . SET PARTB=$PIECE(RESULT,CLOSETAG,2,999)
+  . SET RESULT=PARTA_""""_$GET(ARR(IDX))_""""_PARTB
+  QUIT RESULT
+  ;  
 CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   ;"Purpse: To take a string, delineated by 'TMGDIV'
   ;"        and to split it into two parts: TMGTEXT and TMGPARTB
@@ -126,11 +173,16 @@ CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   ;"        NCS - OPTIONAL. NCS='NotCaseSensitive'.  If 1 then TMGDIV split is not case sensitive
   ;"        OPTION -- OPTIONAL.  
   ;"              OPTION("TRIM DIV") = 1 will cause further leading 'whitespace' divs to be trimmed from partB
+  ;"              OPTION("NO SPLIT IN QUOTES")=1 will prevent splitting inside quotes.  
+  ;"                  E.g. 'A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"' and divider is " ", would not split on spaces inside quotes.  
   ;"Output: TMGTEXT and TMGPARTB will be changed
   ;"        Function will result in: TMGTEXT="Hello", TMGPARTB="There"
   ;"Result: none
   IF '$DATA(TMGTEXT) GOTO CSDONE
   IF '$DATA(TMGDIV) GOTO CSDONE
+  NEW PROTECTQT SET PROTECTQT=($GET(OPTION("NO SPLIT IN QUOTES"))=1)
+  NEW PROTECTARR
+  IF PROTECTQT SET TMGTEXT=$$REMOVEQTS(TMGTEXT,.PROTECTARR)
   IF TMGDIV="{!AN}" DO  ;"Find first NON-ALPHA-NUMERIC segment and use as TMGDIV
   . SET TMGDIV=""
   . NEW DONE SET DONE=0
@@ -159,6 +211,9 @@ CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   . . SET TMGPARTB=$EXTRACT(TMGSAVE,LEN+$LENGTH(TMGDIV)+1,$LENGTH(TMGSAVE))
   . ELSE  DO
   . . SET TMGTEXT=TMGPARTA
+  IF PROTECTQT DO
+  . SET TMGTEXT=$$RESTOREQTS(TMGTEXT,.PROTECTARR)
+  . SET TMGPARTB=$$RESTOREQTS(TMGPARTB,.PROTECTARR)  
   IF $GET(OPTION("TRIM DIV"))=1 DO
   . NEW DIVL SET DIVL=$LENGTH(TMGDIV)
   . FOR  QUIT:$EXTRACT(TMGPARTB,1,DIVL)'=TMGDIV  SET TMGPARTB=$EXTRACT(TMGPARTB,DIVL+1,$LENGTH(TMGPARTB))
@@ -303,7 +358,9 @@ SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX,OPTION)  ;"CleaveToArray
   ;"       ARRAY - The array to receive output **SHOULD BE PASSED BY REFERENCE.
   ;"       INITINDEX - OPTIONAL -- The index of the array to start with, I.e. 0 or 1. Default=1
   ;"       OPTION - OPTIONAL
-  ;"              OPTION("TRIM DIV") = 1 will cause repeat dividers to be ignored like whitespace.  E.g. "cat cow    duck" gives only 3 entries.  
+  ;"              OPTION("TRIM DIV") = 1 will cause repeat dividers to be ignored like whitespace.  E.g. "cat cow    duck" gives only 3 entries.
+  ;"              OPTION("NO SPLIT IN QUOTES")=1 will prevent splitting inside quotes.  
+  ;"                  E.g. 'A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"' and divider is " ", would not split on spaces inside quotes.  
   ;"Output: ARRAY is changed, as outlined above
   ;"Result: none
   ;"Notes:  Note -- TEXT is NOT changed (unless passed by reference, in
@@ -316,12 +373,18 @@ SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX,OPTION)  ;"CleaveToArray
   NEW COUNT SET COUNT=INITINDEX
   NEW CMAXNODE SET CMAXNODE=$GET(CMAXNODE,"MAXNODE")
   KILL ARRAY  ;"Clear out any old data
+  NEW OPT MERGE OPT=OPTION
+  NEW PROTECTQT SET PROTECTQT=($GET(OPT("NO SPLIT IN QUOTES"))=1)
+  NEW PROTECTARR
+  IF PROTECTQT DO
+  . SET TEXT=$$REMOVEQTS^TMGSTUT2(TEXT,.PROTECTARR)
+  . KILL OPT("NO SPLIT IN QUOTES")  ;"don't want CLEAVSTR^TMGSTUT2 to use this since we handled. 
   ;
 C2AL1  ;
   IF '(TEXT[DIVIDER) DO  GOTO C2ADN
   . SET ARRAY(COUNT)=TEXT ;"put it all into line.
   . SET ARRAY(CMAXNODE)=COUNT
-  DO CLEAVSTR(.TEXT,DIVIDER,.PARTB,,.OPTION)
+  DO CLEAVSTR(.TEXT,DIVIDER,.PARTB,,.OPT)
   SET ARRAY(COUNT)=TEXT
   SET ARRAY(CMAXNODE)=COUNT
   SET COUNT=COUNT+1
@@ -332,6 +395,12 @@ C2AL1  ;
   . SET TEXT=$GET(PARTB)
   . SET PARTB=""
 C2ADN  ;
+  IF PROTECTQT DO
+  . NEW IDX SET IDX=INITINDEX-1
+  . FOR  SET IDX=$ORDER(ARRAY(IDX)) QUIT:IDX'>0  DO
+  . . NEW STR SET STR=$GET(ARRAY(IDX)) QUIT:STR=""
+  . . SET STR=$$RESTOREQTS^TMGSTUT2(STR,.PROTECTARR)
+  . . SET ARRAY(IDX)=STR
   QUIT
   ;
 ARR2STR(ARR,DIVIDER)  ;"COMBINE ARRAY ELEMENTS INTO LONG STRING, OPPOSITE OF SPLIT2AR
