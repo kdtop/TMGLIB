@@ -957,12 +957,7 @@ GETSCRSZ(ROWS,COLS)  ;
   ;"Purpose: To query the OS and get the dimensions of the terminal window
   ;"Input: ROWS,COLS -- Optional.  PASS BY REFERENCE.  Filled with results
   ;"Results: Row^Col  e.g. '24^80', or '24^60' as a default IF problem.
-  SET ROWS=20,COLS=90
-  ;"DO GSCRNSZ1(ROWS,COLS) ;
-  ;"GOTO GSS2  ;"TEMP!!!
-  ;"GOTO GSCRNSZ2+1 ;Sam's solution
-  ;"DO GSCRNSZ3(.ROWS,.COLS) 
-  DO GSCRNSZ4(.ROWS,.COLS) ;"Using Sam's latest routine  5/29/20
+  DO GSCRNSZ4(.ROWS,.COLS) 
   QUIT ROWS_"^"_COLS
   ;
 GSCRNSZ1(ROWS,COLS) ;
@@ -986,62 +981,44 @@ GSS2 ;
 GSS1DN ;  
   QUIT ROWS_"^"_COLS
   ;
-GSCRNSZ2(ROWS,COLS) ;
-  ;"Modified from code posted by Sam Habiel,'...stolen from George Timson's %ZIS3.'
-  ;"Purpose: query console device (the terminal window) and get current
-  ;"         screen size, and set mumps environment to match.  Also will
-  ;"         modify IOM and IOSL
-  ;"NOTE: If INITKB^XGF() has been called to set up keyboard input escape code 
-  ;"      processing, then it will capture result from QCUP^TMGTERM and make this
-  ;"      function fail.  So user should call DO RESETKB^XGF to turn off XGF 
-  ;"      escape key processing code prior to calling this function
-  ;"Input: ROWS,COLS -- Optional.  PASS BY REFERENCE.  Filled with results
-  ;"Result: '<Rows>^<Cols>', or '24^80' if problem
-  NEW %I SET %I=$IO
-  SET ROWS=24,COLS=80  ;"default
-  DO 
-  .  NEW X SET X=0 XECUTE ^%ZOSF("RM") ;"Disable wrapping.  ? if needed...
-  .  DO VCUSAV2^TMGTERM      ;"Save cursor location
-  .  DO ESSCR^TMGTERM        ;"Enable Screen Scrolling
-  .  DO CUP^TMGTERM(999,999) ;"Set Cursor Position
-  .  DO QCUP^TMGTERM         ;"Query Cursor Position  
-  .  ;"The device is suppose to reply with: <ESC>[<ROW>;<COLUMN>R
-  .  USE $P:(TERM="R":NOECHO)
-  .  NEW ABORT SET ABORT=0
-  .  NEW TEMP READ TEMP:1 SET ABORT=($T=0)  ;"If timesout, $T set to false
-  .  USE $P:(TERM="":ECHO)
-  .  DO VCULOAD2^TMGTERM   ;"Restore cursor location
-  .  IF ABORT!(TEMP'?1C1"[".N1";".N) QUIT 
-  .  SET COLS=+$P(TEMP,";",2)  ;"X value 
-  .  SET ROWS=+$P(TEMP,"[",2)  ;"Y value
-  .  USE $P:(TERM="":ECHO:WIDTH=COLS:LENGTH=ROWS)
-  .  DO VCULOAD2^TMGTERM  ;"Note, both this AND one above are required for some reason 
-  USE %I  ; restore state 
-  SET IOM=ROWS,IOSL=COLS
-  QUIT ROWS_"^"_COLS 
-  ;
-GSCRNSZ3(ROWS,COLS) ;"YET ANOTHER TRY....  8/30/17
-  ;"NOTE: this gets the screen size based on what GT.M thinks it is.
-  ;"   This can be changed by software.  So during VistA login, when the terminal type
-  ;"   is set up, this will be set up (hopefully properly).
-  ;"   It does NOT try to determine the actual size of the terminal window.  So,
-  ;"   if the user has the window size smaller than the device calls for, there will 
-  ;"   be wrapping.  
-  NEW TEMP ZSHOW "D":TEMP SET TEMP=$GET(TEMP("D",1))
-  IF TEMP["WIDTH=" SET COLS=+$PIECE(TEMP,"WIDTH=",2)
-  IF TEMP["LENGTH=" SET ROWS=+$PIECE(TEMP,"LENGTH=",2)
-  QUIT
-  ;  
-GSCRNSZ4(ROWS,COLS) ;"Using Sam's latest routine  5/29/20
+GSCRNSZ4(ROWS,COLS) ;
   NEW TEMP SET TEMP="0^0"
-  ;"NEW tempSaveIO DO DEVICE2ARR^TMGIDE6($IO,.tempSaveIO)
-  NEW X SET X="XVEMKY" X ^%ZOSF("TEST") IF $T SET TEMP=$$AUTOMARG^XVEMKY
+  ;"NEW X SET X="XVEMKY" X ^%ZOSF("TEST") IF $T SET TEMP=$$AUTOMARG^XVEMKY
+  SET TEMP=$$AUTOMARG()
   SET COLS=+$PIECE(TEMP,"^",1)
   SET ROWS=+$PIECE(TEMP,"^",2)
   IF COLS'>0 SET COLS=80
   IF ROWS'>24 SET ROWS=24
   QUIT
   ;
+AUTOMARG() ;"RETURNS IOM^IOSL IF IT CAN and resets terminal to those dimensions -- from George Timson's %ZIS3.
+ ;"Taken from $$AUTOMARG^XVEMKY and stripped to just YottaDB, and modified. 
+ NEW DEVSAV DO DEV2ARR^TMGKERN1($IO,.DEVSAV)
+ IF $DATA(^%ZOSF("RM")) DO
+ . NEW X SET X=0 
+ . XECUTE ^%ZOSF("RM") ;"  U $I:(WIDTH=$S(X<256:X,1:0):FILTER="ESCAPE")  NOTE: Setting WIDTH=0 prevents wrapping
+ NEW %I,%T,ESC,DIM,SUCCESS
+ SET %I=$I,%T=$T                                  
+ SET ESC=$C(27)        
+ USE $P:(NOESCAPE:NOECHO:TERM="R") 
+ WRITE ESC,"7"          ;"//kt <-- save current cursor position
+ WRITE ESC,"[r"         ;"//kt <-- enable scrolling for entire screen
+ WRITE ESC,"[999;999H"  ;"//kt <-- set cursor positon to row 999, column 9999
+ WRITE ESC,"[6n"        ;"//kt <-- request a cursor positon response from the device
+ READ DIM:1             ;"//kt <-- example result for DIM is $C(27)_"[51;165"  Format is Y;X.  Also, the terminal is really sending $C(27)_"[51;165R", but we have specified R as line terminator 
+ SET SUCCESS=($T=1)     ;"If read timeout, $T=0
+ WRITE ESC,"8"          ;"//kt <-- restore cursor position after a cursor pos save
+ DO RESTORDEV^TMGKERN1(.DEVSAV)  ;"this effects a USE $IO  
+ IF (SUCCESS=0)!($LENGTH($GET(DIM))=0)!(DIM?.APC) GOTO AMGDN 
+ SET DIM=+$PIECE(DIM,";",2)_"^"_+$PIECE(DIM,"[",2)   ;"<-- change format to X^Y
+ ;" resize terminal device params to match actual terminal window dimensions
+ USE $P:(WIDTH=+$P(DIM,"^",1):LENGTH=+$P(DIM,"^",2))  ;"//kt <--- should this be $IO instead of $P?
+AMGDN ; 
+ USE %I 
+ IF %T
+ QUIT:$Q $S($G(DIM):DIM,1:"") 
+ QUIT
+;  
 GTMUMPW(ROWS,COLS) ;" GET MUMPS WIDTH        
   ;"Purpose: To query the GT.M mumps environment and get the dimensions of
   ;"       the terminal device.  E.g. this would be the width where a mumps 
