@@ -302,7 +302,7 @@ DEV2ARR(DEVICE,OUT,FILTER,INFO)  ;"Store off a device, with all it's parameters
   IF (MATCHDEV=0)!(IDX'>0) GOTO D2ADN
   MERGE OUT("RAW PARAMS")=ARR
   ;"SETUP A 'B' INDEX
-  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  SET IDX=0 FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
   . SET APARAM=$GET(ARR(IDX)) QUIT:APARAM=""
   . IF APARAM["=" SET APARAM=$PIECE(APARAM,"=",1)_"="
   . SET OUT("RAW PARAMS","B",APARAM)=IDX
@@ -486,8 +486,10 @@ RESTORDEV(PRIORARR,INFO) ;"Use device specified in PRIORARR, setting parameters 
   . IF PARAMSTR'="" SET PARAMSTR=PARAMSTR_":"
   . SET PARAMSTR=PARAMSTR_OUTPARAM
   IF PARAMSTR'="" SET PARAMSTR="("_PARAMSTR_")"
-  ;"WRITE !,!,"USE "_DEVICE_":@PARAMSTR     PARAMSTR=",PARAMSTR,!
-  USE DEVICE:@PARAMSTR
+  IF PARAMSTR'="" DO
+  . USE DEVICE:@PARAMSTR
+  ELSE  DO   ;"Note If past device and current device are same, no changes are needed, and PARAMSTR will be ""
+  . USE DEVICE
 RDDN ;  
   QUIT RESULT
   ;  
