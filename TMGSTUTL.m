@@ -70,6 +70,7 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"TrimTags(lineS) -- cut out HTML tags (e.g. <...>) from lineS, however, <no data> is protected
  ;"$$ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) -- WRITE the array to the host file system
  ;"$$HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) -- Read array from host file system
+ ;"UTF8WRITE(CODEPT) ;"Output Unicode character. 
  ;
  ;"=======================================================================
  ;"Dependancies
@@ -1300,3 +1301,13 @@ HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) ;"Host File to Array
         KILL @TMGREF
         QUIT TMGRESULT
         ;
+UTF8WRITE(CODEPT) ;"Output Unicode character. 
+  ;"Input: CODEPT -- This is Unicode codepoint.  (Codepoint is character # for Unicode)
+  ;"               Should be a decimal number, unless prefixed with "$" with a hex number
+  ;"Output: character is written to current device ($IO)
+  ;"Result: none.  
+  NEW UNIBYTES,IDX,ABYTE 
+  SET UNIBYTES=$$GETUTF8^TMGMISC(CODEPT)
+  FOR IDX=1:1:$LENGTH(UNIBYTES) SET ABYTE=$PIECE(UNIBYTES,",",IDX) IF ABYTE>0 WRITE *ABYTE
+  QUIT
+  ;
