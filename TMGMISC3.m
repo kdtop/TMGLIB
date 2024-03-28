@@ -30,6 +30,7 @@ TMGMISC3 ;TMG/kst/Misc utility librar ;9/6/17, 7/24/22
  ;
 ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
   ;"NOTE: similar to ArrayDump^TMGIDE (taken from there and modified)
+  ;"      But this function is different enough that I will keep separate
   ;"PUBLIC FUNCTION
   ;"Purpose: to get a custom version of GTM's "zwr" command
   ;"Input:  REF -- NAME of global to display, i.e. "^VA(200)"

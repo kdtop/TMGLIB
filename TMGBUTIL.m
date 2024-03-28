@@ -44,7 +44,7 @@ BROWSE(globalRef,incSubscr)
         . IF input="" SET input="Z"
         . IF "Aa"[input SET offset=offset-(8*16)
         . IF "Zz"[input SET offset=offset+(8*16)
-        . IF $EXTRACT(input,1)="$" SET input=$$HEX2NUM^TMGMISC(input)
+        . IF $EXTRACT(input,1)="$" SET input=$$HEX2DEC^TMGMISC(input)
         . IF +input=input SET offset=input
         . IF +offset'=offset SET offset="" QUIT
         . DO DISPLAY(globalRef,incSubscr,offset,8,16)

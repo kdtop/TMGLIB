@@ -164,142 +164,6 @@ CHECKRX
   . WRITE CT," (",IEN,") ",$P(ZN,"^",1)," --> ",WARN,!
   QUIT
 
-  
-ArrayDump(ZZARRAYP,TMGIDX,INDENT)
-        ;"NOTE: Similar to ARRDUMP^TMGMISC3
-        ;"PUBLIC FUNCTION
-        ;"Purpose: to get a custom version of GTM's "zwr" command
-        ;"Input: Uses global scope var tmgDbgIndent (if defined)
-        ;"        ZZARRAYP: NAME of global to display, i.e. "^VA(200)"
-        ;"        TMGIDX: initial index (i.e. 5 IF wanting to start with ^VA(200,5)
-        ;"        INDENT: spacing from left margin to begin with. (A number.  Each count is 2 spaces)
-        ;"          OPTIONAL: indent may be an array, with information about columns
-        ;"                to skip.  For example:
-        ;"                INDENT=3, INDENT(2)=0 --> show | for columns 1 & 3, but NOT 2
-        ;"Result: 0=OK to continue, 1=user aborted display
-        ;
-        NEW RESULT SET RESULT=0
-        NEW $ETRAP SET $ETRAP="SET RESULT="""",$ETRAP="""",$ecode="""""
-        ;
-AD1     IF $DATA(ZZARRAYP)=0 GOTO ADDN
-        NEW ABORT SET ABORT=0
-        IF (ZZARRAYP["@") DO  GOTO:(ABORT=1) ADDN
-        . NEW ZZTEMP SET ZZTEMP=$PIECE($EXTRACT(ZZARRAYP,2,99),"@",1)
-        . IF $DATA(ZZTEMP)#10=0 SET ABORT=1
-        ;"Note: I need to do some validation to ensure ZZARRAYP doesn't have any null nodes.
-        DO
-        . NEW X SET X="SET ZBTEMP=$GET("_ZZARRAYP_")"
-        . SET X=$$UP(X)
-        . DO ^DIM ;"a method to ensure ZZARRAYP doesn't have an invalid reference.
-        . IF $GET(X)="" SET ABORT=1
-        IF ABORT GOTO ADDN
-        ;
-        SET tmgDbgIndent=$GET(tmgDbgIndent,0)
-        ;
-        NEW TMGIDEDEBUG SET TMGIDEDEBUG=1  ;"Force this function to output, even IF TMGIDEDEBUG is not defined.
-        NEW TMGIDX SET TMGIDX=$GET(TMGIDX)
-        SET INDENT=$GET(INDENT,0)
-        ;
-        DO DEBUGINDENT(tmgDbgIndent)
-        ;
-        IF INDENT>0 DO
-        . FOR TMGIDX=1:1:INDENT-1 DO
-        . . NEW STR SET STR=""
-        . . IF $GET(INDENT(TMGIDX),-1)=0 SET STR="  "
-        . . ELSE  SET STR="| "
-        . . DO DEBUGWRITE(tmgDbgIndent,STR)
-        . DO DEBUGWRITE(tmgDbgIndent,"}~")
-        ;
-        IF TMGIDX'="" DO
-        . IF $DATA(@ZZARRAYP@(TMGIDX))#10=1 DO
-        . . NEW STR SET STR=@ZZARRAYP@(TMGIDX)
-        . . IF STR="" SET STR=""""""
-        . . IF $LENGTH(STR)'=$LENGTH($$TRIM^XLFSTR(STR)) set STR=""""_STR_"""" 
-        . . NEW QT SET QT=""
-        . . IF +TMGIDX'=TMGIDX SET QT=""""
-        . . DO DEBUGWRITE(tmgDbgIndent,QT_TMGIDX_QT_" = "_STR,1)
-        . ELSE  DO
-        . . DO DEBUGWRITE(tmgDbgIndent,TMGIDX,1)
-        . SET ZZARRAYP=$NAME(@ZZARRAYP@(TMGIDX))
-        ELSE  DO
-        . DO DEBUGWRITE(tmgDbgIndent,ZZARRAYP,0)
-        . IF $DATA(@ZZARRAYP)#10=1 DO
-        . . DO DEBUGWRITE(0,"="_$GET(@ZZARRAYP),0)
-        . DO DEBUGWRITE(0,"",1)
-        ;
-        SET TMGIDX=$ORDER(@ZZARRAYP@(""))
-        IF TMGIDX="" GOTO ADDN
-        SET INDENT=INDENT+1
-        ;
-        FOR  DO  QUIT:TMGIDX=""  IF RESULT=1 GOTO ADDN
-        . NEW TEMPIDX SET TEMPIDX=$ORDER(@ZZARRAYP@(TMGIDX))
-        . IF TEMPIDX="" SET INDENT(INDENT)=0
-        . NEW TEMPINDENT MERGE TEMPINDENT=INDENT
-        . SET RESULT=$$ArrayDump(ZZARRAYP,TMGIDX,.TEMPINDENT)  ;"Call self recursively
-        . SET TMGIDX=$ORDER(@ZZARRAYP@(TMGIDX))
-        ;
-        ;"Put in a blank space at end of subbranch
-        DO DEBUGINDENT(tmgDbgIndent)
-        ;
-        IF 1=0,INDENT>0 DO
-        . FOR TMGIDX=1:1:INDENT-1 DO
-        . . NEW STR SET STR=""
-        . . IF $GET(INDENT(TMGIDX),-1)=0 SET STR="  "
-        . . ELSE  SET STR="| "
-        . . DO DEBUGWRITE(tmgDbgIndent,STR)
-        . DO DEBUGWRITE(tmgDbgIndent," ",1)
-        ;
-ADDN    QUIT RESULT
-        ;
-DEBUGWRITE(tmgDbgIndent,STR,AddNewline)
-        ;"NOTE: Duplicate of function in TMGIDEDEBUG
-        ;"PUBLIC FUNCTION
-        ;"Purpose: to WRITE debug output.  Having the proc separate will allow
-        ;"        easier dump to file etc.
-        ;"Input:tmgDbgIndent, the amount of indentation expected for output.
-        ;"        STR -- the text to write
-        ;"      AddNewline -- boolean, 1 IF ! (i.e. newline) should be written after s
-
-        ;"Relevant DEBUG values
-        ;"        cdbNone - no debug (0)
-        ;"        cdbToScrn - Debug output to screen (1)
-        ;"        cdbToFile - Debug output to file (2)
-        ;"        cdbToTail - Debug output to X tail dialog box. (3)
-        ;"Note: If above values are not defined, then functionality will be ignored.
-
-        SET TMGIDEDEBUG=$GET(TMGIDEDEBUG,0)
-        IF TMGIDEDEBUG=0 QUIT
-        IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3),$DATA(DebugFile) use DebugFile
-        WRITE STR
-        IF $GET(AddNewline)=1 DO
-        . NEW ENDSPACE SET ENDSPACE=20
-        . IF +$GET(IOM)>0,(IOM-$X)<20 SET ENDSPACE=IOM-$X
-        . NEW IDX FOR IDX=1:1:ENDSPACE WRITE " "        
-        . WRITE !
-        IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3) use $PRINCIPAL
-        QUIT
-
-
-DEBUGINDENT(tmgDbgIndent,Forced)
-        ;"NOTE: Duplicate of function in TMGIDEDEBUG
-        ;"PUBLIC FUNCTION
-        ;"Purpose: to provide a unified indentation for debug messages
-        ;"Input: tmgDbgIndent = number of indentations
-        ;"       Forced = 1 IF to indent regardless of DEBUG mode
-
-        SET Forced=$GET(Forced,0)
-
-        IF ($GET(TMGIDEDEBUG,0)=0)&(Forced=0) QUIT
-        NEW i
-        FOR i=1:1:tmgDbgIndent DO
-        . IF Forced DO DEBUGWRITE(tmgDbgIndent,"  ")
-        . ELSE  DO DEBUGWRITE(tmgDbgIndent,". ")
-        QUIT
-        
-UP(X)   ;
-        ;"Taken from UP^XLFSTR
-        QUIT $TRANSLATE(X,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
 TESTLOOP ;
     NEW ARR,IDX FOR IDX=1:1:10 SET ARR(IDX)=IDX
     FOR IDX=1:1:$$ARRMAX(.ARR,"FOR") DO
@@ -596,3 +460,125 @@ printResults(sieve,showResults,duration,passes) n num,count
  ;"---- END of show prime numbers.  From here: https://github.com/PlummersSoftwareLLC/Primes/tree/drag-race/PrimeM/solution_1
  ;"=============================================================================
  ;"=============================================================================
+
+UNICODEBOX  ; 
+ 
+ ;"Define Unicode characters for box drawing
+ SET TOPLEFTCORNER="$250C"
+ SET TOPRIGHTCORNER="$2510"
+ SET BOTTOMLEFTCORNER="$2514"
+ SET BOTTOMRIGHTCORNER="$2518"
+ SET HORIZONTALLINE="$2500"
+ SET VERTICALLINE="$2502"
+
+ ;"Define box size
+ SET BOXWIDTH=20
+ SET BOXHEIGHT=10
+ 
+ WRITE !,"123456789012345678901234567890",!
+ NEW IDX 
+ ;"Draw top of the box
+ DO UNIWRITE(TOPLEFTCORNER)
+ FOR IDX=2:1:(BOXWIDTH-1) DO
+ . DO UNIWRITE(HORIZONTALLINE)
+ DO UNIWRITE(TOPRIGHTCORNER)
+ WRITE !
+ 
+ ;"Draw sides of the box
+ NEW JDX
+ FOR JDX=2:1:(BOXHEIGHT-1) DO
+ . DO UNIWRITE(VERTICALLINE)
+ . FOR IDX=2:1:(BOXWIDTH-1) DO
+ . . WRITE " "
+ . DO UNIWRITE(VERTICALLINE) WRITE !
+ 
+ ;"Draw bottom of the box
+ DO UNIWRITE(BOTTOMLEFTCORNER)
+ FOR IDX=2:1:(BOXWIDTH-1) DO
+ . DO UNIWRITE(HORIZONTALLINE)
+ DO UNIWRITE(BOTTOMRIGHTCORNER) WRITE !
+ ;
+ QUIT
+ ;
+UNIWRITE(CODEPT) ;
+  NEW UNIBYTES SET UNIBYTES=$$GETUTF8^TMGMISC(CODEPT)
+  NEW CODE SET CODE=""
+  NEW IDX FOR IDX=1:1:$LENGTH(UNIBYTES) DO
+  . NEW ABYTE SET ABYTE=$PIECE(UNIBYTES,",",IDX) QUIT:ABYTE=""
+  . WRITE *ABYTE
+  QUIT
+
+ALLCHARS ;
+  USE $P:(WIDTH=260:CHSET="UTF-8")
+  WRITE !,!,"Test output of $CHAR()",!
+  WRITE "NOTE: should USE $P:WIDTH=60  and draw terminal window wide",!,!
+  NEW HEX SET HEX="0123456789ABCDEF"
+  NEW LEFTGAP SET LEFTGAP="   "
+  NEW IDX,JDX
+  WRITE LEFTGAP
+  FOR IDX=1:1:16 DO
+  . FOR JDX=1:1:16 DO
+  . . WRITE $E(HEX,IDX)
+  WRITE !,LEFTGAP
+  FOR IDX=1:1:16 DO
+  . FOR JDX=1:1:16 DO
+  . . WRITE $E(HEX,JDX)
+  WRITE !,LEFTGAP
+  FOR IDX=1:1:256 WRITE "-"
+  WRITE !
+  NEW ROW
+  NEW CT SET CT=0
+  FOR ROW=0:1:15 DO
+  . NEW ROWHEX SET ROWHEX=$$HEXCHR2^TMGMISC(ROW,2)
+  . WRITE ROWHEX," "
+  . NEW COL FOR COL=0:1:255 DO
+  . . NEW CH SET CH=""
+  . . IF CT<32 SET CH="*"
+  . . ELSE  SET CH=$CHAR(CT)
+  . . SET CT=CT+1
+  . . WRITE CH
+  . WRITE !
+  QUIT
+  ;
+CHARDEMO ;
+  USE $P:(CHSET="UTF-8")
+  NEW IDX FOR IDX=120:1:255 WRITE IDX,": ",$CHAR(IDX),!
+  QUIT
+
+
+BOX2 ;
+       SET TOPLEFTCORNER="W *226,*148,*140"
+        SET TOPRIGHTCORNER="W *226,*148,*144"
+        SET BOTTOMLEFTCORNER="W *226,*148,*148"
+        SET BOTTOMRIGHTCORNER="W *226,*148,*152"
+        SET HORIZONTALLINE="W *226,*148,*128"
+        SET VERTICALLINE="W *226,*148,*130"
+        ;
+        ;"Define box size
+        SET BOXWIDTH=20
+        SET BOXHEIGHT=10
+        ;
+        NEW IDX
+        ;"Draw top of the box
+        X TOPLEFTCORNER
+        FOR IDX=2:1:(BOXWIDTH-1) DO
+        . X HORIZONTALLINE
+        X TOPRIGHTCORNER W !
+        ;
+        ;"Draw sides of the box
+        NEW JDX
+        FOR JDX=2:1:(BOXHEIGHT-1) DO
+        . X VERTICALLINE
+        . W ?$X+BOXWIDTH-2
+        . X VERTICALLINE WRITE !
+        ;
+        ;"Draw bottom of the box
+        X BOTTOMLEFTCORNER
+        FOR IDX=2:1:(BOXWIDTH-1) DO
+        . X HORIZONTALLINE
+        X BOTTOMRIGHTCORNER WRITE !
+        ;
+        QUIT
+ 
+
+ ;"$$FUNC^%HD("0905")                                             

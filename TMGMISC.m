@@ -41,7 +41,10 @@ TMGMISC ;TMG/kst/Misc utility library ;03/25/06; 7/31/15, 3/24/21
  ;"$$FormatName(Name,CutTitle)
  ;"$$HEXCHR(V) -- Take one BYTE and return HEX Values
  ;"$$HEXCHR2(n,digits) -- convert a number (of arbitrary length) to HEX digits
- ;"$$HEX2NUM(s) -- convert a string like this $10 to decimal number (e.g.) 16
+ ;"$$HEX2DEC(HEX) -- convert a string like this $10 to decimal number (e.g. 16)
+ ;"$$DEC2BIN(INT,DIGITS) ;"INTEGER TO BINARY STRING
+ ;"$$BIN2DEC(BINSTR) ;"BINARY STRING TO DECIMAL
+ ;"$$BIN2HEX(BINSTR) ;"BINARY STRING TO HEX
  ;"$$OR(a,b)   ; perform a bitwise OR on operands a and b
  ;"ParsePos(pos,label,offSET,routine,dmod)
  ;"ScanMod(Module,pArray)
@@ -923,7 +926,7 @@ IsTitle(s)
 
 
 
-HEXCHR(V)
+HEXCHR(V) ;
         ;"Scope: PUBLIC
         ;"Take one BYTE and return HEX Values
         ;"(from Chris Richardson -- thanks!)
@@ -945,9 +948,8 @@ HEXCHR2(n,digits)
         ;"                      3->3 digits ("00A")
         ;"Note: This function is not as fast as HEXCHR(V)
 
-        NEW lo
+        NEW lo,ch
         NEW result SET result=""
-        NEW ch
         SET digits=$GET(digits,1)
 
         FOR  DO  QUIT:(n=0)
@@ -958,34 +960,162 @@ HEXCHR2(n,digits)
         . SET n=n\16
 
         IF $LENGTH(result)<digits DO
-        . NEW i
-        . FOR i=1:1:digits-$LENGTH(result) DO
+        . NEW i FOR i=1:1:digits-$LENGTH(result) DO
         . . SET result="0"_result
-
         QUIT result
-
-HEX2NUM(s)
-        ;"Scope: PUBLIC
-        ;"Purpose: to convert a string like this $10 --> 16
-
-        NEW multiplier SET multiplier=1
-        NEW result SET result=0
-
-        IF $EXTRACT(s,1)="$" SET s=$EXTRACT(s,2,$LENGTH(s))
-
-        FOR  DO  QUIT:(s="")
-        . NEW sStart,sEnd,n
-        . SET sStart=$EXTRACT(s,1,$LENGTH(s)-1)
-        . SET sEnd=$EXTRACT(s,$LENGTH(s))
-        . IF +sEnd=sEnd SET n=sEnd
-        . ELSE  SET n=($ASCII(sEnd)-65)+16
-        . SET result=result+(n*multiplier)
-        . SET multiplier=multiplier*16
-        . SET s=sStart
-
-        QUIT result
-
-
+        ;
+HEX2DEC(HEX) ;"Hexidecimal to decimal number
+  ;"INPUT: HEX -- string containing hexidecimal numbers.  Can be upper or lower case. Optional "$" prefix
+  ;"Result: Decimal equivalent number.  If invalid input, then -1
+  SET HEX=$$UP^XLFSTR($GET(HEX))
+  IF $EXTRACT(HEX,1)="$" SET HEX=$PIECE(HEX,"$",2)
+  NEW RESULT SET RESULT=0
+  NEW L SET L=$LENGTH(HEX)
+  NEW STPOS,DIGITPOS
+  FOR STPOS=L:-1:1 DO  QUIT:RESULT<0
+  . SET DIGITPOS=L-STPOS
+  . NEW DIGIT SET DIGIT=$EXTRACT(HEX,STPOS)
+  . NEW VAL SET VAL=$FIND("0123456789ABCDEF",DIGIT)-2
+  . IF VAL<0 SET RESULT=-1 QUIT
+  . SET RESULT=RESULT+(VAL*(16**DIGITPOS))
+  QUIT RESULT
+  ;
+DEC2BIN(INT,DIGITS) ;"INTEGER TO BINARY STRING
+  ;"Purpose: Return a string representing input INT.
+  ;"Input:  INT -- integer to convert into binary string.  NOTE: any decimals are dropped. 
+  ;"        DIGITS -- OPTIONAL.  If provided, and if length of conversion
+  ;"                        would be less than digits, then 0's are prepended. 
+  ;
+  SET INT=$GET(INT,0)\1  ;" trimm off decimals
+  SET DIGITS=+$GET(DIGITS)
+  NEW RESULT SET RESULT=""
+  NEW REMAINDER
+  FOR  DO  QUIT:(INT=0)
+  . SET REMAINDER=INT#2
+  . SET RESULT=REMAINDER_RESULT
+  . SET INT=INT\2
+  NEW L SET L=$LENGTH(RESULT)
+  NEW IDX FOR  QUIT:$LENGTH(RESULT)'<DIGITS  SET RESULT="0"_RESULT
+  QUIT RESULT
+  ;
+BIN2DEC(BINSTR) ;"BINARY STRING TO DECIMAL
+  ;"Purpose: Return decimal value for binary string
+  ;"Input: BINSTR -- string of 0's and 1's, with least signficant digit on left
+  ;"NOTE: If BINSTR contains chars other than 0 or 1, then result of 0 is returned
+  ;
+  NEW RESULT SET RESULT=0
+  NEW BINDIGIT
+  NEW L SET L=$LENGTH(BINSTR)
+  NEW ABORT SET ABORT=0
+  NEW POS FOR POS=L:-1:1 DO  QUIT:ABORT
+  . SET BINDIGIT=L-POS
+  . NEW DIGIT SET DIGIT=$EXTRACT(BINSTR,POS)
+  . IF "01"'[DIGIT SET ABORT=1 QUIT
+  . SET RESULT=RESULT+(DIGIT*(2**BINDIGIT))
+  QUIT RESULT
+  ;
+BIN2HEX(BINSTR) ;"BINARY STRING TO HEX
+  ;"Purpose: Return hex string value for binary string
+  ;"Input: BINSTR -- string of 0's and 1's, with least signficant digit on left
+  ;"NOTE: If BINSTR contains chars other than 0 or 1, then result of 0 is returned
+  ;
+  NEW RESULT SET RESULT=""
+  NEW FRAG,L,ST SET ST=$GET(BINSTR)
+  FOR  DO  QUIT:ST=""
+  . SET L=$LENGTH(ST)
+  . IF L>4 DO
+  . . SET FRAG=$EXTRACT(ST,L-3,L)
+  . . SET ST=$EXTRACT(ST,1,L-4)
+  . ELSE  DO
+  . . SET FRAG=ST
+  . . SET ST=""
+  . NEW VAL SET VAL=$$BIN2DEC(FRAG)
+  . NEW HEX SET HEX=$EXTRACT("0123456789ABCDEF",VAL+1)
+  . SET RESULT=HEX_RESULT
+  QUIT RESULT
+  ;
+HEX2BIN(HEXSTR,DIGITS) ;"HEX STRING TO BINARY STRING
+  ;"Input: HEXSTR -- hexadecimal string.  May have optional `$` at beginning
+  ;"        DIGITS -- OPTIONAL.  If provided, and if length of conversion
+  ;"                        would be less than digits, then 0's are prepended. 
+  ;"                     If length of result > digits, then any leading 0's will be trimmed to match if possible
+  SET HEXSTR=$$UP^XLFSTR($GET(HEXSTR))
+  IF $EXTRACT(HEXSTR,1)="$" SET HEXSTR=$PIECE(HEXSTR,"$",2)
+  NEW ABORT,VAL,DIGIT,RESULT SET RESULT="",ABORT=0
+  NEW P FOR P=1:1:$LENGTH(HEXSTR) DO  QUIT:ABORT
+  . SET DIGIT=$EXTRACT(HEXSTR,P)
+  . SET VAL=$FIND("0123456789ABCDEF",DIGIT)-2
+  . IF VAL<0 SET ABORT=1,RESULT="" QUIT
+  . SET RESULT=RESULT_$$DEC2BIN(VAL,4)
+  NEW L SET L=$LENGTH(RESULT)
+  NEW DIGITS SET DIGITS=+$GET(DIGITS)
+  IF L<DIGITS SET RESULT=$$RJ^XLFSTR(RESULT,DIGITS,"0") GOTO H2BDN
+  IF L=DIGITS GOTO H2BDN
+  IF (DIGITS=0)!(L>DIGITS) DO
+  . NEW DONE SET DONE=0
+  . FOR  DO  QUIT:DONE
+  . . NEW CH SET CH=$EXTRACT(RESULT,1)
+  . . IF CH'="0" SET DONE=1 QUIT
+  . . SET RESULT=$EXTRACT(RESULT,2,$LENGTH(RESULT))
+H2BDN ;
+  QUIT RESULT
+  ;
+GETUTF8(CODEPT,OPTION) ;"GET BYTE SEQUENCE FOR UNICODE CODEPOINT
+  ;"Input: CODEPT -- This is the codepoint (i.e. unicode character number) for input. DECIMAL
+  ;"              Optionally, CODEPT may hold HEX number if prefixed with "$", e.g. "$20AC"
+  ;"       OPTION -- OPTIONAL.  
+  ;"          OPTION("HEX")=1, DEFAULT IS 0.  If 1, then HEX values returned
+  ;"          OPTION("HEX","PREFIX")='<prefix string>'  DEFAULT IS "$"
+  ;"Output: Returns 1-4 bytes as delimited string, e.g. "226,148,140", with
+  ;         sequence-to-be sent being left-to-right
+  ;"NOTE: if CODEPT>1114111 ($10FFFF) then "" is returned
+  NEW RESULT SET RESULT=""
+  SET CODEPT=$GET(CODEPT)
+  IF $EXTRACT(CODEPT,1)="$" SET CODEPT=$$HEX2DEC(CODEPT)
+  SET CODEPT=+CODEPT
+  IF CODEPT<128 DO  GOTO GUDN   ;"0-127 --> single byte encoding
+  . SET RESULT=CODEPT
+  IF CODEPT<2048 DO  GOTO GUDN  ;"128-2047 --> 2 byte encoding, storing 11 bits
+  . NEW BINCODE SET BINCODE=$$DEC2BIN(CODEPT,11)
+  . NEW BYTE1,BYTE2
+  . SET BYTE1="110"_$$BINLTRIM(.BINCODE,5) ;"5 bits of codepoint put into byte #1
+  . SET BYTE2="10"_$$BINLTRIM(.BINCODE,6)  ;"6 bits of codepoint put into byte #2
+  . SET RESULT=BYTE1_","_BYTE2
+  IF CODEPT<65536 DO  GOTO GUDN  ;"2048-65535 --> 3 byte encoding, storing 16 bits
+  . NEW BINCODE SET BINCODE=$$DEC2BIN(CODEPT,16)
+  . NEW BYTE1,BYTE2,BYTE3
+  . SET BYTE1="1110"_$$BINLTRIM(.BINCODE,4) ;"4 bits of codepoint put into byte #1
+  . SET BYTE2="10"_$$BINLTRIM(.BINCODE,6)   ;"6 bits of codepoint put into byte #2
+  . SET BYTE3="10"_$$BINLTRIM(.BINCODE,6)   ;"6 bits of codepoint put into byte #3
+  . SET RESULT=BYTE1_","_BYTE2_","_BYTE3
+  IF CODEPT<1114112 DO  GOTO GUDN  ;"65536-1114111 --> 4 byte encoding, storing 21 bits
+  . NEW BINCODE SET BINCODE=$$DEC2BIN(CODEPT,21)
+  . NEW BYTE1,BYTE2,BYTE3,BYTE4
+  . SET BYTE1="11110"_$$BINLTRIM(.BINCODE,3) ;"3 bits of codepoint put into byte #1
+  . SET BYTE2="10"_$$BINLTRIM(.BINCODE,6)    ;"6 bits of codepoint put into byte #2
+  . SET BYTE3="10"_$$BINLTRIM(.BINCODE,6)    ;"6 bits of codepoint put into byte #3
+  . SET BYTE4="10"_$$BINLTRIM(.BINCODE,6)    ;"6 bits of codepoint put into byte #4
+  . SET RESULT=BYTE1_","_BYTE2_","_BYTE3_","_BYTE4
+GUDN ;
+  SET RETURNHEX=+$GET(OPTION("HEX"))
+  NEW HEXPREFIX IF RETURNHEX SET HEXPREFIX=$GET(OPTION("HEX","PREFIX"),"$")
+  NEW IDX FOR IDX=1:1:$LENGTH(RESULT,",") DO
+  . NEW VAL SET VAL=$PIECE(RESULT,",",IDX) QUIT:VAL=""
+  . IF RETURNHEX DO
+  . . SET VAL=HEXPREFIX_$$BIN2HEX(VAL)
+  . ELSE  DO
+  . . SET VAL=$$BIN2DEC(VAL)
+  . SET $PIECE(RESULT,",",IDX)=VAL
+  QUIT RESULT
+  ;
+BINLTRIM(BINSTR,DIGITS) ;"Left trim certain number of bits
+  ;"INPUT: BINSTR -- PASS BY REFERENCE.  Binary string.  Assumed to be properly formed
+  ;"       DIGITS -- number of digits to remove from LEFT of string, leaving BINSTR shorter
+  ;"NOTE: If DIGITS is > length of BINSTR, then return will be as many as possible. 
+  NEW RESULT SET RESULT=$EXTRACT(BINSTR,1,DIGITS)
+  SET BINSTR=$EXTRACT(BINSTR,DIGITS+1,$LENGTH(BINSTR))
+  QUIT RESULT
+  ;
 OR(a,b)
         ;"Scope: PUBLIC
         ;"Purpose: to perform a bitwise OR on operands a and b
@@ -1013,62 +1143,87 @@ ParsePos(pos,label,offSET,routine,dmod)
        SET s=$GET(pos)
        SET dmod=$PIECE(s,"$",1) ;"e.g. X+2^ROUTINE$DMOD-->X+2^ROUTINE
        SET routine=$PIECE(s,"^",2)
-       SET routine=$EXTRACT(routine,1,8)
+       ;"SET routine=$EXTRACT(routine,1,8)   //kt removed 3/1/08, allow length over 8 chars      
        SET label=$PIECE(s,"^",1)
        SET offSET=$PIECE(label,"+",2)
        SET label=$PIECE(label,"+",1)
-       SET label=$EXTRACT(label,1,8)
-
+       ;"SET label=$EXTRACT(label,1,8)   //kt removed 3/1/08, allow length over 8 chars
        QUIT
 
-
 ScanMod(Module,pArray)
-        ;"Purpose: To scan a module and find all the labels/entry points/Entry points
-        ;"Input: Module -- The name of the module, like "XGF" (not "XGF.m" or "^XGF")
-        ;"         pArray -- pointer to (NAME OF) array Will be filled like this
-        ;"              pArray(1,"TAG")="Label1"
-        ;"              pArray(1,"OFFSET")=1
-        ;"              pArray(2,"TAG")="Label2"
-        ;"              pArray(2,"OFFSET")=9
-        ;"              pArray(3,"TAG")="Label3"  etc.
-        ;"              pArray(3,"OFFSET")=15
-        ;"              pArray("Label1")=1
-        ;"              pArray("Label2")=2
-        ;"              pArray("Label3")=3
-        ;"
-        ;"              NOTE: there seems to be a problem IF the passed pArray value is "pArray",
-        ;"                      so use another name.
-        ;"
-        ;"Output: Results are put into array
-        ;"Result: none
-        NEW smIdx SET smIdx=1
-        NEW LabelNum SET LabelNum=0
-        NEW smLine SET smLine=""
-        IF $GET(Module)="" GOTO SMDone
-        ;
-        FOR  DO  QUIT:(smLine="")
-        . NEW $ETRAP SET $ETRAP="WRITE ""Error Trapped."",! SET $ETRAP="""",$ECODE="""",smLine="""""
-        . NEW smCh
-        . SET smLine=$text(+smIdx^@Module)
-        . IF smLine="" QUIT
-        . SET smLine=$$REPLSTR^TMGSTUT3(smLine,$Char(9),"        ") ;"replace tabs for 8 spaces
-        . SET smCh=$EXTRACT(smLine,1)
-        . IF (smCh'=" ")&(smCh'=";") DO
-        . . NEW label
-        . . NEW POS SET POS=$$POSSET^TMGSTUT3(smLine," (")
-        . . IF POS>0 DO
-        . . . SET label=$EXTRACT(smLine,1,POS-1)
-        . . ELSE  DO        
-        . . . SET label=$PIECE(smLine," ",1)
-        . . SET LabelNum=LabelNum+1
-        . . SET @pArray@(LabelNum,"TAG")=label
-        . . SET @pArray@(LabelNum,"OFFSET")=smIdx
-        . . SET @pArray@(label)=LabelNum
-        . SET smIdx=smIdx+1
-        ;
+  ;"Purpose: To scan a module and find all the labels/entry points/Entry points
+  ;"Input: Module -- The name of the module, like "XGF" (not "XGF.m" or "^XGF")
+  ;"         pArray -- pointer to (NAME OF) array Will be filled like this
+  ;"              pArray(1,"TAG")="Label1"
+  ;"              pArray(1,"OFFSET")=1
+  ;"              pArray(2,"TAG")="Label2"
+  ;"              pArray(2,"OFFSET")=9
+  ;"              pArray(3,"TAG")="Label3"  etc.
+  ;"              pArray(3,"OFFSET")=15
+  ;"              pArray("Label1")=1
+  ;"              pArray("Label2")=2
+  ;"              pArray("Label3")=3
+  ;"
+  ;"              NOTE: there seems to be a problem IF the passed pArray value is "pArray",
+  ;"                      so use another name.
+  ;"
+  ;"Output: Results are put into array
+  ;"Result: none
+  NEW smIdx SET smIdx=1
+  NEW LabelNum SET LabelNum=0
+  NEW smLine SET smLine=""
+  IF $GET(Module)="" GOTO SMDone
+  ;"look for a var with global scope to see how how many characters are significant to GT.M
+  IF $GET(tmgZBSigNameLen)="" DO
+  . SET tmgZBSigNameLen=$$NumSigChs^TMGMISC()
+  ;
+  FOR  DO  QUIT:(smLine="")
+  . NEW smCh
+  . SET smLine=$text(+smIdx^@Module)
+  . IF smLine="" QUIT
+  . SET smLine=$$REPLSTR^TMGSTUT3(smLine,$Char(9),"        ") ;"replace tabs for 8 spaces
+  . SET smCh=$EXTRACT(smLine,1)
+  . IF (smCh'=" ")&(smCh'=";") DO
+  . . NEW label
+  . . SET label=$PIECE(smLine," ",1)
+  . . SET label=$PIECE(label,"(",1)  ;"MyFunct(X,Y) --> MyFunct
+  . . SET label=$EXTRACT(label,1,tmgZBSigNameLen)
+  . . SET LabelNum=LabelNum+1
+  . . SET @pArray@(LabelNum,"TAG")=label
+  . . SET @pArray@(LabelNum,"OFFSET")=smIdx
+  . . SET @pArray@(label)=LabelNum
+  . SET smIdx=smIdx+1
+  ;
 SMDone  ;
-        QUIT
-        ;
+  QUIT
+  ;
+RelConvertPos(Pos,ViewOffset,pArray)   ;
+  ;"Purpose: to convert a positioning line from one that is relative to
+  ;"              the start of the file to one that is relative to the
+  ;"              last tag/label
+  ;"              e.g. +32^MYFUNCT --> START+8^MYFUNCT
+  ;"          I.e. this function in the OPPOSITE of ConvertPos
+  ;"Input: Pos -- a position, as returned from $ZPOS
+  ;"       ViewOffset -- the offset from the Pos to get pos for
+  ;"       pArray -- pointer to (name of).  Array holding  holding tag offsets
+  ;"             see Description in ConvertPos()
+  ;"Result: returns the NEW position line, relative to the start of the last tag/label
+  ;  
+  ;"WRITE !,"Here in RelConvertPos.  Pos=",Pos," ViewOffset=",ViewOffset,!
+  NEW zbRelPos,zbLabel,zbOffset,zbRoutine
+  DO ParsePos^TMGMISC(Pos,.zbLabel,.zbOffset,.zbRoutine)
+  SET zbRelPos=zbLabel_"+"_+(zbOffset+ViewOffset)_"^"_zbRoutine
+  NEW zbTemp SET zbTemp=zbRelPos
+  ;"5/27/07 I don't know why following line was here. Removing.
+  ;"It was breaking the setting of breakpoints.  I wonder if I have now
+  ;"broken conditional breakpoints...  Figure that out later...
+  ;"SET zbRelPos=$$ConvertPos^TMGMISC(zbRelPos,pArray)
+  IF zbRelPos="" DO
+  . WRITE "Before ConvertPos, zbRelPos=",zbTemp,!
+  . WRITE "Afterwards, zbRelPos=""""",!
+  ;"WRITE "Done RelConvertPos.  Result=",zbRelPos,!
+  QUIT zbRelPos
+  ;        
 CONVERTPOS(POS,PARRAY) ;"Uppercase case wrapper. 
         QUIT $$ConvertPos(.POS,.PARRAY) ;h
         ;
@@ -1101,23 +1256,26 @@ ConvertPos(Pos,pArray)
         NEW cpRoutine,cpLabel,cpOffSET
         ;
         SET cpS=$PIECE(Pos,"$",1)  ;"e.g. X+2^ROUTINE$DMOD-->X+2^ROUTINE
-        IF cpS="" GOTO CPDone
+        IF cpS="" DO  GOTO CPDone
+        . WRITE "Parse error: Nothing before $ in",cpS,!
         ;
         SET cpRoutine=$PIECE(cpS,"^",2)
-        IF cpRoutine="" GOTO CPDone
+        IF cpRoutine="" DO  GOTO CPDone
+        . WRITE "Parse error:  No routine specified in: ",cpS,!
         ;
         SET cpS=$PIECE(cpS,"^",1)
         SET cpOffSET=+$PIECE(cpS,"+",2)
         ;"if cpOffSET="" SET cpOffSET=1
         ;"ELSE  SET cpOffSET=+cpOffSET
         SET cpLabel=$PIECE(cpS,"+",1)
-        ;
+        IF cpLabel="" set cpLabel="+1"  ;"//kt 6/8/16
         IF $DATA(@pArray@(cpRoutine))=0 DO
         . NEW p2Array SET p2Array=$name(@pArray@(cpRoutine))
         . DO ScanMod(cpRoutine,p2Array)
         ;
         NEW cpIdx SET cpIdx=+$GET(@pArray@(cpRoutine,cpLabel))
-        IF cpIdx=0 GOTO CPDone
+        IF cpIdx=0 DO  GOTO CPDone
+        . ;"WRITE "Parse error: Can't find ",cpRoutine,",",cpLabel," in stored source code.",!
         NEW cpGOffSET SET cpGOffSET=@pArray@(cpRoutine,cpIdx,"OFFSET")
         SET cpResult="+"_+(cpGOffSET+cpOffSET)_"^"_cpRoutine
         ;

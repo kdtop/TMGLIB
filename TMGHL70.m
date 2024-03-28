@@ -450,7 +450,8 @@ VM15    IF "^"[TESTID GOTO VMDN
         DO
         . WRITE "-----",!
         . WRITE "Showing mapping array from $$GETMAP^TMGHL70B^TMGHL7U:",!
-        . DO ArrayDump^TMGIDE("ARR")
+        . ;"//kt 3/23/24  DO ArrayDump^TMGIDE("ARR")
+        . DO ARRDUMP^TMGMISC3("ARR")  ;"//kt 3/23/24
         . WRITE "-----",!
         ;"//kt end 2/12/24 addition
         KILL ARR
@@ -459,7 +460,8 @@ VM15    IF "^"[TESTID GOTO VMDN
         DO
         . WRITE "-----",!
         . WRITE "Using this mapping array (from $$LMAPAPI^TMGHL7U):",!
-        . DO ArrayDump^TMGIDE($NAME(ARR(TESTID)))
+        . ;"//kt 3/23/24  DO ArrayDump^TMGIDE($NAME(ARR(TESTID)))
+        . DO ARRDUMP^TMGMISC3($NAME(ARR(TESTID)))  ;"//kt 3/23/24
         . WRITE "-----",!
         
         SET SYNONYM=$GET(ARR(TESTID,"SYNONYM"))

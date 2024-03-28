@@ -70,13 +70,13 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"TrimTags(lineS) -- cut out HTML tags (e.g. <...>) from lineS, however, <no data> is protected
  ;"$$ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) -- WRITE the array to the host file system
  ;"$$HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) -- Read array from host file system
-
+ ;
  ;"=======================================================================
  ;"Dependancies
  ;"  uses TMGDEBUG for debug messaging.
  ;"=======================================================================
  ;"=======================================================================
-
+ ;
  ;"------------------------------------------------------------------------
  ;"FYI, String functions in XLFSTR module:
  ;"------------------------------------------------------------------------
@@ -168,7 +168,7 @@ NSL1        SET temp=$PIECE(Text,OpenBracket,i)
 
 QNSp
         QUIT Result
-
+                                                                                  
 
 FormatArray(InArray,OutArray,Divider)
         ;"PUBLIC FUNCTION
@@ -210,14 +210,14 @@ FormatArray(InArray,OutArray,Divider)
         NEW Done
 
         KILL OutArray ;"remove any prior data
-
+                          
         IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Input array:")
         IF DEBUG DO ZWRITE^TMGZWR("InArray")
 
         IF $DATA(Divider)=0 DO  GOTO FADone
         . SET RESULT=cAbort
 
-        SET Done=0
+        SET Done=0                 
         FOR InIndex=1:1 DO  QUIT:Done
         . IF $DATA(InArray(cText,InIndex))=0 SET Done=1 QUIT
         . IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Converting line: ",InArray(cText,InIndex))
@@ -233,7 +233,31 @@ FormatArray(InArray,OutArray,Divider)
 FADone
         QUIT RESULT
 
-
+REPLACE(IN,SPEC)        ;"See $$REPLACE in MDC minutes.
+        ;"Taken from REPLACE^XLFSTR
+        QUIT:'$D(IN) ""
+        QUIT:$D(SPEC)'>9 IN
+        N %1,%2,%3,%4,%5,%6,%7,%8
+        SET %1=$L(IN)
+        SET %7=$J("",%1)
+        SET %3=""
+        SET %6=9999
+        FOR  SET %3=$ORDER(SPEC(%3)) QUIT:%3=""  SET %6(%6)=%3,%6=%6-1
+        FOR %6=0:0 SET %6=$O(%6(%6)) QUIT:%6'>0  SET %3=%6(%6) DO:$D(SPEC(%3))#2 RE1
+        SET %8=""
+        FOR %2=1:1:%1 DO RE3
+        QUIT %8
+RE1     SET %4=$L(%3)
+        SET %5=0 FOR  S %5=$F(IN,%3,%5) Q:%5<1  D RE2
+        Q
+RE2     Q:$E(%7,%5-%4,%5-1)["X"  S %8(%5-%4)=SPEC(%3)
+        F %2=%5-%4:1:%5-1 S %7=$E(%7,1,%2-1)_"X"_$E(%7,%2+1,%1)
+        Q
+RE3     I $E(%7,%2)=" " S %8=%8_$E(IN,%2) Q
+        S:$D(%8(%2)) %8=%8_%8(%2)
+        Q
+        ;
+ 
 
 TrimL(S,TrimCh)
         ;"Purpose: To a trip a string of leading white space
@@ -253,7 +277,7 @@ TrimL(S,TrimCh)
 
         QUIT RESULT
 
-
+      
 TrimR(S,TrimCh)
         ;"Purpose: To a trip a string of trailing white space
         ;"        i.e. convert "hello   " into "hello"
@@ -261,24 +285,21 @@ TrimR(S,TrimCh)
         ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
         ;"Results: returns modified string
         ;"Note: processing limitation is string length=1024
-
-        SET DEBUG=$GET(DEBUG,0)
-        SET cOKToCont=$GET(cOKToCont,1)
-        SET cAbort=$GET(cAbort,0)
+        ;
+        ;"SET DEBUG=$GET(DEBUG,0)
+        ;"SET cOKToCont=$GET(cOKToCont,1)
+        ;"SET cAbort=$GET(cAbort,0)
         SET TrimCh=$GET(TrimCh," ")
-
         NEW RESULT SET RESULT=$GET(S)
         NEW Ch SET Ch=""
-        NEW L
-
+        NEW L       
         FOR  DO  QUIT:(Ch'=TrimCh)
         . SET L=$LENGTH(RESULT)
         . SET Ch=$EXTRACT(RESULT,L,L)
         . IF Ch=TrimCh DO
         . . SET RESULT=$EXTRACT(RESULT,1,L-1)
-
-        QUIT RESULT
-
+        QUIT RESULT          
+        ;
 Trim(S,TrimCh)
         ;"Purpose: To a trip a string of leading and trailing white space
         ;"        i.e. convert "    hello   " into "hello"
@@ -289,11 +310,10 @@ Trim(S,TrimCh)
 
         ;"NOTE: this function could be replaced with $$TRIM^XLFSTR
 
-        SET DEBUG=$GET(DEBUG,0)
-        SET cOKToCont=$GET(cOKToCont,1)
-        SET cAbort=$GET(cAbort,0)
-        SET TrimCh=$GET(TrimCh," ")
-
+        ;"SET DEBUG=$GET(DEBUG,0)
+        ;"SET cOKToCont=$GET(cOKToCont,1)
+        ;"SET cAbort=$GET(cAbort,0)
+        SET TrimCh=$GET(TrimCh," ")                  
         NEW RESULT SET RESULT=$GET(S)
         SET RESULT=$$TrimL(.RESULT,TrimCh)
         SET RESULT=$$TrimR(.RESULT,TrimCh)

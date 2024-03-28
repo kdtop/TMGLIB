@@ -994,9 +994,9 @@ GSCRNSZ4(ROWS,COLS) ;
 AUTOMARG() ;"RETURNS IOM^IOSL IF IT CAN and resets terminal to those dimensions -- from George Timson's %ZIS3.
  ;"Taken from $$AUTOMARG^XVEMKY and stripped to just YottaDB, and modified. 
  NEW DEVSAV DO DEV2ARR^TMGKERN1($IO,.DEVSAV)
- IF $DATA(^%ZOSF("RM")) DO
+ IF $DATA(^%ZOSF("RM")) DO  ;"Setting WIDTH=0 to prevent wrapping
  . NEW X SET X=0 
- . XECUTE ^%ZOSF("RM") ;"  U $I:(WIDTH=$S(X<256:X,1:0):FILTER="ESCAPE")  NOTE: Setting WIDTH=0 prevents wrapping
+ . XECUTE ^%ZOSF("RM") ;"  U $I:(WIDTH=$S(X<256:X,1:0):FILTER="ESCAPE")  
  NEW %I,%T,ESC,DIM,SUCCESS
  SET %I=$I,%T=$T                                  
  SET ESC=$C(27)        
