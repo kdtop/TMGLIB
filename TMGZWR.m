@@ -52,10 +52,11 @@ ZWRITE(NAME) ;
   . W NAME,"=",$$FORMAT(@NAME),!
   QUIT 
   ;
-ZWR2ARR(NAME,OUTREF) ;"//kt added this function
+ZWR2ARR(NAME,OUTREF,STARTIDX) ;"//kt added this function
   ;"Purpose: Output ZWR output into an array
   ;"Input: NAME --   PASS BY NAME.  Should be a A closed reference.
   ;"       OUTREF -  PASS BY NAME.  Name of array to put output into.
+  ;"       STARTIDX -- OPTIONAL.  Starting index #.  Default=1
   ;"Output:  @OUTREF@(1)=First line
   ;"         @OUTREF@(2)=2nd line... etc. 
   ;"Results: None
@@ -66,7 +67,8 @@ ZWR2ARR(NAME,OUTREF) ;"//kt added this function
   IF $EXTRACT(NAME,L-2,L)=",*)" SET NAME=$EXTRACT(NAME,1,L-3)_")"
   NEW ORIGLAST SET ORIGLAST=$QSUBSCRIPT(NAME,$QLENGTH(NAME))
   NEW ORIGQL SET ORIGQL=$QLENGTH(NAME)
-  NEW IDX SET IDX=1
+  SET STARTIDX=+$GET(STARTIDX) IF STARTIDX'>0 SET STARTIDX=1
+  NEW IDX SET IDX=STARTIDX
   IF $DATA(@NAME)#2 DO
   . SET @OUTREF@(IDX)=NAME_"="_$$FORMAT(@NAME)
   . SET IDX=IDX+1

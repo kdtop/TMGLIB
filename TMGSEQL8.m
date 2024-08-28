@@ -107,7 +107,7 @@ DELINS(TMGDFN)  ;" Delete all insurances
   . DO FILE^DIE("E","TMGFDA","TMGMSG")
   QUIT
   ;"
-IMPPAYAVG
+IMPPAYAVG  ;
   ;"IMPORT PAYMENT DATA FROM SEQUEL AND STORE AVERAGE PAYMENTS INTO VISTA
   ;"plan_short_name,visit_date_from,proc_cpt_code,practice_name,location_name,provider_name,total_amount_charged,total_amount_paid,total_adjustment,icd_9_code,modifier,visit_seq_num,charge_seq_num,patient_seq_num,parent_seq_num,ref_provider,mhrvs
   ;"PARSE CSV FROM SEQUEL

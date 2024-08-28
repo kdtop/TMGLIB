@@ -58,19 +58,20 @@ TMGLRU2 ;TMG/kst-Utility for managing lab order dialog ;12/19/2023
  ;"Dependancies
  ;"=======================================================================
  ;"Data structures:
- ;"File 22751 has this structure
- ;"     TMG LAB ORDER DIALOG ELEMENTS                                 
- ;"  REF  NODE;PIECE     FLD NUM  FIELD NAME    
- ;"  ===================================================================
- ;"    1  0;1                .01  NAME                          [RFJ64]
- ;"    2  0;2                .02  TYPE                              [S]
- ;"       1;0                  1  ITEMS              <-Mult [22751.01P]
- ;"    3   -0;1              .01   -ITEMS             <-Pntr  [P22751']
- ;"    4   -0;2              .02   -SEQUENCE                    [NJ9,4]
- ;"    5  10;1                10  FASTING                           [S]
- ;"    6  10;2                11  NEEDS LINKED DX                   [S]
- ;"       20;0                20  ALLOWED LINKED DX'S <-Mult [22751.02P]
- ;"    7   -0;1              .01   -ALLOWED LINKED DX'S <-Pntr  [P22751']
+ ;"File: TMG LAB ORDER DIALOG ELEMENTS                                  Branch: 1
+ ;"REF  NODE;PIECE     FLD NUM  FIELD NAME
+ ;"===============================================================================
+ ;"  1  0;1                .01  NAME                                      [RFJ64]
+ ;"  2  0;2                .02  TYPE                                          [S]
+ ;"     1;0                  1  ITEMS                          <-Mult [22751.01P]
+ ;"  3   -0;1              .01   -ITEMS                        <-Pntr  [MP22751']
+ ;"  4   -0;2              .02   -SEQUENCE                                [NJ9,4]
+ ;"  5  2;1                  2  ICD DX                             <-Pntr  [P80']
+ ;"  6  21;1               2.1  LINKED LAB TEST                    <-Pntr Var [V]
+ ;"  7  10;1                10  FASTING                                       [S]
+ ;"  8  10;2                11  NEEDS LINKED DX                               [S]
+ ;"     20;0                20  ALLOWED LINKED DX'S            <-Mult [22751.02P]
+ ;"  9   -0;1              .01   -ALLOWED LINKED DX'S         <-Pntr  [M*P22751']
  ;"   <> <> <>
  ;"TYPE is a set as follows
  ;"    D:DIALOG

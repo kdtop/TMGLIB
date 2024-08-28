@@ -403,24 +403,32 @@ FILE2REF(FILE,IENS)  ;"CONVERT A FILE/SUBFILE NUMBER AND IENS INTO A OPEN REF
   . SET IDX=IDX-1
   QUIT RESULT  
   ;
-LISTFILES(OUT,SN,EN)  ;"List Fileman files for number range.  
+LISTFILES(OUT,SN,EN,OPTION)  ;"List Fileman files for number range.  
   ;"Input: OUT -- PASS BY REFERENCE.  FORMAT:
   ;"         OUT("A",NUMBER)=NAME^<PARENT FILE NUMBER IF ANY>
   ;"         OUT("B",NAME,NUMBER)=""
   ;"       SN -- option, default is 0.  Start of number range to return  (number is inclusive)
   ;"       EN -- option, default is last possible.  End of number range to return  (number is inclusive)
+  ;"       OPTION -- optional.  PASS BY REFERENCE.  Format:
+  ;"          OPTION("NO SUBFILES")=0 OR 1.  Default is P.  If 1, then subfiles not shown.  
   SET SN=+$GET(SN)
   SET EN=$GET(EN) IF EN'>0 SET EN=$ORDER(^DIC("@"),-1)
+  NEW NOSUBFILE SET NOSUBFILE=+$GET(OPTION("NO SUBFILES"))
   NEW FNUM SET FNUM=SN-0.00000001
   FOR  SET FNUM=$ORDER(^DD(FNUM)) QUIT:(FNUM'>0)!(FNUM>EN)  DO
   . NEW NAME SET NAME=$ORDER(^DD(FNUM,0,"NM","")) IF NAME="" SET NAME="???"
   . NEW UP SET UP=+$GET(^DD(FNUM,0,"UP"))
+  . IF UP>0,NOSUBFILE QUIT
   . SET OUT("A",FNUM)=NAME_$SELECT(UP>0:"^"_UP,1:"")
   . SET OUT("B",NAME,FNUM)=""
   . IF UP>0 SET OUT("SUBFILES",FNUM,NAME)="SUBFILE^"_UP
   QUIT
   ;
-ASKLSTFL(SN,EN) ;"Ask user for start and end of range, and display all files in range
+ASKLSTFL(SN,EN,OPTION) ;"Ask user for start and end of range, and display all files in range
+  ;"INPUT: SN -- option, default is 0.  Start of number range to return  (number is inclusive)
+  ;"       EN -- option, default is last possible.  End of number range to return  (number is inclusive)
+  ;"       OPTION -- optional.  PASS BY REFERENCE.  Format:
+  ;"          OPTION("NO SUBFILES")=0 OR 1.  Default is P.  If 1, then subfiles not shown.  
   WRITE !,"Display all Fileman files (including subfiles), by number, in range.",!
   SET SN=+$GET(SN),EN=+$GET(EN)
   IF SN'>0 WRITE "START NUMBER FOR RANGE (INCLUSIVE): " READ SN 
@@ -430,7 +438,7 @@ ASKLSTFL(SN,EN) ;"Ask user for start and end of range, and display all files in 
   IF (EN["^")!(EN'>0) QUIT
   WRITE " --> using end number [",+EN,"]",!
   NEW LIST
-  DO LISTFILES(.LIST,+SN,+EN)
+  DO LISTFILES(.LIST,+SN,+EN,.OPTION)
   NEW FNUM SET FNUM=0
   FOR  SET FNUM=$ORDER(LIST("A",FNUM)) QUIT:FNUM'>0  DO
   . NEW VALUE SET VALUE=$GET(LIST("A",FNUM),"???")
@@ -448,7 +456,21 @@ PARENTSTR(LIST,NUM)  ;"Utility function for ASKLSTFL
   QUIT RESULT
   ;
 LSTTMGFILES ;
-  DO ASKLSTFL(22700,22799.9999999) 
+  WRITE !,!,"-- DISPLAY TMG FILES, BY NUMBER --",!
+  SET %=2 WRITE "Include SUBFILES" DO YN^DICN WRITE !
+  NEW OPTION SET OPTION("NO SUBFILES")=(%=2)
+  
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET %ZIS("B")="HOME"
+  DO ^%ZIS  ;"standard device call
+  IF POP DO  QUIT
+  . DO SHOWERR^TMGDEBU2(,"Error opening output.  Aborting.")
+  USE IO
+  ;"Do the output
+  DO ASKLSTFL(22700,22799.9999999,.OPTION) 
+  ;" Close the output device
+  DO ^%ZISC
   DO PRESS2GO^TMGUSRI2
   QUIT
   

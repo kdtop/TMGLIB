@@ -298,7 +298,7 @@ SETUPSM0(OUT,ADAYLEAD,EXCLBYDL) ;
   FOR  SET TMGDFN=$ORDER(ERRARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
   . NEW ERRMSG SET ERRMSG=$GET(ERRARRAY(TMGDFN)) QUIT:ERRMSG=""
   . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1) QUIT:PTNAME=""
-  . SET ERRMSG="Patient='"_PTNAME_"' (`"_DFN_"), "_ERRMSG
+  . SET ERRMSG="Patient='"_PTNAME_"' (`"_TMGDFN_"), "_ERRMSG
   . DO ALERTERR^TMGKERN5(ERRMSG)
   ;"KILL OUT MERGE OUT=TEMP("MSG")  
   QUIT
@@ -310,15 +310,17 @@ ADDLINE(ARR,LINE) ;
   QUIT                
   ;
 GETCRDNTL(OUT,NAME) ;"GET CREDENTIALS
-  ;"Purpose: get SMS credentials from file 22724.1 (TMG SMS CREDENTIALS)
+  ;"Purpose: get SMS credentials from file 22724.1 (TMG CREDENTIALS)
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;"         OUT("APIID")=api_id value
   ;"         OUT("NUMBER")=from value
   ;"         OUT("PW")=password value
   ;"         OUT("USER")=user value
+  ;"         OUT("API KEY")=API key
+  ;"         OUT("API NUMBER")=API number          
   ;"       NAME -- the value of the .01 field record to use.  
   ;"Result: 1 if OK, or -1^Message if error. 
-  KILL OUT                   
+  KILL OUT                                            
   SET NAME=$GET(NAME,"??")
   NEW RESULT SET RESULT=1
   NEW IEN SET IEN=+$ORDER(^TMG(22724.1,"B",NAME,0))
@@ -327,6 +329,9 @@ GETCRDNTL(OUT,NAME) ;"GET CREDENTIALS
   SET OUT("PW")=$PIECE(ZN,"^",3)
   SET OUT("NUMBER")=$PIECE(ZN,"^",4)
   SET OUT("USER")=$PIECE(ZN,"^",5)
+  NEW N2 SET N2=$GET(^TMG(22724.1,IEN,2))
+  SET OUT("API KEY")=$PIECE(N2,"^",1)
+  SET OUT("API NUMBER")=$PIECE(N2,"^",2)
   IF ZN="" DO  GOTO GCRDN
   . SET RESULT="-1^Record not found in 22724.1 for "_NAME 
   IF OUT("APIID")="" DO  GOTO GCRDN

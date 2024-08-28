@@ -1,4 +1,4 @@
-TMGSEQL7 ;TMG/KST - Parse current schedule status file (From SequelPMS); 11/06/17, 3/24/21
+TMGSEQL7 ;TMG/KST - Parse current schedule status file (From SequelPMS); 11/06/17, 6/3/24
         ;;1.0;TMG-LIB;**1**; 11/6/17
        ;
  ;"TMG SEQUEL PMS FUNCTIONS -- Importing appointments. 
@@ -16,21 +16,38 @@ TMGSEQL7 ;TMG/KST - Parse current schedule status file (From SequelPMS); 11/06/1
  ;"=======================================================================
  ;"LOAD(FULLPATHNAME,DELFILE) -- Load specified file with schedule information
  ;"HNDLTASK -- entry to scheduled task to load appointment info from SequelMed
- ;"TEST1 -- Ask user for file name to load.
+ ;"GETAPPTS(OUT,TMGDFN,ASOFDT) -- Get list of appointments on or after ASOFDT for patient
+ ;"LOADONE -- LOAD ONE DAY, FOR SCHEDULE STATUSES -- Load file with current day's schedule information, including check-in and check-out info
+ ;"GETLOAD(TMGRESULT,TMGDUZ)  --RPC ENTRY POINT -- TMG CPRS GET PATIENT LOAD
  ; 
  ;"=======================================================================
  ;" Private Functions.
  ;"=======================================================================
  ;"PARSE(REFDATA) -- Parse data from future-appointents output, from SequelPMS
  ;"PARSE1(REFDATA,IDX) -- Parse 1 data element from data, 
+ ;"GETFMDT(DATETIME)  ;
+ ;"GETPROVNAME(NAME)  ;
  ;"FILE1(TMGDFN,DATA) -- File 1 data entry into TMG SCHEDULE file (22723) 
  ;"EXISTS(TMGDFN,DATA) -- Check if 1 data entry has already been filed into TMG SCHEDULE file (22723) 
  ;"ENSURE1(TMGDFN,DATA) -- Ensure 1 data entry is filed into TMG SCHEDULE file (22723) 
  ;"ENSURALL(DATA) -- Ensure all parsed data has been filed. 
  ;"CHKREMVD(DATA,MINDT,MAXDT,OUT) -- find stored records on disk not present in DATA
+ ;"MARKOLD(DT,ERR) -- Mark any appts older than DT to OLD status
  ;"DOCANCEL(OLD,ERR) -- Set status of obsolete records to CANCELLED
  ;"ERR(MSG) -- Set up alert with information about errors
+ ;"GETMINS(TIME1,TIME2) -- SUBTRACT TIME2 FROM TIME1 AND RETURN MINS 
+ ;"MULTIPLEPROV()  ;"
+ ;"TEST1 -- Ask user for file name to load.
+ ;"TEST2 ;
  ;
+ ;"=======================================================================
+ ;"FYI  See also  GETSCHED^TMGPXR03(TMGRESULT,BEGDT,ENDDT,STATUSES,EXCLUDE)  
+ ;"   TMGRESULT(Datetime,TMGDFN)=""
+ ;"   BEGDT-FM START DATE
+ ;"   ENDDT-(Optional)FM END DATE. Will default to BEGDT if not provided
+ ;"   STATUSES-(Optional) Statuses to return. Defaults to 'A[ctive]'
+ ;"   EXCLUDE- (Optional) Exclude nursing appointments
+ ;"=======================================================================
  ;"=======================================================================
  ;"Dependancies
  ;"=======================================================================
@@ -117,7 +134,7 @@ PARSE(REFDATA)  ;"Parse data from future appointents output, from SequelPMS
 PARSE1(REFDATA,IDX) ;
   NEW ERR SET ERR=""
   ;"NEW NAMEIDX SET NAMEIDX=5  ;"1/19/21 ADDED
-  ;"IF $G(DATA("A",1))="provider_name" SET NAMEIDX=1     
+  ;"IF $GET(DATA("A",1))="provider_name" SET NAMEIDX=1     
   NEW NAME SET NAME=$GET(@REFDATA@(IDX,5))
   SET NAME=$$GETPROVNAME(NAME)
   NEW SEQLNUM SET SEQLNUM=+$GET(@REFDATA@(IDX,13))
@@ -140,14 +157,14 @@ P1DN ;
   IF ERR'="" SET @REFDATA@("ERR",IDX)=ERR
   QUIT
   ;
-GETFMDT(DATETIME)
+GETFMDT(DATETIME)  ;
   IF DATETIME="" QUIT ""
   NEW DATE,TIME SET DATE=$PIECE(DATETIME," ",1),TIME=$PIECE(DATETIME," ",2)
   SET DATETIME=DATE_"@"_$PIECE(TIME,":",1,2)
   NEW %DT SET %DT="T" SET X=DATETIME DO ^%DT
   QUIT Y
   ;"
-GETPROVNAME(NAME)
+GETPROVNAME(NAME)  ;
   ;"Provider name is not sent, so we have to hardcode the name for now
   NEW RETURNNAME
   IF (NAME="KTOPPEN")!(NAME="NURSE") SET RETURNNAME="TOPPENBERG,KEVIN"
@@ -437,59 +454,62 @@ LODN ;
   QUIT
   ;"
 GETMINS(TIME1,TIME2) ;"SUBTRACT TIME2 FROM TIME1 AND RETURN MINS
+  ;"NOTE: Could also do this with $$FMDIFF^XLFDT()
   IF $L(TIME1)=1 SET TIME1=TIME1_"000" IF $L(TIME2)=1 SET TIME2=TIME2_"000"
   IF $L(TIME1)=2 SET TIME1=TIME1_"00" IF $L(TIME2)=2 SET TIME2=TIME2_"00"
   IF $L(TIME1)=3 SET TIME1=TIME1_"0" IF $L(TIME2)=3 SET TIME2=TIME2_"0"
   NEW MINUTES
   NEW MINS1,MINS2
-  SET MINS1=($E(TIME1,1,2)*60)+$E(TIME1,3,4);"+($E(TIME1,5,6)/100)
-  SET MINS2=($E(TIME2,1,2)*60)+$E(TIME2,3,4);"+($E(TIME2,5,6)/100)
+  SET MINS1=($EXTRACT(TIME1,1,2)*60)+$EXTRACT(TIME1,3,4);"+($EXTRACT(TIME1,5,6)/100)
+  SET MINS2=($EXTRACT(TIME2,1,2)*60)+$EXTRACT(TIME2,3,4);"+($EXTRACT(TIME2,5,6)/100)
   SET MINUTES=MINS2-MINS1
   QUIT MINUTES
   ;"
-GETLOAD(TMGRESULT)  ;"RPC ENTRY POINT
+GETLOAD(TMGRESULT,TMGDUZ)  ;"RPC ENTRY POINT -- TMG CPRS GET PATIENT LOAD  //kt added TMGDUZ 4/18/24
   ;"Purpose: Returns the list of patients that our currently 
   ;"         checked into SEQUELMED, and have not yet been checked out
   ;"Output: RESULT(IDX)="String to display(e.g."TES,PAT 53 mins")^Mins here^Hint(e.g."Test,Patient is 45 mins past appt time")
+  ;
   ;"SET TMGRESULT(1)="11111 50 TEST,PERSON 30"
   ;"SET TMGRESULT(2)="22222 20 ANOTHER,PERSON 10"
+  SET TMGDUZ=+$GET(TMGDUZ) IF TMGDUZ'>0 SET TMGDUZ=DUZ
   NEW TODAY SET TODAY=$$TODAY^TMGDATE
   NEW NOW SET NOW=$$NOW^TMGDATE
   NEW IDX SET IDX=1
   NEW APPTDT SET APPTDT=TODAY_.000001
   NEW SKIPREASONS SET SKIPREASONS="INJ ONLY^PROTIME"
   NEW INCLPROV SET INCLPROV=$$MULTIPLEPROV
-  FOR  SET APPTDT=$O(^TMG(22723,"DT",APPTDT)) QUIT:(APPTDT'>0)!(APPTDT'[TODAY)  DO
+  FOR  SET APPTDT=$ORDER(^TMG(22723,"DT",APPTDT)) QUIT:(APPTDT'>0)!(APPTDT'[TODAY)  DO
   . NEW TMGDFN SET TMGDFN=0
-  . FOR  SET TMGDFN=$O(^TMG(22723,"DT",APPTDT,TMGDFN)) QUIT:TMGDFN'>0  DO
-  . . NEW APPTIEN SET APPTIEN=$O(^TMG(22723,"DT",APPTDT,TMGDFN,0))
-  . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDT,TMGDFN,APPTIEN))
-  . . IF STATUS="C" QUIT
-  . . NEW ZN SET ZN=$G(^TMG(22723,TMGDFN,1,APPTIEN,0))
-  . . NEW REASON SET REASON=$P(ZN,"^",4)
+  . FOR  SET TMGDFN=$ORDER(^TMG(22723,"DT",APPTDT,TMGDFN)) QUIT:TMGDFN'>0  DO
+  . . NEW APPTIEN SET APPTIEN=$ORDER(^TMG(22723,"DT",APPTDT,TMGDFN,0))
+  . . NEW STATUS SET STATUS=$GET(^TMG(22723,"DT",APPTDT,TMGDFN,APPTIEN))
+  . . IF STATUS="C" QUIT  ;"C = cancelled
+  . . NEW ZN SET ZN=$GET(^TMG(22723,TMGDFN,1,APPTIEN,0))
+  . . NEW REASON SET REASON=$PIECE(ZN,"^",4)
   . . IF SKIPREASONS[REASON QUIT
-  . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
-  . . NEW PROVIDER SET PROVIDER=$P(ZN,"^",3)
-  . . IF (DUZ=168)&(PROVIDER'=DUZ) QUIT
-  . . ;"Don't do for Dr. Dee anymore IF (DUZ=83)&(PROVIDER'=DUZ) QUIT
-  . . SET PROVIDER=$P($G(^VA(200,PROVIDER,0)),"^",1)
-  . . SET PROVIDER=$P(PROVIDER,",",2)
-  . . SET PROVIDER=$E(PROVIDER,1,1)
+  . . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+  . . NEW PROVIDER SET PROVIDER=$PIECE(ZN,"^",3)
+  . . IF (TMGDUZ=168)&(PROVIDER'=TMGDUZ) QUIT
+  . . ;"Don't do for Dr. Dee anymore IF (TMGDUZ=83)&(PROVIDER'=TMGDUZ) QUIT
+  . . SET PROVIDER=$PIECE($GET(^VA(200,PROVIDER,0)),"^",1)
+  . . SET PROVIDER=$PIECE(PROVIDER,",",2)
+  . . SET PROVIDER=$EXTRACT(PROVIDER,1,1)
   . . NEW TIMEIN,TIMEOUT
-  . . SET TIMEIN=$P(ZN,"^",8)
-  . . SET TIMEOUT=$P(ZN,"^",9)
+  . . SET TIMEIN=$PIECE(ZN,"^",8)
+  . . SET TIMEOUT=$PIECE(ZN,"^",9)
   . . IF (TIMEIN'="")&(TIMEOUT="") DO
-  . . . ;"NEW SEQLACCT SET SEQLACCT=$P($G(^DPT(TMGDFN,"TMG")),"^",2)
+  . . . ;"NEW SEQLACCT SET SEQLACCT=$PIECE($GET(^DPT(TMGDFN,"TMG")),"^",2)
   . . . ;"create hint
   . . . NEW APPTMINS,HINT,PATINFO
-  . . . SET APPTMINS=$$GETMINS($P(APPTDT,".",2),NOW)
+  . . . SET APPTMINS=$$GETMINS($PIECE(APPTDT,".",2),NOW)
   . . . IF APPTMINS>0 DO
   . . . . SET HINT=NAME_" is "_APPTMINS_" minutes past appt time."
   . . . ELSE  DO
   . . . . SET HINT=NAME_" is "_APPTMINS_" minutes until appt time."
   . . . ;"create label
-  . . . NEW ABBV SET ABBV=$E($P(NAME,",",1),1,3)_","_$E($P(NAME,",",2),1,3)
-  . . . NEW TIMEHERE SET TIMEHERE=$$GETMINS($P(TIMEIN,".",2),NOW)
+  . . . NEW ABBV SET ABBV=$EXTRACT($PIECE(NAME,",",1),1,3)_","_$EXTRACT($PIECE(NAME,",",2),1,3)
+  . . . NEW TIMEHERE SET TIMEHERE=$$GETMINS($PIECE(TIMEIN,".",2),NOW)
   . . . NEW LABEL SET LABEL=ABBV_" "_TIMEHERE_" mins"
   . . . IF INCLPROV=1 SET LABEL=LABEL_" ("_PROVIDER_")"
   . . . SET PATINFO=TMGDFN_"~"_NAME
@@ -503,14 +523,14 @@ MULTIPLEPROV()  ;"
   NEW NOW SET NOW=$$NOW^TMGDATE
   NEW APPTDT SET APPTDT=TODAY_.000001
   NEW PREVIOUS SET PREVIOUS=0
-  FOR  SET APPTDT=$O(^TMG(22723,"DT",APPTDT)) QUIT:(APPTDT'>0)!(APPTDT'[TODAY)  DO
+  FOR  SET APPTDT=$ORDER(^TMG(22723,"DT",APPTDT)) QUIT:(APPTDT'>0)!(APPTDT'[TODAY)  DO
   . NEW TMGDFN SET TMGDFN=0
-  . FOR  SET TMGDFN=$O(^TMG(22723,"DT",APPTDT,TMGDFN)) QUIT:TMGDFN'>0  DO
-  . . NEW APPTIEN SET APPTIEN=$O(^TMG(22723,"DT",APPTDT,TMGDFN,0))
-  . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDT,TMGDFN,APPTIEN))
+  . FOR  SET TMGDFN=$ORDER(^TMG(22723,"DT",APPTDT,TMGDFN)) QUIT:TMGDFN'>0  DO
+  . . NEW APPTIEN SET APPTIEN=$ORDER(^TMG(22723,"DT",APPTDT,TMGDFN,0))
+  . . NEW STATUS SET STATUS=$GET(^TMG(22723,"DT",APPTDT,TMGDFN,APPTIEN))
   . . IF STATUS="C" QUIT
-  . . NEW ZN SET ZN=$G(^TMG(22723,TMGDFN,1,APPTIEN,0))
-  . . NEW PROVIDER SET PROVIDER=$P(ZN,"^",3)
+  . . NEW ZN SET ZN=$GET(^TMG(22723,TMGDFN,1,APPTIEN,0))
+  . . NEW PROVIDER SET PROVIDER=$PIECE(ZN,"^",3)
   . . IF PREVIOUS=0 SET PREVIOUS=PROVIDER
   . . IF PREVIOUS'=PROVIDER SET RESULT=1
   QUIT RESULT

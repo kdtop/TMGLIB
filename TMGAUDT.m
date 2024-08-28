@@ -1,4 +1,4 @@
-TMGAUDT ;TMG/kst/Entry points for Audit API ; 10/23/13, 2/2/14, 3/24/21
+TMGAUDT ;TMG/kst/Entry points for Audit API ; 10/23/13, 6/3/24
         ;;1.0;TMG-LIB;**1**;10/23/13
         ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -68,7 +68,7 @@ GTDTLDN QUIT
 GETAUDT1(OUT,USERIEN,SDT,EDT,MODE) ;"PER USER AUDIT
         ;"Purpose: return an audit log for 1 user, for 1 file, for given date range
         ;"Input: OUT -- PASS BY REFERENCE, an OUT parameter.
-        ;"       USERIEN -- IEN IN file 200 (NEW PERSON)
+        ;"       USERIEN -- OPTIONAL.  IEN IN file 200 (NEW PERSON)
         ;"       SDT -- Fileman date, or phrase (e.g. 'T-1'). Start Date. OPTIONAL.  DEFAULT=TODAY@00:00
         ;"       EDT -- Fileman date or phrase.  End Date.   OPTIONAL.  DEFAULT=TODAY@23:59
         ;"       MODE -- OPTIONAL. DEFAULT=1
@@ -201,20 +201,23 @@ GRPCUAUL(OUT,TMGDUZ,SDT,EDT) ;"GET AUDIT LIST, PER USER, FROM FILE 8994.81 (LOGG
         ;"Purpose: return list of patients seen during date range, by specified user
         ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER. Format:
         ;"              OUT(8994.81,DUZ,FMDATE,DFN)="<PATIENT NAME>"
-        ;"       TMGDUZ -- User IEN to check
+        ;"       TMGDUZ -- OPTIONAL.  User IEN to check
         ;"       SDT -- Fileman date, or phrase (e.g. 'T-1'). Start Date. OPTIONAL.  DEFAULT=TODAY@00:00
         ;"       EDT -- Fileman date or phrase.  End Date.   OPTIONAL.  DEFAULT=TODAY@23:59
         ;"Result: 1^OK, OR -1^ErrorMsg
         NEW TMGRESULT SET TMGRESULT="1^OK"
-        IF $DATA(^VA(200,+$GET(TMGDUZ),0))'>0 DO  GOTO GRUAUDN 
-        . SET TMGRESULT="-1^Invalid User parameter. Got: '"_$GET(TMGDUZ)_"'"
         SET TMGDUZ=+$GET(TMGDUZ)       
+        IF TMGDUZ>0,$DATA(^VA(200,TMGDUZ,0))'>0 DO  GOTO GRUAUDN 
+        . SET TMGRESULT="-1^Invalid User parameter. Got: '"_TMGDUZ_"'"
         DO PREPDATS(.SDT,.EDT) ;"PREP DATES
-        NEW ADT SET ADT=(SDT-0.00000001)
-        FOR  SET ADT=$ORDER(^XUSEC(8994,"USR",TMGDUZ,ADT)) QUIT:(+ADT'>0)!(ADT>EDT)  DO
-        . NEW TMGDFN SET TMGDFN=0
-        . FOR  SET TMGDFN=$ORDER(^XUSEC(8994,"USR",TMGDUZ,ADT,TMGDFN)) QUIT:(+TMGDFN'>0)  DO
-        . . SET OUT(8994.81,TMGDUZ,ADT,TMGDFN)=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        NEW ADUZ SET ADUZ=0
+        FOR  SET ADUZ=$ORDER(^XUSEC(8994,"USR",ADUZ)) QUIT:ADUZ'>0  DO
+        . IF TMGDUZ>0,TMGDUZ'=ADUZ QUIT        
+        . NEW ADT SET ADT=(SDT-0.00000001)
+        . FOR  SET ADT=$ORDER(^XUSEC(8994,"USR",ADUZ,ADT)) QUIT:(+ADT'>0)!(ADT>EDT)  DO
+        . . NEW TMGDFN SET TMGDFN=0
+        . . FOR  SET TMGDFN=$ORDER(^XUSEC(8994,"USR",ADUZ,ADT,TMGDFN)) QUIT:(+TMGDFN'>0)  DO
+        . . . SET OUT(8994.81,ADUZ,ADT,TMGDFN)=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
 GRUAUDN QUIT TMGRESULT
         ;                
 GRPCPAUL(OUT,TMGDFN,FLDS,FLAGS,SDT,EDT) ;"GET AUDIT LIST, PER PT, FROM FILE 8994.81 (AUDIT LOG FOR RPCS)
@@ -253,26 +256,29 @@ GACCES1(OUT,TMGDUZ,SDT,EDT) ;"-- GET BRIEF ACCESS LIST FROM FILE 1.1 (AUDIT)
         ;"Purpose: return list of patients seen during date range, by specified user
         ;"Input: OUT -- PASS BY REFERENCE, AN OUT PARAMETER. Format:
         ;"              OUT(1.1,DUZ,FMDATE,DFN)="<PATIENT NAME>
-        ;"       TMGDUZ -- User IEN to check
+        ;"       TMGDUZ -- OPTIONAL.  User IEN to check.  
         ;"       SDT -- Fileman date, or phrase (e.g. 'T-1'). Start Date. OPTIONAL.  DEFAULT=TODAY@00:00
         ;"       EDT -- Fileman date or phrase.  End Date.   OPTIONAL.  DEFAULT=TODAY@23:59
         ;"Result: 1^OK, OR -1^ErrorMsg
         NEW TMGRESULT SET TMGRESULT="1^OK"
-        IF $DATA(^VA(200,+$GET(TMGDUZ),0))'>0 DO  GOTO GACS1 
-        . SET TMGRESULT="-1^Invalid User parameter. Got: '"_$GET(TMGDUZ)_"'"
         SET TMGDUZ=+$GET(TMGDUZ)
+        IF TMGDUZ>0,$DATA(^VA(200,TMGDUZ,0))'>0 DO  GOTO GACS1 
+        . SET TMGRESULT="-1^Invalid User parameter. Got: '"_TMGDUZ_"'"
         DO PREPDATS(.SDT,.EDT) ;"PREP DATES
-        NEW DONE SET DONE=0
-        ;"NOTE: I am assuming that DATE/TIME increases with record number.  So IEN's are in chronological order. 
-        NEW IEN SET IEN=$ORDER(^DIA(2,"D",TMGDUZ,""),-1)  ;"plan reverse order scan
-        FOR  SET IEN=$ORDER(^DIA(2,"D",TMGDUZ,IEN),-1) QUIT:(+IEN'>0)!DONE  DO
-        . NEW ZN SET ZN=$GET(^DIA(2,IEN,0))
-        . NEW ADT SET ADT=$PIECE(ZN,"^",2)  ;"0;2 = DATE/TIME RECORDED
-        . IF ADT<SDT SET DONE=1  ;"Assuming IEN's are chronological, no need to go futher back in time. 
-        . IF (ADT<SDT)!(ADT>EDT) QUIT
-        . NEW TEMPARR DO GETAUDIT(.TEMPARR,2,IEN,"2.9","IE") 
-        . NEW TMGDFN SET TMGDFN=+$GET(TEMPARR(1.1,IEN,2.9,"E"))
-        . SET OUT(1.1,TMGDUZ,ADT,TMGDFN)=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+        NEW ADUZ SET ADUZ=0
+        FOR  SET ADUZ=$ORDER(^DIA(2,"D",ADUZ)) QUIT:ADUZ'>0  DO
+        . IF TMGDUZ>0,TMGDUZ'=ADUZ QUIT
+        . NEW DONE SET DONE=0
+        . ;"NOTE: I am assuming that DATE/TIME increases with record number.  So IEN's are in chronological order. 
+        . NEW IEN SET IEN=$ORDER(^DIA(2,"D",ADUZ,""),-1)  ;"plan reverse order scan
+        . FOR  SET IEN=$ORDER(^DIA(2,"D",ADUZ,IEN),-1) QUIT:(+IEN'>0)!DONE  DO
+        . . NEW ZN SET ZN=$GET(^DIA(2,IEN,0))
+        . . NEW ADT SET ADT=$PIECE(ZN,"^",2)  ;"0;2 = DATE/TIME RECORDED
+        . . IF ADT<SDT SET DONE=1  ;"Assuming IEN's are chronological, no need to go futher back in time. 
+        . . IF (ADT<SDT)!(ADT>EDT) QUIT
+        . . NEW TEMPARR DO GETAUDIT(.TEMPARR,2,IEN,"2.9","IE") 
+        . . NEW TMGDFN SET TMGDFN=+$GET(TEMPARR(1.1,IEN,2.9,"E"))
+        . . SET OUT(1.1,ADUZ,ADT,TMGDFN)=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
 GACS1   QUIT TMGRESULT
         ;
 GETADTLS(OUT,FILE,IEN,FLDS,FLAGS,SDT,EDT) ;"GET DETAILED AUDIT LIST FROM FILE 1.1 (AUDIT FILE)

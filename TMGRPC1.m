@@ -769,7 +769,7 @@ GETURLS(RESULT,TMGDFN) ;
         SET ^TMP("TMG","GETURLS")=$GET(TMGDFN)
         NEW IDX SET IDX=1
         ;"SET RESULT(IDX)="Google^http://www.google.com",IDX=IDX+1
-        SET RESULT(IDX)="BrowserTest^www.whatismybrowser.com",IDX=IDX+1
+        ;"SET RESULT(IDX)="BrowserTest^www.whatismybrowser.com",IDX=IDX+1
         NEW ADDNUM SET ADDNUM=0
         NEW REF SET REF=$NAME(^TMG("TMP","TMGRPC1","DYNURL"))
         FOR  SET ADDNUM=$ORDER(@REF@(ADDNUM)) QUIT:+ADDNUM'>0  DO

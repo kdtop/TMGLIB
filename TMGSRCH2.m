@@ -34,7 +34,7 @@ TMGSRCH2 ;TMG/kst/Search API ; 6/19/10, 2/2/14, 2/15/15, 3/24/21
  ;"=======================================================================
  ;"=======================================================================
  ;
-LAUNCHSR(TMGDFN,TMGSRCH) ;
+LAUNCHSR(TMGDFN,TMGSRCH,SRCHTITLE) ;
         ;"Purpose: Launch background task to achieve search
         ;"Input: TMGDFN -- The patient IEN to look up.
         ;"       TMGSRCH -- Search string.  Notes:
@@ -43,18 +43,20 @@ LAUNCHSR(TMGDFN,TMGSRCH) ;
         ;"             Search is NOT case sensitive.
         ;"             Exact pharases can be specified by quotes.
         ;"             Example: 'dog cat monkey "in a barrel"
+        ;"       SRCHTITLE -- if 0, search the note text. if 1, search the note titles
         NEW THISJOB SET THISJOB=$J
+        SET SRCHTITLE=+$G(SRCHTITLE)   ;"8/22/24
         NEW STATUS SET STATUS=$GET(^TMG("TMP","SEARCH","SRCHTIU",THISJOB,"MSG"))
         IF STATUS="BKGND RUNNING" DO
-        . DO CHNGSRCH(TMGDFN,TMGSRCH)
+        . DO CHNGSRCH(TMGDFN,TMGSRCH,SRCHTITLE)
         ELSE  DO
         . NEW DEBUG SET DEBUG=0
         . IF DEBUG=0 DO   ;"Can be changed when stepping through code.
         . . KILL ^TMG("TMP","SEARCH","SRCHTIU",THISJOB)
-        . . JOB SRCHTIU(TMGDFN,TMGSRCH,THISJOB)
+        . . JOB SRCHTIU(TMGDFN,TMGSRCH,THISJOB,SRCHTITLE)
         . . SET ^TMG("TMP","SEARCH","SRCHTIU",THISJOB,"BACKGROUND")=$ZJOB
         . ELSE  DO
-        . . DO SRCHTIU(TMGDFN,TMGSRCH,THISJOB)
+        . . DO SRCHTIU(TMGDFN,TMGSRCH,THISJOB,SRCHTITLE)
         QUIT
         ;
         ;
@@ -99,9 +101,9 @@ STOP    ;"Purpose: Tell background task to stop searching
         QUIT
         ;
         ;
-CHNGSRCH(TMGDFN,TMGSRCH) ;CHANGE SEARCH
+CHNGSRCH(TMGDFN,TMGSRCH,SRCHTITLE) ;CHANGE SEARCH
         ;"Purpose: to tell background task to change search parameters
-        DO MSG("RESTART^"_TMGDFN_"^"_TMGSRCH)
+        DO MSG("RESTART^"_TMGDFN_"^"_TMGSRCH_"^"_SRCHTITLE)
         QUIT
         ;
         ;
@@ -112,7 +114,7 @@ MSG(MSG) ;
         ;
         ;
  ;"==========================================================================
-SRCHTIU(TMGDFN,TMGSRCH,PARENTJOB) ;
+SRCHTIU(TMGDFN,TMGSRCH,PARENTJOB,SRCHTITLE) ;
         ;"Purpose: To search all of one patient's documents for requested words
         ;"Input: TMGDFN -- The patient IEN to look up.
         ;"       TMGSRCH -- Search string.  Notes:
@@ -122,6 +124,7 @@ SRCHTIU(TMGDFN,TMGSRCH,PARENTJOB) ;
         ;"             Exact pharases can be specified by quotes.
         ;"             Example: 'dog cat monkey "in a barrel"
         ;"       PARENTJOB -- the job of the RPCBroker task that called this.
+        ;"       SRCHTITLE -- if 0, search the note text. if 1, search the note titles  8/22/24
         ;"NOTE:  this routine will monitor global for messages:
         ;"             ^TMG("TMP","SEARCH","SRCHTIU",PARENTJOB,"MSG")=message
         ;"             If message of "STOP" is found, then search will be stopped.
@@ -164,7 +167,13 @@ L1      SET @REF@("MSG")="BKGND RUNNING"
         . . NEW MSG SET MSG=@REF@("MSG")
         . . IF MSG="STOP" SET ABORT=1 QUIT
         . . IF MSG="RESTART" SET ABORT=2 QUIT
-        . . NEW SRCHRSLT SET SRCHRSLT=$$SRCH1TIU(PARENTJOB,IEN,TERM)
+        . . NEW SRCHRSLT ;"8/22/24  SET SRCHRSLT=$$SRCHTITL(PARENTJOB,IEN,TERM)
+        . . IF SRCHTITLE=1 DO    ;"8/22/24 - added if for SRCHTITLE, to redirect the call to search titles rather than note text
+        . . . ;"SET SRCHRSLT=$$SRCHTITL(PARENTJOB,IEN,TERM)
+        . . . ;"MERGE ^TMG("EDDIE","SRCHTITLE","IENLIST")=IENLIST
+        . . . SET SRCHRSLT=$$SRCHTITL(PARENTJOB,IEN,TERM) 
+        . . ELSE  DO
+        . . . SET SRCHRSLT=$$SRCH1TIU(PARENTJOB,IEN,TERM)
         . . ;"SET @REF@("DEBUG",DEBUGI)="Search 1 result="_SRCHRSLT,DEBUGI=DEBUGI+1
         . . IF SRCHRSLT=0 KILL IENLIST(IEN)
         . . ELSE  IF (SRCHRSLT<0) SET ABORT=-SRCHRSLT
@@ -301,3 +310,16 @@ SRCH1TIU(PARENTJOB,IEN,TERM) ;
         IF ABORT SET FOUND=-ABORT
         QUIT FOUND
   ;
+SRCHTITL(PARENTJOB,IEN,TERM) ;
+        ;"Purpose: Search TIU DOCUMENT report text for TERM
+        ;"Input: IEN -- IEN in 8925
+        ;"       TERM -- a word, or phrase, to search for in report text
+        ;"NOTE: Not case sensitive
+        ;"Result: 1 IF found, 0 IF not found, -1 IF Abort signal found, -2 IF RESTART signal
+        NEW FOUND SET FOUND=0 ;"default to not found      
+        NEW NOTETITLE SET NOTETITLE=$P($G(^TIU(8925,IEN,0)),"^",1)
+        SET NOTETITLE=$P($G(^TIU(8925.1,NOTETITLE,0)),"^",1)
+        ;"SET ^TMG("EDDIE","SRCHTITL",IEN)=NOTETITLE_"^"_TERM
+        IF NOTETITLE[TERM SET FOUND=1
+        QUIT FOUND  
+        ;"

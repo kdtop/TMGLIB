@@ -102,10 +102,15 @@ ESCN(NUM,N2,CMD)  ;
   SET TEMPX=$X
   SET TEMPY=$Y
   SET $X=1  ;"ensure escape chars don't cause a wrap.
-  WRITE $CHAR(27,91)  ;"27=Esc 91=[
-  IF $DATA(NUM) WRITE NUM  
-  IF $DATA(N2) WRITE ";"_N2
-  IF $DATA(CMD) WRITE CMD
+  NEW ST SET ST=$CHAR(27,91)  ;"27=Esc 91=[
+  ;"WRITE $CHAR(27,91)  ;"27=Esc 91=[
+  IF $DATA(NUM) SET ST=ST_NUM  
+  ;"IF $DATA(NUM) WRITE NUM  
+  IF $DATA(N2) SET ST=ST_";"_N2
+  ;"IF $DATA(N2) WRITE ";"_N2
+  IF $DATA(CMD) SET ST=ST_CMD
+  ;"IF $DATA(CMD) WRITE CMD
+  WRITE ST
    ;"reset $X,$Y so that escape characters aren't counted for line wrapping
   SET $X=TEMPX
   SET $Y=TEMPY
@@ -307,6 +312,19 @@ VCUSAV2  ;"Save Cursor & Attrs                        ESC 7
 VCULOAD2  ;"Restore Cursor & Attrs                    ESC 8
   WRITE $CHAR(27)_"8" QUIT
   ;
+CSRSHOW(ON) ;"Turn cursor ON(1) or OFF(0)(hide)      ESC [ ? 25 l/h
+  SET ON=+$GET(ON,1)
+  NEW CMD SET CMD=$SELECT(ON=1:"h",1:"l")
+  DO ESCN("?25",,CMD) QUIT
+  ;
+CSRBLINK(ON) ;"Set cursor blinking ON(1) or OFF(0)    ESC [ ? 25 l/h
+  ;"KT NOTE: This doesn't seem to work.  Not supported in terminal??
+  SET ON=+$GET(ON,1)
+  NEW CMD SET CMD=$SELECT($GET(ON)=1:"h",1:"l")
+  DO ESCN("?12",,CMD) QUIT
+  ;
+
+
   ;"--------------------------------------------------------------
   ;"VT100 specific calls
   ;"Terminal interface
@@ -409,9 +427,9 @@ VBGCOLOR256(N)  ;"Set Text Background Color  <ESC>[48;5;<NUM>m
 VCOLORS256(FG,BG)  ;Set Text Colors   <ESC>[[38|48];5;<NUM>m
   ;"NOT YET TESTED   https://misc.flogisoft.com/bash/tip_colors_and_formatting
   ;"FROM HERE: https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-  ;"  0-  7:  standard colors (as in ESC [ 30–37 m)
-  ;"  8- 15:  high intensity colors (as in ESC [ 90–97 m)
-  ;" 16-231:  6 × 6 × 6 cube (216 colors): 16 + 36 × r + 6 × g + b (0 <= r, g, b <= 5)
+  ;"  0-  7:  standard colors (as in ESC [ 30ï¿½37 m)
+  ;"  8- 15:  high intensity colors (as in ESC [ 90ï¿½97 m)
+  ;" 16-231:  6 ï¿½ 6 ï¿½ 6 cube (216 colors): 16 + 36 ï¿½ r + 6 ï¿½ g + b (0 <= r, g, b <= 5)
   ;"232-255:  grayscale from black to white in 24 steps
   DO VTATRIB(0)
   DO ESCN(38,5_";"_FG,"m") 

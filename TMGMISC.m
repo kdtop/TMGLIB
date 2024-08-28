@@ -42,10 +42,10 @@ TMGMISC ;TMG/kst/Misc utility library ;03/25/06; 7/31/15, 3/24/21
  ;"$$HEXCHR(V) -- Take one BYTE and return HEX Values
  ;"$$HEXCHR2(n,digits) -- convert a number (of arbitrary length) to HEX digits
  ;"$$HEX2DEC(HEX) -- convert a string like this $10 to decimal number (e.g. 16)
- ;"$$DEC2BIN(INT,DIGITS) ;"INTEGER TO BINARY STRING
- ;"$$BIN2DEC(BINSTR) ;"BINARY STRING TO DECIMAL
- ;"$$BIN2HEX(BINSTR) ;"BINARY STRING TO HEX
- ;"$$GETUTF8(CODEPT,OPTION) ;"GET BYTE SEQUENCE FOR UNICODE CODEPOINT
+ ;"$$DEC2BIN(INT,DIGITS) -- INTEGER TO BINARY STRING
+ ;"$$BIN2DEC(BINSTR) -- BINARY STRING TO DECIMAL
+ ;"$$BIN2HEX(BINSTR) -- BINARY STRING TO HEX
+ ;"$$GETUTF8(CODEPT,OPTION) -- GET BYTE SEQUENCE FOR UNICODE CODEPOINT
  ;"$$OR(a,b)   ; perform a bitwise OR on operands a and b
  ;"ParsePos(pos,label,offSET,routine,dmod)
  ;"ScanMod(Module,pArray)
@@ -71,7 +71,8 @@ TMGMISC ;TMG/kst/Misc utility library ;03/25/06; 7/31/15, 3/24/21
  ;"MkMultList(input,List) -- create a list of entries, given a string containing a list of entries.
  ;"MkRangeList(Num,EndNum,List) -- create a list of entries, given a starting and ending number
  ;"UNHASH(X) -- Unhasher of XUSHSH hashing routine  (kst 4-21-05)
-
+ ;"RAND(LO,HI) -- Random Range
+ ;"$$DELTA(INITVAL,DELTA,LO,HI) -- Change INITVAL by DELTA, but clip at LO,HI (if provided)
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
@@ -1116,20 +1117,18 @@ BINLTRIM(BINSTR,DIGITS) ;"Left trim certain number of bits
   NEW RESULT SET RESULT=$EXTRACT(BINSTR,1,DIGITS)
   SET BINSTR=$EXTRACT(BINSTR,DIGITS+1,$LENGTH(BINSTR))
   QUIT RESULT
+  ;   
+OR(A,B) ;  
+  ;"Scope: PUBLIC        
+  ;"Purpose: to perform a bitwise OR on operands a and b
+  ;"Input:  A,B - integer values (not binary strings)
+  NEW RESULT SET RESULT=0
+  NEW MULT SET MULT=1
+  FOR  DO  QUIT:(A'>0)&(B'>0)
+  . SET RESULT=RESULT+(((A#2)!(B#2))*MULT)
+  . SET A=A\2,B=B\2,MULT=MULT*2
+  QUIT RESULT
   ;
-OR(a,b)
-        ;"Scope: PUBLIC
-        ;"Purpose: to perform a bitwise OR on operands a and b
-
-        NEW result SET result=0
-        NEW mult SET mult=1
-        FOR  DO  QUIT:(a'>0)&(b'>0)
-        . SET result=result+(((a#2)!(b#2))*mult)
-        . SET a=a\2,b=b\2,mult=mult*2
-
-        QUIT result
-
-
 ParsePos(pos,label,offSET,routine,dmod)
         ;"Purpose: to convert a pos string (e.g. X+2^ROUTINE$DMOD) into componant parts
         ;"Input: pos -- the string, as example above
@@ -2223,3 +2222,14 @@ GETMNEM(FILE,OUT) ;  ;"Get list of mnemonix indexes for a file
     . . . SET OUT(FILE,FLDINPARENT,AFLD)=ASUBFILE
     . DO GETMNEM(ASUBFILE,.OUT)
     QUIT
+ ;
+RAND(LO,HI) ;"Random Range
+  QUIT $RANDOM(HI-LO+1)+LO   ;"E.G. 7,18 -> 18-7+1 = 12.  $R(12)->0..11, 0+7=7 11+7=18
+  ;
+DELTA(INITVAL,DELTA,LO,HI) ;"Change INITVAL by DELTA, but clip at LO,HI (if provided)
+  NEW RESULT SET RESULT=+$GET(INITVAL)+$GET(DELTA)
+  IF $DATA(LO)#10>0,+LO=LO DO
+  . IF RESULT<LO SET RESULT=LO
+  IF $DATA(HI)#10>0,+HI=HI DO
+  . IF RESULT>HI SET RESULT=HI
+  QUIT RESULT

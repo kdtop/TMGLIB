@@ -107,7 +107,7 @@ HASICD(TMGDFN,ICD,SDT,EDT) ;"
   ;"       EDT -- Starting date of range, FM format, default is 9999999
   ;"Result: 1 if has cpt, 0 if not, or -1^Message if error
   NEW TMGRESULT SET TMGRESULT=0
-  NEW IEN80 SET IEN80=+$ORDER(^ICD9("AB",ICD,0))
+  NEW IEN80 SET IEN80=+$ORDER(^ICD9("AB",+$G(ICD),0))
   IF IEN80'>0 DO  GOTO HICDDN
   . SET TMGRESULT="-1^ICD NOT FOUND IN FILE 80"
   SET TMGRESULT=$$HSICDIEN(.TMGDFN,IEN80,.SDT,.EDT)  

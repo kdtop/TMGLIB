@@ -228,6 +228,7 @@ HTML2TXS(LINESTR) ;
   ;"Convert special characters
   NEW SPEC
   SET SPEC("&nbsp;")=" "
+  SET SPEC("&NBSP;")=" "
   SET SPEC("&lt;")="<"
   SET SPEC("&gt;")=">"
   SET SPEC("&amp;")="&"

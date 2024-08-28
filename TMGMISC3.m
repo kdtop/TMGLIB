@@ -123,10 +123,7 @@ GCD(U,V) ;"//GREATEST COMMON DENOMINATOR
   ;
   QUIT RESULT
   ;
-NOPATSEL(TMGRESULT)
-  ;"Called from RPC "TMG CPRS NO PATIENT SELECTED"
-  ;"  Returns the HTML to be displayed in wbNoPatientSelected TWebBrowser when
-  ;"       No Patient Is Currently Selected
-  SET TMGRESULT(0)="<html><body>No patient is currently selected.</body></html>"
+NOPATSEL(TMGRESULT)  ;"DEPRECIATED -- MOVED TO TMGAPPT1 -- Delete later  (changed 4/18/24)
+  DO NOPATSEL^TMGAPPT1(.TMGRESULT)
   QUIT
   ;"

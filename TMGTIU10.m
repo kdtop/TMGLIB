@@ -15,7 +15,7 @@ TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14, 3/24/21
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
  ;"RPCCKDUE(TMGRESULT,TMGTMGDFN)-- RPC Entry point to check if patient is overdue for appt
- ;"$$SCANNOTE(TMGDFN,TIUIEN,REFOUT) - To scan one note and get back info about followup
+ ;"$$SCAN4FU(TIUIEN,REFOUT) - To scan one note and get back info about followup
  ;"$$SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan one patient during specified date range, and compile followup info
  ;"SCANTIU  -- scan all TIU documents, to pre-parse them for faster access later 
  ;"$$SCANALL(REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan all patients during specified date range, and compile followup info
@@ -50,17 +50,15 @@ TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14, 3/24/21
 TST1NOTE ;
   NEW TIUIEN,OUT
   READ "Enter TIU IEN: ",TIUIEN:$GET(DTIME,3600),!
-  NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
-  NEW TMGDFN SET TMGDFN=+$PIECE(ZN,"^",2)  
-  NEW TMGRESULT SET TMGRESULT=$$SCANNOTE(TMGDFN,TIUIEN,"OUT",1)
+  NEW TMGRESULT SET TMGRESULT=$$SCAN4FU(TIUIEN,"OUT",1)
   IF $DATA(OUT) DO 
   . DO ZWRITE^TMGZWR("OUT")
   ELSE  WRITE "NOTHING FOUND",!
   QUIT
   ;
-SCANNOTE(TMGDFN,TIUIEN,REFOUT,NOPRIOR) ;
+SCAN4FU(TIUIEN,REFOUT,NOPRIOR) ;"SCAN FOR FOLLOWUP.   NOTE -- Renamed: Was SCANNOTE
   ;"Purpose: To scan one note and get back info about followup
-  ;"Input: TMGDFN -- PATIENT IEN
+  ;"Input: removed 8/27/24--> TMGDFN -- PATIENT IEN
   ;"       TIUIEN-- IEN in 8925
   ;"       REFOUT -- PASS BY NAME.  An OUT PARAMETER  (prior contents not deleted)
   ;"       NOPRIOR -- OPTIONAL.  If 1 then prior stored results will be ignored. 
@@ -78,7 +76,15 @@ SCANNOTE(TMGDFN,TIUIEN,REFOUT,NOPRIOR) ;
   NEW FUDATE SET FUDATE=-1
   NEW FUTEXT SET FUTEXT="FOLLOW UP APPT:"
   NEW TIUDATE SET TIUDATE=0
-  NEW TEMP,FOUND SET FOUND=0  
+  NEW TEMP,FOUND SET FOUND=0 
+  IF $GET(REFOUT)="" NEW ZZREFOUT SET REFOUT="ZZREFOUT"
+  SET TIUIEN=+$GET(TIUIEN)
+  IF TIUIEN'>0 DO  GOTO SCN4DN
+  . SET TMGRESULT="-1^No document IEN provided."
+  NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
+  NEW TMGDFN SET TMGDFN=+$PIECE(ZN,"^",2)
+  IF TMGDFN'>0 DO  GOTO SCN4DN
+  . SET TMGRESULT="-1^No patient IEN found for document# :"_TIUIEN
   SET NOPRIOR=$GET(NOPRIOR)   
   IF NOPRIOR'=1 DO
   . SET TEMP=$$READINFO(TMGDFN,TIUIEN,.FUDATE,.LINETEXT,.TIUDATE) 
@@ -101,6 +107,7 @@ SCANNOTE(TMGDFN,TIUIEN,REFOUT,NOPRIOR) ;
   . IF FUDATE'=-1 SET @REFOUT@("E",TMGDFN,TIUDATE,FUDATE)=LINETEXT
   . IF FOUND'=2 DO    ;"Store data for faster access next time. 
   . . SET TMGRESULT=$$SAVEINFO(TMGDFN,TIUIEN,FUDATE,LINETEXT,TIUDATE) 
+SCN4DN ;  
   QUIT TMGRESULT
   ;"
 GETINFO(TIUIEN,FUDATE,LINETEXT,TIUDATE) ;
@@ -651,7 +658,7 @@ SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   . . IF $DATA(TITLEARR(TIUDOCIEN)) SET SKIP=0
   . . ELSE  SET SKIP=1
   . IF SKIP=1 QUIT  
-  . SET TMGRESULT=$$SCANNOTE(TMGDFN,TIUIEN,REFOUT)
+  . SET TMGRESULT=$$SCAN4FU(TIUIEN,REFOUT)   ;"//kt 8/27/24  SET TMGRESULT=$$SCAN4FU(TMGDFN,TIUIEN,REFOUT)
   . IF +TMGRESULT=0 SET TMGRESULT="1^OK"  ;"0 means nothing found.  That is not an error
   ;"SET TIUIEN=0
   ;"FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:(TIUIEN'>0)!(+TMGRESULT'>0)  DO
@@ -664,7 +671,7 @@ SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   ;". . IF $DATA(TITLEARR(TIUDOCIEN)) SET SKIP=0
   ;". . ELSE  SET SKIP=1
   ;". IF SKIP=1 QUIT
-  ;". SET TMGRESULT=$$SCANNOTE(TIUIEN,REFOUT)
+  ;". SET TMGRESULT=$$SCAN4FU(TIUIEN,REFOUT)
   ;". IF +TMGRESULT=0 SET TMGRESULT="1^OK"  ;"0 means nothing found.  That is not an error
   IF +TMGRESULT'>0 GOTO SCPTDN
   NEW NOW SET NOW=$$NOW^XLFDT
@@ -702,7 +709,7 @@ SCANTIU  ;"SCAN ALL TIU DOCUMENTS
   . ;"NEW TIUDOCIEN SET TIUDOCIEN=$PIECE(ZN,"^",1)  ;"could screen by doc type  
   . IF $PIECE(ZN,"^",5)'=COMPIEN QUIT  ;"Skip any note without 'COMPLETED' status
   . KILL OUT 
-  . NEW TEMP SET TEMP=$$SCANNOTE(TMGDFN,TIUIEN,"OUT",1) 
+  . NEW TEMP SET TEMP=$$SCAN4FU(TMGDFN,TIUIEN,"OUT",1)   ;"//kt 8/27/24  NEW TEMP SET TEMP=$$SCAN4FU(TMGDFN,TIUIEN,"OUT",1) 
   . IF +TEMP=-1 WRITE !,$PIECE(TEMP,"^",2),!
 SCTDN ;  
   QUIT

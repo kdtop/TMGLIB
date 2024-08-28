@@ -135,7 +135,7 @@ VIEW1(TMGDFN) ;"VIEW RECORD FOR 1 PATIENT
   QUIT
   ;
 HANDLTIU(IEN8925)  ;"Evaluate a TIU DOCUMENT for medication table, and save if found
-  ;"This is called by a POST-SIGNATURE trigger <-- TRIGJOB^TMGTIUT5 <-- TRIG1^TMGTIUT5  
+  ;"This is called by a POST-SIGNATURE trigger --> MAINTRIG^TMGTIUT5  
   ;"Note: if both a MEDICATION TABLE and a  FINAL MEDICATION TABLE is found, the final one will be saved
   ;"INPUT -- IEN8925 -- IEN in file 8925, TIU DOCUMENT. May not contain med list
   ;"RESULT: 1^OK, o r-1^Error message if problem. 

@@ -1,4 +1,4 @@
-TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18, 3/24/21
+TMGTIUP2 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 10/18/17, 5/21/18, 3/24/21, 7/28/24
          ;;1.0;TMG-LIB;**1,17**;4/11/17
  ;
  ;"Eddie Hagood
@@ -49,8 +49,8 @@ TESTLHPI ;
         WRITE $$LASTHPI(+Y,.OPTION)
         QUIT
         ;
-T2()    ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
-        NEW TIULASTOV SET TIULASTOV=601420; //zzt,ba         
+T2      ;" NOTE: DON'T PUT FULL PATIENT NAMES HERE
+        NEW TIULASTOV SET TIULASTOV=797076; //zzt,ba         
         NEW ITEMARRAY,OUT  ;"<-- For now, these arrays are not being used.  
         NEW OPTION SET OPTION("FORCE PROCESS")=1
         QUIT $$GETHPI(TIULASTOV,.ITEMARRAY,.OUT,.OPTION)
@@ -70,6 +70,7 @@ LASTHPI(TMGDFN,OPTION)  ;"Return the last HPI section, with processing, formatti
         ;"        OPTION -- OPTIONAL
         ;"           OPTION("AWV")=1
         ;"           OPTION("THREADS")=1
+        ;"          NOTE: More OPTIONS defined in LASTHIP, COMPHPI, see there for details.  
         ;"RESULT: returns string of note
         ;
         ;"FIND LAST NOTE WITH HPI SECTION
@@ -104,47 +105,61 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         ;"        OPTION -- PASS BY REFERENCE.  OPTIONAL
         ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
         ;"          OPTION("THREADS") = 1.  If THREAD option desired.  See description PRTIUHTM^TMGTIUP3
-        ;"          OPTION("SKIP REFRESH TABLES")=1 If should NOT refresh tables. 
+        ;"          OPTION("SKIP REFRESH TABLES")=1 If should NOT refresh tables.
+        ;"          NOTE: More OPTIONS defined in COMPHPI, see there for details.  
         DO PARSETIU(IEN8925,.ITEMARRAY,.OPTION);"Get HPI section as one long string, with processing, formatting etc.
         SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
         SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        DO ADDCARRYFWD(IEN8925,.ITEMARRAY,.OPTION) ;"Include topic info from interval since IEN8925
         NEW TMGHPI SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
 LHDN    QUIT TMGHPI
         ;
- ;"backup --> del later  GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with processing, formatting etc.
- ;"backup --> del later          ;"NOTE: as of 5/20/18, only called by LASTHPI() above (and a test function, T2(), above)
- ;"backup --> del later          ;"INPUT:  IEN8925 -- TIIU DOCUMENT IEN
- ;"backup --> del later          ;"        ITEMARRAY -- PASS BY REFERNCE.  An OUT PARAMETER.  See PARSEARR() for format
- ;"backup --> del later          ;"        OUT -- PASS BY REFERENCE.  An OUT PARAMETER.  Array form of HPI. 
- ;"backup --> del later          ;"           OUT(#)=<TEXT>
- ;"backup --> del later          ;"           OUT=<LINE COUNT>
- ;"backup --> del later          ;"        OPTION -- PASS BY REFERENCE.  OPTIONAL
- ;"backup --> del later          ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
- ;"backup --> del later          ;"          OPTION("THREADS") = 1.  If THREAD option desired.  See description PRTIUHTM^TMGTIUP3
- ;"backup --> del later          ;"          OPTION("NO COMPILE")=1  if reassembly of note should NOT be done -- i.e. just want ITEMARRAY back
- ;"backup --> del later          NEW TMGHPI SET TMGHPI=""
- ;"backup --> del later          NEW TIUARRAY,PROCESSEDARR,IDX SET IDX=0
- ;"backup --> del later          NEW TMGDFN SET TMGDFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
- ;"backup --> del later          SET TIUARRAY("DFN")=TMGDFN
- ;"backup --> del later          SET ITEMARRAY("DFN")=TMGDFN  ;"5/30/19
- ;"backup --> del later          FOR  SET IDX=$ORDER(^TIU(8925,IEN8925,"TEXT",IDX)) QUIT:IDX'>0  DO
- ;"backup --> del later          . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
- ;"backup --> del later          IF $GET(OPTION("THREADS"))=1 DO
- ;"backup --> del later          . NEW DT SET DT=$PIECE($GET(^TIU(8925,IEN8925,0)),"^",7) ;"0;7 -> Episode Begin Date/Time
- ;"backup --> del later          . SET OPTION("THREAD")=DT  ;"NOTE: 'THREADS' is different from 'THREAD'.  'THREAD' is used downstream
- ;"backup --> del later          DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
- ;"backup --> del later          DO SCRUBESCRIBE(.PROCESSEDARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
- ;"backup --> del later          NEW RTNNOTE,TEMP 
- ;"backup --> del later          SET TEMP=$$PARSEARR(.PROCESSEDARR,.ITEMARRAY,.OPTION,.RTNNOTE)  ;"Parse note array into formatted array
- ;"backup --> del later          IF TEMP'>0 SET TMGHPI=$PIECE(TEMP,"^",2) GOTO LHDN  ;"Return error message as HPI text
- ;"backup --> del later          SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
- ;"backup --> del later          SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
- ;"backup --> del later          IF $$SHOULDGARBLE^TMGMISC4() DO GARBLEHPI^TMGMISC4(.ITEMARRAY)   ;"//kt -- Check for special mode to hide patient info during demos
- ;"backup --> del later          IF $GET(OPTION("NO COMPILE"))=1 SET TMGHPI="" GOTO LHDN        
- ;"backup --> del later          SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
- ;"backup --> del later  LHDN    QUIT TMGHPI
- ;"backup --> del later          ;
- ;       
+ADDCARRYFWD(IEN8925,ITEMARRAY,OPTION)  ; "Add topic info from interval since IEN8925, e.g. phone notes, lab result notes. 
+        NEW ARR DO SUBSQDOCS(.ARR,IEN8925)
+        NEW IEN SET IEN=0
+        FOR  SET IEN=$ORDER(ARR(IEN)) QUIT:IEN'>0  DO
+        . NEW TOPICS DO GETTOPICS^TMGTIUT6(.TOPICS,IEN) ;"Retrieve topics with added info from file 22719
+        . IF $DATA(TOPICS)=0 QUIT
+        . ;"ADD CARRY FORWARD TOPICS TO ITEMARRAY TOPICS
+        . NEW ATOPIC SET ATOPIC=""
+        . FOR  SET ATOPIC=$ORDER(TOPICS("TOPIC",ATOPIC)) QUIT:ATOPIC=""  DO
+        . . NEW TEXT SET TEXT=$GET(TOPICS("TOPIC",ATOPIC)) QUIT:TEXT=""
+        . . NEW IDX SET IDX=$ORDER(ITEMARRAY("THREAD",ATOPIC,0))
+        . . IF IDX'>0 DO
+        . . . NEW JDX SET JDX=0
+        . . . FOR  SET JDX=$ORDER(ITEMARRAY("TEXT",JDX)) QUIT:(JDX'>0)!(IDX>0)  DO  
+        . . . . IF $GET(ITEMARRAY("TEXT",JDX))'=ATOPIC QUIT
+        . . . . SET IDX=JDX
+        . . IF IDX>0 DO
+        . . . NEW PRIORTXT SET PRIORTXT=$GET(ITEMARRAY("TEXT",IDX,2))
+        . . . IF (PRIORTXT'=""),($EXTRACT(PRIORTXT,$LENGTH(PRIORTXT))'=" ") SET PRIORTXT=PRIORTXT_" "
+        . . . SET ITEMARRAY("TEXT",IDX,2)=PRIORTXT_TEXT
+        . . ELSE  DO   ;"Add as a new topic
+        . . . NEW JDX SET JDX=+$ORDER(ITEMARRAY("TEXT",0))
+        . . . IF JDX=0 SET JDX=1
+        . . . ELSE  SET JDX=JDX-0.01
+        . . . SET ITEMARRAY("TEXT",JDX)=ATOPIC
+        . . . SET ITEMARRAY("TEXT",JDX,2)=TEXT
+        . . . IF $GET(OPTION("GROUPING"))=1 DO
+        . . . . NEW GRP SET GRP=$GET(OPTION("GROUP-ORDER")) IF GRP["," SET GRP=$PIECE(GRP,",",1)
+        . . . . IF GRP="" SET GRP="A"
+        . . . . SET ITEMARRAY("GROUP",GRP,JDX)=ATOPIC
+        . . . . SET ITEMARRAY("GROUP",GRP,"COUNT")=$GET(ITEMARRAY("GROUP",GRP,"COUNT"))+1
+        . . . . SET ITEMARRAY("TEXT",JDX,1)="[GROUP]"
+        . . . . SET ITEMARRAY("TEXT",JDX,1,"GROUP")=GRP
+        . . . . SET ITEMARRAY("TEXT",JDX,1,"GROUP","LIST",GRP)=""
+        . . . . SET ITEMARRAY("TEXT",JDX,"GROUPX",1)=""
+        QUIT
+        ;
+SUBSQDOCS(OUT,IEN8925)  ;"Return array of TIU document IENS that were generated AFTER given IEN8925
+        ;"NOTE: This assumes that any TIU document generated AFTER input IEN8925, will have a number
+        ;"      that is larger than input.          
+        NEW PTIEN SET PTIEN=$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
+        NEW IEN SET IEN=IEN8925
+        FOR  SET IEN=$ORDER(^TIU(8925,"C",PTIEN,IEN)) QUIT:IEN'>0  DO
+        . SET OUT(IEN)=""
+        QUIT
+        ;
 PARSETIU(IEN8925,ITEMARRAY,OPTION) ;"parse HPI section of TIU NOTE with processing, formatting etc.
         ;"INPUT:  IEN8925 -- TIIU DOCUMENT IEN
         ;"        ITEMARRAY -- PASS BY REFERNCE.  An OUT PARAMETER.  See PARSEARR() for format
@@ -173,7 +188,7 @@ PARSETIU(IEN8925,ITEMARRAY,OPTION) ;"parse HPI section of TIU NOTE with processi
 PTDN    QUIT RESULT
         ;
 PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted array 
-        ;"NOTE: See also TRIGGER1^TMGC0Q04 -> SUMNOTE^TMGTIUP1 --> PARSESCT^TMGTIUP1 for summarizing notes
+        ;"NOTE: See also TRIGJOB2^TMGTIUT5 -> SUMNOTE^TMGTIUP1 --> PARSESCT^TMGTIUP1 for summarizing notes
         ;"//As of 5/20/18, only called from GETHPI^TMGTIUP2()               
         ;"Input: TIUARRAY -- PASS BY REFERENCE.  FORMAT:
         ;"          TIUARRAY(#)=<note text>  <-- array holds ENTIRE typical TMG note
@@ -212,6 +227,8 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"          OPTION("SKIP AUTOADD","CONTRACEPTION") = 1 if should NOT add section if missing
         ;"          OPTION("THREAD") = FMDT.  See description PRTIUHTM^TMGTIUP3
         ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
+        ;"          OPTION("START TAGS",<some start tag>)="" -- Optional ADDITIONAL start tag (defaults still used) for getting HPI elements (topics) from
+        ;"          OPTION("END TAGS",<some start tag>)="" -- Optional ADDITIONAL end tag (defaults still used) for getting HPI elements (topics) from
         ;"       RTNNOTE  -PASS BY REFERENCE.  AN OUT PARAMETER, if OPTION("RETURN-REST")=1 
         ;"Result: 1^OK, or 1^SKIPPED, or -1^Error message
         NEW TMGRESULT SET TMGRESULT="1^OK"
@@ -226,7 +243,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"NOTE: I encountered situation where there were so many <FONT ..> tags, that
         ;"      the DOM processor (below) was blowing the stack. 
         DO KILLFONT(.TIUARRAY)  
-        ;
+        ;786569
         NEW TMGHPI SET TMGHPI=""
         ;
         ;"PROCESS NOTE VIA HTML DOM, using callback function.
@@ -252,23 +269,32 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"EXTRACT JUST HPI PART
         ;"== SET UP MARKERS FOR BEGINNING AND ENDING OF DESIRED HPI SECTION =======
         NEW STARTARR,ENDARR
+        MERGE STARTARR=OPTION("START TAGS")  ;"Optional ADDITIONAL start tag (defaults still used) for getting HPI elements (topics) from
         SET STARTARR("<b>HISTORY OF PRESENT ILLNESS (HPI):</b>")=""
         SET STARTARR("<B>HISTORY OF PRESENT ILLNESS (HPI):</B>")=""
         SET STARTARR("<b>HISTORY OF PRESENT ILLNESS (HPI)</b>")=""
         SET STARTARR("<B>HISTORY OF PRESENT ILLNESS (HPI)</B>")=""
         SET STARTARR("HISTORY OF PRESENT ILLNESS (HPI)")=""
+        SET STARTARR("[CARRY FORWARD TOPICS]")=""
         ;"SET STARTARR(<MORE HERE IF NEEDED>) ...------------------------
+        MERGE ENDARR=OPTION("END TAGS")  ;"Optional ADDITIONAL end tag (defaults still used) for getting HPI elements (topics) from
         SET ENDARR("<STRONG>PAST MEDICAL HISTORY (PMH)")=""
         SET ENDARR("<B>PAST MEDICAL HISTORY (PMH)")=""
         SET ENDARR("<b>PAST MEDICAL HISTORY (PMH)")=""
         SET ENDARR("PAST MEDICAL HISTORY (PMH)")=""
+        SET ENDARR("[END OF CARRY FORWARD TOPICS]")=""
         ;"SET ENDARR(<MORE HERE IF NEEDED>)... --------------------------
         ;
         NEW STARTDIV,ENDDIV SET (STARTDIV,ENDDIV)=""
         FOR  SET STARTDIV=$ORDER(STARTARR(STARTDIV))  QUIT:TMGHPI[STARTDIV  ;"when STARTDIV="", <text>["" is always TRUE
-        IF STARTDIV="" SET TMGRESULT="-1^Unable to find 'HISTORY OF PRESENT ILLNESS (HPI)' to start getting HPI" GOTO PRSDN
+        IF STARTDIV="" SET TMGRESULT="-1^Unable to find 'HISTORY OF PRESENT ILLNESS (HPI)', or other tag, to start getting HPI" GOTO PRSDN
+        NEW ISCARRYFWD SET ISCARRYFWD=(STARTDIV["CARRY FORWARD")  ;"This is unsed in interval notes, not full office notes.
+        IF ISCARRYFWD DO    
+        . SET OPTION("SKIP AUTOADD","SOCIAL")=1        ;"Don't add section if missing
+        . SET OPTION("SKIP AUTOADD","PREVENTION")=1    ;"Don't add section if missing
+        . SET OPTION("SKIP AUTOADD","CONTRACEPTION")=1 ;"Don't add section if missing
         FOR  SET ENDDIV=$ORDER(ENDARR(ENDDIV))  QUIT:TMGHPI[ENDDIV  ;"when ENDDIV="", <text>["" is always TRUE
-        IF ENDDIV="" SET TMGRESULT="-1^Unable to find 'PAST MEDICAL HISTORY (PMH)' as end of HPI section" GOTO PRSDN
+        IF ENDDIV="" SET TMGRESULT="-1^Unable to find 'PAST MEDICAL HISTORY (PMH)', or other tag, as end of HPI section" GOTO PRSDN
         ;"ELH ADDED TO RETURN REST OF NOTE
         IF DORTNNOTE=1 DO
         . ;"SET RTNNOTE=$PIECE(TMGHPI,STARTDIV,1)_STARTDIV_"<BR>"_"@@TMGHPI@@"
@@ -308,14 +334,14 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         NEW PREVFOUND SET PREVFOUND=0
         NEW SOCIALFOUND SET SOCIALFOUND=0
         NEW CONTRAFOUND SET CONTRAFOUND=0
-        NEW FOLLOWUPFOUND SET FOLLOWUPFOUND=0
+        NEW FOLLOWUPFOUND SET FOLLOWUPFOUND=0 
         SET OPTION("GROUPING")=0
         ;
         ;"ALLGRPS is an array containing all the groups listed in the HPI, e.g. "A","B"
         ;"ALLGRPSTR is the comma delimited list
         NEW ALLGRPS,ALLGRPSTR,TOPIC4ALL  ;"NOTE! <--- used in global scope in other functions 
         SET ALLGRPSTR=$$ALLGRPS(TMGHPI,DELIMITER,.ALLGRPS,.OPTION)        
-        DO TOPICFORALL(.TOPIC4ALL)  ;"TOPIC4ALL is an array of all titles
+        DO TOPICFORALL(.TOPIC4ALL)  ;"Load TOPIC4ALL, an array of titles/topics to be added if missing
         ;
         FOR  QUIT:TMGHPI=""  DO  
         . NEW SECTION SET SECTION=$PIECE(TMGHPI,DELIMITER,1)
@@ -354,7 +380,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . NEW GENDER SET GENDER=$PIECE($GET(^DPT(TMGDFN,0)),"^",2) IF (GENDER'="F") QUIT
         . NEW TEMPARR SET TEMPARR(1)="(data needed)"
         . DO ADDITEM(.ITEMARRAY,.IDX,"Contraception","<U>Contraception</U>: (data needed)",.TEMPARR) 
-        IF FOLLOWUPFOUND=0 DO
+        IF FOLLOWUPFOUND=0,ISCARRYFWD=0 DO
         . IF DUZ'=168 QUIT    ;"ONLY FOR DR. KEVIN
         . NEW TMGDFN SET TMGDFN=+$GET(ITEMARRAY("DFN"))
         . NEW FOLLOWUPITEMS SET FOLLOWUPITEMS=$$FUITEMS^TMGTIUO3(TMGDFN)

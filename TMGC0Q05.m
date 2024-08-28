@@ -121,7 +121,7 @@ VT1     WRITE !,"Prepairing...."
         . . WRITE "Re-parse document" DO YN^DICN WRITE !
         . . IF %=-1 SET DONE=1 QUIT
         . . IF %=1 DO
-        . . . DO TRIGGER1^TMGC0Q04(TIUIEN)
+        . . . DO TRIGJOB2^TMGTIUT5(TIUIEN) 
         SET %=2
         WRITE "View more" DO YN^DICN WRITE !
         IF %=1 GOTO VT1

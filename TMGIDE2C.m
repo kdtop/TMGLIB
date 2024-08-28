@@ -825,6 +825,9 @@ RmL1 ;
   SET option=$$MENU^TMGUSRI2(.menu)
   IF option="^" GOTO RmSkipDone
   KILL @tmgDbgHideList@(option)
+  WRITE !,"Should removal be perminent for this session" SET %=1
+  DO YN^DICN WRITE !
+  IF %=1 SET ^TMP("TMGIDE NOHIDE",$J,option)=""
   GOTO RmL1
 RmSkipDone ;
   QUIT

@@ -22,8 +22,14 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
   ;"$$CAPWORDS(S,DIV) -- Capitalize the first letter of each word in a string
   ;"$$CAP1ST(WORD)  -- Capitalize only first letter of word.
   ;"$$CAP1STAL(SENTENCE,DIVCHS) -- Capitalize only first letter of word, for each word in sentence
+  ;"REMOVENCAP(TMGTEXT,ARR,ENCAP) --Remove all parts of TMGTEXT that are in ENCAPSULATOR, replacing them with coded string, and puting vals in ARR
+  ;"REMOVEQTS(TMGTEXT,ARR)  --Remove all parts of TMGTEXT that are in quotes, replacing them with coded string, and puting vals in ARR  
+  ;"RESTORENCAPS(TMGTEXT,ARR) ---Undo changes done by REMOVENCAP
+  ;"RESTOREQTS(TMGTEXT,ARR) --Undo changes done by REMOVEQTS  
   ;"CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;Split string by divider
   ;"SPLITSTR(TMGTEXT,TMGWIDTH,TMGPARTB) ;Wrap string to specified width.
+  ;"SPLITB4(TMGTEXT,MATCH,TMGPARTB) -- Split string at match, but return match with part B
+  ;"STRIPSTR(TMGTEXT,SUBSTR) --Remove SUBSTR, UNTIL ALL GONE.   
   ;"SETSTLEN(TMGTEXT,TMGWIDTH) ;Make string exactly TMGWIDTH in length
   ;"$$PAD2POS(POS,CH) -- return a string that can be used to pad up to POS
   ;"$$SPLITLN(STR,LINEARRAY,WIDTH,SPECIALINDENT,INDENT,DIVSTR) -- Wrap by WIDTH to array
@@ -111,16 +117,14 @@ CAP1STAL(SENTENCE,DIVCHS)  ;"Capitalize only first letter of word, for each word
   . SET TEMPS=$EXTRACT(TEMPS,$LENGTH(AWORD)+1,$LENGTH(TEMPS))        
   QUIT RESULT
   ; 
-REMOVEQTS(TMGTEXT,ARR)  ;"Remove all parts of TMGTEXT that are in quotes, replacing them with coded string, and puting vals in ARR
-  ;"Example: if TMGTEXT='A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"', then output would be:
-  ;"         'A=%@1@% B=%@2@% C=%@3@%' and ARR(1)="APPLE JACKS",ARR(2)="BILLY BOB",ARR(3)="CRACKED CORN"
-  ;"Purpose: this is a utility function, to remove quotes, so that manpulation can be done that ignores anything inside quotes.
-  ;"NOTE: Later, if I need a different replacement value than %@ @%, I could add an OPTION parameter.  
+REMOVENCAP(TMGTEXT,ARR,ENCAP)  ;"Remove all parts of TMGTEXT that are in ENCAPSULATOR, replacing them with coded string, and puting vals in ARR
+  ;"See details in REMOVEQTS.  This function allows other encapsulators, other than quotes
   ;"INPUT: TMGTEXT -- text to work on
   ;"       ARR -- PASS BY REFERENCE, AN OUT PARAMETER.  
+  ;"       ENCAP -- e.g. "{" or "(", or "|", or """"
   ;"RESULT: Returns encoded string.  
   ;
-  NEW MAP DO MAPMATCH^TMGSTUT3(TMGTEXT,.MAP,"""")
+  NEW MAP DO MAPMATCH^TMGSTUT3(TMGTEXT,.MAP,ENCAP)
   NEW OPENTAG SET OPENTAG="%@"
   NEW CLOSETAG SET CLOSETAG="@%"
   NEW PARTA,PARTB SET (PARTA,PARTB)=""
@@ -136,18 +140,54 @@ REMOVEQTS(TMGTEXT,ARR)  ;"Remove all parts of TMGTEXT that are in quotes, replac
   . SET RESULT=RESULT_$EXTRACT(TMGTEXT,STARTPOS,P1-1)_OPENTAG_IDX_CLOSETAG
   . SET ARR(IDX)=XSTR,IDX=IDX+1
   . SET STARTPOS=P2+1
+  IF $DATA(ARR) SET ARR("ENCAPSULATOR")=ENCAP
   SET RESULT=RESULT_$EXTRACT(TMGTEXT,STARTPOS,$LENGTH(TMGTEXT))
   QUIT RESULT
+  ;   
+REMOVEQTS(TMGTEXT,ARR)  ;"Remove all parts of TMGTEXT that are in quotes, replacing them with coded string, and puting vals in ARR
+  ;"Example: if TMGTEXT='A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"', then output would be:
+  ;"         'A=%@1@% B=%@2@% C=%@3@%' and ARR(1)="APPLE JACKS",ARR(2)="BILLY BOB",ARR(3)="CRACKED CORN"
+  ;"Purpose: this is a utility function, to remove quotes, so that manpulation can be done that ignores anything inside quotes.
+  ;"NOTE: Later, if I need a different replacement value than %@ @%, I could add an OPTION parameter.  
+  ;"INPUT: TMGTEXT -- text to work on
+  ;"       ARR -- PASS BY REFERENCE, AN OUT PARAMETER.  
+  ;"RESULT: Returns encoded string.  
   ;
-RESTOREQTS(TMGTEXT,ARR) ;"Undo changes done by REMOVEQTS  
+  QUIT $$REMOVENCAP(.TMGTEXT,.ARR,"""") 
+  ;"DELETE BELOW LATER...  6/2/24
+  ;"NEW MAP DO MAPMATCH^TMGSTUT3(TMGTEXT,.MAP,"""")
+  ;"NEW OPENTAG SET OPENTAG="%@"
+  ;"NEW CLOSETAG SET CLOSETAG="@%"
+  ;"NEW PARTA,PARTB SET (PARTA,PARTB)=""
+  ;"NEW STARTPOS SET STARTPOS=1
+  ;"NEW RESULT SET RESULT=""
+  ;"NEW IDX SET IDX=1
+  ;"NEW GROUP SET GROUP=0
+  ;"FOR  SET GROUP=$ORDER(MAP(GROUP)) QUIT:GROUP'>0  DO
+  ;". NEW DEPTH SET DEPTH=1  ;"ONLY SUPPORTING DEPTH=1 FOR NOW
+  ;". NEW P1 SET P1=$GET(MAP(GROUP,DEPTH,"Pos",1))
+  ;". NEW P2 SET P2=$GET(MAP(GROUP,DEPTH,"Pos",2))
+  ;". NEW XSTR SET XSTR=$EXTRACT(TMGTEXT,P1+1,P2-1)
+  ;". SET RESULT=RESULT_$EXTRACT(TMGTEXT,STARTPOS,P1-1)_OPENTAG_IDX_CLOSETAG
+  ;". SET ARR(IDX)=XSTR,IDX=IDX+1
+  ;". SET STARTPOS=P2+1
+  ;"SET RESULT=RESULT_$EXTRACT(TMGTEXT,STARTPOS,$LENGTH(TMGTEXT))
+  ;"QUIT RESULT
+  ;
+RESTORENCAPS(TMGTEXT,ARR) ;"Undo changes done by REMOVENCAP
   ;"Example: if TMGTEXT='A=%@1@% B=%@2@% C=%@3@%' and ARR(1)="APPLE JACKS",ARR(2)="BILLY BOB",ARR(3)="CRACKED CORN"
   ;"      Then output would be: 'A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"'
-  ;"Purpose: this is a utility function, to restore quotes, after manpulation has be done that ignores anything inside quotes.
+  ;"Purpose: this is a utility function, to restore encapsulators, after manpulation has be done that ignores anything inside them.
   ;"NOTE: Later, if I need a different replacement value than %@ @%, I could add an OPTION parameter.  
   ;"INPUT: TMGTEXT
+  ;"       ARR -- array as created by REMOVEENCAPS or REMOVEQTS
+  ;"       ENCAP -- e.g. "{" or "(", or "|", or """"
   NEW OPENTAG SET OPENTAG="%@"
   NEW CLOSETAG SET CLOSETAG="@%"
   NEW RESULT SET RESULT=$GET(TMGTEXT)
+  NEW ENCAP SET ENCAP=$GET(ARR("ENCAPSULATOR"),"""")
+  NEW MATCH DO GETMATCHENCAP^TMGSTUT3(.MATCH,ENCAP)
+  NEW CLOSEENCAP SET CLOSEENCAP=$GET(MATCH(ENCAP),"""")
   NEW DONE SET DONE=0
   FOR  DO  QUIT:DONE=1
   . SET DONE=(RESULT'[OPENTAG) QUIT:DONE=1
@@ -155,8 +195,29 @@ RESTOREQTS(TMGTEXT,ARR) ;"Undo changes done by REMOVEQTS
   . NEW PARTB SET PARTB=$PIECE(RESULT,OPENTAG,2,999)
   . NEW IDX SET IDX=+PARTB
   . SET PARTB=$PIECE(RESULT,CLOSETAG,2,999)
-  . SET RESULT=PARTA_""""_$GET(ARR(IDX))_""""_PARTB
+  . SET RESULT=PARTA_ENCAP_$GET(ARR(IDX))_CLOSEENCAP_PARTB
   QUIT RESULT
+  ;    
+RESTOREQTS(TMGTEXT,ARR) ;"Undo changes done by REMOVEQTS
+  QUIT $$RESTORENCAPS(.TMGTEXT,.ARR)
+  ;"DELETE BELOW LATER...  6/2/24
+  ;";"Example: if TMGTEXT='A=%@1@% B=%@2@% C=%@3@%' and ARR(1)="APPLE JACKS",ARR(2)="BILLY BOB",ARR(3)="CRACKED CORN"
+  ;";"      Then output would be: 'A="APPLE JACKS" B="BILLY BOB" C="CRACKED CORN"'
+  ;";"Purpose: this is a utility function, to restore quotes, after manpulation has be done that ignores anything inside quotes.
+  ;";"NOTE: Later, if I need a different replacement value than %@ @%, I could add an OPTION parameter.  
+  ;";"INPUT: TMGTEXT
+  ;"NEW OPENTAG SET OPENTAG="%@"
+  ;"NEW CLOSETAG SET CLOSETAG="@%"
+  ;"NEW RESULT SET RESULT=$GET(TMGTEXT)
+  ;"NEW DONE SET DONE=0
+  ;"FOR  DO  QUIT:DONE=1
+  ;". SET DONE=(RESULT'[OPENTAG) QUIT:DONE=1
+  ;". NEW PARTA SET PARTA=$PIECE(RESULT,OPENTAG,1)
+  ;". NEW PARTB SET PARTB=$PIECE(RESULT,OPENTAG,2,999)
+  ;". NEW IDX SET IDX=+PARTB
+  ;". SET PARTB=$PIECE(RESULT,CLOSETAG,2,999)
+  ;". SET RESULT=PARTA_""""_$GET(ARR(IDX))_""""_PARTB
+  ;"QUIT RESULT
   ;  
 CLEAVSTR(TMGTEXT,TMGDIV,TMGPARTB,NCS,OPTION) ;
   ;"Purpse: To take a string, delineated by 'TMGDIV'
@@ -249,6 +310,34 @@ SPLITSTR(TMGTEXT,TMGWIDTH,TMGPARTB) ;
   . SET TMGTEXT=TMGS1
   ;
   QUIT
+  ;
+SPLITB4(TMGTEXT,MATCH,TMGPARTB)  ;"Split string at match, but return match  
+  ;"PUBLIC FUNCTION
+  ;"Purpose: To a string into two parts.  The first part will be everything 
+  ;"           up to, but NOT including MATCH.
+  ;"           The second part is MATCH and everything left over
+  ;"Input:  TMGTEXT = input text.       **Should be passed by reference
+  ;"        TMGPARTB = the second part. **Should be passed by reference
+  ;"output: TMGTEXT and TMGPARTB are modified
+  ;"result: none.
+  SET TMGPARTB=""
+  IF TMGTEXT'[MATCH QUIT
+  NEW PARTA SET PARTA=$PIECE(TMGTEXT,MATCH,1)
+  SET TMGPARTB=MATCH_$PIECE(TMGTEXT,MATCH,2,99)
+  SET TMGTEXT=PARTA
+  QUIT
+  ;
+STRIPSTR(TMGTEXT,SUBSTR) ;"Remove SUBSTR, UNTIL ALL GONE. 
+  ;"PUBLIC FUNCTION
+  ;"Purpose: Remove SUBSTR, UNTIL ALL GONE. 
+  ;"Input:  TMGTEXT = input text.      
+  ;"Result: returns TMGTEXT with all instances of SUBSTR removed
+  NEW TEMPSTR SET TEMPSTR=$GET(TMGTEXT)
+  FOR  QUIT:(TEMPSTR'[SUBSTR)  DO
+  . NEW PARTB SET PARTB=$PIECE(TEMPSTR,SUBSTR,2,9999)
+  . SET TEMPSTR=$PIECE(TEMPSTR,SUBSTR,1)
+  . SET TEMPSTR=TEMPSTR_PARTB
+  QUIT TEMPSTR
   ;
 SETSTLEN(TMGTEXT,TMGWIDTH) ;SET STRING LEN
   ;"PUBLIC FUNCTION
@@ -425,7 +514,7 @@ ADDWRAPARR(ARR,MAXWIDTH,NEWLINE,STR) ;"Add STR to ARR, wrapping if needed
   ELSE  DO
   . SET STR=$GET(ARR(LINENUM))_STR
   DO SPLITSTR(.STR,MAXWIDTH,.PARTB)
-  SET ARR(LINENUM)=STR
+  SET ARR(LINENUM)=STR,LINENUM=LINENUM+1
   IF PARTB'="" SET ARR(LINENUM)=PARTB  
   QUIT  
   ;

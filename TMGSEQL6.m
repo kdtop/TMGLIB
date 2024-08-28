@@ -17,6 +17,7 @@ TMGSEQL6 ;TMG/KST - Parse future appointments file (From SequelPMS); 11/12/14
  ;"LOAD(FULLPATHNAME,DELFILE) -- Load specified file with schedule information
  ;"HNDLTASK -- entry to scheduled task to load appointment info from SequelMed
  ;"TEST1 -- Ask user for file name to load.
+ ;"GETAPPTS(OUT,TMGDFN,ASOFDT)  -- Get list of appointments on or after ASOFDT for patient
  ; 
  ;"=======================================================================
  ;" Private Functions.
@@ -28,6 +29,7 @@ TMGSEQL6 ;TMG/KST - Parse future appointments file (From SequelPMS); 11/12/14
  ;"ENSURE1(TMGDFN,DATA) -- Ensure 1 data entry is filed into TMG SCHEDULE file (22723) 
  ;"ENSURALL(DATA) -- Ensure all parsed data has been filed. 
  ;"CHKREMVD(DATA,MINDT,MAXDT,OUT) -- find stored records on disk not present in DATA
+ ;"MARKOLD(DT,ERR) -- Mark any appts older than DT to OLD status
  ;"DOCANCEL(OLD,ERR) -- Set status of obsolete records to CANCELLED
  ;"ERR(MSG) -- Set up alert with information about errors
  ;

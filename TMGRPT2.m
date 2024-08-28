@@ -1780,6 +1780,7 @@ AWVREMS(REMLIST)  ;"list of reminders to include on AWV report
   ;"SET REMLIST(241)="PREVNAR-13^Once, over the age of 65"
   ;"SET REMLIST(257)="PNEUMOCOCCAL-23^Once, over the age of 65"
   SET REMLIST(257)="PNEUMOCOCCAL-23^Once, over the age of 65"
+  SET REMLIST(325)="PNEUMOCOCCAL-20^Once, over the age of 65"
   SET REMLIST(224)="MAMMOGRAM/BREAST IMAGING^Annually"
   ;"Turn off until completed -> SET REMLIST(293)="TOBACCO CESSATION^Annually"
   SET REMLIST(231)="ADVANCE CARE PLANNING^Every 2 years"  
@@ -1994,5 +1995,91 @@ TSKNOADD  ;"
   DO ^%ZISC  ;" Close the output device
   QUIT
   ;"
-  
+TMGAPPT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"immunization report
+  ;"Purpose: Entry point, as called from CPRS REPORT system
+  ;"Input: ROOT -- Pass by NAME.  This is where output goes
+  ;"       TMGDFN -- Patient DFN ; ICN for foriegn sites
+  ;"       ID --
+  ;"       ALPHA -- Start date (lieu of DTRANGE)
+  ;"       OMEGA -- End date (lieu of DTRANGE)
+  ;"       DTRANGE -- # days back from today
+  ;"       REMOTE --
+  ;"       MAX    --
+  ;"       ORFHIE --
+  ;"Result: None.  Output goes into @ROOT
+  DO APPTRPT(.ROOT,TMGDFN)
+  ;"DO SETHTML(.ROOT,"TEST STRING")
+  ;"SET @ROOT@(1)="<HTML><HEAD><TITLE>IMMUNIZATIONS</TITLE></HEAD><BODY>THIS <B>IS A</B> TEST</BODY></HTML>"
+  QUIT
+  ;  
+APPTRPT(ROOT,TMGDFN)   ;
+  ;"Purpose: This function returns a report to be listed in the report tab in CPRS
+  ;"         containing all the appointments the patient shows in VistA
+  ;"Input:  TMGDFN - Patient
+  NEW APPTIEN SET APPTIEN=1
+  NEW APPTIDX SET APPTIDX=999999
+  NEW APPTARR,APPTDT
+  NEW TODAY SET TODAY=$$TODAY^TMGDATE
+  FOR  SET APPTIDX=$O(^TMG(22723,TMGDFN,1,APPTIDX),-1) QUIT:APPTIDX'>0  DO
+  . NEW APPTDOC,APPTREASON,ZN
+  . SET ZN=$G(^TMG(22723,TMGDFN,1,APPTIDX,0))
+  . SET APPTDT=$P(ZN,"^",1)
+  . IF APPTDT>TODAY QUIT
+  . ;"SET APPTDT=$$EXTDATE^TMGDATE(APPTDT)
+  . SET APPTDOC=$P(ZN,"^",3)
+  . SET APPTDOC=$P($G(^VA(200,APPTDOC,0)),"^",1)
+  . SET APPTREASON=$P(ZN,"^",4)
+  . NEW CHKIN,CHKOUT
+  . SET CHKIN=$P(ZN,"^",8),CHKIN=$$EXTDATE^TMGDATE(CHKIN)
+  . IF CHKIN=0 SET CHKIN="NOT CHECKED IN"
+  . SET CHKOUT=$P(ZN,"^",9),CHKOUT=$$EXTDATE^TMGDATE(CHKOUT)
+  . IF CHKOUT=0 SET CHKOUT="NOT CHECKED OUT"
+  . SET APPTARR(APPTDT)=$$EXTDATE^TMGDATE(APPTDT)_"^"_APPTREASON_"^"_APPTDOC_"^"_CHKIN_"^"_CHKOUT
+  SET APPTDT=9999999
+  FOR  SET APPTDT=$O(APPTARR(APPTDT),-1) QUIT:APPTDT=""  DO
+  . SET TMGRESULT(APPTIEN)=$G(APPTARR(APPTDT)),APPTIEN=APPTIEN+1
+  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>APPOINTMENT REPORT</B><BR>"
+  SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<BR>1410 TUSCULUM BLVD  STE. 2600 <BR>"
+  SET HD=HD_" GREENEVILLE, TN 37745</CAPTION><TR><TH>APPT DATE</TH>"
+  SET HD=HD_"<TH>REASON</TH><TH>PHYSICIAN</TH>"
+  SET HD=HD_"<TH>CHECK-IN</TH><TH>CHECK-OUT</TH></TR>" 
+  DO SETHTML2(.ROOT,.TMGRESULT,"APPOINTMENTS",HD,5)
+  QUIT
+  ; 
+SETHTML2(ROOT,RESULTS,TITLE,HEADING,COLNUMS)  ;
+  ;"Input: ROOT -- AN OUT PARAMETER 
+  ;"          @ROOT@(1)= HEADING
+  ;"          @ROOT@(2)=one long string with HTML codes.
+  ;"          @ROOT@(3)=END OF TABLE                
+  ;"       RESULTS -- INPUT DATA.  Pass by reference.  Format:  
+  ;"            RESULT(#)=<COL1>^<COL2)^<COL3>
+  ;"       TITLE -- STRING FOR TITLE OF TABLE
+  ;"       HEADING -- Column titles, carot deliminated
+  ;"             <Title1>^<Title2>^<Title3>
+  ;"       COLNUM -- number of colums
+  ;"Results -- none
+  NEW END SET END=3
+  MERGE ^EDDIE("TMGRPT2")=RESULTS
+  NEW DATA
+  SET @ROOT@(1)="<HTML><HEAD><TITLE>"_TITLE_"</TITLE></HEAD><BODY>"
+  SET DATA=HEADING
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(RESULTS(IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=$GET(RESULTS(IDX))
+  . IF $DATA(RESULTS(IDX,"HEADING")) DO
+  . . SET DATA=DATA_"<TR bgcolor=#c4e3ed align=""center"">"
+  . ELSE  DO
+  . . IF LINE["NOT CHECKED IN" DO
+  . . . SET DATA=DATA_"<TR bgcolor=""#C4E3ED"">"
+  . . ELSE  DO
+  . . . SET DATA=DATA_"<TR>"
+  . NEW PIECE
+  . FOR PIECE=1:1:COLNUMS  DO
+  . . SET DATA=DATA_"<TD>"_$PIECE(LINE,"^",PIECE)_"</TD>"
+  . ;SET DATA=DATA_"<TD>"_LINE_"</TD>"
+  . SET DATA=DATA_"</TR>"
+  . SET END=END+1
+  SET @ROOT@(2)=DATA
+  SET @ROOT@(3)="</TABLE></BODY></HTML>"
+  QUIT          
   

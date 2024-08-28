@@ -98,6 +98,7 @@ DTEVAL(TMGDFN,TEST,DATE,DATA,TEXT) ;"DATE OF EVALUATION
         QUIT
         ;        
 ACTIVEPT(TMGDFN,TEST,DATE,DATA,TEXT) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACTIVEPT^TMGPXR03() for a different purpose.
+        ;"NOTE: This version is designed to work with the clinical reminder system.  
         ;"Input: TMGDFN -- the patient IEN
         ;"       TEST -- AN OUT PARAMETER.  The logical value of the test: 1=true, 0=false
         ;"               Also an IN PARAMETER.  Any value for COMPUTED FINDING PARAMETER (Field #26) will be passed in here.
@@ -293,7 +294,7 @@ ADVCPEDN(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         FOR  SET IEN=$ORDER(^AUPNVCPT("C",TMGDFN,IEN)) QUIT:IEN'>0  DO
         . NEW CPTIEN SET CPTIEN=$P($G(^AUPNVCPT(IEN,0)),"^",1)
         . NEW CPT SET CPT=$P($G(^ICPT(CPTIEN,0)),"^",1)
-        . IF CPT["9939" DO
+        . IF (CPT["9939")!(CPT["G043") DO    ;"ADDED AWV TO THIS 8/15/24, PER DR. K
         . . SET TEST=1
         . . NEW VISIT SET VISIT=$P($G(^AUPNVCPT(IEN,0)),"^",3)
         . . NEW THISDATE SET THISDATE=$P($G(^AUPNVSIT(VISIT,0)),"^",1)
@@ -1434,6 +1435,63 @@ HASPNEUM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         . . SET DATE=$$TODAY^TMGDATE
         QUIT
         ;"
+TEST  ;"
+        NEW I SET I=0
+        FOR  SET I=$O(^DPT(I)) QUIT:I'>0  DO
+        . NEW TEST,DATE
+        . DO PNLST5YR(I,.TEST,.DATE)
+        . IF TEST=1 DO
+        . . WRITE !,$P($G(^DPT(I,0)),"^",1),!
+        QUIT
+        ;"
+PNLST5YR(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"PURPOSE: THIS COMPUTED FINDING  
+        ;"WILL BE TRUE IF IS OKAY FOR PATIENT TO GET P-20 (BASED ON PREVIOUS
+        ;"         PNEUMOCOCCAL VACCINES). THIS TAKES INTO ACCOUNT P-23 AND P-13.
+        ;"         IT DOES NOT TAKE INTO ACCOUNT P15 OR P20, AS THEY SHOULD BE LISTED
+        ;"         IN THE REMINDER'S RESOLUTION LOGIC
+        ;"  THE LOGIC, AS GIVEN FROM IMMUNIZE.ORG IS:
+        ;"    IF THE PATIENT HAS HAD P-13 (AT ANY AGE) AND P-23 BEFORE THE AGE OF 65
+        ;"      THEY SHOULD WAIT 5 YEARS SINCE WHICHEVER ONE WAS MORE RECENT TO GET THE P-20
+        SET TEST=0,DATE=0
+        NEW DOB SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3)
+        NEW P23IMM,P23DAYS
+        SET P23IMM=19,P23DAYS=999999
+        NEW P13IMM,P13DAYS
+        SET P13IMM=132,P13DAYS=999999
+        NEW IMMLIST SET IMMLIST="^19^96^132^"
+        NEW IDX SET IDX=0
+        ;"
+        ;"GO THROUGH PATIENT'S IMMUNIZATIONS, TO GET MOST RECENT P13 AND P23 ADMIN DATES
+        FOR  SET IDX=$O(^AUPNVIMM("C",TMGDFN,IDX)) QUIT:IDX'>0  DO
+        . NEW IMMIEN SET IMMIEN=$P($G(^AUPNVIMM(IDX,0)),"^",1)
+        . IF (IMMIEN'=P23IMM)&(IMMIEN'=P13IMM)&(IMMIEN'=96) QUIT
+        . NEW VSTIEN SET VSTIEN=$P($G(^AUPNVIMM(IDX,0)),"^",3)
+        . NEW THISDATE SET THISDATE=$PIECE($GET(^AUPNVSIT(VSTIEN,0)),"^",1)
+        . NEW X1,X2,X
+        . SET X1=$$TODAY^TMGDATE,X2=THISDATE
+        . DO ^%DTC
+        . IF (IMMIEN=P23IMM)!(IMMIEN=96) DO
+        . . NEW AGE SET AGE=$$DAYSDIFF^TMGDATE(DOB,THISDATE)
+        . . SET AGE=$P(AGE/365,".",1)
+        . . ;"IGNORE IF GIVEN AFTER 65
+        . . IF AGE>64 QUIT
+        . . IF X<+P23DAYS SET P23DAYS=X
+        . ELSE  IF IMMIEN=P13IMM DO
+        . . IF X<+P13DAYS SET P13DAYS=X
+        IF (P23DAYS=999999)!(P13DAYS=999999) QUIT  ;"NOT FOUND
+        IF (P23DAYS>0)&(P13DAYS>0) DO
+        . ;"DETERMINE WHICH ONE WAS MORE RECENT
+        . ;"WRITE "ISSUE: ",P23DAYS,"-",P13DAYS,! QUIT
+        . NEW LASTPNU SET LASTPNU=$S(P23DAYS<P13DAYS:P23DAYS,P13DAYS<P23DAYS:P13DAYS,P13DAYS=P23DAYS:P23DAYS)
+        . ;"IF DAY COUNT WAS LESS THAN 5 YEARS (1825 DAYS) THEN REPORT TRUE.
+        . ;" THIS WILL BE USED IN THE NOT LOGIC OF THE COHORT, WHICH WILL TRUN THE
+        . ;" REMINDER OFF
+        . IF LASTPNU<1825 DO
+        . . SET TEST=1
+        . . SET DATE=$$TODAY^TMGDATE
+        QUIT
+        ;"        
 HASSHGIX(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"PURPOSE: Check to see if patient has had 2 or more Shingrix
         SET TEST=0,DATE=0
@@ -1777,7 +1835,29 @@ AMCCALC(TMGDFN)  ;"CALCULATE ABSOLUTE MONOCYTE COUNT
        SET TMGRESULT="AMC (<1000) = "_TMGRESULT      
 AMCDN2
        QUIT TMGRESULT
-       ;"                 
+       ;"   
+BASOCALC(TMGDFN)  ;"CALCULATE ABSOLUTE BASOPHIL COUNT  
+       NEW TMGRESULT SET TMGRESULT="BASO (<300) = Cannot calculate: unknown reason"
+       NEW BDT,BVAL,WDT,WVAL
+       DO GETLLAB(TMGDFN,5080,.BDT,.BVAL)       
+       NEW FAILREASON SET FAILREASON=""
+       IF BDT'>0 SET FAILREASON="Basophil %"
+       SET BDT=$P(BDT,".",1)
+       DO GETLLAB(TMGDFN,1,.WDT,.WVAL)
+       IF WDT'>0 DO  GOTO BASODN
+       . IF FAILREASON'="" SET FAILREASON=FAILREASON_", "
+       . SET FAILREASON=FAILREASON_"WBC"
+       IF FAILREASON'="" DO  GOTO BASODN
+       . SET TMGRESULT="BASO = Cannot calculate: No "_FAILREASON_" found"
+       SET WDT=$P(WDT,".",1)
+       IF BDT'=WDT DO  GOTO BASODN
+       . SET TMGRESULT="BASO (<300) = Cannot calculate: Last Baso%, and WBC not done on same day"
+       NEW CALC
+       SET CALC=(WVAL*1000*BVAL)/100
+       SET TMGRESULT="BASO (<300) = "_CALC_" ("_$$EXTDATE^TMGDATE(WDT)_")"
+BASODN
+       QUIT TMGRESULT
+       ;"
 GETLLAB(TMGDFN,LABIEN,DATE,VALUE)  ;"
        ;"GET THE LAST DATE AND VALUE OF PROVIDED LAB
        ;"DATE AND VALUE ARE PASSED BY REF
@@ -1981,6 +2061,45 @@ AWVCOHRT(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         . . . ;"SET DATE=APPTDATE
         QUIT
         ;" 
+WEL2MCRE(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
+        ;"Purpose: Return true if patient is scheduled for Welcome to Medicare
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;"                FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"            (NOTE: There is no need to SET the unsubscripted
+        ;"                   values of TEST and DATE in a multi-occurrence
+        ;"                   computed finding.)
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"SET TEST=0,DATE=0,
+        SET NFOUND=0
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        IF AGE<18 QUIT
+        NEW APPTSTR SET APPTSTR="^WELMEDPE^"
+        NEW APPTREASON,THISDATE,APPTDATE
+        ;"SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY,THISDATE=TODAY
+        SET THISDATE=$P(EDT,".",1),APPTDATE=THISDATE
+        FOR  SET APPTDATE=$O(^TMG(22723,"DT",APPTDATE)) QUIT:(APPTDATE'[THISDATE)!(APPTDATE'>0)  DO
+        . NEW APPTDFN SET APPTDFN=0
+        . FOR  SET APPTDFN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN)) QUIT:APPTDFN'>0  DO
+        . . IF APPTDFN'=TMGDFN QUIT
+        . . NEW APPTIEN SET APPTIEN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN,0))
+        . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDATE,APPTDFN,APPTIEN))
+        . . IF STATUS="C" QUIT
+        . . NEW REASON SET REASON=$P($G(^TMG(22723,APPTDFN,1,APPTIEN,0)),"^",4)
+        . . IF REASON["MO CHECK" SET REASON="MO CHECK"
+        . . IF APPTSTR[REASON DO
+        . . . IF NGET=NFOUND QUIT
+        . . . SET NFOUND=NFOUND+1
+        . . . SET TEST(NFOUND)=1
+        . . . SET DATE(NFOUND)=APPTDATE
+        . . . ;"SET TEST=1
+        . . . ;"SET DATE=APPTDATE
+        QUIT
+        ;"          
 AWVORCPE(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         ;"Purpose: Return true if patient is scheduled for annual wellness visit or CPE
         ;"Input: TMGDFN -- the patient IEN
@@ -2019,7 +2138,41 @@ AWVORCPE(TMGDFN,NGET,BDT,EDT,NFOUND,TEST,DATE,DATA,TEXT) ;
         . . . ;"SET TEST=1
         . . . ;"SET DATE=APPTDATE
         QUIT
-        ;"          
+        ;"      
+CPEVISIT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
+        ;"Purpose: Return true if patient is scheduled for CPE
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"                1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;"                FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"            (NOTE: There is no need to SET the unsubscripted
+        ;"                   values of TEST and DATE in a multi-occurrence
+        ;"                   computed finding.)
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"SET TEST=0,DATE=0,
+        NEW AGE K VADM SET AGE=$$AGE^TIULO(TMGDFN)
+        IF AGE<18 QUIT
+        NEW APPTSTR SET APPTSTR="^PHYSICAL^1 YR CHECK^WELL CPE^^"
+        NEW APPTREASON,THISDATE,APPTDATE,TODAY
+        SET TODAY=$$TODAY^TMGDATE,APPTDATE=TODAY,THISDATE=TODAY
+        SET THISDATE=$P(EDT,".",1),APPTDATE=THISDATE
+        FOR  SET APPTDATE=$O(^TMG(22723,"DT",APPTDATE)) QUIT:(APPTDATE'[THISDATE)!(APPTDATE'>0)  DO
+        . NEW APPTDFN SET APPTDFN=0
+        . FOR  SET APPTDFN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN)) QUIT:APPTDFN'>0  DO
+        . . IF APPTDFN'=TMGDFN QUIT
+        . . NEW APPTIEN SET APPTIEN=$O(^TMG(22723,"DT",APPTDATE,APPTDFN,0))
+        . . NEW STATUS SET STATUS=$G(^TMG(22723,"DT",APPTDATE,APPTDFN,APPTIEN))
+        . . IF STATUS="C" QUIT
+        . . NEW REASON SET REASON=$P($G(^TMG(22723,APPTDFN,1,APPTIEN,0)),"^",4)
+        . . IF REASON["MO CHECK" SET REASON="MO CHECK"
+        . . IF APPTSTR[REASON DO
+        . . . SET TEST=1
+        . . . SET DATE=APPTDATE
+        QUIT
+        ;"           
 P9RESOLV(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Resolution logic for PHQ-9 reminder
         ;"Input: TMGDFN -- the patient IEN
@@ -2475,12 +2628,17 @@ PTMEMMEDS(TMGRESULT,TMGDFN)
         ;"RPC Wrapper for ONMEMMEDS
         ;"  CHECKS TO SEE IF PATIENT IS ON AN APPLICABLE MEMORY MED
         ;"  TMGRESULT=1 FOR YES, OR 0 FOR NO
+        ;"  Expanding logic: originally this was used to check 
         NEW DATE,TEST
         DO ONMEMMEDS(TMGDFN,.TEST,.DATE)
         IF TEST=1 DO
         . SET TMGRESULT="1^PATIENT HAS MEMORY ISSUES. PLEASE MAKE SURE THEY GET A PRINTOUT OF THIS CONSULT, OR MAIL TO THEM IF THEY AREN'T IN THE OFFICE."
         ELSE  DO
-        . SET TMGRESULT="0^NOT ON MEMORY MEDS"
+        . NEW MSG SET MSG=$P($G(^DPT(TMGDFN,"TMGMSG")),"^",1)
+        . IF MSG'="" DO
+        . . SET TMGRESULT="1^"_MSG
+        . ELSE  DO
+        . . SET TMGRESULT="0^NOT ON MEMORY MEDS"
         QUIT
         ;"
 FIB4(TMGDFN)  ;"CALCULATE THE PATIENT'S FIB4 SCORE USING THE FORMULA:
@@ -2528,3 +2686,61 @@ BDAPPLIC(TMGDFN,TEST,DATE,DATA,TEXT)   ;
         DO HFTHISYR(TMGDFN,.TEST,.DATE,"TMG BONE DENSITY NOT INDICATED THIS YEAR")
         QUIT
         ;"
+UMARDONE(TMGDFN,TEST,DATE,DATA,TEXT) ;"DETERMINE IF UMAR HAS BEEN DONE THIS CALENDAR YEAR
+        ;"Purpose: Return a "NOW" date as a "finding".  This is the effective date 
+        ;"          that the reminder is being run.
+        ;"Input: See discussion above for details. 
+        ;"Output: DATA filled as follows:
+        ;"          DATA = Date of birth (internal Fileman format)
+        ;"          DATA("YEAR")= year of effective date
+        ;"          DATA("MONTH"= month of effective date
+        ;"          DATA("DAY")= day (2 digits) of effective date
+        ;"          DATA("TIME")=time of effective date
+        ;"          DATA("DOY")= day of year (1-365)
+        ;"Results: none        
+        SET (TEST,DATE)=0
+        NEW LDT,LVAL
+        DO GETLLAB(TMGDFN,5064,.LDT,.LVAL)
+        NEW FIRSTDOY SET FIRSTDOY=$$FIRSTYR^TMGDATE
+        IF LDT>FIRSTDOY DO
+        . SET DATE=LDT
+        . SET TEST=1
+        QUIT
+        ;"
+P20CHECK(TMGDFN,TEST,DATE,DATA,TEXT) ;"DETERMINE IF P-20 WAS CHECKED TODAY
+        ;"Purpose: Return a "NOW" date as a "finding".  This is the effective date 
+        ;"          that the reminder is being run.
+        ;"Input: See discussion above for details. 
+        ;"Output: DATA filled as follows:
+        ;"          DATA = Date of birth (internal Fileman format)
+        ;"          DATA("YEAR")= year of effective date
+        ;"          DATA("MONTH"= month of effective date
+        ;"          DATA("DAY")= day (2 digits) of effective date
+        ;"          DATA("TIME")=time of effective date
+        ;"          DATA("DOY")= day of year (1-365)
+        ;"Results: none              
+        SET (TEST,DATE)=0
+        NEW DSDATE SET DSDATE=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG PREVISIT CHECKED FOR P20")
+        IF DSDATE=$$TODAY^TMGDATE DO
+        . SET TEST=1,DATE=DSDATE
+        QUIT
+        ;"
+SHNGDISC(TMGDFN,TEST,DATE,DATA,TEXT) ;"DETERMINE IF SHINGRIX WAS DISCUSSED IN THE LAST YEAR (TURNS OFF TMG SHINGRIX FOR 1 YEAR IF DISCUSSED)
+        ;"Purpose: Return a "NOW" date as a "finding".  This is the effective date 
+        ;"          that the reminder is being run.
+        ;"Input: See discussion above for details. 
+        ;"Output: DATA filled as follows:
+        ;"          DATA = Date of birth (internal Fileman format)
+        ;"          DATA("YEAR")= year of effective date
+        ;"          DATA("MONTH"= month of effective date
+        ;"          DATA("DAY")= day (2 digits) of effective date
+        ;"          DATA("TIME")=time of effective date
+        ;"          DATA("DOY")= day of year (1-365)
+        ;"Results: none              
+        SET (TEST,DATE)=0
+        NEW DSDATE SET DSDATE=$$GETHFDT^TMGPXRU1(.TMGDFN,"TMG SHINGRIX DISCUSSED AND CONSIDERING")
+        NEW BDATE SET BDATE=$$ADDDAYS^TMGDATE("-365")
+        IF DSDATE>BDATE DO
+        . SET TEST=1,DATE=DSDATE
+        QUIT
+        ;"        

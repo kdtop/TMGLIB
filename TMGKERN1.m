@@ -22,8 +22,12 @@ TMGKERN1 ;TMG/kst/Mumps Distro Specific functions ;2/2/14, 3/3/17, 5/12/17
  ;"MD5SUM(ROUTINE)  -- CALCULATE MD5SUM FOR ROUTINE.
  ;"MD5ALL -- SHOW MD5SUM VALUES FOR ALL ENTRIES IN 'ROUTINE' FILE.
  ;"MD5ARR(REF) --CALCULATE MD5SUM OF ARRAY   
- ;"LSTLCKS(OUT) --"LIST MUMPS DATABASE GLOBAL LOCKS  
- ;"KILOKJOB ;"KILL JOBS HOLDING PARTICULAR DATABASE LOCKS 
+ ;"LSTLCKS(OUT) --LIST MUMPS DATABASE GLOBAL LOCKS  
+ ;"KILOKJOB -- KILL JOBS HOLDING PARTICULAR DATABASE LOCKS
+ ;"DEV2ARR(DEVICE,OUT,FILTER,INFO) --Store off a device, with all it's parameters
+ ;"DEVDELTA(DEVICE,PRIORARR,OUT,INFO) --Get difference between current device and prior saved array
+ ;"RESTORDEV(PRIORARR,INFO) --Use device specified in PRIORARR, setting parameters to saved values
+ ;"SETUPSAV(ARR)  --Get information about TERMINAL device parameters
  ; 
  ;"=======================================================================
  ;"Dependancies

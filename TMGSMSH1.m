@@ -4,6 +4,10 @@ TMGSMSH1 ;TMG/kst/OS HOURLY SMS Message ;1/18/15, 3/24/21
  ;"TMG FUNCTIONS
  ;"I.e. functions that related to sending SMS messages
  ;
+ ;"NOTE:  This was copied and modified from TMGSMS01 -- set up for DayLead,
+ ;"       This purpose of this file is Hourslead
+ ;"     Could later work to merge these two.  
+ ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
  ;"
@@ -17,23 +21,17 @@ TMGSMSH1 ;TMG/kst/OS HOURLY SMS Message ;1/18/15, 3/24/21
  ;"=======================================================================
  ;"SENDSMS(HOURLEAD) -- Send out SMS messages for upcoming appts, vit FTP method 
  ;"SENDSMS1(HOURLEAD) -- Send out SMS messages for upcoming appts, via HTTP method
- ;"SNDTSMS(TMGDFN,PHONE) -- Send out 1 TEST SMS message, via FTP method
  ;"SMSGTALL() -- Get all incoming SMS messages 
  ;"SMSGET(DELFILE) -- Get all incoming SMS messages, optionally deleting source file.
  ;"GETFSTAT() -- Process FINAL status report.
  ;
- ;"GETPHONS(TMGDFN,OUT,ERRARRAY) -- for a given patient, return list of phone numbers
- ; 
  ;"=======================================================================
  ;" API -- Private Functions.
  ;"=======================================================================
  ;"SETUPSMS(OUT,HOURLEAD,ERRARRAY,NONE) -- set up for sending out SMS messages
- ;"SUDNFSMS(TMGDFN,PHONE,ARR,STOREOUT) --SET UP A TEST MESSAGE
- ;"SUHEADER(ARR) -- setup SMS header
  ;"GETDTPTL(OUT,TMGDT,EXCLUDE) -- get a list patients that have upcoming appts on TMGDT
  ;"GETPTLST(OUT,HOURLEAD,EXCLUDE) -- get a list patients that have upcoming appts
  ;
- ;"MKVALPHN(PHONENUM) -- return valid phone number, or "" if can't make valid
  ;"COMPMSG(ARR,ERRARRAY,HOURLEAD) -- create an array with messages to be sent by SMS
  ;"GETMSG(TMGDFN,PROVIEN,TMGDT,REASON,HOURLEAD) -- Create outogoing message.
  ;"SUBSTX(MSG,ARR) -- Substitute values into text string
@@ -106,64 +104,6 @@ GETPTLST(OUT,AHOURLEAD,MODE,EXCLUDE,TEST) ;
   DO GETDTPTL(.OUT,TARGETDT,.MODE,.EXCLUDE) 
   QUIT
   ;
-GETPHONS(TMGDFN,OUT,ERRARRAY) ;"
-  ;"Purpose: for a given patient, return list of phone numbers
-  ;"Input: TMGDFN -- patient IEN
-  ;"       OUT -- PASS BY REFERENCE.  An OUT PARAMETER.  Format:
-  ;"          OUT(TMGDFN,<PHONE NUMBER>)=""
-  ;"       ERRARRAY -- PASS BY REFERENCE.  An OUT PARAMETER.
-  ;"         Format: ERRARRAY(TMGDFN)=<MESSAGE>
-  ;"NOTE: All phone numbers MUST BE 11 digits, e.g. 14235551111
-  ;"      ALSO, field 22705 (TMG SMS EXCLUSION) should be checked and
-  ;"      no number should be returned if found there.
-  NEW IENS SET IENS=TMGDFN_","
-  NEW FIELDS
-  SET FIELDS(.131)=""
-  SET FIELDS(.132)=""
-  SET FIELDS(.134)=""
-  SET FIELDS(.2919)=""
-  SET FIELDS(.2929)=""
-  NEW IDX,TEMP SET IDX="",TEMP=""
-  FOR  SET IDX=$ORDER(FIELDS(IDX)) QUIT:IDX=""  DO
-  . SET:TEMP'="" TEMP=TEMP_";" SET TEMP=TEMP_IDX
-  SET FIELDS=TEMP
-  NEW TMGARRAY,TMGMSG
-  ;"use DFN(IEN in file 2) to get data into database
-  DO GETS^DIQ(2,IENS,FIELDS,"","TMGARRAY","TMGMSG") ;"get EXTERNAL values
-  IF $DATA(TMGMSG("DIERR"))'=0 DO  GOTO GPDN   ;"check for errors.
-  . ;"MERGE ERRARRAY=TMGMSG("DIERR")
-  . SET ERRARRAY(TMGDFN)=$$GETERRST^TMGDEBU2(.TMGMSG)
-  SET IDX="" FOR  SET IDX=$ORDER(FIELDS(IDX)) QUIT:(+IDX'>0)  DO
-  . NEW FIELD SET FIELD=FIELDS(IDX)
-  . NEW VAL SET VAL=$GET(TMGARRAY(2,IENS,IDX)) QUIT:VAL=""
-  . NEW PHONE SET PHONE=$$MKVALPHN(VAL) QUIT:PHONE=""
-  . IF $$ISEXLPHN(TMGDFN,PHONE) QUIT
-  . NEW FLDNAME SET FLDNAME=$PIECE($GET(^DD(2,IDX,0)),"^",1)
-  . SET OUT(TMGDFN,PHONE)=""
-  . SET OUT(TMGDFN,"NAME",FLDNAME)=PHONE
-GPDN ;  
-  QUIT
-  ;
-MKVALPHN(PHONENUM) ;"MAKE VALID PHONE NUMBER
-  ;"Return: valid phone number, or "" if can't make valid
-  ;"MAKE SURE IS 11 DIGITS
-  NEW RESULT SET RESULT=$TRANSLATE($GET(PHONENUM)," (-)","")
-  IF $EXTRACT(RESULT,1,3)="000" DO
-  . SET RESULT=$EXTRACT(RESULT,4,99)
-  NEW LEN SET LEN=$LENGTH(RESULT)
-  IF LEN=7 DO
-  . SET RESULT="423"_RESULT,LEN=10  ;"NOTICE!!! hard-coded area code 423 assumption!
-  IF LEN=10 DO
-  . SET RESULT="1"_RESULT,LEN=11
-  IF LEN'=11 SET RESULT=""
-  QUIT RESULT      
-  ;
-ISEXLPHN(TMGDFN,PHONENUM) ;"IS EXCLUDED PHONE NUMBER?
-  ;"Result: 1 if phone number has been entered 
-  NEW RESULT 
-  SET RESULT=($DATA(^DPT(TMGDFN,"TMGSMS","B",PHONENUM))>0)
-  QUIT RESULT
-  ;
 COMPMSG(ARR,ERRARRAY,HOURLEAD) ;"COMPILE MESSAGES
   ;"Purpose: create an array with messages to be sent by SMS
   ;"Input: ARR -- PASS BY REFERENCE.  An IN and OUT parameter.  Format:
@@ -188,7 +128,7 @@ COMPMSG(ARR,ERRARRAY,HOURLEAD) ;"COMPILE MESSAGES
   . NEW TMGDT SET TMGDT=$PIECE(ZN,"^",1)
   . NEW PROVIEN SET PROVIEN=+$PIECE(ZN,"^",3)
   . NEW REASON SET REASON=$PIECE(ZN,"^",4)
-  . NEW PHONEARR DO GETPHONS(TMGDFN,.PHONEARR,.ERRARRAY)
+  . NEW PHONEARR DO GETPHONS^TMGSMS01(TMGDFN,.PHONEARR,.ERRARRAY)
   . NEW MSG SET MSG=$$GETMSG(TMGDFN,PROVIEN,TMGDT,REASON,HOURLEAD)  
   . NEW PHONENUM SET PHONENUM=""
   . NEW HASNUM SET HASNUM=0
@@ -212,8 +152,8 @@ GETMSG(TMGDFN,PROVIEN,TMGDT,REASON,HOURLEAD) ;"Create out-going message.
   NEW ARR SET ARR("PROVNAME")=PROVNAME 
   SET ARR("FNAME")=$$FNAME^TMGTIUO3(TMGDFN)
   IF ARR("FNAME")="" GOTO GMDN  ;"ABORT
-  SET ARR("DATE")=$$GETDTSTR(TMGDT)
-  SET ARR("REASON")=$$FIXREASN(REASON)
+  SET ARR("DATE")=$$GETDTSTR^TMGSMS01(TMGDT)
+  SET ARR("REASON")=$$FIXREASN^TMGSMS01(REASON)
   SET ARR("TIME")=$$GETTIME(TMGDT)
   ;"NEW MSG SET MSG="|FNAME| has an appt with |PROVNAME| on |DATE|, for |REASON|. "
   NEW MSG SET MSG=""
@@ -227,7 +167,7 @@ GETMSG(TMGDFN,PROVIEN,TMGDT,REASON,HOURLEAD) ;"Create out-going message.
   . SET MSG=$$GTMSGTXT^TMGSMS01("APPOINTMENT-HOUR","|FNAME| has an appt with |PROVNAME| TODAY at |TIME|.")
   . SET MSG=MSG_" "_$$GTMSGTXT^TMGSMS01("MEDS","Please bring ALL your medications with you.")
   SET MSG=MSG_" "_$$GTMSGTXT^TMGSMS01("QUESTIONS","QUESTIONS? Call Family Physicians of Greeneville (423-787-7000).")
-  SET RESULT=$$SUBSTX(MSG,.ARR)
+  SET RESULT=$$SUBSTX^TMGSMS01(MSG,.ARR)
 GMDN  
   QUIT RESULT
    ;
@@ -241,31 +181,6 @@ GETTIME(TMGDT)
   SET RESULT=$P(RESULT," ",4)_" "_$P(RESULT," ",5)
   QUIT RESULT
   ;"
-GETDTSTR(TMGDT) ;"Get friendly date string
-  NEW RESULT SET RESULT=$$DOW^XLFDT(TMGDT)_", "_$$FMTE^XLFDT(TMGDT,"1P")
-  NEW DELTA SET DELTA=$$FMDIFF^XLFDT(TMGDT,$$NOW^XLFDT)
-  IF DELTA=0  SET RESULT=RESULT_" (TODAY)"
-  IF DELTA=1  SET RESULT=RESULT_" (TOMORROW)"
-  ;"SET RESULT=RESULT_","
-  QUIT RESULT
-  ;
-SUBSTX(MSG,ARR) ;"Substitute array values into text string with |<KEY>|'s
-  FOR  QUIT:MSG'["|"  DO
-  . NEW PA,PB,PC
-  . SET PA=$PIECE(MSG,"|",1),PB=$PIECE(MSG,"|",2,999)
-  . SET PC=$PIECE(PB,"|",2,999),PB=$PIECE(PB,"|",1)
-  . NEW SUBST SET SUBST=$GET(ARR(PB),"??")
-  . SET MSG=PA_SUBST_PC
-  QUIT MSG
-  ;  
-FIXREASN(REASON) ;"Convert SEQL PMS visit types into something patient readable
-  IF REASON="SICK" DO
-  . SET REASON="a sick visit"
-  ;"finish...
-  ;"NOTE: for now, we are not going to be sending reason with SMS message,
-  ;"  so this is not needed for now.
-  QUIT REASON
-  ;
 SETUPSM0(OUT,AHOURLEAD,EXCLBYDL,TEST) ;
   ;"Purpose: To set up for sending out SMS messages
   ;"Input: OUT -- PASS BY REFERENCE -- an OUT PARAMETER.  Format:
@@ -306,53 +221,6 @@ ADDLINE(ARR,LINE) ;
   SET ARR=IDX
   QUIT                
   ;
-GETCRDNTL(OUT,NAME) ;"GET CREDENTIALS
-  ;"Purpose: get SMS credentials from file 22724.1 (TMG SMS CREDENTIALS)
-  ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
-  ;"         OUT("APIID")=api_id value
-  ;"         OUT("NUMBER")=from value
-  ;"         OUT("PW")=password value
-  ;"         OUT("USER")=user value
-  ;"       NAME -- the value of the .01 field record to use.  
-  ;"Result: 1 if OK, or -1^Message if error. 
-  KILL OUT                   
-  SET NAME=$GET(NAME,"??")
-  NEW RESULT SET RESULT=1
-  NEW IEN SET IEN=+$ORDER(^TMG(22724.1,"B",NAME,0))
-  NEW ZN SET ZN=$GET(^TMG(22724.1,IEN,0))
-  SET OUT("APIID")=$PIECE(ZN,"^",2)
-  SET OUT("PW")=$PIECE(ZN,"^",3)
-  SET OUT("NUMBER")=$PIECE(ZN,"^",4)
-  SET OUT("USER")=$PIECE(ZN,"^",5)
-  IF ZN="" DO  GOTO GCRDN
-  . SET RESULT="-1^Record not found in 22724.1 for "_NAME 
-  IF OUT("APIID")="" DO  GOTO GCRDN
-  . SET RESULT="-1^API ID not found in 22724.1 for IEN="_IEN 
-  IF OUT("PW")="" DO  GOTO GCRDN
-  . SET RESULT="-1^Password not found in 22724.1 for IEN="_IEN 
-  IF OUT("NUMBER")="" DO  GOTO GCRDN
-  . SET RESULT="-1^Long Number not found in 22724.1 for IEN="_IEN 
-  IF OUT("USER")="" DO  GOTO GCRDN
-  . SET RESULT="-1^User name not found in 22724.1 for IEN="_IEN 
-GCRDN ;  
-  QUIT RESULT
-  ;
-SUHEADER(ARR) ;
-  NEW PWINFO,RESULT
-  SET RESULT=$$GETCRDNTL(.PWINFO,"TMG") ;"<--- hard coded for FP of Greeneville ("TMG").  Change if needed
-  IF +RESULT'>0 DO  GOTO SUHDN
-  . DO ALERTERR^TMGKERN5($PIECE(RESULT,"^",2))  
-  KILL ARR
-  DO ADDLINE(.ARR,"user:"_PWINFO("USER"))
-  DO ADDLINE(.ARR,"password:"_PWINFO("PW"))
-  DO ADDLINE(.ARR,"api_id:"_PWINFO("APIID"))
-  DO ADDLINE(.ARR,"from:"_PWINFO("NUMBER"))
-  DO ADDLINE(.ARR,"mo:1")
-  DO ADDLINE(.ARR,"text:#field1#")
-  DO ADDLINE(.ARR,"Delimiter:|")
-SUHDN ;
-  QUIT RESULT
-  ;
 SUEXCLUD(EXCLBYDL) ;"SET UP EXCLUSION
   ;"Purpose: to be able to specify fields (by node,piece) to check, and exclusion value
   ;"Input:  EXCLBYDL -- PASS BY REFERENCE.  Format: 
@@ -386,7 +254,7 @@ SETUPSMS(ARR,STOREOUT,HOURLEAD,NONE,EXCLBYDL,TEST) ;
   . NEW AHOURLEAD SET AHOURLEAD=$PIECE(HOURLEAD,",",IDX) QUIT:AHOURLEAD=""
   . NEW TEMP DO SETUPSM0(.TEMP,.AHOURLEAD,.EXCLBYDL,TEST) ;
   . MERGE OUT=TEMP
-  SET RESULT=$$SUHEADER(.ARR)
+  SET RESULT=$$SUHEADER^TMGSMS01(.ARR)
   IF +RESULT'>0 GOTO SUSMDN  ;"SUHEADER makes it's own alert
   NEW TMGDFN SET TMGDFN=""
   FOR  SET TMGDFN=$ORDER(OUT("MSG",TMGDFN)) QUIT:(+TMGDFN'>0)  DO
@@ -399,28 +267,6 @@ SETUPSMS(ARR,STOREOUT,HOURLEAD,NONE,EXCLBYDL,TEST) ;
   . . SET STOREOUT(PHONE)=TMGDFN_"^"_DT_"^"_MSG
   MERGE NONE=OUT("NONE")
 SUSMDN  
-  QUIT
-  ;
-SUDNFSMS(TMGDFN,PHONE,ARR,STOREOUT) ;"SET UP A TEST MESSAGE
-  ;"Purpose: To set up for sending out 1 *TEST* SMS messages
-  ;"Input: TMGDFN -- PATIENT IEN.  Can be 0 if patient unknown.
-  ;"       PHONE -- 11 digit number to send message to. 
-  ;"       ARR -- PASS BY REFERENCE -- an OUT PARAMETER.  Format:
-  ;"         ARR(#)=output line for FTP file, to be uploaded to FTP server.
-  ;"       STOREOUT -- PASS BY REFERENCE -- an OUT PARAMETER.  Format:
-  ;"         STOREOUT(phone number)=DFN^Message
-  ;"Output: Alerts may be made in case of errors.
-  ;"Result: None
-  SET TMGDFN=+$GET(TMGDFN)
-  SET PHONE=+$GET(PHONE)
-  NEW MSG SET MSG="Test message from Family Physicians of Greeneville."
-  SET MSG=MSG_" Please arrive 10 minutes prior to your appointment to complete paperwork. Please bring ALL your medications with you. "
-  ;"SET MSG=MSG_" Questions?  Call (423) "
-  NEW RESULT SET RESULT=$$SUHEADER(.ARR)
-  IF +RESULT'>0 GOTO SUTSMDN  ;"SUHEADER makes it's own alert
-  DO ADDLINE(.ARR,"csv:"_PHONE_"|"_MSG)
-  SET STOREOUT(PHONE)=TMGDFN_"^"_MSG
-SUTSMDN  
   QUIT
   ;
 SCHSTCHK ;" DO SCHEDULE TASK FOR STATUS CHECK
@@ -460,16 +306,6 @@ TSKTEST
   . KILL OUT
   QUIT
   ;"
-SNDTSMS(TMGDFN,PHONE) ;"Send out 1 TEST SMS message, via FTP method
-  ;"INPUT: TMGDFN -- PATIENT IEN.  Can be 0 if patient unknown.
-  ;"       PHONE -- 11 digit number to send message to.
-  NEW ARR,STORE
-  DO SUDNFSMS(.TMGDFN,.PHONE,.ARR,.STORE)  ;"SET UP A TEST MESSAGE
-  DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
-  DO SCHSTCHK  ;"Effects call to GETSMSID^TMGKERN5 after 10 minutes
-  DO ALRTMSG^TMGKERN5("FYI: Sent 1 *TEST* SMS messages via FTP upload")
-  QUIT
-  ;  
 SENDSMS(HOURLEAD,TEST) ;"Send out SMS messages for upcoming appts, via FTP method
   ;"INPUT: HOURLEAD -- number of hours in advance to get appts for.  Format:
   ;"            Number,Number,Number.....
@@ -535,8 +371,11 @@ GETFSTAT() ;"Process FINAL status report. <--- SUITABLE ENTRY POINT FOR TASKMAN
   QUIT
   ;  
 SMSCURL(TONUM,TOMSG)
-   NEW APIKEY SET APIKEY=$P($G(^TMG(22724.1,1,2)),"^",1)  ;"GET KEY FROM DATABASE FIELD
-   NEW APINUMBER SET APINUMBER=$P($G(^TMG(22724.1,1,2)),"^",2)  ;"GET NUMBER FROM DATABASE FIELD
+   NEW INFO IF $$GETCRDNTL^TMGSMS01(.INFO,"TMG")  ;"//kt 5/23/24  ignore results, which could hold error message. 
+   ;"NEW APIKEY SET APIKEY=$P($G(^TMG(22724.1,1,2)),"^",1)  ;"GET KEY FROM DATABASE FIELD
+   ;"NEW APINUMBER SET APINUMBER=$P($G(^TMG(22724.1,1,2)),"^",2)  ;"GET NUMBER FROM DATABASE FIELD
+   NEW APIKEY SET APIKEY=$GET(INFO("API KEY"))   
+   NEW APINUMBER SET APINUMBER=$GET(INFO("API NUMBER"))
    NEW CURL
    SET CURL="curl -i \ "
    SET CURL=CURL_"-X POST \ "

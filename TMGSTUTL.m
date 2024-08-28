@@ -1306,8 +1306,9 @@ UTF8WRITE(CODEPT) ;"Output Unicode character.
   ;"               Should be a decimal number, unless prefixed with "$" with a hex number
   ;"Output: character is written to current device ($IO)
   ;"Result: none.  
-  NEW UNIBYTES,IDX,ABYTE 
-  SET UNIBYTES=$$GETUTF8^TMGMISC(CODEPT)
+  NEW UNIBYTES,IDX,ABYTE,XPOS SET XPOS=$X 
+  SET UNIBYTES=$$GETUTF8^TMGMISC(CODEPT)  
   FOR IDX=1:1:$LENGTH(UNIBYTES) SET ABYTE=$PIECE(UNIBYTES,",",IDX) IF ABYTE>0 WRITE *ABYTE
+  SET $X=XPOS+1
   QUIT
   ;

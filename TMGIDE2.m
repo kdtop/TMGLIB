@@ -100,7 +100,7 @@ STEPTRAP(tmgIDEPos,tmgMsg)
   NEW tmgViewOffset SET tmgViewOffset=0
   NEW tmgSavedIO,tmgSavedX,tmgSavedY,tmgDEVInfo,tmgDEVSav
   SET tmgSavedIO=$IO
-  DO DEV2ARR^TMGKERN1($IO,.tmgDEVSav,.tmgDEVInfo)
+  DO DEV2ARR^TMGKERN1($IO,.tmgDEVSav,,.tmgDEVInfo)
   SET tmgSavedX=$X,tmgSavedY=$Y
   SET tmgScrHeight=$GET(tmgScrHeight,10)
   SET tmgScrWidth=+$GET(tmgScrWidth)
@@ -151,7 +151,7 @@ SP2 ;
   IF tmgRunMode'=1 DO  ;"Not stepping mode
   . WRITE tmgBlankLine,!
   . DO CUU^TMGTERM(1)
-  . DO EVALWATCHES^TMGIDE2C
+  . DO EVALWATCHES^TMGIDE2B
   . WRITE "(Press any key to pause"
   . IF "34"[tmgRunMode WRITE "; '+' for faster, '-' for slower)",!
   . ELSE  WRITE ")",!
@@ -181,7 +181,7 @@ SPDN ;"Finish up and return to GTM execution
   . ZSTEP:(tmgDbgResult=2) OVER
   . ZSTEP:(tmgDbgResult=3) OUTOF
   ;
-  ;"Restore environment
+  ;"Restore preexisting environment
   IF $DATA(tmgDEVSav) DO   ;"turn IO back to what it was when coming into this function.
   . DO RESTORDEV^TMGKERN1(.tmgDEVSav,.tmgDEVInfo)
   ELSE  IF $DATA(tmgSavedIO) DO    ;"turn IO back to what it was when coming into this function.
@@ -312,10 +312,14 @@ ERRTRAP(tmgIDEPos)  ;
   . BREAK
   ;"NEW tmgScrHeight,tmgScrWidth
   SET tmgScrHeight=$GET(tmgScrHeight,10)
-  SET tmgScrWidth=$GET(tmgScrWidth,70)
+  SET tmgScrWidth=$GET(tmgScrWidth,70)    
+  NEW tmgDEVSav,tmgDEVInfo DO DEV2ARR^TMGKERN1($IO,.tmgDEVSav,,.tmgDEVInfo)  ;"//kt 7/4/24
+  USE $P ;"//kt 7/4/24  
   DO VCUSAV2^TMGTERM
   DO SHOWCODE^TMGIDE2B(tmgIDEPos,tmgScrWidth,tmgScrHeight,0)
 ETDone ;
   DO VCULOAD2^TMGTERM
+  IF $DATA(tmgDEVSav) DO   ;"turn IO back to what it was when coming into this function.
+  . DO RESTORDEV^TMGKERN1(.tmgDEVSav,.tmgDEVInfo)
   QUIT
   ;

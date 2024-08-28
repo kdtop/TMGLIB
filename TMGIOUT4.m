@@ -1,4 +1,4 @@
-TMGIOUT4 ;TMG/kst/IO Utilities ;12/28/14, 10/14/15
+TMGIOUT4 ;TMG/kst/IO Utilities ;12/28/14, 10/14/15, 4/9/24
          ;;1.0;TMG-LIB;**1**;10/14/15
  ;
  ;"TMG IO UTILITIES
@@ -22,7 +22,7 @@ TMGIOUT4 ;TMG/kst/IO Utilities ;12/28/14, 10/14/15
  ;
  ;"=======================================================================
  ;"=======================================================================
-LCSV2ARR(FULLPATHNAME,REF,OPTION) ;"LOAD CSV FILE TO ARRAY
+LCSV2ARR(FULLPATHNAME,REF,OPTION) ;"LOAD CSV-FORMATTED HFS FILE TO ARRAY
   ;"Purpose: Load a CSV file with a particular format:
   ;"         The first line contains all the field names, comma separated
   ;"         Then each subsequent line is one record.
@@ -53,6 +53,34 @@ LCSV2ARR(FULLPATHNAME,REF,OPTION) ;"LOAD CSV FILE TO ARRAY
   NEW IDX SET IDX=$ORDER(TMGDATA(""))
   IF IDX="" DO  GOTO LC2ADN
   . SET TMGRESULT="-1^No data found in file: '"_FULLPATHNAME_"'"
+  SET RESULT=$$CSVARR2ARR(REF,.TMGDATA,.OPTION) 
+LC2ADN ;
+  QUIT TMGRESULT
+  ;    
+CSVARR2ARR(REF,TMGDATA,OPTION) ;" LOAD CSV-FORMATTED ARRAY (holding lines of file) to OUTPUT ARRAY  //kt split this out from function above
+  ;"Purpose: Load a CSV file, already loaded from HFS into TMGDATA, with a particular format:
+  ;"         The first line contains all the field names, comma separated
+  ;"         Then each subsequent line is one record.
+  ;"NOTE: assumes no '^' character will be normally found in data.
+  ;"Input: REF -- PASS BY NAME -- the NAME of the array to put output into
+  ;"       TMGDATA -- PASS BY REFERENCE. Array holding lines already loaded in from HFS file.  
+  ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE
+  ;"          OPTION("DIV")=<divider character>  <-- default is ",".  E.g. of $CHAR(9) for tab-separate-values
+  ;"          OPTION("HANDLE BREAK IN QUOTES")=1 <-- If 1, then line break in quotes is converted to '/n'
+  ;"              This was to handle situation where one or more cell contained a line break.  Entire cell is enclosed in quotes
+  ;"          OPTION("PROGFN")=<code to execute for a progress function>
+  ;"               Variables avail for code:
+  ;"                       IDX = index of current process line
+  ;"                        MAX = number of lines to progress
+  ;"          OPTION("PROGFN","INTERVAL")=#, e.g. 100 for running function every 100 lines.
+  ;"Result: 1^OK, or -1^Message
+  ;"Output: @REF is filled as follows
+  ;"             @REF@("A",<Field#>)=FieldName
+  ;"             @REF@(Record#,<Field#>)=FieldValue
+  NEW TMGRESULT SET TMGRESULT="1^OK"
+  NEW IDX SET IDX=$ORDER(TMGDATA(""))
+  IF IDX="" DO  GOTO CA2ADN
+  . SET TMGRESULT="-1^No data found in provided array"
   IF $GET(OPTION("HANDLE BREAK IN QUOTES"))=1 DO
   . NEW TEMP MERGE TEMP=TMGDATA KILL TMGDATA
   . SET IDX=0
@@ -102,7 +130,7 @@ LCSV2ARR(FULLPATHNAME,REF,OPTION) ;"LOAD CSV FILE TO ARRAY
   . IF PROGFN'="",PROGCT>=PROGINTERVAL DO
   . . XECUTE PROGFN
   . . SET PROGCT=0
-LC2ADN ;
+CA2ADN ;
   QUIT TMGRESULT
   ;
 TEST1() ;

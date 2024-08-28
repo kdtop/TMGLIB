@@ -1,4 +1,4 @@
-TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18, 3/24/21
+TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18, 3/24/21, 7/28/24
          ;;1.0;TMG-LIB;**1**;5/1/13
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -17,7 +17,7 @@ TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18, 3/24/21
  ;"GETTABLS(TABLES,OPTION) -- Get list of all defined text tables, minus protected ones
  ;"TABLEND(LINE,PARTB) --Determine if HTML-coded line includes the end of a table.
  ;"PRTIUHTM(TEXT,TABLES,OPTION)  --PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO ARRAY (HANDLING TABLES)  
- ;"SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2 
+ ;"SAVAMED(TMGIN)  ;SAVE ARRAY (containing a note) containing MEDS to 22733.2 
  ;"
  ;"=======================================================================
  ;"Dependancies:
@@ -25,9 +25,10 @@ TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18, 3/24/21
  ;"=======================================================================
  ;
 PROCESS(TMGRESULT,TMGIN,OPTION) ;
-  ;"As of 5/20/18, called from:
+  ;"Called from:
   ;"   PROCESS^TMGRPC1H <-- RPC call 'TMG CPRS PROCESS NOTE'
   ;"   GETHPI^TMGTIUP2 <-- LASTHPI^TMGTIUP2 <-- LASTHPI^TMGTIUOJ <-- TIU TEXT OBJECT 'TMG LAST HPI'
+  ;"   PARSETIU^TMGTIUP2 <-- SUMNOTE^TMGTIUP1 <-- HNDLFRGND^TMGTIUT4 <-- MAINTRIG^TMGTIUT5 <-- [POST-SIG EVENT]
   ;"Purpose: Entrypoint for RPC to effect processing a note from CPRS
   ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
   ;"       TMGIN -- Input from client.  Format:
@@ -67,6 +68,7 @@ PRODN ;
   ;       
 FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
   ;"NOTE: As of 5/20/18, only called from PROCESS^TMGTIUP3()
+  ;"            7/28/24, also calling from GETFULRPC^TMGTIUT3()
   ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.  Format:
   ;"          TMGRESULT(#)=<line of text>
   ;"       TMGIN -- Input from client.  Format:
@@ -93,6 +95,8 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
   NEW TAGS
   NEW DONE SET DONE=0
   NEW INSCRIPT SET INSCRIPT=0
+  NEW PREFIX SET PREFIX=""
+  IF +$G(OPTION("PREFIX_BREAK"))=1 SET PREFIX="<br><br>"
   NEW LNUM SET LNUM=$ORDER(TMGIN("TEXT",0))
   NEW INLINEMODE SET INLINEMODE=0
   FOR  QUIT:(+LNUM'>0)!DONE  DO
@@ -119,7 +123,7 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
   . . . ELSE  SET ENDFOUND=(LINE="")
   . . IF 'ENDFOUND QUIT
   . . NEW TABLESTR,TABLEARR
-  . . SET TABLESTR=$$GETTABLX^TMGTIUO6(TMGDFN,FOUNDTABLE,.TABLEARR,.OPTION)
+  . . SET TABLESTR=PREFIX_$$GETTABLX^TMGTIUO6(TMGDFN,FOUNDTABLE,.TABLEARR,.OPTION) ;"ADDED PREFIX 7/30/24, SPECIFICALLY FOR GETFULRPC^TMGTIUT3 
   . . NEW TEMPARR
   . . IF 'INLINEMODE DO
   . . . DO SPLIT2AR^TMGSTUT2(TABLESTR,$CHAR(13,10),.TEMPARR,OUTLNUM+1)
@@ -151,7 +155,7 @@ FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
   . . . . . . SET INPARTB=$PIECE(INPARTB,TERMCHARS,2,999)
   . . . . . . NEW TABLESTR SET TABLESTR=$$GETTABLX^TMGTIUO6(TMGDFN,ATABLE)
   . . . . . . SET TABLESTR=$$SYMENC^MXMLUTL(TABLESTR) 
-  . . . . . . SET LINE=INPARTA_TABLESTR_INPARTB 
+  . . . . . . SET LINE=INPARTA_TABLESTR_INPARTB  
   . . . . . ELSE  DO
   . . . . . . SET FOUNDTABLE=TABLES(ATABLE)
   . . . . . . SET INLINEMODE=1

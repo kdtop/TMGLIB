@@ -583,7 +583,7 @@ SCAN4MAM ;" Cycle through all mammogram consults
 MRPTDN  QUIT
         ;
 TESTORDER
-        NEW ORIFN SET ORIFN="346728;1"
+        NEW ORIFN SET ORIFN="358671;1"
         N Y S ORPDAD=$O(^OR(100,ORIFN,2,0)) 
         D TEXT^ORQ12(.Y,ORIFN_$S($G(OACTION):";"_OACTION,1:"")) 
         DO FIXORDER^TMGFIX3(.Y)
@@ -607,6 +607,13 @@ FIXORDER(ORDERARR)  ;"
         ;"         displayed and printed, then you can wedge a line inside TEXT^ORQ12,
         ;"         which is the function that returns the order text
         NEW PREFIX SET PREFIX="  [ ]" ;" <- This will be the prefix for all 
+        ;NEW TMGTEST SET TMGTEST=0
+        ;IF TMGTEST=0 DO
+        ;. KILL ^TMG("FIXORDER1")
+        ;. MERGE ^TMG("FIXORDER1")=ORDERARR
+        ;ELSE  DO
+        ;. KILL ORDERARR
+        ;. MERGE ORDERARR=^TMG("FIXORDER1")
         NEW IDX SET IDX=0
         NEW ORIGARR MERGE ORIGARR=ORDERARR
         KILL ORDERARR

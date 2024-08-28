@@ -93,14 +93,15 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)
   NEW IDX SET IDX=2
   
-  SET OUT(0)="<!DOCTYPE html>"
+  ;"SET OUT(0)="<!DOCTYPE html>"
   SET OUT(1)="<html><head><title>Page Title</title></head><body><font size=""2"">"
+  ;"SET OUT(1)="<html><body>"
   ;"SET OUT(2)="<table BORDER=1>"
   NEW DT SET DT=99999999
   NEW STR
   FOR  SET DT=$ORDER(LABS("DT",DT),-1) QUIT:(DT="")  DO
   . NEW DAY SET DAY=$P(DT,".",1)
-  . IF '$D(DATEARR(DAY)) QUIT
+  . IF '$D(ARRAY(DAY)) QUIT
   . ;"SET OUT(IDX)="<TABLE BORDER=2 WIDTH=""600"">",IDX=IDX+1
   . ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(DT)_"</B></CAPTION>",IDX=IDX+1
   . ;"SET OUT(IDX)=$$HEADER(),IDX=IDX+1
@@ -134,7 +135,7 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   . IF (COMMENT'="")&(COUNT>0) DO
   . . SET OUT(IDX)="<tr><td colspan=""6"">"_COMMENT_"</td></tr>",IDX=IDX+1
   . ;"SET OUT(3)=$G(ARRAY(1))
-  . SET OUT(IDX)="</td></tr></table><BR>",IDX=IDX+1
+  . SET OUT(IDX)="</table><BR>",IDX=IDX+1
   SET OUT(IDX)="</font></body></html>" 
   QUIT
   ;"
@@ -206,7 +207,7 @@ CAPTION(OUT,IDX,LABDATE,TMGDFN)
   SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3))
   K VADM SET AGE=$$AGE^TIULO(TMGDFN)
   SET OUT(IDX)="<P><HR><P>",IDX=IDX+1
-  SET OUT(IDX)="<DIV align left>",IDX=IDX+1
+  ;"UNCOMMENT SET OUT(IDX)="<DIV align left>",IDX=IDX+1
   SET OUT(IDX)="<TABLE width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
   SET OUT(IDX)="cellpadding=""1"" style=""background-color: #F2F2F2;"">",IDX=IDX+1
   SET OUT(IDX)="<TR valign=""bottom"" align=""left"">",IDX=IDX+1
@@ -223,10 +224,12 @@ CAPTION(OUT,IDX,LABDATE,TMGDFN)
   QUIT
   ;"
 HEADER()
-  QUIT "<TH width=""50%"" bgcolor=""#FAFAD4"">LAB NAME</TH><TH width=""10%"" bgcolor=""#FAFAD4"">RESULT</TH><TH width=""10%"" bgcolor=""#FAFAD4"">UNITS</TH><TH width=""10%"" bgcolor=""#FAFAD4"">FLAG</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF LOW</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF HIGH</TH>"
+  QUIT "<TR><TH width=""50%"" bgcolor=""#FAFAD4"">LAB NAME</TH><TH width=""10%"" bgcolor=""#FAFAD4"">RESULT</TH><TH width=""10%"" bgcolor=""#FAFAD4"">UNITS</TH><TH width=""10%"" bgcolor=""#FAFAD4"">FLAG</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF LOW</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF HIGH</TH></TR>"
   ;"
 U2CELL(LINE) ;"CONVERT STRING WITH CAROT TO HTML TABLE CELL
   NEW DONE SET DONE=0
+  SET LINE=$$REPLSTR^TMGSTUT3(LINE,"<","&lt;")
+  SET LINE=$$REPLSTR^TMGSTUT3(LINE,">","&gt;")
   SET LINE="<TD>"_$$REPLSTR^TMGSTUT3(LINE,"^","</TD><TD>")_"</TD>"
   SET LINE=$$REPLSTR^TMGSTUT3(LINE,"<TD></TD>","<TD>&nbsp;</TD>")  
   QUIT LINE
@@ -426,10 +429,53 @@ LINKORD(OUT,TMGDFN,SDT,EDT)  ;"RPC FOR HAS LINKED ORDER for given date range?
 RPCDN  ;
   QUIT
   ;  
-HASPDF(OUT,TMGDFN,SDT,EDT)  ;"RPC FOR HAS LAB PDF for given date range?
+HASPDF(OUT,TMGDFN,SDT,EDT,INCLUDEALL)  ;"RPC FOR HAS LAB PDF for given date range?
+  IF +$G(INCLUDEALL)=1 DO GTLABDTS(.OUT,TMGDFN,SDT,EDT) QUIT
   DO RPCHASPDF^TMGLRPD1(.OUT,.TMGDFN,.SDT,.EDT)
   QUIT
   ;
+GTLABDTS(OUT,TMGDFN,SDT,EDT)  ;"RPC FOR HAS LAB PDF for given date range?
+  NEW PDFLABS
+  SET OUT(0)="1^OK"
+  DO RPCHASPDF^TMGLRPD1(.PDFLABS,.TMGDFN,.SDT,.EDT)
+  NEW NOPDFLABS
+  DO GETLDATS(.NOPDFLABS,.TMGDFN,"1")
+  NEW TEMP,IDX,DATE
+  SET IDX=0
+  FOR  SET IDX=$O(PDFLABS(IDX)) QUIT:IDX'>0  DO
+  . SET DATE=$P($P($G(PDFLABS(IDX)),"^",4),".",1)
+  . SET TEMP(DATE)=$G(PDFLABS(IDX))
+  SET IDX=0
+  FOR  SET IDX=$O(NOPDFLABS(IDX)) QUIT:IDX'>0  DO
+  . SET DATE=$P($G(NOPDFLABS(IDX)),"^",1)
+  . IF $D(TEMP(DATE)) QUIT  ;"DON'T INCLUDE IF THERE IS A PDF
+  . SET TEMP(DATE)="0^OUTSIDELABS^"_DATE_"^"_DATE_".00001"
+  SET DATE=9999999
+  SET IDX=1
+  FOR  SET DATE=$O(TEMP(DATE),-1) QUIT:DATE=""  DO
+  . SET OUT(IDX)=$G(TEMP(DATE)),IDX=IDX+1
+  QUIT
+  ;"
+SENTLABS(OUT,TMGDFN,SDT,EDT)  ;"RPC: TMG CPRS WERE LABS EXPORTED
+  SET OUT="0^NOT SENT"
+  NEW PDFS
+  DO RPCHASPDF^TMGLRPD1(.PDFS,.TMGDFN,.SDT,.EDT)
+  NEW IDX SET IDX=0
+  NEW TEMPRESULT SET TEMPRESULT=""
+  FOR  SET IDX=$O(PDFS(IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=$G(PDFS(IDX))
+  . NEW PATH,FILE,TOTAL
+  . SET PATH=$P(LINE,"^",2),FILE=$P(LINE,"^",3)
+  . SET TOTAL=PATH_FILE
+  . NEW SENTIEN SET SENTIEN=0
+  . FOR  SET SENTIEN=$O(^TMG(22748,"C",TOTAL,SENTIEN)) QUIT:SENTIEN'>0  DO
+  . . NEW ZN SET ZN=$G(^TMG(22748,SENTIEN,0))
+  . . NEW LOC SET LOC=$P(ZN,"^",3)
+  . . IF TEMPRESULT'="" SET TEMPRESULT=TEMPRESULT_"@@BR@@"
+  . . SET TEMPRESULT=TEMPRESULT_LOC
+  IF TEMPRESULT'="" SET OUT="1^LABS FAXED TO:@@BR@@"_TEMPRESULT
+  QUIT
+  ;"
 LABREPRT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"lab report
         ;"RETURN HTML REPORT OF LAB RESULTS
         ;"Purpose: Entry point, as called from CPRS REPORT system
@@ -528,4 +574,72 @@ CAPTION2(OUT,IDX,LABDATE,TMGDFN)
   SET @OUT@(IDX)=$$HEADER(),IDX=IDX+1
   QUIT
   ;"		
-        
+SENTRECS(TMGRESULT,TMGDFN)
+  NEW OUTIDX SET OUTIDX=1
+  SET TMGRESULT(OUTIDX)="<!DOCTYPE html>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="<html lang=""en"">",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="<head>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    <meta charset=""UTF-8"">",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="<meta http-equiv=""X-UA-Compatible"" content=""IE=edge"">",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    <title>IE11 Compatible Page</title>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    <style>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        body {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            font-family: Arial, sans-serif;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        .container {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)=" display: flex;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        .sidebar {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            width: 200px;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            background-color: #f2f2f2;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            padding: 10px;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        .sidebar a {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            display: block;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            padding: 10px;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            text-decoration: none;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            color: black;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            border-bottom: 1px solid #ddd;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        .sidebar a:hover {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            background-color: #ddd;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        .content {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            flex-grow: 1;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            padding: 20px;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            background-color: #fff;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            border-left: 1px solid #ddd;",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    </style>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="</head>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="<body>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="<div class=""container"">",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    <div class=""sidebar"">",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        <a href=""#"" onclick=""showContent('option1')"">1/2/2024 - Gastro</a>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        <a href=""#"" onclick=""showContent('option2')"">1/2/2024 - Hem/Onc</a>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        <a href=""#"" onclick=""showContent('option3')"">6/4/2024 - BC/BS TN Audit</a>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    </div>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    <div class=""content"" id=""content"">",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        <!-- The content will be displayed here -->",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        Please select an option from the left.",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    </div>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="</div>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="<script>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    function showContent(option) {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        var content = document.getElementById('content');",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        if (option === 'option1') {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 1 Content</h1><p>Office Note<BR>Lab 9/3/23</p>';",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        } else if (option === 'option2') {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 2 Content</h1><p>2 other Office Notes<BR>Lab 9/3/23</p>';",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        } else if (option === 'option3') {",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 3 Content</h1><p>2023 Records<BR>2023 Notes</p>';",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="    }",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="</script>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="</body>",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="</html>",OUTIDX=OUTIDX+1
+  QUIT
+  ;"

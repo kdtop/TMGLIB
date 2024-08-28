@@ -424,7 +424,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        DO C^%DTC
        SET endDate=X+.999999
        ;"SET NowDate=3221212
-       ;"SET endDate=3221004
+       ;"SET endDate=3240507
        FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
        . IF (RECORDS>0)&(dueDate>endDate) QUIT
        . IF (RECORDS=0)&(future=1) QUIT
@@ -587,7 +587,7 @@ PRTPAINR  ;"
        NEW NEXTDATE SET NEXTDATE=$$TODAY^TMGDATE
        IF NEXTDATE'>0 GOTO PPDN
        SET BDATE=NEXTDATE,EDATE=NEXTDATE
-       ;"SET BDATE=3200331,EDATE=3200331
+       ;"SET BDATE=3240531,EDATE=3240531
        DO GETPRPT(.CSPTRESULT,.REMRESULT,BDATE,EDATE)
        NEW DUEARRAY
        DO GETDBDUE(.DUERESULT,BDATE)
@@ -606,7 +606,7 @@ PRTPAINR  ;"
        DO ^%ZISC  ;" Close the output device
        ;"DO PRESS2GO^TMGUSRI2
 PPDN   QUIT
-       ;"
+       ;"       
 PRTALRGY  ;"
        ;"Purpose: Provide an Non-interactive entry point for Allergies Report
        ;"Get patient arrays
@@ -679,9 +679,11 @@ GETPRPT(CSPTRESULT,REMRESULT,BDATE,EDATE)
        SET REMARR(272)="MAMMOGRAM DUE"
        SET REMARR(228)="BONE DENSITY DUE"
        SET REMARR(242)="EYE EXAM DUE"
+       SET REMARR(325)="PREVNAR-20 DUE (CHECK TN DATABASE TO MAKE SURE IT WASN'T GIVEN ELSEWHERE)"
        DO APPTREMS^TMGPXR03(.REMRESULT,.REMARR,BDATE,EDATE)
        QUIT
        ;" 
+GET       
 PAINICD(TMGDFN)
        NEW ICD10,TMGTABLEARR,TMGTABLE SET ICD10="NOT ENTERED"
        SET TMGTABLE=$$GETTABLX^TMGTIUO6(+$G(TMGDFN),"[PAIN MANAGEMENT]",.TMGTABLEARR)
@@ -1440,6 +1442,66 @@ CHKSCHED()  ;"  Check the next 4 weeks to see if that date has less that 10 pati
        DO ^%ZISC  ;" Close the output device  
        QUIT
        ;"
+IMMS2CHK  ;"
+       ;"Purpose: Provide an Non-interactive entry point for outside immunizations to check
+       NEW X,Y DO NOW^%DTC NEW NOWDATE SET NOWDATE=X
+       ;"DON'T PRINT ON WEDNESDAY,SATURDAY,SUNDAY
+       NEW DOW SET DOW=$$DOW^XLFDT(NOWDATE)
+       NEW DAYSTR SET DAYSTR="WED,SUN,SAT"
+       IF DAYSTR[DOW QUIT  
+       ;"
+       NEW BDATE,EDATE 
+       NEW NEXTDATE SET NEXTDATE=$$TODAY^TMGDATE
+       IF NEXTDATE'>0 QUIT
+       SET BDATE=NEXTDATE,EDATE=NEXTDATE
+       NEW PATARRAY,REMARR
+       ;"Get patients with reminders due
+       NEW REMARR
+       SET REMARR(33)="FLU DUE" 
+       SET REMARR(214)="TDAP DUE"
+       SET REMARR(300)="SHINGRIX"
+       SET REMARR(323)="RSV DUE"
+       SET REMARR(325)="PREVNAR-20"
+       DO APPTREMS^TMGPXR03(.PATARRAY,.REMARR,BDATE,EDATE)
+       ;"
+       IF ('$D(PATARRAY)) QUIT
+       ;"Reorganize array
+       NEW REMIEN,DATE,TMGDFN,OUTARRAY
+       SET REMIEN=0
+       FOR  SET REMIEN=$O(PATARRAY(REMIEN)) QUIT:REMIEN'>0  DO
+       . SET DATE=0
+       . FOR  SET DATE=$O(PATARRAY(REMIEN,DATE)) QUIT:DATE'>0  DO
+       . . SET TMGDFN=0
+       . . FOR  SET TMGDFN=$O(PATARRAY(REMIEN,DATE,TMGDFN)) QUIT:TMGDFN'>0  DO
+       . . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+       . . . NEW DOB SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3))
+       . . . SET NAME=NAME_" ("_DOB_")"
+       . . . SET OUTARRAY(NAME,REMIEN)=""
+       ;"
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO PPDN
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
+       use IO
+       ;"
+       WRITE !
+       WRITE "***************************************************************",!
+       WRITE "              Immunizations to check the TN Database",!
+       WRITE "                   " SET Y=X DO DD^%DT WRITE Y,!
+       WRITE "           Please deliver this report to Lindsey",!
+       WRITE "***************************************************************",!
+       WRITE "                                            (From TMGRPT1.m)",!!
+       NEW NAME SET NAME=""
+       FOR  SET NAME=$O(OUTARRAY(NAME)) QUIT:NAME=""  DO
+       . WRITE !,"==== ",NAME," ====",!
+       . NEW REMIEN SET REMIEN=0
+       . FOR  SET REMIEN=$O(OUTARRAY(NAME,REMIEN)) QUIT:REMIEN'>0  DO
+       . . WRITE "  [    ]  ",$G(REMARR(REMIEN)),!
+       DO ^%ZISC  ;" Close the output device
+       QUIT
+       ;"       
 TEST
    DO TEST1
    QUIT

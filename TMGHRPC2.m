@@ -22,16 +22,36 @@ TMGHRPC2        ;TMG/elh/Support Functions for TMG_CPRS ;10/20/09; 11/6/10, 9/4/
  ;" ;
  ;"=======================================================================
  ;
-LISTALL(Y,FROM,DIR)            ; Return a bolus of patient names.  From is either Name or IEN^Name.
+LISTALL(Y,FROM,DIR,IGNOREINACTIVE)  ;" Return a bolus of patient names.  From is either Name or IEN^Name.
+  ;"Entry point for RPC: ORWPT LIST ALL  <-- RPC changed for TMG site to use our custom lookup code.  
+  ;"NOTE: This sets up global-scope var TMGIGNOREINACTIVE=1 IF IGNOREINACTIVE=1, for use in this module.  
+  ;
   ;" MERGE ^TMG("TMP","RPC","LISTALL^TMGHRPC2","FROM")=FROM
   ;" MERGE ^TMG("TMP","RPC","LISTALL^TMGHRPC2","DIR")=DIR
-  ;"IF $EXTRACT(FROM,1)="." DO INEXACT(.Y,FROM,.DIR) QUIT                    
+  ;"IF $EXTRACT(FROM,1)="." DO INEXACT(.Y,FROM,.DIR) QUIT
+  NEW TMGIGNOREINACTIVE SET TMGIGNOREINACTIVE=$GET(IGNOREINACTIVE)
+  IF TMGIGNOREINACTIVE="" SET TMGIGNOREINACTIVE=0  ;"default to OFF.
   IF $$WEDGE^TMGHRPC2(.Y,FROM,.DIR) GOTO LADN
-  IF FROM'="" DO INEXACT(.Y,FROM,.DIR) GOTO LADN
-  DO LISTALL^ORWPT(.Y,.FROM,.DIR) GOTO LADN
+  IF FROM'="" DO INEXACT(.Y,FROM,.DIR) GOTO LADN  
+  DO VALISTALL(.Y,.FROM,.DIR) GOTO LADN   ;"original --> DO LISTALL^ORWPT(.Y,.FROM,.DIR) GOTO LADN  //kt 6/25/24
 LADN  ;          
   IF $$SHOULDGARBLE^TMGMISC4() DO GARBLERESULTS^TMGMISC4(.Y)     ;"check for special mode to hide patient info during demos
   QUIT      
+  ;
+VALISTALL(Y,FROM,DIR)	;" Return a bolus of patient names.  From is either Name or IEN^Name.
+  ;"Copied and modified from LISTALL^ORWPT   
+  ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
+  N I,IEN,CNT,FROMIEN,ORIDNAME S CNT=44,I=0,FROMIEN=0
+  I $P(FROM,U,2)'="" S FROMIEN=$P(FROM,U,1),FROM=$O(^DPT("B",$P(FROM,U,2)),-DIR)
+  F  S FROM=$O(^DPT("B",FROM),DIR) Q:FROM=""  D  Q:I=CNT
+  . S IEN=FROMIEN,FROMIEN=0 F  S IEN=$O(^DPT("B",FROM,IEN)) Q:'IEN  D  Q:I=CNT
+  . . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(IEN)=0 QUIT  ;"//kt 6/25/24 
+  . . S ORIDNAME=$G(^DPT(IEN,0)) ; Get zero node name.
+  . . ;" S X1=$G(^DPT(IEN,.1))_" "_$G(^DPT(IEN,.101))
+  . . NEW NAME SET NAME=$P(ORIDNAME,U)
+  . . ;"SET NAME=$EXTRACT(NAME,1)_" -- "_NAME
+  . . S I=I+1 S Y(I)=IEN_U_FROM_U_U_U_U_NAME ;"    _"^"_X ; _"^"_X1  ;"   ("_X_")"
+  Q
   ;
 WEDGE(OUT,FROM,DIR)        ;
   ;"Purpose: Return a bolus of patient names, handling a leading date or
@@ -48,6 +68,7 @@ WEDGE(OUT,FROM,DIR)        ;
   ;"                Note: CPRS decrements the terminal character of user
   ;"                   input, and adds a ~
   ;"       DIR -- should be 1 or -1
+  ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
   ;"Results: 1 IF handled, 0 IF not handled.
   ;"
   NEW TMGCH,TMGTEMP,TMGTNAME,TMGSUBIEN,TMGB,TMGABORT
@@ -84,6 +105,7 @@ WEDGE(OUT,FROM,DIR)        ;
   SET IEN=0
   ;"Gather ALL patients with specified DOB, so can be sorted alphabetically
   FOR  SET IEN=$ORDER(^DPT("ADOB",Y,IEN)) QUIT:'IEN  DO
+  . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(IEN)=0 QUIT  ;"//kt 6/25/24 
   . SET TMGNAME=$P($G(^DPT(IEN,0)),U,1) ; Get zero node name.
   . NEW TEMP SET TEMP=TMGA_" "_TMGNAME
   . SET TMGTEMP(TEMP,IEN_U_TEMP_U_U_U_U_TEMP)=""
@@ -121,6 +143,7 @@ ISFNAME(S) ;"
   QUIT TMGRESULT
   ;"
 HNDLFNAME(OUT,FROM,DIR)  ;"
+  ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
   NEW TMGRESULT SET TMGRESULT=1
   NEW TMPNAME,FNAME,TMGDFN,I
   SET I=0
@@ -134,6 +157,7 @@ HNDLFNAME(OUT,FROM,DIR)  ;"
   SET TMGDFN=0
   ;"GET ALL PATIENTS WITH FIRST NAME LISTED
   FOR  SET TMGDFN=$ORDER(^DPT("TMGFN",FNAME,TMGDFN)) QUIT:TMGDFN'>0  DO
+  . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(TMGDFN)=0 QUIT  ;"//kt 6/25/24 
   . NEW NAME SET NAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
   . SET I=I+1
   . SET OUT(I)=TMGDFN_U_NAME_U_U_U_U_NAME
@@ -193,9 +217,10 @@ INEXACT(OUT,FROM,DIR)    ;
   ;"                Note: CPRS decrements the terminal character of user
   ;"                   input, and adds a ~
   ;"       DIR -- should be 1 or -1
+  ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
   ;"Results: NONE
   ;
-  NEW I,IEN,CNT,FROMIEN
+  NEW I,IEN,CNT,FROMIEN,TMGNAME
   SET CNT=44,I=0,FROMIEN=0
   SET DIR=$GET(DIR,1)
   NEW TMGCH,TMGTRIM SET TMGTRIM=""
@@ -226,6 +251,7 @@ INEXACT(OUT,FROM,DIR)    ;
   FOR  SET TMGIDX=$ORDER(TMGOUT("DILIST",TMGIDX)) QUIT:(TMGIDX="")  DO
   . SET TMGNAME=$PIECE($GET(TMGOUT("DILIST",TMGIDX,0)),U,2)
   . SET IEN=+$PIECE($GET(TMGOUT("DILIST",TMGIDX,0)),U,1)
+  . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(IEN)=0 QUIT  ;"//kt 6/25/24 
   . NEW TEMP SET TEMP=TMGTRIM_TMGSRCH_" -- "_TMGNAME
   . SET TMGTEMP(TEMP,IEN_U_TEMP_U_U_U_U_TEMP)=""
   . IF FROMIEN>0 SET TMGBYIEN(IEN)=IEN_U_TEMP_U_U_U_U_TEMP
@@ -243,6 +269,19 @@ INEXACT(OUT,FROM,DIR)    ;
   . . FOR  SET ENTRY=$ORDER(TMGTEMP(TMGTNAME,ENTRY),DIR) QUIT:ENTRY=""  DO  QUIT:I=CNT
   . . . SET I=I+1
   . . . SET OUT(I)=ENTRY
+  ;
+  ;"Now expand found list up to full bolus size   //kt added 6/28/24
+  NEW IEN,FROMIEN SET FROMIEN=0
+  SET FROM=TMGSRCH
+  IF 0=1,I<CNT FOR  SET FROM=$ORDER(^DPT("B",FROM),DIR) QUIT:FROM=""  DO  QUIT:I=CNT
+  . SET IEN=FROMIEN,FROMIEN=0 
+  . FOR  SET IEN=$ORDER(^DPT("B",FROM,IEN)) Q:'IEN  D  Q:I=CNT
+  . . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(IEN)=0 QUIT  
+  . . NEW ZN SET ZN=$GET(^DPT(IEN,0)) ; Get zero node name.
+  . . SET TMGNAME=$PIECE(ZN,"^",1)
+  . . SET I=I+1 
+  . . SET OUT(I)=IEN_U_FROM_U_U_U_U_TMGNAME      
+  ;            
   QUIT
   ;
 LSTHIPAA(TMGOUT,TMGDFN,FORMAT)   ;
@@ -309,6 +348,7 @@ HANDLEPHONE(OUT,FROM,DIR)    ;
   ;"PURPOSE: To handle patient lookup by telephone
   ;"Gather ALL patients with specified DOB, so can be sorted alphabetically
   ;"Results: 1 IF handled, 0 IF not handled.
+  ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
   NEW TEMP1,TEMP2,TEMP3,TEMPNUM,IEN,TMGNAME,TMGTNAME,TMGCH
   SET FROM=$TRANSLATE(FROM,"~","")
   IF (DIR=1) DO   ;"Reverse CPRS's inc/dec of terminal digit IF isolated date
@@ -347,9 +387,11 @@ HANDLEPHONE(OUT,FROM,DIR)    ;
   QUIT 1
   ;
 DOLOOKUP(TMGTEMP,INDEX,ITEM,FROM)  ;      
+  ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
   NEW TMGNAME,IEN
   SET IEN=0
   FOR  SET IEN=$ORDER(^DPT(INDEX,ITEM,IEN)) QUIT:'IEN  DO
+  . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(IEN)=0 QUIT  ;"//kt 6/25/24 
   . SET TMGNAME=$P($G(^DPT(IEN,0)),U,1) ; Get zero node name.
   . NEW TEMP SET TEMP=FROM_" "_TMGNAME
   . SET TMGTEMP(TEMP,IEN_U_TEMP_U_U_U_U_TEMP)=""
@@ -358,17 +400,23 @@ DOLOOKUP(TMGTEMP,INDEX,ITEM,FROM)  ;
   ;
 BRUTELOOKUP(TMGTEMP,INDEX,ITEM,FROM) ;
   ;"NOTE: Because this looks at EVERY number in index, it could be SLOW!       
+  ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
   NEW TMGNAME,IEN
   SET IEN=0
   NEW ANUM SET ANUM=""
   FOR  SET ANUM=$ORDER(^DPT(INDEX,ANUM)) QUIT:'ANUM  DO
   . IF $TRANSLATE(ANUM," ","")'[ITEM QUIT
   . FOR  SET IEN=$ORDER(^DPT(INDEX,ANUM,IEN)) QUIT:'IEN  DO
+  . . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(IEN)=0 QUIT  ;"//kt  6/25/24
   . . SET TMGNAME=$P($G(^DPT(IEN,0)),U,1) ; Get zero node name.
   . . NEW TEMP SET TEMP=FROM_" "_TMGNAME
   . . SET TMGTEMP(TEMP,IEN_U_TEMP_U_U_U_U_TEMP)=""
   . . SET TMGSUBIEN=0
   QUIT
+  ;
+ACTIVEPT(ADFN) ;"Is patient active.    //kt 6/25/24
+  NEW RESULT SET RESULT=$$ACTIVEPT^TMGPXR03(ADFN,10)  ;"10 yr window for activity.
+  QUIT RESULT
   ;
 FIXINDEX        ;
   ;Check date of last run

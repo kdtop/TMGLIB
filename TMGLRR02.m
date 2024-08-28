@@ -40,18 +40,14 @@ TEST  ;
 GETLABS(OUT,TMGDFN,SDT,EDT,OPTION) ;
   ;"Purpose: return formatted array containing patient's labs for specified date range. 
   ;"Input: OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
-  ;           OLD--> OUT("DT",FMDT,TEST_FLD#)=<data line>
   ;"          OUT("DT",FMDT,IEN60)=<data line>
   ;"              <data line> =  TESTNAME^VAL^UNITS^FLAG^REFLO^REFHI
   ;"          OUT("DT",FMDT,"COMMENT",Line#)=<text of comment>
   ;"          OUT("PANELS",IEN60)=PNLNAME
   ;"          OUT("PANELS",IEN60,FMDT)=""
-  ;           OLD-> OUT("TEST","FLD",TEST_FLD#,FMDT)=""  -- Index of test by date. 
   ;"          OUT("TEST","IEN60",IEN60,FMDT)=""  -- Index of test by date. 
-  ;           OLD-> OUT("TEST","NAME",<test name>)=TEST_FLD#
   ;"          OUT("TEST","NAME",<test name>)=IEN60
   ;"          OUT("TEST","NAME",<test name>,FMDT)=""
-  ;           OLD-> OUT("NAMES",TEST_FLD#)=<test name>
   ;"          OUT("NAMES",IEN60)=<test name>
   ;"       TMGDFN -- Patient IEN
   ;"       SDT -- Start date FMDT format.  Optional.  Default is 0 (earliest)
@@ -64,6 +60,7 @@ GETLABS(OUT,TMGDFN,SDT,EDT,OPTION) ;
   ;"          OPTION("NO DATES")=1  -- don't return DT node
   ;"          OPTION("NO PANELS")=1  -- don't return PANELS node
   ;"          OPTION("ADD SUMMARY")=1 -- add summary
+  ;"          OPTION("FILTER","MATCH IEN60",<IEN60>) -- return only values matching list of IEN60's
   SET TMGDFN=+$GET(TMGDFN)
   NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
   NEW SKIPCOMMENT SET SKIPCOMMENT=+$GET(OPTION("NO COMMENTS"))
@@ -73,6 +70,7 @@ GETLABS(OUT,TMGDFN,SDT,EDT,OPTION) ;
   NEW SKIPDATES SET SKIPDATES=+$GET(OPTION("NO DATES"))
   NEW SKIPPANELS SET SKIPPANELS=+$GET(OPTION("NO PANELS"))
   NEW ADDSUMM SET ADDSUMM=+$GET(OPTION("ADD SUMMARY"))  ;"12/11/18
+  NEW FILTERARR MERGE FILTERARR=OPTION("FILTER","MATCH IEN60")
   NEW PANELS,PANELCONTAINS,PANELINSTANCE
   SET SDT=+$GET(SDT)
   SET EDT=+$GET(EDT) IF EDT'>0 SET EDT=9999999
@@ -94,6 +92,7 @@ GETLABS(OUT,TMGDFN,SDT,EDT,OPTION) ;
   . . NEW DATA SET DATA=$GET(^LR(LRDFN,"CH",RDT,TESTFLD))
   . . NEW ARR DO PARSXTRA("ARR",DATA)
   . . NEW IEN60 SET IEN60=+$GET(ARR(3,7))
+  . . IF $DATA(FILTERARR),$DATA(FILTERARR(IEN60))=0 QUIT
   . . NEW LABNAME SET LABNAME=$PIECE($GET(^LAB(60,IEN60,0)),"^",1)
   . . NEW PANELARR DO CONTPNL(.PANELARR,IEN60)
   . . IF 'SKIPPANELS DO
@@ -126,12 +125,9 @@ GETLABS(OUT,TMGDFN,SDT,EDT,OPTION) ;
   . . IF 'SKIPDATES SET OUT("DT",ADT,IEN60)=DATASTR
   . . ;"IF 'SKIPDATES SET OUT("DT",ADT,TESTFLD)=DATASTR
   . . IF 'SKIPTSTFLDIDX DO
-  . . . ;"SET OUT("TEST","FLD",TESTFLD,ADT)=""
   . . . SET OUT("TEST","IEN60",IEN60,ADT)=""
   . . IF 'SKIPTSTNAMEIDX DO
-  . . . ;"SET OUT("TEST","NAME",TESTNAME,ADT)=""
   . . . SET OUT("TEST","NAME",LABNAME,ADT)=""
-  . . . ;"SET OUT("TEST","NAME",TESTNAME)=TESTFLD
   . . . SET OUT("TEST","NAME",LABNAME)=IEN60
   . . IF 'SKIPNAMESIDX SET OUT("NAMES",TESTFLD)=TESTNAME
   . ;"IF ADDSUMM DO   ;"12/11/18 

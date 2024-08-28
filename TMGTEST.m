@@ -35,7 +35,7 @@ TESTORN ;
   SET ORN=0
   FOR  SET ORN=$ORDER(^ORD(100.9,ORN)) QUIT:+ORN'>0  DO
   . NEW ZN SET ZN=$GET(^ORD(100.9,ORN,0))
-  . WRITE ORN,":",$P(ZN,"^",1)," --> ",$$ONOFF^ORB3FN(ORN),!
+  . WRITE ORN,":",$PIECE(ZN,"^",1)," --> ",$$ONOFF^ORB3FN(ORN),!
   QUIT
   ;
 Floor(x)  ;
@@ -161,7 +161,7 @@ CHECKRX
   . IF (OLDWARN=0)&(NEWWARN=0) QUIT
   . NEW WARN SET WARN=$$DRUG^PSSWRNA(IEN,0)
   . SET CT=CT+1
-  . WRITE CT," (",IEN,") ",$P(ZN,"^",1)," --> ",WARN,!
+  . WRITE CT," (",IEN,") ",$PIECE(ZN,"^",1)," --> ",WARN,!
   QUIT
 
 TESTLOOP ;
@@ -501,7 +501,7 @@ UNICODEBOX  ;
  QUIT
  ;
 ALLCHARS ;
-  USE $P:(WIDTH=260:CHSET="UTF-8")
+  ;"USE $P:(WIDTH=260:CHSET="UTF-8")
   WRITE !,!,"Test output of $CHAR()",!
   WRITE "NOTE: should USE $P:WIDTH=60  and draw terminal window wide",!,!
   NEW HEX SET HEX="0123456789ABCDEF"
@@ -533,43 +533,215 @@ ALLCHARS ;
   ;
 CHARDEMO ;
   USE $P:(CHSET="UTF-8")
-  NEW IDX FOR IDX=120:1:255 WRITE IDX,": ",$CHAR(IDX),!
+  NEW IDX FOR IDX=9472:1:9580 DO
+  . WRITE IDX,": " 
+  . DO UTF8WRITE^TMGSTUTL(IDX) 
+  . W !
   QUIT
 
 
-BOX2 ;
-       SET TOPLEFTCORNER="W *226,*148,*140"
-        SET TOPRIGHTCORNER="W *226,*148,*144"
-        SET BOTTOMLEFTCORNER="W *226,*148,*148"
-        SET BOTTOMRIGHTCORNER="W *226,*148,*152"
-        SET HORIZONTALLINE="W *226,*148,*128"
-        SET VERTICALLINE="W *226,*148,*130"
-        ;
-        ;"Define box size
-        SET BOXWIDTH=20
-        SET BOXHEIGHT=10
-        ;
-        NEW IDX
-        ;"Draw top of the box
-        X TOPLEFTCORNER
-        FOR IDX=2:1:(BOXWIDTH-1) DO
-        . X HORIZONTALLINE
-        X TOPRIGHTCORNER W !
-        ;
-        ;"Draw sides of the box
-        NEW JDX
-        FOR JDX=2:1:(BOXHEIGHT-1) DO
-        . X VERTICALLINE
-        . W ?$X+BOXWIDTH-2
-        . X VERTICALLINE WRITE !
-        ;
-        ;"Draw bottom of the box
-        X BOTTOMLEFTCORNER
-        FOR IDX=2:1:(BOXWIDTH-1) DO
-        . X HORIZONTALLINE
-        X BOTTOMRIGHTCORNER WRITE !
-        ;
-        QUIT
- 
-
- ;"$$FUNC^%HD("0905")                                             
+  
+GETMONA(OUT)
+  NEW DONE SET DONE=0
+  NEW IDX FOR IDX=1:1 DO  QUIT:DONE
+  . NEW LINE SET LINE=$$TRIM^XLFSTR($TEXT(MONAREF+IDX))
+  . IF LINE="" SET DONE=1 QUIT
+  . SET LINE=$EXTRACT(LINE,4,$L(LINE))
+  . IF LINE["<DONE>" SET DONE=1 QUIT
+  . SET OUT(IDX)=LINE    
+  QUIT 
+  ;
+MONAREF
+  ;;"x++x+++++++xxxxx+++++xxx+++x++xx++++x+++++++++++xxxxxx++++++xxxx+xx+xxxxxxxx+++++++++++x++xx+xxxxxxx
+  ;;"+++++++xxx+++x+xx+xx+++++++x++x++++++++++++xxxX$$$$$$$$X$Xxxxxxx+xxxxxxxx+++x+x++++++++++xxxxx+xxxxx
+  ;;"+++++++++++x+x++++++++++++++++xx++++++xX$$$$$$$$$$$$X$$$$$$$$$$$Xxxxxxx+++xx+++++++++++xx+xxxxxxxxxx
+  ;;"++x++++++x+++++++++x+x+++++++++++xxX$$$X$XXX$$$$$$$$$$$$$$$$$$$$$$$&$xx+xxx++++++++++++++xxxx+xxx+++
+  ;;"+++++++++++++++++++++++++++++++xx$$$$$XXXXXXXXX$$$$$$$$$$$&$&$$$$$$$&&&Xxxx+x+x++x++++++xx+++x++x+xx
+  ;;"+++++++++++++++++++++++++++++xXX$XXXXXXXxXXXXXX$$$$X$$$$$$$$$&&&&$$$$$&&&&xx++++++x+++++++++++++xx+x
+  ;;"++++++++++++++++++++++++++++xXXXXXXXXXXxxXXXXXXXXXX$$$$$$$$$$&&$&&&&&$&&&&&&xx++++++++++++++++x++xxx
+  ;;"++++++++++++++++++++++++++xXXxXXXXXXXXXxXXXXXXXXXXX$$$$$$$$$$$&&&&&&&&&&&&&&&$x++++++++++++++++x++++
+  ;;"+++++++++++++++++++++++++x$$XXXXXXXxx+++++++xxxxXXXX$$$$$$$$$$&&$$&&&&&&&&&&&&&x++++++++++x+x+++++++
+  ;;"++++++++++++++++++++++++XXXXXxx++++;;;;+;;+++++++++xxXX$$$$$$$$&$&&&&&&&&&&&&&&&$+++++++++++++++++++
+  ;;"+++++++++++;++++++++++xxX$Xxx+++;++;;;;;;;;;;;+++++xxxXXXXX$$$$$&&&&&&&&&&&&&&&&&$++++++++++++++++++
+  ;;"++++++++++++;+++++++++xX$Xxx+;;;;;;:::;;::;;;;;;;;+++xxxXXXX$$$$$$&&&&&&&$&&&&&&&&$x++++++++++++++++
+  ;;"++++++;++++++++++++++X$$Xx+++;;;:;;;;:;;;::;:;;;;;+++++xxXXX$$$$$$$&&&&&&&&&&&&&&&&$++++++++++++++++
+  ;;"+;;;;++++;+++;++++++x$$$Xx++;;;::;:;;;:;:;;::;;;;;;;+++xxxXXX$$$$$$&&&&&&&&&&&&&&&&&$+++++++++++++++
+  ;;"++;;+++++++;+++++++$$$$Xxx++;;;:::::;;;;;:::;;:;;;;;+++xxxXXXX$$$$$$$$&&&&&&&&&&&&&&&x+++++++x++++++
+  ;;"++++++;+++++;+++++xx$$$Xxx++;;;;:;;;;;;;;:;;;;;;;;;++++xxxxXXXX$$$$$$&&&&&&&&&&&&&&&&&+++xxx++++++++
+  ;;"+++;;+++++;;;;;+xxxX$$$Xx+++;;;;;;;;;;;;;;;;;;;;;+;+++++xxxxxXXXX$$$$&&&&&&&&&&&&&&&&&Xxxxxx++++++xx
+  ;;"+;;;++++;;;;;;+xxX$$$$$Xxx++;+;;;;;;;;;;;;;;;;;;;;+++++++++xxxxxXX$$&&&&&&&&&&&&&&&&&&&Xxxxxxxxxxxxx
+  ;;";;;+;;;+;;;;+;xxx$$X$$$xx+++;;;;;;;;:;;;;;;;;;;;;;;+;;++++++++xxxX$$$&&&&&&&&&&&&&&&&&&XxxxXxxxxxxxx
+  ;;";;;;;;;;;;;;;;xxX$$$$$$xx++++;;;;;;;:;;;;;;;;;;;;;;;;;++++++++xxxXX$$$&&&&&&&&&&&&&&&&&$XXXXXXXXxxxX
+  ;;";;;;;;;;;;;;;+xxX$$$$$$x++;;;;;+;;;;;;;;;;;;;++++++++++++++++xxxxX$$$$$&&&&&&&&&$&&&&&&$XXXX$xxxxxxx
+  ;;"+;;;;;;;;;;;;xxxX$$&$$$x++;++++++++;;;;;;;++xxxxxxxxxxxxxxxxxxXXXXX$$&$&&&&&&&&&&&&&&&&&XXXXXxXxxxxx
+  ;;"+;;;+;;;;;;++xXXX$$$$$$XxxxxxxxXxxx+;;;+;+xXXXXXxXXXXXXXXXXXXXXXXXX$$$$&$&&&&&&&&&&&&&&&XXXXXXXXXXXx
+  ;;"+;;;;;;;+++++XxXX$$$$$$XXXXx++xx++xx+;;;+xxXXXX++xxXXXxXX$$$$$XXXXXX$$&&&&&&&&&&&&&&&&&&$XXXXXXXXXxX
+  ;;";;;;;+;+;++++xX$$$$$$$$XXXXXx+X$$XXxx+;;+xXxXxxx+;xX$XXXXXXXxx++xxXX$$&$$&&&&&&&&&&&&&&&$XXX$XXXXXXX
+  ;;"+;++xx+++++++x$$$$$$$$$x++x+;;+++++++;;;+xxxx++;;;;+++++xx++++++xxXX$$&&&$&&&&&&&&&&&&&$&XXXXXXXXXXX
+  ;;"++xxxxXxx++++XX$$$$$$$$++++++xxXxx+++;;;+xxxx+++++++++xx+++;;;++xxXX$$&&&&&&&&&&&&&&&&&&&XXX$XXXXXXX
+  ;;"xxxXxxXXXX+xXXX$$$$$&&$++;;;;;;+;;;;;;;;++xxx+;;;;;;;;;;;;;;++++xXX$$&&&&&&&&&&&&&&&&$&&&XXXXXXXXXXX
+  ;;"XxXXxxXXXXxXxXxX$$$&&$$++;;;;;;;;;;;;;;;++++++;;;;:;;;;;;;++++xxxXX$$&&&&&&&&&&&&&&&&&$&&$XXXXXXXXXX
+  ;;"XXXXxXXXXXxXXXxX$$$$$&$x+++;;;;;;;;;;;:;++++++;;;;;;:;;;;;++++xxXX$$$&&&&&&$&&&&&$&&&$&&&&XXXXXXXXXX
+  ;;"XXXXXXX$XXX$XXX$$$$$$&$X++;;;;;;;;;;;;;;+++++++;;;;;;;;;;+++xxxXX$$$&&&&&&&$$&&&&$$&&&&&&&XxxxxxxXxx
+  ;;"$XXXXXXX$$$$$$$$$&$$&$&Xx+;;;;;;;;+;;;;;+++xx+;+;;;;;;;+++++xxxXX$$$&&&&&$$$&$&$&&&&&&&&$&XX$XXX$$Xx
+  ;;"XXXXX$$$XX$$$$$$$$$$$&&$x++;;;;;;++;;;;;++++xx;;;;;;;;++++xxxXXXX$$$&&&&&&&&$&&&&&$&&&$&$&$$$X$XXX$X
+  ;;"XXXXXXXXX$$$$$$$&$$$&$&$Xxx++;;+;+x+;;++xXxXXX+;;;;;+++++xxxxXXXX$$$&$&$&$&$$&&&&&&&$&&&&&&&&$$$$$XX
+  ;;"XXXXX$X$X$$$$X$$$$$&&$&&$xx+++++;;;+xxXX$XX$$X+;;;++++++xxxxXXXX$$$$&&&&&&&$&$&&$&&&&&&&&$&$$$$$$X$X
+  ;;"XXXXXXXXXX$$$$$$$&&&$$$$$Xxxx+++;;;;;+XXXXXxxx++++++++++xxxxxXXXX$$$$&$$&$&$&$&&&&&&$&&$&$$$$$XXXX$X
+  ;;"XXXX$X$$X$$$$$$$$$$$$$$&$Xxxx+++++;;;++xxxxxxxxxxxxx+++xxxxxXXXX$$$$&&&&&&&&$&&&$&&&&&&$&$$$$$X$$$$$
+  ;;"XX$$$XXXX$X$$$$$$$$$$$$&&$Xx+++xxXxxx++xxxxXXXXXXx++++++xxxxXXXX$$$$&&&&$&&&$&&&&&&&&&&$&$$$$$X$$XXX
+  ;;"XXX$X$$XXX$XX$$$$$$$$$$$&&Xxx+++++;;;;;+++xxxxx+++++++++xxxXXXXX$$$$&&&$&&&$&&$&$$&&&&&$&$$&&X$XX$XX
+  ;;"XXXX$XXXXXX$$$$$$$$$&$$$&&&$xx++++;;+++xxxxxxxxx++++++xxxxXXXXX$$$$$$$&&&$$&&$$&&&&&&&&&&$$$$$XXX$XX
+  ;;"XXXXXXXXXXX$X$$$$$$$&&&$&&&&$Xxx+++++++xxxxxxxxxxxx+xxxxXXXXXXX$$$$$$$&&&$&$$&&&&&&&&&&$&&$$XXXXXXXX
+  ;;"$XXX$XXXXXX$$X$$$$&$&&$&$$$&&$$Xx+++;;;;;;;+++xxxxxxxxxXXXXX$$$$$$&$&&&$&&&&&&&&&&&&&&&$&&&$$$XXXXXX
+  ;;"XXxxXxxxxXX$X$$$$$$&$$$$$$$&$&&$$X++;;;;;;;;+++xxxxxxXXXX$XXX$$$$&&$&$&$&&$&&&$$&&&&&&&&&&$$$$XXXXXX
+  ;;"$XXXXXXXXXXX$$$$$$$$$$$$$$$&$$$&$$$x+++;;;++++xxxXXXXXX$$$X$$$$$$&&&$&&&&&&&$$&&&&&&&$&&&&$$$$XXXXXX
+  ;;"XXXXXxxxxxxx$X$$$$$$$&$$$$$&$$&$$$&$Xxx+xxxxxxXXXXXX$X$X$$$$$$$&$$&$&&&&&&&&&&&&$&&&&&&&&&&$&$XX$XXX
+  ;;"XXXxxxxxxxxx$$$$$$$$$$&&$$$&&&$&&&&$$$$$X$XXXXXXXXXXX$$$$$$$$$$$$$$$$$$&$&&&&&$&&&&&&&&$$&&$&$$X$XXX
+  ;;"XXXXXxxxxxxxX$$$$&$$&$&$$&&$&&&&$$&&&$$&$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$&&&&&&&$&&&&&&&&&&&&&$$$$$$X
+  ;;"xxxxxxxxxxxxxXX$$&$$$$&$&&&&&$&&$$&&&$&$$XXXXX$$$$$$$$$$$$$$$$$$$$X$$$$$&$&&&&&&&&&&&&&&&&&&$&$&$$XX
+  ;;"xxx+xxxxxXxxXX$$$&$$$$$&$&$&&&&&$$$$$$$$$xxxxXXXXXX$$$$$$XXXX$XxXXXX$X$$$&&&$$&&&&&&&&&&&&&$$$$XXXXX
+  ;;"xxXXXxxxxXxxxX$X&$&&$$$&$$$&&&&$$$$$$$$$$XxxxxxxXXXXX$XXXXXXXXxXXxXXXXX$$&$&&&&&&&&&&&$$&&&&&$$X$XXX
+  ;;"xxxxxxxxxxxxXxXX$$&$$&$$$$$$$$$$&&$$$$$$$$x+++xxxxxxXXXXXXXXXXxxxxxXXXX$$$$$&&&&&&&&&&$&&&&&&&&$$$XX
+  ;;"XXxxxXXXxxxXXXXX&$$$$$&$$$$$$$&$$$&$$$$$$$x++++++xxxxxxxxxxxXxxxxxxxxxXX$$$$$&&&&&&&&&$$&&&$&&$&$$$X
+  ;;"xxxxXxXxXxxX$xxX&$$$&&&$$$&&$$$$$$&$$$$$$$Xx++++++xxxxxxxxxxxxx+x++xxxxXX$$$$$$&&&$$&$$$$&&&&&&$&&$$
+  ;;"XXXXXXX$$$XX$$X$&$&$&$&&&&&&$&$&$$$$$$XXxxxx+++++++++x+xx+++++x+x++++xxxXX$$$$&$$$$$$$$$$$&&&&&$&$&&
+  ;;"XX$$$$X$$$$$$$$$&$$&&&$&&$&$$$$$$$$$$Xxx++++++++++++++++++++++++++++xxxxXX$$$$$$$$$$$$$$$$&&$&&$&&&$
+  ;;"$XX$$$X$$$$$&$$$&$$&&$&&$$&&$$$$$$Xxxx+++++;++;++++++;++++++;;;;++;+++++xXX$$$&$$$$X$$$$$&&&$$&$&&&$
+  ;;"$$$$$$$X$$$$$$&&&&$&$$$$$$$$$$$XXxxxx++;+;;;;;;;;;;;+;;;;;;;;;;;;;;;++x+xxXXX$$$$$X$$$X$$&&$$$&$&&&&
+  ;;"<done>                                                                                                        
+  ;
+TESTPIPE  
+  WRITE "THIS JOB IS: ",$J,!
+  NEW TMGIO SET TMGIO=$IO
+  NEW STATFNAME SET STATFNAME="/tmp/status.txt"
+  NEW MSGREF SET MSGREF=$NAME(^TMP($J,"BATCHMEDS"))
+  WRITE !,"KILL PRIOR ITEMS @",MSGREF DO YN^DICN WRITE !,!
+  IF %=1 KILL @MSGREF
+  
+  NEW SHELL SET SHELL="ShellHandle"
+  OPEN SHELL:(SHELL="/bin/sh":COMMAND="/bin/sh":stderr="errIO")::"pipe" 
+  USE SHELL
+  NEW CMDSTR SET CMDSTR="tail -f "_STATFNAME
+  DO ADDLOG(MSGREF,"About to send out '"_CMDSTR_"'  $J="_$J)
+  WRITE CMDSTR,!  ;"<-- tail should now start monitoring file. 
+  
+  NEW JOBSTATUS,LOCALVARS
+  NEW LINE,DONE SET DONE=0
+  FOR  DO  QUIT:DONE
+  . ;"DO ADDLOG(MSGREF,"MSGREF="_MSGREF)
+  . ;"DO ADDLOG(MSGREF,"looping: "_$H)
+  . READ LINE:1
+  . NEW TIMEOUT SET TIMEOUT=($TEST=0)
+  . ;"SET LINE="TEST"
+  . IF 'TIMEOUT DO ADDLOG(MSGREF,"LINE='"_LINE_"'")
+  . IF 'TIMEOUT USE $P WRITE "LINE=",LINE,! USE SHELL
+  . ;"LOCK +@MSGREF@("RESULT"):2
+  . SET JOBSTATUS=$GET(@MSGREF@("RESULT"))
+  . ;"LOCK -@MSGREF@("RESULT")
+  . DO ADDLOG(MSGREF,"JOBSTATUS="_JOBSTATUS)
+  . IF +JOBSTATUS=0 QUIT  ;"still '0^WORKING'
+  . DO ADDLOG(MSGREF,"TRYING TO QUIT")
+  . ;"quit Tail command
+  . DO ADDLOG(MSGREF,"About to issue $CHAR(3)")
+  . WRITE $CHAR(3) ;" ^C  or end-of-tex.  Should cause tail to quit
+  . DO ADDLOG(MSGREF,"SETTING DONE=1")
+  . SET DONE=1
+  DO ADDLOG(MSGREF,"CLOSING SHELL")
+  CLOSE SHELL
+  WRITE "BYE",!
+  ;
+  QUIT
+  ;
+TP2  
+  NEW TMGIO SET TMGIO=$IO
+  NEW STATFNAME SET STATFNAME="/tmp/status.txt"
+  
+  NEW SHELL SET SHELL="ShellHandle"
+  OPEN SHELL:(SHELL="/bin/sh":COMMAND="/bin/sh":stderr="errIO")::"pipe" 
+  USE SHELL
+  NEW CMDSTR SET CMDSTR="tail -f "_STATFNAME
+  WRITE CMDSTR,!  ;"<-- tail should now start monitoring file. 
+  
+  NEW JOBSTATUS,LOCALVARS
+  NEW LINE,DONE SET DONE=0
+  FOR  DO  QUIT:DONE
+  . IF '$ZEOF READ LINE
+  . ;"SET LINE="TEST"
+  . USE $P WRITE "LINE=",LINE,! USE SHELL
+  . SET DONE=$ZEOF
+  . IF 'DONE HANG 1 QUIT 
+  . WRITE $CHAR(3) ;" ^C  or end-of-tex.  Should cause tail to quit
+  CLOSE SHELL
+  WRITE "BYE",!
+  ;
+  QUIT
+  ;
+ADDLOG(REF,STR) ;
+  NEW IDX SET IDX=$ORDER(@REF@("LOG",""),-1)+1
+  SET @REF@("LOG",IDX)=STR
+  QUIT;
+  ;
+CTRLPIPE ;
+  WRITE !,"ENTER $J FOR OTHER JOB: " READ J WRITE !
+  NEW MSGREF SET MSGREF=$NAME(^TMP(J,"BATCHMEDS"))
+CP1 ;
+  WRITE "SHOW LOG" DO YN^DICN WRITE !
+  IF %=1 DO  GOTO CP1
+  . ZWR @MSGREF@(*)
+  ;"LOCK +@MSGREF@("RESULT"):2  
+  SET @MSGREF@("RESULT")="1^DONE"
+  ;"LOCK -@MSGREF@("RESULT")  
+  QUIT
+ ;
+TESTPIPE2 ;
+  ;"TESTING VARS
+  NEW TMGIO SET TMGIO=$IO
+  NEW RUNLOGFNAME SET RUNLOGFNAME="/opt/worldvista/EHR/nodejs/veradigm/debug_run_log.txt" 
+  NEW STATFNAME SET STATFNAME="/opt/worldvista/EHR/nodejs/veradigm/status.txt"
+  NEW SHOWDBLOG SET SHOWDBLOG=1
+  NEW STATFN,DBGLOGFN SET (STATFN,DBGLOGFN)=""
+  NEW MSGREF SET MSGREF="NULL"
+  NEW TRIES SET TRIES=0
+  ;
+  ;"ORIGINAL CODE ---------
+  DO
+  . ;"Setup TAIL of status file to monitor progress
+  . NEW STATPIPE SET STATPIPE="STATPIPEHandle"
+  . OPEN STATPIPE:(SHELL="/bin/sh":COMMAND="/bin/sh":stderr="errIO")::"pipe"   ;"NOTE: errIO stream is ignored
+  . USE STATPIPE WRITE "tail -f "_STATFNAME USE TMGIO ;"//send command to PIPE  <-- tail should now start monitoring file.
+  . NEW LOGPIPE SET LOGPIPE="LOGPIPEHandle"
+  . ;"Optionally setup TAIL of debug_run_log file to monitor progress
+  . IF SHOWDBLOG DO
+  . . OPEN LOGPIPE:(SHELL="/bin/sh":COMMAND="/bin/sh":stderr="err2IO")::"pipe" ;"NOTE: err2IO stream is ignored
+  . . USE LOGPIPE WRITE "tail -f "_RUNLOGFNAME  USE TMGIO ;"//send command to PIPE  <-- tail should now start monitoring file.  
+  . NEW LINE,GOODREAD,DONE SET DONE=0
+  . FOR  DO  QUIT:DONE
+  . . SET TRIES=TRIES+1  ;"added for debugging
+  . . USE STATPIPE READ LINE:0 SET GOODREAD=$TEST USE TMGIO
+  . . IF GOODREAD DO
+  . . . IF STATFN]"" DO  QUIT         
+  . . . . XECUTE "DO "_STATFN_"(LINE)"    ;"<-- SEND LINE TO CALLBACK FUNCTION IF PROVIDED 
+  . . . USE TMGIO
+  . . . IF SHOWDBLOG WRITE "STATUS: "   ;"<--something to differentiate between STATUS and RUN_LOG 
+  . . . WRITE LINE,!  ;"DEFAULT TO CONSOLE OUTPUT.  
+  . . ELSE  WRITE "_"  ;"added for debugging
+  . . IF SHOWDBLOG DO
+  . . . USE LOGPIPE READ LINE:0 SET GOODREAD=$TEST USE TMGIO
+  . . . IF GOODREAD DO
+  . . . . IF DBGLOGFN]"" DO  QUIT    
+  . . . . . XECUTE "DO "_DBGLOGFN_"(LINE)"  ;"<-- SEND LINE TO CALLBACK FUNCTION IF PROVIDED  
+  . . . . USE TMGIO
+  . . . . WRITE "RUN_LOG: ",LINE,!  ;"DEFAULT TO CONSOLE OUTPUT.  
+  . . . ELSE  WRITE "."  ;"added for debugging
+  . . NEW JOBSTATUS SET JOBSTATUS=$GET(@MSGREF@("RESULT"))
+  . . IF +JOBSTATUS=0 QUIT  ;"still '0^WORKING'  <-- REPEAT LOOP
+  . . USE STATPIPE WRITE $CHAR(3) USE TMGIO             ;" ^C  or end-of-text (EOT).  Should cause tail to quit
+  . . IF SHOWDBLOG USE LOGPIPE WRITE $CHAR(3) USE TMGIO ;" ^C  or end-of-text (EOT).  Should cause tail to quit
+  . . SET DONE=1
+  . . IF TRIES > 100 SET DONE=1  ;"added for debugging
+  . CLOSE STATPIPE
+  . IF SHOWDBLOG CLOSE LOGPIPE
+  ;
+  USE TMGIO
+  

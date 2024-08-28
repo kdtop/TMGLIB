@@ -146,7 +146,7 @@ SETHIDELIST  ;
   SET @tmgDbgHideList@("TMGKE*")=""
   SET @tmgDbgHideList@("TMGSTUTL")=""
   SET @tmgDbgHideList@("TMGSTUT2")=""
-  ;SET @tmgDbgHideList@("TMGSTUT3")=""
+  SET @tmgDbgHideList@("TMGSTUT3")=""
   SET @tmgDbgHideList@("X*")=""
   ;"SET @tmgDbgHideList@("%*")=""
   SET @tmgDbgHideList@("DI*")=""
@@ -155,6 +155,9 @@ SETHIDELIST  ;
   SET @tmgDbgHideList@("XLFSTR")=""
   SET @tmgDbgHideList@("XGF")=""
   SET @tmgDbgHideList@("XGKB")=""
+  NEW AMOD SET AMOD=""
+  FOR  SET AMOD=$ORDER(^TMP("TMGIDE NOHIDE",$J,AMOD)) QUIT:AMOD=""  DO
+  . KILL @tmgDbgHideList@(AMOD)
   QUIT
   ;
   ;"-------------------------------------------------------------------

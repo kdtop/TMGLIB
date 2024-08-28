@@ -1,6 +1,6 @@
 TMGBUTIL ;TMG/kst/Binary Global Data Utilities ;03/25/06, 2/2/14
          ;;1.0;TMG-LIB;**1**;08/20/05
-
+ ;
  ;"TMG BINARY GLOBAL DATA UTILITY FUNCTIONS
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -20,17 +20,25 @@ TMGBUTIL ;TMG/kst/Binary Global Data Utilities ;03/25/06, 2/2/14
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
-
-
+ ;
  ;"=======================================================================
  ;"DEPENDENCIES
  ;"=======================================================================
  ;"Uses:   TMGBINF
  ;"          TMGMISC
  ;"          TMGSTUTL
-
  ;"=======================================================================
+ ;
+ ;"NOTICE: There are other binary string utilities in TMGMISC
+ ;"----------------------------------------------------------
+ ;"$$HEXCHR^TMGMISC(V) -- Take one BYTE and return HEX Values
+ ;"$$HEXCHR2^TMGMISC(n,digits) -- convert a number (of arbitrary length) to HEX digits
+ ;"$$HEX2DEC^TMGMISC(HEX) -- convert a string like this $10 to decimal number (e.g. 16)
+ ;"$$DEC2BIN^TMGMISC(INT,DIGITS) -- INTEGER TO BINARY STRING
+ ;"$$BIN2DEC^TMGMISC(BINSTR) -- BINARY STRING TO DECIMAL
+ ;"$$BIN2HEX^TMGMISC(BINSTR) -- BINARY STRING TO HEX
 
+ 
 BROWSE(globalRef,incSubscr)
         ;"SCOPE: PUBLIC
         ;"Purpose: to browse a binary SET as hex codes

@@ -284,7 +284,7 @@ MISSINR
   SET %ZIS("A")="Enter Output Device: "
   SET IOP="S121-LAUGHLIN-LASER"
   DO ^%ZIS  ;"standard device call
-  IF POP DO  GOTO CSPDn
+  IF POP DO  QUIT
   . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
   use IO
   SET OUTIDX=0
@@ -300,3 +300,85 @@ MISSINR
   DO ^%ZISC  ;" Close the output device  
   QUIT
        ;"
+P20GIVEN  ;"This will print a report displaying all Prevnar-20's given in a certain time period
+  NEW OUTARR,BDT,EDT
+  ;"SET BDT=3240101    ;"CHANGE THIS TO WHATEVER IT NEEDS TO BE
+  ;"SET EDT=3240512
+  SET BDT=$$ADDDAYS^TMGDATE(-7)
+  SET EDT=$$TODAY^TMGDATE
+  NEW VIEN SET VIEN=0
+  FOR  SET VIEN=$O(^AUPNVIMM("B",777003,VIEN)) QUIT:VIEN'>0  DO
+  . NEW ZN SET ZN=$GET(^AUPNVIMM(VIEN,0))
+  . NEW VISITIEN SET VISITIEN=$PIECE(ZN,"^",3)
+  . NEW DATE SET DATE=$PIECE($GET(^AUPNVSIT(VISITIEN,0)),"^",1)
+  . IF (DATE<BDT)!(DATE>EDT) QUIT
+  . NEW TMGDFN SET TMGDFN=$PIECE(ZN,"^",2)
+  . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+  . NEW IMMLINE SET IMMLINE=$$IMMHERE(TMGDFN)
+  . IF IMMLINE="" QUIT
+  . NEW DOB SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3)
+  . SET OUTARR(NAME)="[    ] "_NAME_" ("_$$EXTDATE^TMGDATE(DOB)_")"_IMMLINE
+  IF '$D(OUTARR) QUIT
+  NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  IF POP DO  QUIT 
+  . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+  use IO
+  NEW NAME SET NAME=""
+  WRITE !
+  WRITE "***************************************************************",!
+  WRITE "  PREVNAR-20's given, that need to be documents on TN Database",!
+  WRITE "            " SET Y=$$TODAY^TMGDATE DO DD^%DT WRITE Y,!
+  WRITE "           Please deliver this report to Lindsey",!
+  WRITE "***************************************************************",!
+  WRITE "                                            (From TMGRPT6.m)",!!
+  FOR  SET NAME=$O(OUTARR(NAME)) QUIT:NAME=""  DO
+  . WRITE $G(OUTARR(NAME)),!,!
+  DO ^%ZISC  ;" Close the output device  
+  QUIT
+       ;"
+IMMHERE(TMGDFN)       
+  NEW TIUIEN SET TIUIEN=0
+  NEW TMGRESULT SET TMGRESULT=""
+  NEW TIULINE,TEXT
+  NEW IMMIEN SET IMMIEN=1
+  NEW GOTADMIN
+  NEW TEMPSTR,IMM,NDC,MANUFACTURER,LOT,EXP,DONE,DOS
+  FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . ;"only include IMMUNIZATION notes
+  . NEW TIUPARENT SET TIUPARENT=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
+  . IF TIUPARENT'=18 QUIT
+  . SET TIULINE=0
+  . FOR  SET TIULINE=$ORDER(^TIU(8925,TIUIEN,"TEXT",TIULINE)) QUIT:TIULINE'>0  DO
+  . . SET TEXT=$GET(^TIU(8925,TIUIEN,"TEXT",TIULINE,0))
+  . . NEW Y SET Y=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",7)
+  . . D DD^%DT
+  . . SET DOS=$PIECE(Y,"@",1)
+  . . IF TEXT["IMMUNIZATION(S)" DO
+  . . . SET DONE=0,TEMPSTR=""
+  . . . NEW TEMPIDX SET TEMPIDX=TIULINE-1
+  . . . SET GOTADMIN=0
+  . . . FOR  SET TEMPIDX=$ORDER(^TIU(8925,TIUIEN,"TEXT",TEMPIDX)) QUIT:(DONE)!(TEMPIDX'>0)  DO
+  . . . . SET TEMPSTR=TEMPSTR_$GET(^TIU(8925,TIUIEN,"TEXT",TEMPIDX,0))
+  . . . . IF TEMPSTR["Expiration" SET DONE=1,GOTADMIN=1
+  . . . . IF (TEMPSTR["Ordered")!(TEMPSTR["Refused") SET DONE=1  ;"Not administered here
+  . . . SET TEMPSTR=$P($$HTML2TXS^TMGHTM1(TEMPSTR),"DOCUMENTATION:",2)
+  . . . SET IMM=$$TRIM^XLFSTR($PIECE(TEMPSTR,":",1))
+  . . . ;"SET IMM=$P(IMM,"-",1)
+  . . . IF $$UP^XLFSTR(IMM)["PREVNAR-20" DO
+  . . . . IF +$G(TEMPIDX)'>0 QUIT
+  . . . . SET TEMPSTR=TEMPSTR_" "_$GET(^TIU(8925,TIUIEN,"TEXT",TEMPIDX,0))
+  . . . . SET TEMPSTR=$$HTML2TXS^TMGHTM1(TEMPSTR)
+  . . . . SET NDC=$$GETRSLT^TMGRPT2(TEMPSTR,"NDC: ")
+  . . . . ;"SET MANUFACTURER=$$GETRSLT^TMGRPT2(TEMPSTR,"Manufacturer: ")
+  . . . . SET LOT=$$GETRSLT^TMGRPT2(TEMPSTR,"Lot Number: ")
+  . . . . SET EXP=$$GETRSLT^TMGRPT2(TEMPSTR,"Date: ")
+  . . . . ;"Original LineSET TMGRESULT(IMMIEN)=IMM_"^"_DOS_"^"_NDC_"^"_MANUFACTURER_"^"_LOT_"^"_EXP
+  . . . . SET TEMPSTR=$$UP^XLFSTR(TEMPSTR)
+  . . . . SET TEMPSTR=$PIECE(TEMPSTR,"ADMINISTERED TODAY.",2)
+  . . . . SET TMGRESULT=" Given on: "_$$EXTDATE^TMGDATE(DOS,2)_$C(13,10)_" LOT# "_LOT_" EXP: "_EXP_" NDC: "_NDC
+  . . . . ;"SET TEMPSTR=$$ADDLF(TEMPSTR)
+  . . . . ;"SET TMGRESULT=$$EXTDATE^TMGDATE(DOS,1)_"^"_$C(13,10)_TEMPSTR
+  QUIT TMGRESULT

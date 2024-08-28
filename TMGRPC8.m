@@ -59,3 +59,10 @@ GETDFN(SEQUELNUM)    ;
         NEW TMGDFN
         SET TMGDFN=+$ORDER(^DPT("TMGS",SEQUELNUM,""))
         QUIT TMGDFN
+        ;"
+TASKNOTE(TMGDFN)  ;" 
+        NEW RESULT
+        SET TMGDFN=+$G(TMGDFN)
+        SET RESULT=$G(^DPT(TMGDFN,"TMGTASK"))
+        QUIT RESULT
+        ;"

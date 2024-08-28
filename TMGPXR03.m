@@ -47,7 +47,16 @@ TMGPXR03 ;TMG/kst/TMG Reminder Reports stuff ;4/18/13, 2/2/14, 3/24/21
  ;"LOADHFAR(PREFIX,ARR) -- Load array with up all health factors that start
  ;"MRFNDN(TMGDFN,HFARRAY) -- FIND MOST RECENT HF NAME
  ;"WTTABLE(TMGDFN,OUTARRAY)  
- ;
+ ;"CMOUT(WANTNA) -- Do formatted Clinical Maintenance output.
+ ;"BOOL(B) ;
+ ;"TOMORROW(DATE) ;
+ ;"NEXTDATE(DATE,DAYSTOCHECK) -- return the NEXT business date after the date provided.
+ ;"COMORDHF(TMGRESULT,TMGDFN,ORDERTEXT) -- MOVE ANY TESTS FROM TEMP GLOBAL (GTLABSOR-TMP) TO STORED (GTLABSOR) 
+ ;  
+ ;"=======================================================================
+ ;"FYI  
+ ;"    See also  scheduling routines in TMGSEQL7
+ ;"
  ;"=======================================================================
  ;"Dependancies :  TMGUSRI2
  ;"=======================================================================
@@ -293,9 +302,10 @@ ACTIVEPT(TMGDFN,WINDOW) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACT
         ;"Results: 1 if patient is active, or 0 if not. 
         ;"NOTE: A patient will be considered to be active IF they have ANY notes
         ;"      TIU DOCUMENT (#8925) in past X yrs.
-        ;"      Will SET X to be 3 years
+        ;"      Will SET X to be 3 years, if WINDOW not specified.  
         ;"      ALSO, I want any patient with a DEATH NOTE title or a 
         ;"        TRANSFER RECORDS title to be not active.
+        NEW INACTIVEWHY SET INACTIVEWHY=""
         NEW DIFFYR SET DIFFYR=+$GET(WINDOW) IF DIFFYR=0 SET DIFFYR=3  ;"//kt 
         NEW DIEDTITLE SET DIEDTITLE=1416   ;"<--- HARD CODED title IEN
         NEW XFERTITLE SET XFERTITLE=1426   ;"<--- HARD CODED title IEN
@@ -353,6 +363,9 @@ ACTIVEPT(TMGDFN,WINDOW) ;"ACTIVE PATIENT   **NAME ALERT** --There is also an ACT
         . SET X1=LASTOVDT,X2=DCDT
         . DO ^%DTC
         . IF X>30 SET DCED=0
+        IF DCED=1 SET INACTIVEWHY="PATIENT WAS DISCHARGED ON "_$$EXTDATE^TMGDATE(DCDT,1)
+        IF XFER=1 SET INACTIVEWHY="PATIENT WAS DISCHARGED ON "_$$EXTDATE^TMGDATE(XFERDT,1)
+        IF FOUND=0 SET INACTIVEWHY="PATIENT'S LAST OFFICE VISIT WAS ON "_$$EXTDATE^TMGDATE(LASTOVDT,1)_". THE CUT OFF IS "_DIFFYR_" YEARS."
         IF (XFER=0)&(DCED=0) SET TMGRESULT=(FOUND>0)
 APTDN   QUIT TMGRESULT        
         ;                
