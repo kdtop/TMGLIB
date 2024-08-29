@@ -23,6 +23,7 @@ TMGTIUT5 ;TMG/kst-TIU-related code ; 5/7/16, 3/24/21
   ;"=======================================================================
   ;
 MAINTRIG(IEN8925)  ;"This will be the main Post-Signature Entry Point, and will route to the proper code.
+  SET IEN8925=+$GET(IEN8925) GOTO:(IEN8925'>0) MTDN  
   IF 1=0 DO 
   . SET ^TMP($J,"MAINTRIG",IEN8925)=$H
   . SET ^TMP($J,"MAINTRIG",IEN8925,"ATYPEIEN")=TYPEIEN
@@ -31,18 +32,18 @@ MAINTRIG(IEN8925)  ;"This will be the main Post-Signature Entry Point, and will 
 MTDN ;  
   QUIT
   ;"
-HNDLFRGND(TIUIEN,ONLYOV) ;"HANDLE TRIGGER EVENTS IN **FOREGROUND** PROCESS
+HNDLFRGND(IEN8925,ONLYOV) ;"HANDLE TRIGGER EVENTS IN **FOREGROUND** PROCESS
   ;"Moved from TRIGJOB^TMGTIUT6
-  ;"Input: TIUIEN --The IEN in file 8925 (TIU DOCUMENT)
+  ;"Input: IEN8925 --The IEN in file 8925 (TIU DOCUMENT)
   ;"       ONLYOV -- OPTIONAL.  If 1, then only office visit type note are processed
-  SET TIUIEN=+$GET(TIUIEN) GOTO:(TIUIEN'>0) TGDN  
-  IF ($GET(ONLYOV)=1),($$ISOFFVST^TMGC0QT1(TIUIEN)=0) GOTO TGDN  ;"optionally skip this TIU DOCUMENT if not office visit
-  NEW PROVIEN SET PROVIEN=+$PIECE($GET(^TIU(8925,TIUIEN,12)),"^",2)  
-  IF (PROVIEN=168)!(PROVIEN=83) DO        ;"<-- HARD CODED PROVIDER IEN'S  
+  IF $GET(ONLYOV)=1,($$ISOFFVST^TMGC0QT1(IEN8925)=0) GOTO TGDN  ;"optionally skip this document if not office visit
+  NEW PROVIEN SET PROVIEN=+$PIECE($GET(^TIU(8925,IEN8925,12)),"^",2)  
+  IF (PROVIEN=168)!(PROVIEN=83) DO        ;"<-- HARD CODED PROVIDER IEN'S
+  . ;"COULD THIS BE DONE IN BACKGROUND?
   . NEW ARRAY
-  . DO SUMNOTE^TMGTIUP1(TIUIEN,.ARRAY)    ;"SUMNOTE parses the note HPI and A&P into ARRAY  
-  . DO FILE1(TIUIEN,"ARRAY",.QUIET)       ;"Store ARRAY into file 22719   (TMG TIU DOCUMENT TOPICS)
-  . DO FILE1B(TIUIEN,.ARRAY,.QUIET)       ;"Store ARRAY into file 22719.2 (TMG TIU DOCUMENT THREADS)    
+  . DO SUMNOTE^TMGTIUP1(IEN8925,.ARRAY)    ;"SUMNOTE parses the note HPI and A&P into ARRAY  
+  . DO FILE1(IEN8925,"ARRAY",.QUIET)       ;"Store ARRAY into file 22719   (TMG TIU DOCUMENT TOPICS)
+  . DO FILE1B(IEN8925,.ARRAY,.QUIET)       ;"Store ARRAY into file 22719.2 (TMG TIU DOCUMENT THREADS)    
   ;
 TGDN  ;
   QUIT
@@ -65,19 +66,14 @@ BKJOB(IEN8925)  ;
   . KILL @TMPSTORE SET @TMPSTORE@("IEN8925")=$GET(IEN8925)
   SET @TMPSTORE@("LAST CALL TIME")=$$NOW^XLFDT  
   ;"--------------------------------------------------------
-  IF $$ISHTML^TMGHTM1(.IEN8925) DO STRIPSCR^TMGHTM1(.IEN8925)  ;"strip <SCRIPT> ..</SCRIPT> -- If the note is HTML, remove any <SCRIPT> tags
-  ;
-  ;"FILEIMM stores immunizations given with the IEN8925 into file 22741.
-  ;"   I cannot show that this file is ever used. More research needs to be done, but
-  ;"   nothing in the TMG*.m namespace seems to reference this file
-  ;"DO FILEIMM^TMGTIUT5(.IEN8925)  ;"DEPRECIATED -- REMOVE LATER  8/27/24
-  ;
+  IF $$ISHTML^TMGHTM1(IEN8925) DO STRIPSCR^TMGHTM1(IEN8925)  ;"strip <SCRIPT> ..</SCRIPT> if the note is HTML
   DO SCAN4FU^TMGTIU10(IEN8925,"OUT",1)  ;"SCAN4FU gets followup data and saves it into 22731 'TMG TIU FOLLOWUP DATA'
   DO TABLDATA(IEN8925)                  ;"POPULATE TMG TABLE DATA FILE  
   DO HANDLTIU^TMGRX007(IEN8925)         ;"EXTRACT AND SAVE MEDICATION FILE LIST INFORMATION
   DO HNDLMAMMO(IEN8925)                 ;"Handle mammogram type documents (if appropriate type)
-  DO CHK6CIT^TMGTIUT6(TIUIEN)           ;"Ceck if note contains 6CIT. If so, add a HF and attach the score to it (STILL USED?)
+  DO CHK6CIT^TMGTIUT6(IEN8925)          ;"Check if note contains 6CIT. If so, add a HF and attach the score to it (STILL USED?)
   DO ADDLSIGN(IEN8925)                  ;"Used for Death Notes and Path Report (Image) TIU titles. This can be kept and have both notes run through the normal Post-Signature code
+  DO FILEIMM^TMGTIUT5(.IEN8925)         ;"DEPRECIATED -- REMOVE LATER  8/27/24
   ;"
   ;"If the note title is a CONSULT / PATIENT CONTINUITY SUMMARY, then do CHECKDT
   ;" NOTES: This functionality looks antiquated. I cannot figure out exactly what was supposed to be happening with it.
@@ -90,11 +86,12 @@ BKJOB(IEN8925)  ;
   ;"    2) HANDLE^TMGTICKL runs hourly through Taskman Scheduler. This looks at all 'unsigned' ticklers to see if the
   ;"              corresponding notes have been signed
   ;"  I think the below is useless
-  ;"IF +^TIU(8925,TIUIEN,0)=$$CNSLTPT() DO CHECKDT(TIUIEN)  ;"Fix TMGCNSLT Xref entry for certain .01 field entries
+  ;"**REMOVE THIS BLOCK LATER IF NOT NEEDED.  8/29/24
+  ;"IF +^TIU(8925,IEN8925,0)=$$CNSLTPT() DO CHECKDT(IEN8925)  ;"Fix TMGCNSLT Xref entry for certain .01 field entries
   ;
   QUIT
   ;
-CHECKDT(TIUIEN)   ;"DEPRECIATED.  SEEMS TO BE OLD CODE.  //kt 8/27/24        
+CHECKDT(IEN8925)   ;"DEPRECIATED.  SEEMS TO BE OLD CODE.  //kt 8/27/24        
   ;"Purpose: After note has been signed, this code will be called IF .01 field is CONSULT / PATIENT CONTINUITY SUMMARY
   ;"         OLD --> CALLED FROM: TRIGGER1^TMGC0Q04
   ;"                      SETOLD, CKDTOLD
@@ -103,29 +100,29 @@ CHECKDT(TIUIEN)   ;"DEPRECIATED.  SEEMS TO BE OLD CODE.  //kt 8/27/24
   ;"              Note: Later, after it has been determined that records have already been completed,
   ;"                    the node will be changed to:  ^TIU(8925,"ATMGCNSLT",EpisodeBeginDate,DocIEN)=1
   ;"                    (This is done elsewhere: CONTCARE^TMGC0QT2)
-  ;"Input: TIUIEN -- IEN IN 8925
+  ;"Input: IEN8925 -- IEN IN 8925
   ;"Result: none
   NEW USER SET USER=DUZ
-  NEW DOCDT SET DOCDT=+$PIECE($GET(^TIU(8925,+TIUIEN,0)),"^",7)
+  NEW DOCDT SET DOCDT=+$PIECE($GET(^TIU(8925,+IEN8925,0)),"^",7)
   IF DOCDT'>0 QUIT
-  ;"IF $DATA(^TIU(8925,"ATMGCNSLT",DOCDT,TIUIEN))=0 QUIT
+  ;"IF $DATA(^TIU(8925,"ATMGCNSLT",DOCDT,IEN8925))=0 QUIT
   NEW DATESTR
   NEW DUEDATE SET DUEDATE=0
-  IF $$HasTickler^TMGTICKL(TIUIEN,.DATESTR,.USER) do
+  IF $$HasTickler^TMGTICKL(IEN8925,.DATESTR,.USER) do
   . SET DUEDATE=+$GET(DATESTR("FM"))
   . IF +DUEDATE=0 SET DUEDATE=DOCDT  ;"Tickler entry now allowed to have no date, when wanted to fire immediatly.
-  . SET ^TIU(8925,"ATMGCNSLT",DOCDT,TIUIEN)=DUEDATE
+  . SET ^TIU(8925,"ATMGCNSLT",DOCDT,IEN8925)=DUEDATE
   QUIT
   ;
-FILE1(TIUIEN,PARRAY,QUIET,OPTION)  ;"Store parsed array into Fileman file 22719
-  ;"Input: TIUIEN -- The IEN in file 8925 (TIU DOCUMENT)
+FILE1(IEN8925,PARRAY,QUIET,OPTION)  ;"Store parsed array into Fileman file 22719
+  ;"Input: IEN8925 -- The IEN in file 8925 (TIU DOCUMENT)
   ;"       PARRAY -- PASS BY NAME.  Info to be filed.  Format as below
-  ;"         @PARRAY@(TIUIEN,"HPI",Item#)=Topic^First line of paragraph
-  ;"         @PARRAY@(TIUIEN,"A&P",Item#)=Topic^First line of paragraph
+  ;"         @PARRAY@(IEN8925,"HPI",Item#)=Topic^First line of paragraph
+  ;"         @PARRAY@(IEN8925,"A&P",Item#)=Topic^First line of paragraph
   ;"       QUIET -- OPTIONAL.  If 1, then no screen output. DEFAULT=1
   ;"            To get back errors, PASS QUIET BY REFERENCE.  Stored as follows:
-  ;"            QUIET(TIUIEN)=ErrorString
-  ;"            QUIET(TIUIEN,SECTION,#)=SubRecErrorString
+  ;"            QUIET(IEN8925)=ErrorString
+  ;"            QUIET(IEN8925,SECTION,#)=SubRecErrorString
   ;"       OPTION -- OPTIONAL
   ;"          OPTION("SKIP REWRITE"=1 -- if should NOT write if prior data present.  
   ;"Results: NONE
@@ -133,7 +130,7 @@ FILE1(TIUIEN,PARRAY,QUIET,OPTION)  ;"Store parsed array into Fileman file 22719
   SET QUIET=+$GET(QUIET,1)
   NEW TMGFDA,TMGMSG,TMGIEN
   NEW SKIP SET SKIP=+$GET(OPTION("SKIP REWRITE"))
-  NEW RECIEN SET RECIEN=+$ORDER(^TMG(22719,"B",TIUIEN,""))
+  NEW RECIEN SET RECIEN=+$ORDER(^TMG(22719,"B",IEN8925,""))
   IF RECIEN>0 DO  GOTO F1B
   . IF $DATA(@PARRAY)=0 QUIT
   . IF SKIP QUIT
@@ -142,37 +139,37 @@ FILE1(TIUIEN,PARRAY,QUIET,OPTION)  ;"Store parsed array into Fileman file 22719
   . DO FILE^DIE("E","TMGFDA","TMGMSG")
   . IF $DATA(TMGMSG("DIERR"))=0 QUIT
   . NEW ERRSTR SET ERRSTR=$$GETERRST^TMGDEBU2(.TMGMSG)
-  . SET QUIET(TIUIEN)=ERRSTR QUIT:QUIET
+  . SET QUIET(IEN8925)=ERRSTR QUIT:QUIET
   . WRITE !,ERRSTR,!
 ADD ;
-  SET TMGIEN(1)=TIUIEN
-  SET TMGFDA(22719,"+1,",.01)="`"_TIUIEN
+  SET TMGIEN(1)=IEN8925
+  SET TMGFDA(22719,"+1,",.01)="`"_IEN8925
   SET TMGFDA(22719,"+1,",1)="NOW"
   DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO  GOTO F1DN
   . NEW ERRSTR SET ERRSTR=$$GETERRST^TMGDEBU2(.TMGMSG)
-  . IF QUIET SET QUIET(TIUIEN)=ERRSTR
+  . IF QUIET SET QUIET(IEN8925)=ERRSTR
   . ELSE  WRITE !,ERRSTR,!
   SET RECIEN=+$GET(TMGIEN(1))
   IF RECIEN'>0 DO  
   . NEW ERRSTR SET ERRSTR="Unable to find record to file into."
-  . SET QUIET(TIUIEN)=ERRSTR QUIT:QUIET
+  . SET QUIET(IEN8925)=ERRSTR QUIT:QUIET
   . WRITE !,ERRSTR,!
 F1B  ;
-  IF $DATA(QUIET(TIUIEN)) GOTO F1DN
-  IF SKIP,$DATA(^TMG(22719,TIUIEN))>0 GOTO F1DN
-  NEW PROVIEN SET PROVIEN=+$PIECE($GET(^TIU(8925,TIUIEN,12)),"^",2)
+  IF $DATA(QUIET(IEN8925)) GOTO F1DN
+  IF SKIP,$DATA(^TMG(22719,IEN8925))>0 GOTO F1DN
+  NEW PROVIEN SET PROVIEN=+$PIECE($GET(^TIU(8925,IEN8925,12)),"^",2)
   ;"IF (PROVIEN'=168)&(PROVIEN'=83) GOTO F1DN
-  ;"IF $$ISOFFVST^TMGC0QT1(TIUIEN)=0 GOTO F1DN
+  ;"IF $$ISOFFVST^TMGC0QT1(IEN8925)=0 GOTO F1DN
   NEW SECTION SET SECTION=""
-  FOR  SET SECTION=$ORDER(@PARRAY@(TIUIEN,SECTION)) QUIT:SECTION=""  DO
+  FOR  SET SECTION=$ORDER(@PARRAY@(IEN8925,SECTION)) QUIT:SECTION=""  DO
   . NEW FLD,FILE SET FLD=0
   . IF SECTION="HPI" SET FLD=2,FILE=22719.02
   . ELSE  IF SECTION="A&P" SET FLD=3,FILE=22719.03
   . IF FLD'>0 QUIT
   . NEW IDX SET IDX=0
-  . FOR  SET IDX=$ORDER(@PARRAY@(TIUIEN,SECTION,IDX)) QUIT:IDX'>0  DO
-  . . NEW INFO SET INFO=$GET(@PARRAY@(TIUIEN,SECTION,IDX))
+  . FOR  SET IDX=$ORDER(@PARRAY@(IEN8925,SECTION,IDX)) QUIT:IDX'>0  DO
+  . . NEW INFO SET INFO=$GET(@PARRAY@(IEN8925,SECTION,IDX))
   . . NEW TMGFDA,TMGMSG,TMGIEN
   . . NEW TITLE SET TITLE=$PIECE(INFO,"^",1) QUIT:TITLE=""
   . . IF $LENGTH(TITLE)>100 SET TITLE=$EXTRACT(TITLE,1,100) ;"Field length restriction.
@@ -184,43 +181,43 @@ F1B  ;
   . . DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
   . . IF $DATA(TMGMSG("DIERR")) DO  QUIT
   . . . NEW ERRSTR SET ERRSTR=$$GETERRST^TMGDEBU2(.TMGMSG)
-  . . . IF QUIET SET QUIET(TIUIEN,SECTION,IDX)=ERRSTR
-  . . . ELSE  WRITE !,"TIUIEN=#",TIUIEN," ",$$GETERRST^TMGDEBU2(.TMGMSG),!
+  . . . IF QUIET SET QUIET(IEN8925,SECTION,IDX)=ERRSTR
+  . . . ELSE  WRITE !,"IEN8925=#",IEN8925," ",$$GETERRST^TMGDEBU2(.TMGMSG),!
   . . IF SECTION'="HPI" QUIT
-  . . NEW THREADSTR SET THREADSTR=$GET(@PARRAY@(TIUIEN,"THREAD",IDX))
+  . . NEW THREADSTR SET THREADSTR=$GET(@PARRAY@(IEN8925,"THREAD",IDX))
   . . SET THREADSTR=$PIECE(THREADSTR,"^",2,999)
   . . IF THREADSTR="" QUIT
   . . NEW SUBIEN SET SUBIEN=$GET(TMGIEN(1))
   . . IF SUBIEN'>0 DO  QUIT
-  . . . WRITE !,"TIUIEN=#",TIUIEN," Unable to find subien of added sub record",!
-  . . SET TMGIENS=SUBIEN_","_TIUIEN_","
+  . . . WRITE !,"IEN8925=#",IEN8925," Unable to find subien of added sub record",!
+  . . SET TMGIENS=SUBIEN_","_IEN8925_","
   . . NEW TMGWP KILL TMGMSG
   . . DO STR2WP^TMGSTUT2(THREADSTR,"TMGWP",75)
   . . IF $DATA(TMGWP)=0 QUIT
   . . DO WP^DIE(FILE,TMGIENS,2,"","TMGWP","TMGMSG")
   . . IF $DATA(TMGMSG("DIERR")) DO  QUIT
   . . . NEW ERRSTR SET ERRSTR=$$GETERRST^TMGDEBU2(.TMGMSG)
-  . . . IF QUIET SET QUIET(TIUIEN,SECTION,IDX)=ERRSTR
-  . . . ELSE  WRITE !,"TIUIEN=#",TIUIEN," ",$$GETERRST^TMGDEBU2(.TMGMSG),!
+  . . . IF QUIET SET QUIET(IEN8925,SECTION,IDX)=ERRSTR
+  . . . ELSE  WRITE !,"IEN8925=#",IEN8925," ",$$GETERRST^TMGDEBU2(.TMGMSG),!
 F1DN ;
   QUIT
   ;
-FILE1B(TIUIEN,ARRAY,QUIET,OPTION)  ;"Store parsed array into Fileman file 22719.2 (TMG TIU DOCUMENT THREADS)
+FILE1B(IEN8925,ARRAY,QUIET,OPTION)  ;"Store parsed array into Fileman file 22719.2 (TMG TIU DOCUMENT THREADS)
   ;"Moved from FILE1B^TMGTIUT6
-  ;"Input: TIUIEN -- The IEN in file 8925 (TIU DOCUMENT)
+  ;"Input: IEN8925 -- The IEN in file 8925 (TIU DOCUMENT)
   ;"       ARRAY -- PASS BY REFERENCE.  Info to be filed.  Format as below
-  ;"         ARRAY(TIUIEN,"THREAD",IDX#)=Topic^Thread text
+  ;"         ARRAY(IEN8925,"THREAD",IDX#)=Topic^Thread text
   ;"       QUIET -- OPTIONAL.  If 1, then no screen output. DEFAULT=1
   ;"            To get back errors, PASS QUIET BY REFERENCE.  Stored as follows:
-  ;"            QUIET(TIUIEN)=ErrorString
+  ;"            QUIET(IEN8925)=ErrorString
   ;"       OPTION -- OPTIONAL
   ;"          OPTION("SKIP REWRITE"=1 -- if should NOT write if prior data present.  
   ;"Results: NONE
   NEW TMGFDA,TMGMSG,TMGIEN,TMGIENS
   NEW ERR SET ERR=""
-  NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
+  NEW ZN SET ZN=$GET(^TIU(8925,IEN8925,0))
   NEW ADFN SET ADFN=+$PIECE(ZN,"^",2) ;//GET PATIENT DFN
-  IF ADFN'>0 SET ERR="Unable to get patient from TIUIEN: "_TIUIEN GOTO ERR
+  IF ADFN'>0 SET ERR="Unable to get patient from IEN8925: "_IEN8925 GOTO ERR
   NEW RECIEN SET RECIEN=ADFN
   IF $DATA(^TMG(22719.2,RECIEN))>0 GOTO F1BL2  
   ;"MAKE RECORD FOR PATIENT, WITH DINUM RECORD NUMBER
@@ -230,10 +227,10 @@ FILE1B(TIUIEN,ARRAY,QUIET,OPTION)  ;"Store parsed array into Fileman file 22719.
   IF $DATA(TMGMSG("DIERR")) SET ERR=$$GETERRST^TMGDEBU2(.TMGMSG) GOTO ERR
 F1BL2 ;  
   NEW NOTEDT SET NOTEDT=+$PIECE(ZN,"^",7)  ;"0;7=EPISODE BEGIN DATE/TIME
-  IF NOTEDT'>0 SET ERR="Unable to get Episode Begin Date/Time from TIUIEN: "_TIUIEN GOTO ERR
+  IF NOTEDT'>0 SET ERR="Unable to get Episode Begin Date/Time from IEN8925: "_IEN8925 GOTO ERR
   NEW IDX SET IDX=0
-  FOR  SET IDX=$ORDER(ARRAY(TIUIEN,"THREAD",IDX)) QUIT:(IDX'>0)!(ERR'="")  DO
-  . NEW TEMP SET TEMP=$GET(ARRAY(TIUIEN,"THREAD",IDX))
+  FOR  SET IDX=$ORDER(ARRAY(IEN8925,"THREAD",IDX)) QUIT:(IDX'>0)!(ERR'="")  DO
+  . NEW TEMP SET TEMP=$GET(ARRAY(IEN8925,"THREAD",IDX))
   . NEW TOPIC SET TOPIC=$PIECE(TEMP,"^",1) QUIT:TOPIC=""
   . NEW THREADSTR SET THREADSTR=$PIECE(TEMP,"^",2,999) QUIT:THREADSTR=""
   . NEW TOPICIEN SET TOPICIEN=$ORDER(^TMG(22719.2,RECIEN,1,"B",TOPIC,0))
@@ -250,7 +247,7 @@ F1BL2 ;
   . . KILL TMGIEN,TMGFDA,TMGMSG
   . . SET TMGIENS="+1,"_TOPICIEN_","_RECIEN_","
   . . SET TMGFDA(22719.211,TMGIENS,.01)=NOTEDT
-  . . SET TMGFDA(22719.211,TMGIENS,.02)=TIUIEN
+  . . SET TMGFDA(22719.211,TMGIENS,.02)=IEN8925
   . . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
   . . IF $DATA(TMGMSG("DIERR")) SET ERR=$$GETERRST^TMGDEBU2(.TMGMSG) QUIT
   . . SET DTIEN=$GET(TMGIEN(1)) IF DTIEN'>0 DO  QUIT
@@ -275,7 +272,7 @@ F1BL2 ;
   GOTO DN
 ERR ;
   IF $GET(QUIET)=1 DO  
-  . SET QUIET(TIUIEN)=ERR
+  . SET QUIET(IEN8925)=ERR
   ELSE  DO
   . WRITE !,"ERROR: ",ERR,!
 DN ;
@@ -284,11 +281,11 @@ DN ;
 CNSLTPT() ;"get hard-coded pointer for CONSULT / PATIENT CONTINUITY SUMMARY
   QUIT 1486
   ;
-CLRFRMTU(TIUIEN) ;"Clear 1 record for linked TIU DOCUMENT.
+CLRFRMTU(IEN8925) ;"Clear 1 record for linked TIU DOCUMENT.
   SET SAVPARENT=+$GET(SAVPARNT,0)
-  SET TIUIEN=+$GET(TIUIEN)
-  IF TIUIEN'>0 GOTO CFM
-  NEW RECIEN SET RECIEN=+$ORDER(^TMG(22719,"B",TIUIEN,""))
+  SET IEN8925=+$GET(IEN8925)
+  IF IEN8925'>0 GOTO CFM
+  NEW RECIEN SET RECIEN=+$ORDER(^TMG(22719,"B",IEN8925,""))
   GOTO:RECIEN'>0 C1DN
   DO CLEAR1(RECIEN)
 CFM  ;
@@ -306,16 +303,25 @@ CLEAR1(RECIEN) ;
 C1DN ;
   QUIT
   ;  
-ADDLSIGN(IEN8925) ;"Add additional signers, if appropriate
-  ;"NOTE: I accidentally deleted ADDLSIGN^TMGTIUT6.  sorry!!!!
-  NEW ADDLSIGN
-  SET ADDLSIGN(1416)="DEATH NOTE"
-  SET ADDLSIGN(1420)="PATH REPORT (IMAGE)"
+ADDLSIGN(IEN8925)  ;"Add an addl signer when needed  ;"11/23/21
+  NEW USERARR,RESULT
+  NEW TITLEIEN SET TITLEIEN=$PIECE($GET(^TIU(8925,IEN8925,0)),"^",1)
+  ;"1416 = DEATH NOTE
+  ;"IF TITLEIEN=1416 DO
+  ;". SET USERARR(1)="150^Hagood,Eddie L^- System Manager"
+  ;". SET USERARR(2)="123^Hensley,Tammy G"
   ;
-  IF $DATA(ADDLSIGN(IEN8925)) DO
-  . ;"FINISH
+  ;"1420 = PATH REPORT (IMAGE)
+  IF TITLEIEN=1420 DO
+  . SET USERARR(1)="150^Hagood,Eddie L^- System Manager"
   ;
-  QUIT
+  ;"1470 = HOSPITAL D/C SUMM (IMAGE)
+  ;"1471 = DISCHARGE SUMMARY
+  IF (TITLEIEN=1470)!(TITLEIEN=1471) do
+  . SET USERARR(1)="259^Shipley,Sabrina^- CMA"
+  ;
+  IF $DATA(USERARR(1)) DO IDSIGNRS^TIULX(.RESULT,IEN8925,.USERARR)
+  QUIT  
   ;
 HNDLMAMMO(IEN8925)  ;"Handle mammogram type notes, if needed.  
   NEW MAMMORSLT
@@ -410,12 +416,17 @@ HNDLERR ;"
     DO PRESS2GO^TMGUSRI2
     QUIT
     ;"
-FILEIMM(TIUIEN)  ;"DEPRECIATED -- REMOVE LATER  8/27/24
-    ;"Using TIUIEN, this function will find any associated Imminizations that were
+FILEIMM(IEN8925)  ;"DEPRECIATED -- REMOVE LATER  8/27/24
+    ;"Using IEN8925, this function will find any associated Imminizations that were
     ;"  administered with the visit. If any are found, the details are filed
     ;"  in the TMG VACCINES ADMINISTERED FILE (22741)
+  ;"NOTE!!    
+  ;"FILEIMM stores immunizations given with the IEN8925 into file 22741.
+  ;"   I cannot show that this file is ever used. More research needs to be done, but
+  ;"   nothing in the TMG*.m namespace seems to reference this file
+  ;      
     NEW TIUZN,VISITIEN
-    SET TIUZN=$G(^TIU(8925,TIUIEN,0))
+    SET TIUZN=$G(^TIU(8925,IEN8925,0))
     SET VISITIEN=+$P(TIUZN,"^",3)
     IF VISITIEN'>0 QUIT
     NEW VISITZN SET VISITZN=$G(^AUPNVSIT(VISITIEN,0))
@@ -428,7 +439,7 @@ FILEIMM(TIUIEN)  ;"DEPRECIATED -- REMOVE LATER  8/27/24
     . ;"THE BELOW CAN BE USED FOR GETTING LOT AND EXP
     . ;"BUT THE NAMES DON'T NEATLY MATCH SO IT NEEDS TO BE TWEAKED
     . ;"NEW LOT,EXP
-    . ;"DO GETADMIN(TIUIEN,IMMNAME,.LOT,.EXP)
+    . ;"DO GETADMIN(IEN8925,IMMNAME,.LOT,.EXP)
     . WRITE IMMIEN," ",IMMNAME," ",ADMINDATE,!
     . NEW TMGFDA,TMGIEN,TMGMSG,AGE
     . SET TMGFDA(22741,"+1,",.01)=TMGDFN
@@ -437,20 +448,20 @@ FILEIMM(TIUIEN)  ;"DEPRECIATED -- REMOVE LATER  8/27/24
     . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
     QUIT
     ;"
-GETADMIN(TIUIEN,IMMNAME,LOT,EXP)  ;"
+GETADMIN(IEN8925,IMMNAME,LOT,EXP)  ;"
     SET LOT="",EXP=""
     SET TIULINE=0
-    FOR  SET TIULINE=$ORDER(^TIU(8925,TIUIEN,"TEXT",TIULINE)) QUIT:TIULINE'>0  DO
-    . SET TEXT=$GET(^TIU(8925,TIUIEN,"TEXT",TIULINE,0))
-    . NEW Y SET Y=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",7)
+    FOR  SET TIULINE=$ORDER(^TIU(8925,IEN8925,"TEXT",TIULINE)) QUIT:TIULINE'>0  DO
+    . SET TEXT=$GET(^TIU(8925,IEN8925,"TEXT",TIULINE,0))
+    . NEW Y SET Y=$PIECE($GET(^TIU(8925,IEN8925,0)),"^",7)
     . D DD^%DT
     . SET DOS=$PIECE(Y,"@",1)
     . IF TEXT["IMMUNIZATION(S)" DO
     . . SET DONE=0,TEMPSTR=""
     . . NEW TEMPIDX SET TEMPIDX=TIULINE-1
     . . SET GOTADMIN=0
-    . . FOR  SET TEMPIDX=$ORDER(^TIU(8925,TIUIEN,"TEXT",TEMPIDX)) QUIT:(DONE)!(TEMPIDX'>0)  DO
-    . . . SET TEMPSTR=TEMPSTR_$GET(^TIU(8925,TIUIEN,"TEXT",TEMPIDX,0))
+    . . FOR  SET TEMPIDX=$ORDER(^TIU(8925,IEN8925,"TEXT",TEMPIDX)) QUIT:(DONE)!(TEMPIDX'>0)  DO
+    . . . SET TEMPSTR=TEMPSTR_$GET(^TIU(8925,IEN8925,"TEXT",TEMPIDX,0))
     . . . ;"IF (TEMPSTR["Manufacturer")!(TEMPSTR["NDC")!(TEMPSTR["Lot Number")!(TEMPSTR["Expiration") SET DONE=1,GOTADMIN=1
     . . . IF TEMPSTR["Expiration" SET DONE=1,GOTADMIN=1
     . . . IF (TEMPSTR["Ordered")!(TEMPSTR["Refused") SET DONE=1  ;"Not administered here
@@ -459,7 +470,7 @@ GETADMIN(TIUIEN,IMMNAME,LOT,EXP)  ;"
     . . IF IMM'[IMMNAME QUIT
     . . SET IMM=$P(IMM,"-",1)
     . . IF GOTADMIN=1 DO
-    . . . SET TEMPSTR=TEMPSTR_" "_$GET(^TIU(8925,TIUIEN,"TEXT",TEMPIDX,0))
+    . . . SET TEMPSTR=TEMPSTR_" "_$GET(^TIU(8925,IEN8925,"TEXT",TEMPIDX,0))
     . . . SET TEMPSTR=$$HTML2TXS^TMGHTM1(TEMPSTR)
     . . . SET NDC=$$GETRSLT^TMGRPT2(TEMPSTR,"NDC: ")
     . . . ;"SET MANUFACTURER=$$GETRSLT(TEMPSTR,"Manufacturer: ")
