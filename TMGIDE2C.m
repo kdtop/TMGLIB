@@ -106,7 +106,6 @@ HndlShow ;
   ELSE  IF varName'="" DO
   . SET varName=$$CREF^DILF(varName)  ;"convert open to closed format
   . IF $$ARRDUMP(varName)  ;"//kt 3/23/24,  ignore result
-  . 
   IF zbTemp=0 DO
   . DO SETCOLORS("Highlight")
   . DO PRESS2GO^TMGUSRI2
@@ -320,7 +319,7 @@ HndlBrkCond ;
   WRITE "If execution result=1, breakpoint will stop execution.  Otherwise skips.",!
   ;"READ "Enter IF condition (^ to cancel, @ to delete): ",tmgTpLine:$GET(DTIME,3600),!
   WRITE "Enter IF condition (^ to cancel, @ to delete): ",!
-  NEW ifS SET ifS=$$GetBrkCondFlex^TMGIDE2()
+  NEW ifS SET ifS=$$GetBrkCondFlex^TMGIDE2C()
   SET tmgTpLine=$$EDITBOX^TMGUSRI6(ifS,80,"_")
   IF (tmgTpLine["^") QUIT
   NEW brkPos SET brkPos=$$RelConvertPos^TMGMISC(tmgRelPos,tmgViewOffset,tmgArrayName)
@@ -426,12 +425,9 @@ ToggleBreakpoint(pos,condition)   ;
   ;"       condition -- OPTIONAL -- should be contain valid M code such that
   ;"                    IF @condition  is valid.  Examples:
   ;"                    i=1   or  $DATA(VAR)=0  or  $$MyFunct(var)=1
-  ;"WRITE "Here in ToggleBreakoint",!
   IF $$IsBreakpoint(pos) DO
-  . ;"WRITE " calling RelBreakpoint",!
   . DO RelBreakpoint(pos)
   ELSE  DO
-  . ;"WRITE "calling Set breakpoint",!
   . DO SETBKPT(pos,.condition)
   QUIT
   ;   
@@ -439,9 +435,7 @@ IsBreakpointFlex() ;
   NEW p1 SET p1=$GET(tmgIDEPos)
   NEW p2 SET p2=$GET(tmgOrigIDEPos)   
   NEW zzAtBkPt set zzAtBkPt=$$IsBreakpoint(p1) 
-  ;"WRITE "$$IsBreakpoint(tmgIDEPos)=",zzAtBkPt,!
   if zzAtBkPt=0 set zzAtBkPt=$$IsBreakpoint(p2) 
-  ;"WRITE "$$IsBreakpoint(tmgOrigIDEPos)=",zzAtBkPt,!
   QUIT zzAtBkPt
   ;
 IsBreakpoint(pos)  ;
@@ -454,10 +448,9 @@ IsBreakpoint(pos)  ;
   NEW result SET result=0
   NEW tmgDbgJNum SET tmgDbgJNum=$J
   IF +$GET(tmgDbgRemoteJob) SET tmgDbgJNum=+tmgDbgRemoteJob
-  ;"IF $GET(pos)'="" SET result=$DATA(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",pos))
-  new aPos set aPos=""
-  for  set aPos=$order(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",aPos)) quit:(aPos="")!(result=1)  do
-  . set result=$$EquivalentBreakpoint(pos,aPos)
+  NEW aPos SET aPos=""
+  FOR  SET aPos=$order(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",aPos)) quit:(aPos="")!(result=1)  DO
+  . SET result=$$EquivalentBreakpoint(pos,aPos)
   QUIT (result'=0)
   ;
 EquivalentBreakpoint(pos1,pos2)   ;
@@ -568,14 +561,13 @@ HndlTable ;
   . IF tmgARGS'="" SET MSG=MSG_tmgARGS
   . NEW temp SET temp=$$MessageOut(MSG)
   . IF temp="" QUIT
-  . NEW i SET i=""
-  . FOR  SET i=$ORDER(@temp@(i)) QUIT:(i="")  DO
-  . . NEW j SET j=""
-  . . FOR  SET j=$ORDER(@temp@(i,j)) QUIT:(j="")  DO
-  . . . WRITE $GET(@temp@(i,j)),!
+  . NEW IDX SET IDX=""
+  . FOR  SET IDX=$ORDER(@temp@(IDX)) QUIT:(IDX="")  DO
+  . . NEW JDX SET JDX=""
+  . . FOR  SET JDX=$ORDER(@temp@(IDX,JDX)) QUIT:(JDX="")  DO
+  . . . WRITE $GET(@temp@(IDX,JDX)),!
   ELSE  DO
   . WRITE !   ;"get below bottom line for output.
-  . ;"zshow "*"
   . NEW tmgTEMP,tmgIDX
   . NEW tmgFilter SET tmgFilter=""
   . ZSHOW "V":tmgTEMP
@@ -709,7 +701,7 @@ SETCOLORS(tmgMode)  ;
   IF tmgMode="" SET tmgMode="Reset"
   NEW ref SET ref=$name(^TMG("TMGIDE",$J,"COLORS"))
   IF $DATA(@ref)=0 DO
-  . DO InitColors^TMGIDE6
+  . DO INITCOLORS^TMGIDE6
   IF tmgMode="Reset" DO  GOTO SCDn
   . DO VTATRIB^TMGTERM(0)   ;"reset colors
   NEW colorSet MERGE colorSet=@ref@(tmgMode) ;"Get colors for mode
@@ -721,7 +713,7 @@ SETCOLORS(tmgMode)  ;
   IF fg=bg DO
   . IF (fg<15) SET fg=fg+1
   . ELSE  IF (fg>0) SET fg=fg-1
-  DO VCOLORS^TMGTERM(fg,bg)
+  DO COLORS^TMGTERM(fg,bg)
 SCDn ;
   QUIT
   ;
@@ -913,14 +905,10 @@ ARRDUMP(REF,TMGIDX,INDENT)  ;
   . NEW TEMP SET TEMP=$PIECE($EXTRACT(REF,2,99),"@",1)
   . IF $DATA(TEMP)#10=0 SET ABORT=1
   ;"Note: I need to DO some validation to ensure REF doesn't have any null nodes.
-  ;"NEW X SET X="SET ZBTEMP=$GET("_REF_")"
   NEW X SET X="SET TEMP=$GET("_$$UP^XLFSTR(REF)_")"
   SET X=$$UP^XLFSTR(X)
   DO ^DIM ;"a method to ensure REF doesn't have an invalid reference.
   IF $GET(X)="" GOTO ADDN
-  ;
-  ;"SET tmgDbgIndent=$GET(tmgDbgIndent,0)
-  ;"NEW TMGIDEDEBUG SET TMGIDEDEBUG=1
   ;
   DO DEBUGINDENT(INDENT)
   NEW JDX FOR JDX=1:1:INDENT-1 DO DEBUGWRITE(INDENT,$SELECT($GET(INDENT(JDX),-1)=0:" ",1:"| "))

@@ -1779,7 +1779,7 @@ AWVREMS(REMLIST)  ;"list of reminders to include on AWV report
   SET REMLIST(224)="MAMMOGRAM/BREAST IMAGING^Annually"  
   ;"SET REMLIST(241)="PREVNAR-13^Once, over the age of 65"
   ;"SET REMLIST(257)="PNEUMOCOCCAL-23^Once, over the age of 65"
-  SET REMLIST(257)="PNEUMOCOCCAL-23^Once, over the age of 65"
+  ;"SET REMLIST(257)="PNEUMOCOCCAL-23^Once, over the age of 65"
   SET REMLIST(325)="PNEUMOCOCCAL-20^Once, over the age of 65"
   SET REMLIST(224)="MAMMOGRAM/BREAST IMAGING^Annually"
   ;"Turn off until completed -> SET REMLIST(293)="TOBACCO CESSATION^Annually"

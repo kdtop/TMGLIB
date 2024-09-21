@@ -186,24 +186,24 @@ GETDIR(CURDIR,PARR,OPTION) ;
   QUIT RESULT
   ;
 LOADDIR(PARRAY,CURDIR,OPTION) ;
+  ;"NOTE: This function can be SLOW.  DIR2^TMGKERNL can be much faster, though options available differ
   ;"Purpose: load CURDIR entries into PARRAY
   ;"Input: PARRAY -- PASS BY NAME.  An OUT PARAMETER.  Filled in as follows
-  ;"         @PARRAY@(1,DisplayText)=Return Text <-- note: must be numbered 1,2,3 etc.
-  ;"         @PARRAY@(2,DisplayText)=Return Text
-  ;"         @PARRAY@(3,DisplayText)=Return Text
+  ;"         @PARRAY@(1,Filename)=<path/filename>. <-- note: must be numbered 1,2,3 etc.
+  ;"         @PARRAY@(2,Filename)=<path/filename>
+  ;"         @PARRAY@(3,Filename)=<path/filename>
   ;"       CURDIR -- the directory to get files from
-  ;"       TMGMASK -- PASS BY REFERENCE.  The mask array (See FBROWSE)
   ;"       OPTION [OPTIONAL].  Format as follows.  All entries are optional
   ;"           OPTION("MATCH","CASESPEC")=1" <-- means case specific.  Default is NON-specific
   ;"           OPTION("MATCH","*.m")="" -- e.g. use filter '*.m'
-  ;"           OPTION("MATCH","*.txt")="" -- e.g. use filter '*.txt"
+  ;"           OPTION("MATCH","*.txt")="" -- e.g. use filter '*.txt', could also be 'TMG*.m'
   ;"               NOTE: Filters are combined by AND, i.e.  files matching one of the specified matches
-  ;"           OPTION("NodeDiv") The character that separates folders (e.g. "/")
+  ;"           OPTION("NODEDIV") The character that separates folders (e.g. "/")
   ;"                             If not supplied, then default value is "/"
   ;"           OPTION("SHOW HIDDEN")=1  Show files hidden (e.g. '.name')
   ;"           OPTION("SELECT DIR")=1  IF 1 then mode is to select directories, not files
-  ;"       NODEDIV -- The character that separates folders (e.g. "/")
-  ;"       SHOWHIDDEN -- OPTIONAL. Default=0  If 1, then show hidden files
+  ;"           OPTION("NO UP")=1 If provided then ".. <UP>" node is not returned.
+  ;"           OPTION("NO DIRS")=1 If provided then only files are returned, no directories.  
   ;"Results: none
   ;
   NEW TMGFILES,TEMPFILES
@@ -228,7 +228,8 @@ LOADDIR(PARRAY,CURDIR,OPTION) ;
   . NEW FNAME,FPNAME
   . SET FNAME=INDEX
   . SET FPNAME=CURDIR_FNAME
-  . IF $$ISDIR(FPNAME,.OPTION) SET TEMPFILES("DIRS","<"_FNAME_">")=FPNAME
+  . NEW ISDIR SET ISDIR=$$ISDIR(FPNAME,.OPTION) 
+  . IF ISDIR SET TEMPFILES("DIRS","<"_FNAME_">")=FPNAME
   . ELSE  SET TEMPFILES("FILES",FNAME)=FPNAME
   ;  
   ;"//kt 7/22/15 NOTE: the filter for $$LIST^%ZISH works for like this:
@@ -255,9 +256,11 @@ LOADDIR(PARRAY,CURDIR,OPTION) ;
 LD2 ;
   SET INDEX=""
   IF CURDIR'=NODEDIV DO
+  . IF $GET(OPTION("NO UP"))=1 QUIT
   . SET @PARRAY@(COUNT,".. <UP>")=$$UPPATH^TMGIOUTL(CURDIR)
   . SET COUNT=COUNT+1
   FOR  SET INDEX=$ORDER(TEMPFILES("DIRS",INDEX)) QUIT:(INDEX="")  DO
+  . IF $GET(OPTION("NO DIRS"))=1 QUIT
   . SET @PARRAY@(COUNT,INDEX)=$GET(TEMPFILES("DIRS",INDEX))
   . SET COUNT=COUNT+1
   IF SELDIR=1 GOTO LDDN  ;"skip showing files.

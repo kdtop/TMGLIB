@@ -43,7 +43,7 @@ SETTEMPBKCOLOR(tmgMode)  ;
   NEW ref SET ref=$name(^TMG("TMGIDE",$J,"COLORS"))
   IF tmgMode="Reset" KILL @ref@("TEMP BACKGROUND") QUIT
   IF "Highlight,HighExecPos,BkPos,HighBkPos"'[tmgMode QUIT
-  IF $DATA(@ref)=0 DO InitColors^TMGIDE6
+  IF $DATA(@ref)=0 DO INITCOLORS^TMGIDE6
   NEW bg SET bg=$GET(@ref@(tmgMode))
   IF bg="" QUIT
   SET @ref@("TEMP BACKGROUND")=bg
@@ -187,10 +187,8 @@ SHOWCODE(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
   DO SETCOLORS^TMGIDE2C("NORM")
   WRITE !
   ;
-  ;"NEW T1,T2,T3,TMA,TMB SET (TMA,TMB)=0
   SET tmgCsrOnBreakline=0
   FOR LOOP=StartOffset:1:(StartOffset+tmgScrHeight) DO
-  . ;"SET T1=$$GETSEC^TMGIDE2() ;"======================================
   . DO SETCOLORS^TMGIDE2C("NORM")
   . DO SETTEMPBKCOLOR("Reset")
   . NEW cbLine,cbRef,cbCursor,cBrkLine
@@ -198,7 +196,6 @@ SHOWCODE(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
   . SET cbRef=scLabel_"+"_LOOP_"^"_scRoutine
   . SET cbLine=$text(@cbRef)
   . FOR  QUIT:cbLine'[$CHAR(9)  SET cbLine=$PIECE(cbLine,$CHAR(9),1)_"        "_$PIECE(cbLine,$CHAR(9),2,999)
-  . ;"IF tmgLROffset>0 SET cbLine=$EXTRACT(cbLine,tmgLROffset,999)
   . SET scCursorLine=scOffset+$GET(tmgViewOffset)
   . NEW cHighCsrPos SET cHighCsrPos=(LOOP=scCursorLine)
   . NEW cHighExecPos SET cHighExecPos=(LOOP=scOffset)
@@ -215,8 +212,6 @@ SHOWCODE(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
   . IF LOOP>0 WRITE "+"_LOOP_$SELECT(LOOP<10:" ",1:"")
   . ELSE  WRITE "   "
   . DO SETCOLORS^TMGIDE2C("NORM")
-  . ;"IF $LENGTH(cbLine)>(tmgScrWidth-1) SET cbLine=$EXTRACT(cbLine,1,tmgScrWidth-4)_"..."
-  . ;"SET cbLineLen=$LENGTH(cbLine)
   . NEW StartPos SET StartPos=$X
   . IF $GET(TMGIDEDEBUG) WRITE cbLine SET cbLineLen=$LENGTH(cbLine)  ;"temp
   . ELSE  SET cbLineLen=$$ShowLine^TMGIDE6(cbLine,tmgLROffset,.tmgDbgOptions,tmgScrWidth-StartPos)
@@ -226,9 +221,7 @@ SHOWCODE(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
   ;
   ;"Draw bottom line.
   DO SETCOLORS^TMGIDE2C("NORM")
-  ;"do SETCOLORS^TMGIDE2C("SPECIAL")
   FOR LOOP=1:1:tmgScrWidth WRITE "~"
-  ;"do SETCOLORS^TMGIDE2C("NORM")
   WRITE !
 SCDone ;
   DO VTATRIB^TMGTERM(0)  ;"reset colors

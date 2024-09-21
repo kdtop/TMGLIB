@@ -78,6 +78,10 @@ STEPTRAP(tmgIDEPos,tmgMsg)
   ;"           -1=QUIT
   ;
   NEW tmgdbgTruth SET tmgdbgTruth=$TEST   ;"save initial value of $TEST
+  ;" DO  ;"debugging technique to see what this routine is doing...
+  ;" . NEW REF SET REF=$NAME(^TMP($J,"TMGIDE","DEBUGLOG"))
+  ;" . NEW IDX SET IDX=$ORDER(@REF@("LOG",""),-1)+1
+  ;" . SET @REF@("LOG",IDX)=$GET(tmgIDEPos)_" | tmgMsg="_$GET(tmgMsg)_" | tmgRunMode="_$GET(tmgRunMode)
   IF $DATA(tmgDbgJumpToBrkPos) DO  
   . DO RelBreakpoint^TMGIDE2C(tmgDbgJumpToBrkPos)
   . KILL tmgDbgJumpToBrkPos
@@ -108,7 +112,6 @@ STEPTRAP(tmgIDEPos,tmgMsg)
   . DO RESETKB^XGF  ;"turn off XGF escape key processing code.
   . NEW tmpScrWidth IF $$GETSCRSZ^TMGKERNL(,.tmpScrWidth)  ;"drop function result
   . DO INITKB^XGF()  ;"set up keyboard input escape code processing
-  . ;"//kt 6/8/16 IF ($GET(tmgScrWidth("USER SET"))=1)&(tmgScrWidth'>tmpScrWidth) QUIT 
   . IF ($GET(tmgScrWidth("USER SET"))=1) QUIT 
   . SET tmgScrWidth=tmpScrWidth
   SET tmgLROffset=$GET(tmgLROffset,0)
@@ -171,6 +174,16 @@ SPDN ;"Finish up and return to GTM execution
   IF "OVER,over"[tmgStepMode SET tmgDbgResult=2
   IF "OUTOF,outof"[tmgStepMode SET tmgDbgResult=3
   ;
+  ;"Restore preexisting environment
+  IF $DATA(tmgDEVSav) DO   ;"turn IO back to what it was when coming into this function.
+  . DO RESTORDEV^TMGKERN1(.tmgDEVSav,.tmgDEVInfo)
+  ELSE  IF $DATA(tmgSavedIO) DO    ;"turn IO back to what it was when coming into this function.
+  . USE tmgSavedIO
+  SET $X=+$GET(tmgSavedX),$Y=+$GET(tmgSavedY)  ;"Restore screen POS variables.
+  SET %=%tmg
+  IF (tmgDbgNakedRef'["""""")&(tmgDbgNakedRef'="") DO   ;"If holds "" index, skip over
+  . NEW TEMP SET TEMP=$GET(@tmgDbgNakedRef) ;"restore naked reference.
+  ;  
   IF $GET(tmgMsg)=1 DO  ;"call was without $ZSTEP set, so we should SET it.
   . NEW CODE SET CODE="NEW tmgTrap "
   . SET CODE=CODE_"SET tmgTrap=$$STEPTRAP^TMGIDE2($ZPOS) "
@@ -181,15 +194,9 @@ SPDN ;"Finish up and return to GTM execution
   . ZSTEP:(tmgDbgResult=2) OVER
   . ZSTEP:(tmgDbgResult=3) OUTOF
   ;
+  ;"NOTICE: Avoid putting code after ZSTEP is set above.  It impacts TMGIDE performance.  
+  ;
   ;"Restore preexisting environment
-  IF $DATA(tmgDEVSav) DO   ;"turn IO back to what it was when coming into this function.
-  . DO RESTORDEV^TMGKERN1(.tmgDEVSav,.tmgDEVInfo)
-  ELSE  IF $DATA(tmgSavedIO) DO    ;"turn IO back to what it was when coming into this function.
-  . USE tmgSavedIO
-  SET $X=+$GET(tmgSavedX),$Y=+$GET(tmgSavedY)  ;"Restore screen POS variables.
-  SET %=%tmg
-  IF (tmgDbgNakedRef'["""""")&(tmgDbgNakedRef'="") DO   ;"If holds "" index, skip over
-  . NEW TEMP SET TEMP=$GET(@tmgDbgNakedRef) ;"restore naked reference.
   IF tmgdbgTruth ;"This will restore initial value of $TEST
   ;
   QUIT tmgDbgResult
@@ -305,7 +312,7 @@ ERRTRAP(tmgIDEPos)  ;
    ;"Purpose: This is the line that is called by GT.M for each ztrap event.
    ;"      It will be used to display the current code execution point
   IF $$ShouldSkip^TMGIDE2C($PIECE(tmgIDEPos,"^",2)) DO
-  . USE $P  ;"//kt 8/10/22
+  . USE $P  
   . WRITE !,"Error at ",$P($ZSTATUS,",",2)," -- in code that debugger can't display.",!
   . WRITE "Error is: ",$P($ZSTATUS,",",3,99),!
   . WRITE !,"Dropping to command line via BREAK",!

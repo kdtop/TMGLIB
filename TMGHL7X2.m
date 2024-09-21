@@ -1,4 +1,4 @@
-TMGHL7X2 ;TMG/kst-HL7 transformation engine processing ;10/21/15
+TMGHL7X2 ;TMG/kst-HL7 transformation engine processing ;10/21/15, 9/2/24
               ;;1.0;TMG-LIB;**1**;03/28/11
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS
@@ -498,6 +498,16 @@ SETPOIDX(IEN22720,TMGHL7MSG) ;
         . IF $GET(FOUND(ORD))=1 QUIT
         . SET PO=PO+1,TMGHL7MSG("PO",PO)=ORD
         QUIT
+        ;
+MSH2TMGU(MSH,TMGU)  ;"Setup TMGU from MSH
+        NEW TMGRESULT SET TMGRESULT="1^OK"
+        NEW FS,ECH
+        SET FS=$EXTRACT(MSH,4)
+        SET ECH=$EXTRACT(MSH,5,8)
+        IF ($GET(FS)="")!($GET(ECH)="") DO
+        . SET TMGRESULT="-1^IN PRSEARRY.TMGHL7X2: Values for FS or ECH not provided"
+        ELSE  DO SUTMGU(.TMGU,FS,ECH)
+        QUIT TMGRESULT
         ;
 SUTMGU(TMGU,FS,ECH) ;
         SET TMGU(1)=FS

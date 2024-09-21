@@ -1,4 +1,4 @@
-TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15
+TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15, 9/12/24
          ;;1.0;TMG-LIB;**1,17**;09/01/05
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -29,6 +29,7 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15
  ;"CUD(PN)     ;Cursor Down                 Esc [ PN B          VT100
  ;"CUF(PN)     ;Cursor Forward              Esc [ PN C          VT100
  ;"CUP(X,Y)    ;Cursor Position             Esc [ PN  ; PN H     VT100
+ ;"CUPOS(VEC2D);Cursor POSITION from 2D vec
  ;"HOME        ;Cursor Home                 Esc [ H     ('home' is top left)
  ;"CUU(PN)     ;Cursor Up                   Esc [ PN A          VT100
  ;"CVT(PN)     ;Cursor Vertical Tab         Esc [ PN Y
@@ -85,13 +86,14 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15
  ;"ESSCR       ;Enable scrolling for entire display
  ;"QCUP        ;Query cursor position
  ;"VTATRIB(n)  ;Set Text attributes    <ESC>[{attr1};...;{attrn}m
- ;"VFGCOLOR(n) ;Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
- ;"VBGCOLOR(n) ;Set Text Background Color  <ESC>[{attr1};...;{attrn}m
- ;"VCOLORS(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
+ ;"VCOLORIDXFG(n) ;Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
+ ;"VCOLORIDXBG(n) ;Set Text Background Color  <ESC>[{attr1};...;{attrn}m
+ ;"VCOLORSIDX(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
  ;"SETGBLCO  //Set Global Colors
- ;"KILLGBLC  //Kill Global Colors
- ;"DEMOCOLOR
- ;"$$COLORPAIR(FG,BG,ARR) --Return a 'FG^BG' based on names
+ ;"CLRVEC24(R,G,B) -- Return 24bit color vector triple
+ ;"INVCLRV24(R,G,B)  --Return 24bit color vector triple, that is INVERTED from RGB
+ ;"INVCLRVEC(CLRVEC) --Invert a 24bit color vector triple.
+ ;"ISCLRVEC24(STR) -- Returns if STR is in format of 24bit color vector triple, CLRVEC24
  ;"=======================================================================
  ;"DEPENDENCIES: XLFSTR
  ;"=======================================================================
@@ -103,13 +105,9 @@ ESCN(NUM,N2,CMD)  ;
   SET TEMPY=$Y
   SET $X=1  ;"ensure escape chars don't cause a wrap.
   NEW ST SET ST=$CHAR(27,91)  ;"27=Esc 91=[
-  ;"WRITE $CHAR(27,91)  ;"27=Esc 91=[
   IF $DATA(NUM) SET ST=ST_NUM  
-  ;"IF $DATA(NUM) WRITE NUM  
   IF $DATA(N2) SET ST=ST_";"_N2
-  ;"IF $DATA(N2) WRITE ";"_N2
   IF $DATA(CMD) SET ST=ST_CMD
-  ;"IF $DATA(CMD) WRITE CMD
   WRITE ST
    ;"reset $X,$Y so that escape characters aren't counted for line wrapping
   SET $X=TEMPX
@@ -172,6 +170,12 @@ CUP(X,Y)  ;"Cursor Position        Esc [ PN  ; PN H     VT100
   DO ESCN(.Y,.X,"H")
   SET $X=X
   SET $Y=Y
+  QUIT
+  ;
+CUPOS(VEC2D) ;"Cursor POSITION from 2D vec  ("X^Y")
+  SET VEC2D=$GET(VEC2D)
+  NEW X,Y SET X=+VEC2D,Y=+$PIECE(VEC2D,"^",2)
+  DO CUP(X,Y)
   QUIT
   ;
 HOME     ;"Cursor Home               Esc [ H     ('home' is top left)
@@ -323,8 +327,6 @@ CSRBLINK(ON) ;"Set cursor blinking ON(1) or OFF(0)    ESC [ ? 25 l/h
   NEW CMD SET CMD=$SELECT($GET(ON)=1:"h",1:"l")
   DO ESCN("?12",,CMD) QUIT
   ;
-
-
   ;"--------------------------------------------------------------
   ;"VT100 specific calls
   ;"Terminal interface
@@ -379,8 +381,9 @@ VTATRIB(N)  ;"Set Text attributes    <ESC>[{attr1};...;{attrn}m
    ;"8-Hidden
   DO ESCN(N,,"m") QUIT
   ;
-VFGCOLOR(N)  ;"Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
-  ;"See note about colors in VCOLORS
+VCOLORIDXFG(N)  ;"Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
+  ;"See note about colors in VCOLORSIDX
+  ;"NOTE: This is for indexed color (3 to 4 bit)
   DO VTATRIB(0)
   IF N>7 DO
   . DO VTATRIB(1)
@@ -388,8 +391,9 @@ VFGCOLOR(N)  ;"Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
   SET N=N+30
   DO ESCN(N,,"m") QUIT
   ;
-VBGCOLOR(N)  ;"Set Text Background Color  <ESC>[{attr1};...;{attrn}m
-  ;"See note about colors in VCOLORS
+VCOLORIDXBG(N)  ;"Set Text Background Color  <ESC>[{attr1};...;{attrn}m
+  ;"See note about colors in VCOLORSIDX
+  ;"NOTE: This is for indexed color (3 to 4 bit)
   DO VTATRIB(0)
   IF N>7 DO
   . DO VTATRIB(1)
@@ -397,10 +401,11 @@ VBGCOLOR(N)  ;"Set Text Background Color  <ESC>[{attr1};...;{attrn}m
   SET N=N+40
   DO ESCN(N,,"m") QUIT
   ;
-VCOLORS(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
+VCOLORSIDX(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
   ;"Note: 5/29/06  I don't know if the color numbers are working
   ;"  correctly.  The best way to determine what the color should
-  ;"  be is to run DemoColor and pick the numbers wanted for desired colors
+  ;"  be is to run DemoColor^TMGUSRI8 and pick the numbers wanted for desired colors
+  ;"NOTE: This is for indexed color (3 to 4 bit)
   DO VTATRIB(0)
   IF FG>7 DO
   . DO VTATRIB(1)
@@ -427,196 +432,117 @@ VBGCOLOR256(N)  ;"Set Text Background Color  <ESC>[48;5;<NUM>m
 VCOLORS256(FG,BG)  ;Set Text Colors   <ESC>[[38|48];5;<NUM>m
   ;"NOT YET TESTED   https://misc.flogisoft.com/bash/tip_colors_and_formatting
   ;"FROM HERE: https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-  ;"  0-  7:  standard colors (as in ESC [ 30�37 m)
-  ;"  8- 15:  high intensity colors (as in ESC [ 90�97 m)
-  ;" 16-231:  6 � 6 � 6 cube (216 colors): 16 + 36 � r + 6 � g + b (0 <= r, g, b <= 5)
+  ;"  0-  7:  standard colors (as in ESC [ 30-37 m)
+  ;"  8- 15:  high intensity colors (as in ESC [ 90-97 m)
+  ;" 16-231:  6 * 6 * 6 cube (216 colors): 16 + 36 * r + 6 * g + b (0 <= r, g, b <= 5)
   ;"232-255:  grayscale from black to white in 24 steps
   DO VTATRIB(0)
   DO ESCN(38,5_";"_FG,"m") 
   DO ESCN(48,5_";"_BG,"m") 
   QUIT
   ;
-COLORPAIR(FG,BG,ARR) ;"Return a 'FG^BG' based on names
-  ;"Input: FG -- the name (as defined below) of foreground color
-  ;"       BG -- the name (as defined below) of background color
-  ;"       ARR -- OPTIONAL.  PASS BY REFERENCE.  Can use with repeated calls to save time.  
-  IF $DATA(TMGCOLBLACK)=0 DO SETGBLCO
-  IF $DATA(ARR)=0 DO       
-  . SET ARR("FG","BLACK")=TMGCOLBLACK                    ;"0
-  . SET ARR("FG","RED")=TMGCOLRED                        ;"1
-  . SET ARR("FG","GREEN")=TMGCOLGREEN                    ;"2
-  . SET ARR("FG","YELLOW")=TMGCOLYELLOW                  ;"3
-  . SET ARR("FG","BLUE")=TMGCOLBLUE                      ;"4
-  . SET ARR("FG","MAGENTA")=TMGCOLMAGENTA                ;"5
-  . SET ARR("FG","CYAN")=TMGCOLCYAN                      ;"6
-  . SET ARR("FG","GREY")=TMGCOLGREY                      ;"7
-  . SET ARR("FG","BRIGHT RED")=TMGCOLBRED                ;"8
-  . SET ARR("FG","BRIGHT GREEN")=TMGCOLBGREEN            ;"9
-  . SET ARR("FG","BRIGHT YELLOW")=TMGCOLBYELLOW          ;"10
-  . SET ARR("FG","BRIGHT BLUE")=TMGCOLBBLUE              ;"11
-  . SET ARR("FG","BRIGHT MAGENTA")=TMGCOLBMAGENTA        ;"12
-  . SET ARR("FG","BRIGHT CYAN")=TMGCOLBCYAN              ;"13
-  . SET ARR("FG","WHITE")=TMGCOLFGBWHITE                 ;"14
-  . SET ARR("FG","DARK RED")=TMGCOLDKRED                 ;"15
-  . ;
-  . SET ARR("BG","BLACK")=TMGCOLBLACK                    ;"0
-  . SET ARR("BG","RED")=TMGCOLRED                        ;"1
-  . SET ARR("BG","GREEN")=TMGCOLGREEN                    ;"2
-  . SET ARR("BG","YELLOW")=TMGCOLYELLOW                  ;"3
-  . SET ARR("BG","BLUE")=TMGCOLBLUE                      ;"4
-  . SET ARR("BG","MAGENTA")=TMGCOLMAGENTA                ;"5
-  . SET ARR("BG","CYAN")=TMGCOLCYAN                      ;"6
-  . SET ARR("BG","GREY")=TMGCOLGREY                      ;"7
-  . SET ARR("BG","BRIGHT RED")=TMGCOLBRED                ;"8
-  . SET ARR("BG","BRIGHT GREEN")=TMGCOLBGREEN            ;"9
-  . SET ARR("BG","BRIGHT YELLOW")=TMGCOLBYELLOW          ;"10
-  . SET ARR("BG","BRIGHT BLUE")=TMGCOLBBLUE              ;"11
-  . SET ARR("BG","BRIGHT MAGENTA")=TMGCOLBMAGENTA        ;"12
-  . SET ARR("BG","BRIGHT CYAN")=TMGCOLBCYAN              ;"13
-  . SET ARR("BG","DARK GREY")=TMGCOLBGREY                ;"14
-  . SET ARR("BG","WHITE")=TMGCOLWHITE                    ;"15
-  NEW FGC SET FGC=$GET(ARR("FG",$$UP^XLFSTR(FG)),0)
-  NEW BGC SET BGC=$GET(ARR("BG",$$UP^XLFSTR(BG)),15)
-  SET RESULT=FGC_"^"_BGC
-  QUIT RESULT
+VCLR24FG(FG) ;"SET TEXT FOREGROUND COLOR, IN 24 BIT MODE.
+  ;"From here: https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+  ;"**NOTICE**.  Because each color is an RGB triplet, this is NOT just a number
+  ;"Input: FG -- FOREGROUND vector '<#;#;#>',  e.g. '134;56;122' 
+  DO ESCN(48,2,";"_FG_"m")
+  ;"WRITE $CHAR(27)_"[48;2;"_FG_"m" 
+  QUIT
+  ;
+VCLR24BG(BG) ;"SET TEXT BACKGROUND COLOR, IN 24 BIT MODE.
+  ;"From here: https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+  ;"**NOTICE**.  Because each color is an RGB triplet, this is NOT just a number
+  ;"Input: BG -- BACKGROUND vector '<#;#;#>',  e.g. '134;56;122'
+  DO ESCN(38,2,";"_BG_"m")
+  ;"WRITE $CHAR(27)_"[38;2;"_BG_"m" 
+  QUIT
+  ;
+VCOLOR24B(FG,BG) ;"SET TEXT COLORS, IN 24 BIT MODE.
+  ;"From here: https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+  ;"**NOTICE**.  Because each color FG or BG color is an RGB triplet, this is NOT just a number
+  ;"Input: FG -- FOREGROUND vector '<#;#;#>',  e.g. '134;56;122' 
+  ;"Input: BG -- BACKGROUND vector '<#;#;#>',  e.g. '134;56;122'
+  DO VCLR24FG(FG)
+  DO VCLR24BG(BG)
+  QUIT
+  ;
+VCOLOR24CLEAR ;
+  DO ESCN(0,,"m")
+  QUIT
+  ;
+COLORS(FG,BG,OPTION) ;"Unified call for setting colors (4 bit, 256 bit or 24 bit)
+  ;"Most of the original code was for 4 bit colors, but support for 256 and 24bit being added later.  
+  ;"Input: FG -- Foreground color.  Value will depend on color mode.  If 24bit, should be color vector (see VCLR24FG)
+  ;"             NOTE: Passing FG parameter that is in CLRVEC24 format will force color mode to 24bit.  
+  ;"       BG -- Background color (format same as FG)
+  ;"             NOTE: Passing BG parameter that is in CLRVEC24 format will force color mode to 24bit.  
+  ;"       OPTION -- PASS BY REFERENCE.  
+  ;"          OPTION("MODE") -- Optional. 
+  ;"            OPTION("MODE")="INDEXED"  <-- default value if not passed.  Traditional indexed colors 
+  ;"            OPTION("MODE")="256"   <-- 256 (8 bit) color -- not fully implemented. 
+  ;"            OPTION("MODE")="24bit"  <-- true colors, 24 bit (3 byte)
+  NEW COLORMODE SET COLORMODE=$GET(OPTION("MODE"),"INDEXED")
+  IF $$ISCLRVEC24(FG)&$$ISCLRVEC24(BG) SET COLORMODE="24bit"
+  IF COLORMODE="INDEXED" DO
+  . DO VCOLORSIDX(.FG,.BG)
+  ELSE  IF COLORMODE="256" DO
+  . DO VCOLORS256(.FG,.BG)  
+  ELSE  IF COLORMODE="24bit" DO
+  . DO VCOLOR24B(.FG,.BG) 
+  QUIT
+  ;
+  ;"=======================================================================
+CLRVEC24(R,G,B) ;"Return 24bit color vector triple
+  QUIT R_";"_G_";"_B  
+  ;
+INVCLRV24(R,G,B)  ;"Return 24bit color vector triple, that is INVERTED from RGB
+  QUIT $$CLRVEC24(255-R,255-G,255-B)
+  ;
+INVCLRVEC(CLRVEC) ;"Invert a 24bit color vector triple. 
+  NEW R SET R=+$PIECE(CLRVEC,";",1)
+  NEW G SET G=+$PIECE(CLRVEC,";",2)
+  NEW B SET B=+$PIECE(CLRVEC,";",3)
+  QUIT $$INVCLRV24(R,G,B)
   ;  
-SETGBLCO   ;"Set Global Colors
-  SET TMGCOLBLACK=0
-  SET TMGCOLRED=1
-  SET TMGCOLGREEN=2
-  SET TMGCOLYELLOW=3
-  SET TMGCOLBLUE=4
-  SET TMGCOLMAGENTA=5
-  SET TMGCOLCYAN=6
-  SET TMGCOLGREY=7
-  ;
-  SET TMGCOLBRED=8       ;"'Bright' color
-  SET TMGCOLBGREEN=9     ;"'Bright' color
-  SET TMGCOLBYELLOW=10   ;"'Bright' color
-  SET TMGCOLBBLUE=11     ;"'Bright' color
-  SET TMGCOLBMAGENTA=12  ;"'Bright' color
-  SET TMGCOLBCYAN=13     ;"'Bright' color
-  SET TMGCOLBGREY=14     ;"//BACKGROUND COLOR
-  SET TMGCOLFGBWHITE=14  ;"FOREGROUND COLOR
-  SET TMGCOLWHITE=15     ;"//BACKGROUND COLOR
-  SET TMGCOLDKRED=15     ;"FOREGROUND COLOR
-   ;
-  QUIT
-  ;
-KILLGBLC   ;"Kill Global Colors
-  KILL TMGCOLBLACK
-  KILL TMGCOLRED
-  KILL TMGCOLGREEN
-  KILL TMGCOLYELLOW
-  KILL TMGCOLBLUE
-  KILL TMGCOLMAGENTA
-  KILL TMGCOLCYAN
-  KILL TMGCOLGREY
-  ;
-  KILL TMGCOLBRED
-  KILL TMGCOLBGREEN
-  KILL TMGCOLBYELLOW
-  KILL TMGCOLBBLUE
-  KILL TMGCOLBMAGENTA
-  KILL TMGCOLBCYAN
-  KILL TMGCOLBGREY
-  KILL TMGCOLWHITE
-  KILL TMGCOLFGBWHITE
-  KILL TMGCOLDKRED    
-  QUIT
-  ;
-PICK1COL(LABEL,INITVAL)   ;
-   ;"Purpose: prompt user to pick a color
-   ;"Input: LABEL -- Foreground or background
-   ;"  INITVAL.  Value to return IF nothing selected.
-   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
-  NEW RESULT
-  WRITE "Enter "_LABEL_" color number (0-15,^ to abort): "
-  READ RESULT:$GET(DTIME,3600),!
-  IF (RESULT="")!(+RESULT'=RESULT)!(+RESULT<0)!(+RESULT>15) SET RESULT=+$GET(INITVAL)
+ISCLRVEC24(STR) ;"Returns if STR is in format of 24bit color vector triple, CLRVEC24.  '#;#;#'
+  NEW RESULT,IDX,VAL SET RESULT=($LENGTH(STR,";")=3) 
+  FOR IDX=1:1:3 QUIT:(RESULT=0)  SET VAL=$PIECE(STR,";",IDX),RESULT=(+VAL=VAL)
   QUIT RESULT
-  ;
-PICKFGC(FG,BG)   ;
-   ;"Purpose: prompt user to pick a foreground color
-   ;"Input -- FG.  Value to return IF nothing selected.
-   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
-  DO COLORBOX(.BG)
-  NEW RESULT SET RESULT=$$PICK1COL("Foreground (FG)",.FG)
-  QUIT RESULT
-  ;
-PICKBGC(INITVAL)   ;
-   ;"Purpose: prompt user to pick a background color
-   ;"Input -- INITVAL.  Value to return IF nothing selected.
-   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
-  DO COLORBOX(,1)
-  NEW RESULT SET RESULT=$$PICK1COL("Background (BG)",.INITVAL)
-  QUIT RESULT
-  ;
-PICKCLRS(FG,BG)   ;
-   ;"Purpose: prompt user to pick a FG and BG colors
-   ;"Results: returns value FG^BG, each 0-15
-  DO COLORBOX()
-  SET FG=$$PICK1COL("Foreground (FG)",.FG)
-  SET BG=$$PICK1COL("Background (BG)",.BG)
-  QUIT FG_"^"_BG
-  ;
-  ;"==============================================================
-  ;
-DEMOCOLR   ;
-   ;"Purpose: to WRITE a lines on the screen, showing all the color combos
-  DO VCUSAV2
-  NEW FG,BG
-  FOR BG=0:1:15 DO
-  . FOR FG=0:1:15 DO
-  . . DO VCOLORS(FG,BG)
-  . . WRITE "Text with background color #",BG," and foreground color #",FG
-  . . DO VTATRIB(0)
-  . . WRITE !
-  DO VCULOAD2
+  ;"=======================================================================
+  ;  
+COLORPAIR(FG,BG,ARR) ;"DEPRECIATED, MOVED
+  QUIT $$COLORPAIR(.FG,.BG,.ARR)
+  ;  
+SETGBLCO   ;"DEPRECIATED, MOVED
+  DO SETGBLCO^TMGUSRI8
   QUIT
   ;
-COLORBOX(SETBG,SETFG)  ;
-  ;"Purpose: to WRITE a grid on the screen, showing all the color combos
-  ;"Input: SETBG -- OPTIONAL.  If data sent, then ONLY that background will be shown.
-  ;"        (i.e. for only picking a foreground color)
-  ;"  SETFG -- OPTIONAL.  If data sent, then only for picking background color
-  NEW FG,BG
-  IF $DATA(SETFG)#10=0 DO
-  . WRITE "FG:",?10
-  . FOR FG=0:1:15 DO
-  . . WRITE $$RJ^XLFSTR(FG,2)," "
-  . WRITE !
-  NEW START,FINISH
-  SET START=0,FINISH=15
-  IF ($DATA(SETBG)#10=1) DO
-  . SET (START,FINISH)=SETBG
-  FOR BG=START:1:FINISH DO
-  . IF BG=0 WRITE "BG:"
-  . WRITE ?7,$$RJ^XLFSTR(BG,2),?10
-  . FOR FG=0:1:15 DO
-  . . DO VCOLORS(FG,BG)
-  . . IF $DATA(SETFG)#10=0 DO
-  . . . WRITE " X "
-  . . ELSE  DO
-  . . . WRITE "   "
-  . . DO VTATRIB(0)
-  . WRITE !
+KILLGBLC   ;"DEPRECIATED, MOVED
+  DO KILLGBLC^TMGUSRI8
   QUIT
   ;
+PICK1COL(LABEL,INITVAL)   ;"DEPRECIATED, MOVED
+  QUIT $$PICK1COL^TMGUSRI8(.LABEL,.INITVAL) 
   ;
-  ;"NOTE:  This shows demo (that works from bash command line) with 256 color!
-  ;"https://misc.flogisoft.com/bash/tip_colors_and_formatting
-  ;"note: see ~/256-colors.sh
-  ;"Putty must be configured             
-  ;"   1. Configure Putty
-  ;"   
-  ;"   In Settings > Windows > Colours there is a check box for "Allow terminal to use xterm 256-colour mode".
-  ;"   2. Let the app know
-  ;"   
-  ;"   You'll probably have to change Settings -> Connection > Data > Terminal-type string to:
-  ;"   
-  ;"   xterm-256color
-  ;"   
-  ;"   if your server has a terminfo entry for putty-256color, typically in /usr/share/terminfo/p/putty-256color, you can set Putty's Terminal-Type to putty-256color instead.
-  ;"   
-  ;"   The main thing here is to make the server use an available Terminfo entry that most closely matches the way Putty is configured.
+PICKFGC(FG,BG)   ;"DEPRECIATED, MOVED
+  QUIT $$PICKFGC^TMGUSRI8(.FG,.BC)
+  ;
+PICKBGC(INITVAL) ;"DEPRECIATED, MOVED.  
+  QUIT $$PICKBGC^TMGUSRI8(.INITVAL)
+  ;
+PICKCLRS(FG,BG)   ;"DEPRECIATED. MOVED
+  QUIT $$PICKCLRS^TMGUSRI8(.FG,.BG)
+  ;
+DEMOCOLR(OPTION)   ;"DEPRECIATED.  MOVED. 
+  DO DEMOCOLR^TMGUSRI8(.OPTION)
+  QUIT
+  ;
+COLORBOX(SETBG,SETFG)  ;"DEPRECIATED.  MOVED
+  DO COLORBOX^TMGUSRI8(.SETBG,.SETFG)
+  ;
+COLORBOX24(OPTION) ;"Depreciated.  Moved to TMGUSRI8
+  QUIT $$PICKCOLOR24^TMGUSRI8(.OPTION)
+  ;
+WEBCOLOR(NAME,COLORARR) ;"depreciated.  Moved to TMGUSRI8
+  QUIT $$WEBCOLOR^TMGUSRI8(.NAME,.COLORARR)
+  ;                                                                                   

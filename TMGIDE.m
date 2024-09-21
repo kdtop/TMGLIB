@@ -124,9 +124,9 @@ DEBUGINIT  ;
   SET tmgDataWatchMode=0
   SET tmgZTRAP=$ZTRAP
   DO SETHIDELIST
-  DO SETGBLCO^TMGTERM
+  DO SETGBLCO^TMGUSRI8
   DO EnsureBreakpoints^TMGIDE2C()
-  DO InitColors^TMGIDE6
+  DO INITCOLORS^TMGIDE6
   QUIT
   ;
 SETHIDELIST  ;
@@ -393,7 +393,7 @@ SHUTDOWN  ;
   QUIT
   ;
 CLEANVARS  ;
-  DO KILLGBLC^TMGTERM
+  DO KILLGBLC^TMGUSRI8
   KILL tmgStepMode ;" 2/10/06 kt
   KILL ^TMP("TMGIDE",$J,"MODULES")
   KILL tmgLROffset,tmgScrHeight,tmgScrWidth,tmgTrap
@@ -458,8 +458,6 @@ READ2(XGCHARS,XGTO)   ;"Taken from READ^XGKB
   ELSE  READ S:XGTO SET:'$T DTOUT=1 IF 1 ;"read as many as possible
   SET:$G(DTOUT)&('$D(XGT1)) S=U                          ;"stuff ^
   ;
-  ;"//kt added the following IF block 8/11/13 to handle when keyboard terminator mode keeps getting changed.
-  ;"//kt and also the 'ELSE' at the beginning of the line following this block.         
   IF S="",$ZB=$CHAR(27) DO  
   . NEW S2,ZB SET ZB=$ZB
   . FOR  DO  QUIT:S2=""  
@@ -468,7 +466,7 @@ READ2(XGCHARS,XGTO)   ;"Taken from READ^XGKB
   . SET tmgXGRT=$G(^XUTL("XGKB",ZB))
   . SET S=tmgXGRT
   ELSE  SET:$L($ZB) tmgXGRT=$G(^XUTL("XGKB",$ZB))  ;"get terminator if any
-  IF $G(DTOUT),$D(XGT1),$D(^TMP("XGW",$J,XGW1,"T",XGT1,"EVENT","TIMER")) DO  IF 1 ;"if timed out
+  IF $GET(DTOUT),$DATA(XGT1),$DATA(^TMP("XGW",$J,XGW1,"T",XGT1,"EVENT","TIMER")) DO  IF 1 ;"if timed out
   . DO E^XGEVNT1(XGW1,"T",XGT1,"","TIMER")
   ELSE  IF $L(tmgXGRT),$D(^TMP("XGKEY",$J,tmgXGRT)) XECUTE ^(tmgXGRT)  ;"do some action
   ;" this really should be handled by keyboard mapping -- later

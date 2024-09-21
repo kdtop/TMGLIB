@@ -1,4 +1,4 @@
-TMGDATE   ;TMG/ELH-DATE FUNCTIONS ; 8/26/17
+TMGDATE   ;TMG/ELH-DATE FUNCTIONS ; 8/26/17, 9/6/24
          ;;1.0;TMG-LIB;**1,17**;8/26/17
       ;  
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -24,6 +24,7 @@ TMGDATE   ;TMG/ELH-DATE FUNCTIONS ; 8/26/17
  ;"TIMEDIFF(DATE1,DATE2)  ;"RETURNS THE DIFFERENCE BETWEEN 2 DTS IN MINUTES
  ;"FMTDATE(DATESTR,EXTERNAL)  ;"
  ;"EXT2FMDT(EDATE)  ;"CONVERT EXTERNAL FORMAT DATE INTO A FILEMAN DT NUMBER
+ ;"MONTHNAME(MONTH,FLAGS)  ;"Return name of month
  ;"=======================================================================
  ;"=======================================================================
  ;   
@@ -162,3 +163,28 @@ EXT2FMDT(EDATE)  ;"CONVERT EXTERNAL FORM DATE INTO A FILEMAN DT NUMBER
       DO ^%DT
       QUIT Y
       ;"
+SPLITDT(FMDT,YR,MONTH,DAY,HRS,MIN,SEC) ;"Split FMDT into component parts. Returns numeric values  
+      SET FMDT=+$GET(FMDT)  ;"E.G. 3240906.181747
+      SET YR=$EXTRACT(FMDT,1,3)+1700  ;"4 DIGIT YEAR
+      SET MONTH=+$EXTRACT(FMDT,4,5)
+      SET DAY=+$EXTRACT(FMDT,6,7)
+      SET HRS=+$EXTRACT(FMDT,9,10)
+      SET MIN=+$EXTRACT(FMDT,11,12)
+      SET SEC=+$EXTRACT(FMDT,13,14)
+      QUIT
+      ;
+MONTHNAME(MONTH,FLAGS)  ;"Return name of month
+      ;"Input: MONTH -- numeric month.  If <1 or >12, returns ""
+      ;"       FLAGS -- The following flags can appear in any order
+      ;"                 A -- return abreviated name
+      ;"                 U -- return in all UPPERCASE
+      NEW STR SET STR="January,February,March,April,May,June,July,August,September,October,November,December"
+      NEW ABV SET ABV="Jan,Feb,Mar,Apr,May,June,Jul,Aug,Sept,Oct,Nov,Dec"
+      SET MONTH=+$GET(MONTH)
+      SET FLAGS=$GET(FLAGS)
+      NEW RESULT SET RESULT=""
+      IF FLAGS["A" SET RESULT=$PIECE(ABV,",",MONTH)
+      ELSE  SET RESULT=$PIECE(STR,",",MONTH)
+      IF FLAGS["U" SET RESULT=$$UP^XLFSTR(RESULT)
+      QUIT RESULT
+      ;

@@ -103,11 +103,11 @@ TESTSETUP(MENU,X,Y) ;
   SET MENU(6,2)="Find Next"
   SET MENU(6,3)="Find Prev"  
   ;"-- Menu drawing options
-  SET MENU("OPTION","COLOR","BORDER")=$$COLORPAIR^TMGTERM("RED","BLUE",.TEMP) 
-  SET MENU("OPTION","COLOR","TEXT")=$$COLORPAIR^TMGTERM("WHITE","BLUE",.TEMP) 
-  SET MENU("OPTION","COLOR","SELTEXT")=$$COLORPAIR^TMGTERM("BLUE","GREY",.TEMP) 
-  SET MENU("OPTION","COLOR","ALTKEY")=$$COLORPAIR^TMGTERM("RED","BLACK",.TEMP) 
-  SET MENU("OPTION","COLOR","SELALTKEY")=$$COLORPAIR^TMGTERM("RED","GREY",.TEMP)  
+  SET MENU("OPTION","COLOR","BORDER")=$$COLORPAIR^TMGUSRI8("RED","BLUE",.TEMP) 
+  SET MENU("OPTION","COLOR","TEXT")=$$COLORPAIR^TMGUSRI8("WHITE","BLUE",.TEMP) 
+  SET MENU("OPTION","COLOR","SELTEXT")=$$COLORPAIR^TMGUSRI8("BLUE","GREY",.TEMP) 
+  SET MENU("OPTION","COLOR","ALTKEY")=$$COLORPAIR^TMGUSRI8("RED","BLACK",.TEMP) 
+  SET MENU("OPTION","COLOR","SELALTKEY")=$$COLORPAIR^TMGUSRI8("RED","GREY",.TEMP)  
   SET MENU("FOCUS IDX")=1  
   QUIT
   ;
@@ -125,6 +125,7 @@ RUNMENU(MENU,RUNOPT) ;
   ;"            RUNOPT("ON PREDRAW") -- - Optional. "MYFUN^MYRTN"  Must take 1 parameters, e.g. $$MYFUN^MYRTN(.MENU)
   ;"                   Fires just before refresh drawing. This can be used to redraw the underlying windows, which menus may have messed up.
   ;"                   +Result of function should be 1, if screen drawn.  
+  ;"RESULT: 
   NEW TMGDEVSAVE,TMGDEVINFO DO DEV2ARR^TMGKERN1($IO,.TMGDEVSAVE,,.TMGDEVINFO)
   SET RUNOPT("EOFF")=1
   IF $DATA(RUNOPT("ON KEY"))=0 SET RUNOPT("ON KEY")="HNDLKEY^TMGUSRI7"
@@ -325,7 +326,7 @@ DRAWMENU(IDX,MENU)  ;"Draw one menu box.
   ;"          MENU(IDX,<line#>,"COLOR","SELTEXT")="FG^BG"  <-- optional, overrides global colors.
   ;"          MENU(IDX,<line#>,"COLOR","ALTKEY")="FG^BG"   <-- optional. overrides global colors.  If text is "&File", then F will be ALTKEY color
   ;"          MENU(IDX,<line#>,"COLOR","SELALTKEY")="FG^BG"   <-- optional. overrides global colors.  If text is "&File", then F will be ALTKEY color
-  ;"              Note: FG and BG should be color numbers, see COLORPAIR^TMGTERM for details.  
+  ;"              Note: FG and BG should be color numbers, see COLORPAIR^TMGUSRI8 for details.  
   ;"          MENU(IDX,<line#>,"DATA")="abc123"> <-- Optional data for user use for this line.
   ;"          MENU(IDX,"TOP MENU BAR")=1 <-- This is if this menu is for the top menu bar.  Should only be 1 of these.  
   ;"          MENU(IDX,"DATA")="abc123"> <-- Optional data for user use for this menu 
@@ -557,18 +558,18 @@ SETCOLORS(MODE,ARR) ;" Set color
   . SET FG=$PIECE(CLRS,"^",1)
   . SET BG=$PIECE(CLRS,"^",2)
   . SET ARR(MODE)=FG_"^"_BG
-  DO VCOLORS^TMGTERM(FG,BG)
+  DO COLORS^TMGTERM(FG,BG)
   QUIT
   ;
 DEFAULTCLR(ARR)  ;"Get default color array
-  DO SETGBLCO^TMGTERM   ;"Set Global Colors vars
+  DO SETGBLCO^TMGUSRI8    ;"Set Global Colors vars
   SET ARR("TEXT")=TMGCOLWHITE_"^"_TMGCOLWHITE        ;"FG^BG"     
   SET ARR("SELTEXT")=TMGCOLFGBWHITE_"^"_TMGCOLBLACK  ;"FG^BG"
   SET ARR("BORDER")=TMGCOLBLACK_"^"_TMGCOLWHITE      ;"FG^BG"
   SET ARR("DEFAULT")=TMGCOLBLACK_"^"_TMGCOLWHITE     ;"FG^BG"
   SET ARR("ALTKEY")=TMGCOLRED_"^"_TMGCOLWHITE        ;"FG^BG"
   SET ARR("SELALTKEY")=TMGCOLRED_"^"_TMGCOLBLACK     ;"FG^BG"
-  DO KILLGBLC^TMGTERM   ;"Kill Global Colors vars
+  DO KILLGBLC^TMGUSRI8   ;"Kill Global Colors vars
   QUIT
   ;
   ;"==========================================================================

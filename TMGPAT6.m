@@ -1591,7 +1591,7 @@ PICKENTRY(OPTION,OUTPATH,OUTNAME) ;
   SET OPTION("ON CMD")="HNDONCMD^TMGPAT6"     ;"code to execute for number entry
   SET OPTION("ON KEYPRESS")="HNDONKP^TMGPAT6" ;"code to execute commands and keypresses
   IF $DATA(OPTION("COLORS"))=0 DO
-  . ;"NOTE: DEMOCOLR^TMGTERM, COLORBOX^TMGTERM, ShowColorbox^TMGIDE6 can show color options.  
+  . ;"NOTE: DEMOCOLR^TMGUSRI8, COLORBOX^TMGUSRI8, ShowColorbox^TMGIDE6 can show color options.  
   . ;"Format is "FG^BG" 
   . NEW BORDER SET BORDER="14^08"  ;"WHITE FG, RED BG
   . SET OPTION("COLORS","NORM")="15^14"   ;"15=RED^14=GREY

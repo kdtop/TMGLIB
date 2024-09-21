@@ -424,7 +424,7 @@ CNSLTRPT(RECORDS,MAKENOTES) ;
        DO C^%DTC
        SET endDate=X+.999999
        ;"SET NowDate=3221212
-       ;"SET endDate=3240507
+       ;"SET endDate=3241001
        FOR  SET dueDate=$ORDER(matches(dueDate),1) QUIT:(dueDate="")  do
        . IF (RECORDS>0)&(dueDate>endDate) QUIT
        . IF (RECORDS=0)&(future=1) QUIT
@@ -904,7 +904,7 @@ MISSROS(CHKDATE)   ;"TODAY'S OFFICE NOTES MISSING ROS
        NEW TIUARR,DATE,TIUIEN
        IF +$G(CHKDATE)'>0 SET CHKDATE=$$TODAY^TMGDATE
        SET TIUIEN=0
-       ;"SET CHKDATE=3230908
+       ;"SET CHKDATE=3230913
        SET DATE=CHKDATE
        FOR  SET DATE=$O(^TIU(8925,"D",DATE)) QUIT:DATE=""  DO
        . SET TIUIEN=0
@@ -1476,7 +1476,7 @@ IMMS2CHK  ;"
        . . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
        . . . NEW DOB SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3))
        . . . SET NAME=NAME_" ("_DOB_")"
-       . . . SET OUTARRAY(NAME,REMIEN)=""
+       . . . SET OUTARRAY(DATE,NAME,REMIEN)=""
        ;"
        NEW %ZIS
        SET %ZIS("A")="Enter Output Device: "
@@ -1492,13 +1492,15 @@ IMMS2CHK  ;"
        WRITE "                   " SET Y=X DO DD^%DT WRITE Y,!
        WRITE "           Please deliver this report to Lindsey",!
        WRITE "***************************************************************",!
-       WRITE "                                            (From TMGRPT1.m)",!!
-       NEW NAME SET NAME=""
-       FOR  SET NAME=$O(OUTARRAY(NAME)) QUIT:NAME=""  DO
-       . WRITE !,"==== ",NAME," ====",!
-       . NEW REMIEN SET REMIEN=0
-       . FOR  SET REMIEN=$O(OUTARRAY(NAME,REMIEN)) QUIT:REMIEN'>0  DO
-       . . WRITE "  [    ]  ",$G(REMARR(REMIEN)),!
+       WRITE "                                               (From TMGRPT1.m)",!!
+       NEW DATE SET DATE=""
+       FOR  SET DATE=$O(OUTARRAY(DATE)) QUIT:DATE=""  DO
+       . NEW NAME SET NAME=""
+       . FOR  SET NAME=$O(OUTARRAY(DATE,NAME)) QUIT:NAME=""  DO
+       . . WRITE !,"==== ",NAME," (",$$EXTDATE^TMGDATE(DATE),") ====",!
+       . . NEW REMIEN SET REMIEN=0
+       . . FOR  SET REMIEN=$O(OUTARRAY(DATE,NAME,REMIEN)) QUIT:REMIEN'>0  DO
+       . . . WRITE "  [    ]  ",$G(REMARR(REMIEN)),!
        DO ^%ZISC  ;" Close the output device
        QUIT
        ;"       

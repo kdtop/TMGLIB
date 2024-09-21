@@ -344,12 +344,14 @@ ISDIR(Path,NodeDiv)  ;
   USE p
   NEW x READ x
   CLOSE p USE $P
-  QUIT (x="directory")
+  NEW RESULT SET RESULT=(x="directory")
+  QUIT RESULT
   ;
 DIR2(PATH,OUT,OPTION) ;"Expanded directory
   ;"INPUT: PATH -- HFS path to get directory from 
   ;"       OUT -- pass by reference, an OUT parameter.  See format below. 
   ;"       OPTION -  OPTIONAL
+  ;"         OPTION("MATCH") -- optional.  E.g. 'TMG*.m'
   ;"         OPTION("R") -- RECURSIVE (include sub-folders)
   ;"         OPTION("INCLUDE")= FNAME^PATH^FILE_TYPE^PERMISSIONS^HARD_LINKS^OWNER^GROUP^SIZE^FMDT
   ;"                          Each piece is a flag with values as follows:
@@ -361,7 +363,11 @@ DIR2(PATH,OUT,OPTION) ;"Expanded directory
   ;"                          DEFAULT IS ALL 0's (except FNAME piece default is 1, 0 not allowed)
   ;"OUTPUT:  OUT:
   ;"Result: "1^OK" or "-1^Error Message"
-  NEW CMD SET CMD="ls "_PATH_" -Al"
+  NEW NODEDIV SET NODEDIV="/"
+  SET PATH=$GET(PATH)
+  NEW MATCH SET MATCH=$GET(OPTION("MATCH"))
+  IF MATCH'="",$EXTRACT(PATH,$LENGTH(PATH))'=NODEDIV SET PATH=PATH_NODEDIV
+  NEW CMD SET CMD="ls "_PATH_MATCH_" -Al"
   NEW RESULT SET RESULT="1^OK"
   NEW TMP SET RESULT=$$LINUXCMD(CMD,.TMP)
   NEW IDX SET IDX=""
