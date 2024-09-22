@@ -94,6 +94,7 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15, 9/12/24
  ;"INVCLRV24(R,G,B)  --Return 24bit color vector triple, that is INVERTED from RGB
  ;"INVCLRVEC(CLRVEC) --Invert a 24bit color vector triple.
  ;"ISCLRVEC24(STR) -- Returns if STR is in format of 24bit color vector triple, CLRVEC24
+ ;"V24TORGB(CLRVEC,R,G,B) ;"Split CLRVEC24 to R,G,B components.  
  ;"=======================================================================
  ;"DEPENDENCIES: XLFSTR
  ;"=======================================================================
@@ -167,9 +168,10 @@ CUF(PN)  ;"Cursor Forward            Esc [ PN C          VT100
   QUIT
   ;
 CUP(X,Y)  ;"Cursor Position        Esc [ PN  ; PN H     VT100
+  SET X=$GET(X)\1,Y=$GET(Y)\1
   DO ESCN(.Y,.X,"H")
-  SET $X=X
-  SET $Y=Y
+  SET $X=X\1
+  SET $Y=Y\1
   QUIT
   ;
 CUPOS(VEC2D) ;"Cursor POSITION from 2D vec  ("X^Y")
@@ -499,15 +501,20 @@ INVCLRV24(R,G,B)  ;"Return 24bit color vector triple, that is INVERTED from RGB
   QUIT $$CLRVEC24(255-R,255-G,255-B)
   ;
 INVCLRVEC(CLRVEC) ;"Invert a 24bit color vector triple. 
-  NEW R SET R=+$PIECE(CLRVEC,";",1)
-  NEW G SET G=+$PIECE(CLRVEC,";",2)
-  NEW B SET B=+$PIECE(CLRVEC,";",3)
+  NEW R,G,B
+  DO V24TORGB(CLRVEC,.R,.G,.B) ;
   QUIT $$INVCLRV24(R,G,B)
   ;  
 ISCLRVEC24(STR) ;"Returns if STR is in format of 24bit color vector triple, CLRVEC24.  '#;#;#'
   NEW RESULT,IDX,VAL SET RESULT=($LENGTH(STR,";")=3) 
   FOR IDX=1:1:3 QUIT:(RESULT=0)  SET VAL=$PIECE(STR,";",IDX),RESULT=(+VAL=VAL)
   QUIT RESULT
+  ;
+V24TORGB(CLRVEC,R,G,B) ;"Split CLRVEC24 to R,G,B components.  
+  SET R=+$PIECE(CLRVEC,";",1)
+  SET G=+$PIECE(CLRVEC,";",2)
+  SET B=+$PIECE(CLRVEC,";",3)
+  QUIT
   ;"=======================================================================
   ;  
 COLORPAIR(FG,BG,ARR) ;"DEPRECIATED, MOVED

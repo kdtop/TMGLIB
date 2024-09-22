@@ -16,7 +16,11 @@ TMGUSRI8 ;TMG/kst/USER INTERFACE -- Terminal Color Picker ;9/20/24
  ;"======================================================================= 
  ;"COLORBOX(SETBG,SETFG)  -- WRITE a grid on the screen, showing all the color combos
  ;"PICKCOLOR24(OPTION)
- ;"COLORMENU() ;"Allow user to pick color by name in a menu structure. 
+ ;"COLORMENU() -- Allow user to pick color by name in a menu structure. 
+ ;"WEBCOLOR(NAME,COLORARR) --Get color vector, based on standardized web color names
+ ;"LIGHTERCLR(CLRVEC,LIGHTPCT) ;
+ ;"DARKERCLR(CLRVEC,DARKPCT) ;
+ ;"DELTACOLOR(CLRVEC,SHADEPCT) ;
  ;
  ;"=======================================================================
  ;"INDEX COLOR FUNCTIONS
@@ -48,13 +52,18 @@ TMGUSRI8 ;TMG/kst/USER INTERFACE -- Terminal Color Picker ;9/20/24
  ;"SETUPCHARS(CHARS) 
  ;"GETIDXMAP(MAPARR) 
  ;"MAPIDXTO24BIT(IDXCOLOR,ISBKGND) 
- ;"DRAWPART(FACE,RA,GA,BA,OPTION) ;
- ;"DELTARR(ARR,PCT) 
+ ;"DRAWPART(FACE,RA,GA,BA,RISMAX,GISMAX,BISMAX,OPTION) ;
+ ;"DELTA1CLR(ARR,PCT) 
  ;"BYTEVAL(A) ;"
  ;"AXISPCT(A) ;"
  ;"XFRM(FACE,RA,GA,BA,OPTION) --Transform (XFRM) RGB coordinates into XY screen coordinates.  
  ;"WEBCOLOR(NAME,COLORARR) --Get color vector, based on standardized web color names
  ;"GETWEBCOLORS(COLORARR) ;
+ ;"SETUPCOLORMENU(MENU) -- Setup menu array for use with RUNMENU^TMGUSRI7
+ ;"DELTA1CLR(V,PCT) --PCT SHOULD BE 0-1
+ ;"DELTAINT(V,DELTA) 
+ ;"DRAWLINE(CHARS,AXIS,START,STOP,R1,G1,B1,STEP,NOSTARTDOT,NOSTOPDOT) ;
+ ;"SPLITPOS(POS,X,Y) ;
  ;
  ;"=======================================================================
  ;"=======================================================================
@@ -135,355 +144,6 @@ COLORBOX(SETBG,SETFG)  ;"WRITE a grid on the screen, showing all the color combo
   . WRITE !
   QUIT
   ;  
-PICKCOLOR24(OPTION) ;
-  ;"Input: OPTION.  OPTIONAL.  PASS BY REFERENCE.
-  ;"         OPTION("CENTERX"),OPTION("CENTERY") -- screen coordinates for centerpoint, where R=G=B=255.  Default is (23,31)
-  NEW RA,GA,BA,INPUT,CHANGED
-  NEW DONE SET DONE=0
-  SET RA("VAL")=0,RA("MAX")=26
-  SET GA("VAL")=0,GA("MAX")=10
-  SET BA("VAL")=5,BA("MAX")=10
-  SET OPTION("CENTERX")=$GET(OPTION("CENTERX"),23)
-  SET OPTION("CENTERY")=$GET(OPTION("CENTERY"),31)
-  SET OPTION("SHOW FRAME")=1
-  SET OPTION("SHOW SELECTED")=1  
-  SET OPTION("LABEL AXES")=0    
-  SET OPTION("CLEAR BOX")=1
-  NEW TEMP DO SETUPCHARS(.TEMP) MERGE OPTION("CHARS")=TEMP
-  NEW TEXTHOME SET TEXTHOME="0^"_(OPTION("CENTERY")+13)
-  NEW SHADEPCT SET SHADEPCT=0.15
-  WRITE #  ;"clear screen
-  DO CSRSHOW^TMGTERM(0)
-CB24L1 ;  
-  DO DRAWCLRBOX24(.RA,.GA,.BA,.OPTION)
-  ;"Restore colors.  
-  DO VTATRIB^TMGTERM(0)
-  DO CUPOS^TMGTERM(TEXTHOME)  
-  SET RA=RA("VAL"),GA=GA("VAL"),BA=BA("VAL")
-  NEW COL SET COL(1)=20,COL(2)=40
-  NEW ARROWS
-  WRITE "  LEFT/RIGHT: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " RED",!
-  WRITE "       UP/DN: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " GREEN",!
-  WRITE "  Page-Up/Dn: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " BLUE",!
-  WRITE "         A/Z: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " Light/Dark",!
-CB24L2 ;  
-  SET INPUT=$$READKY^TMGUSRI5("e",,1,,.ESCKEY,1) ;"read one char, with ESC processing
-  IF INPUT="" DO  GOTO:DONE CB24DN
-  . IF "RIGHT,LEFT,UP,DOWN,HOME,END"[ESCKEY SET INPUT=ESCKEY QUIT
-  . IF ESCKEY="PREV" SET INPUT="PGUP" QUIT
-  . IF ESCKEY="NEXT" SET INPUT="PGDN" QUIT
-  . IF ESCKEY="DOWN" SET INPUT="DOWN" QUIT               
-  . IF ESCKEY="CR" SET DONE=1 QUIT
-  . IF ESCKEY="TAB" SET DONE=1 QUIT
-  . ;"WRITE "ESCKEY=",ESCKEY,!
-  SET INPUT=$$UP^XLFSTR(INPUT)
-  SET CHANGED=0
-  IF (INPUT="LEFT") DO  
-  . IF RA("VAL")>0 SET RA("VAL")=RA("VAL")-1,CHANGED=1
-  IF (INPUT="RIGHT") DO  
-  . IF RA("VAL")<RA("MAX") SET RA("VAL")=RA("VAL")+1,CHANGED=1
-  IF (INPUT="DOWN") DO 
-  . IF GA("VAL")>0 SET GA("VAL")=GA("VAL")-1,CHANGED=1
-  IF (INPUT="UP") DO  
-  . IF GA("VAL")<GA("MAX") SET GA("VAL")=GA("VAL")+1,CHANGED=1  
-  IF (INPUT="PGUP") DO  
-  . IF BA("VAL")>0 SET BA("VAL")=BA("VAL")-1,CHANGED=1
-  IF (INPUT="PGDN") DO  
-  . IF BA("VAL")<BA("MAX") SET BA("VAL")=BA("VAL")+1,CHANGED=1
-  IF INPUT="Z" DO  ;"PUSH TOWARDS BLACK
-  . IF RA("VAL")<RA("MAX") DO DELTARR(.RA,SHADEPCT) SET CHANGED=1
-  . IF GA("VAL")<GA("MAX") DO DELTARR(.GA,SHADEPCT) SET CHANGED=1
-  . IF BA("VAL")<BA("MAX") DO DELTARR(.BA,SHADEPCT) SET CHANGED=1
-  IF INPUT="A" DO  ;"PUSH TOWARDS WHITE
-  . IF RA("VAL")>0 DO DELTARR(.RA,-SHADEPCT) SET CHANGED=1
-  . IF GA("VAL")>0 DO DELTARR(.GA,-SHADEPCT) SET CHANGED=1
-  . IF BA("VAL")>0 DO DELTARR(.BA,-SHADEPCT) SET CHANGED=1
-  IF CHANGED GOTO CB24L1
-  IF INPUT="^" SET DONE=1 GOTO CB24DN
-  GOTO CB24L2
-CB24DN ;  
-  NEW R,G,B SET R=$$BYTEVAL(.RA),G=$$BYTEVAL(.GA),B=$$BYTEVAL(.BA)
-  NEW S SET S=$$RJ^XLFSTR(R,3,"0")_";"_$$RJ^XLFSTR(G,3,"0")_";"_$$RJ^XLFSTR(B,3,"0")
-  DO CSRSHOW^TMGTERM(1)
-  QUIT S                 
-  ;
-DELTARR(ARR,PCT) ;"
-  NEW VAL SET VAL=ARR("VAL")
-  NEW MAX SET MAX=ARR("MAX")
-  IF PCT<0 DO
-  . NEW DELTA SET DELTA=MAX*(-PCT)
-  . IF DELTA<1 SET DELTA=1
-  . SET VAL=(VAL-DELTA)\1
-  ELSE  DO
-  . NEW DIFF SET DIFF=MAX
-  . NEW DELTA SET DELTA=$$ROUND^TMGUTIL0(DIFF*PCT)
-  . IF DELTA<1 SET DELTA=1
-  . SET VAL=VAL+DELTA
-  IF VAL<0 SET VAL=0
-  IF VAL>MAX SET VAL=MAX
-  SET ARR("VAL")=VAL
-  QUIT
-  ;
-SETUPCHARS(CHARS) ;"SETUP ARRAY OF UNICODE CHARS.  
-  SET CHARS("\")="$2572"
-  SET CHARS("/")="$2571" 
-  SET CHARS("-")="$2500" 
-  SET CHARS(".")="$22C5"  ;"$2572 is dot operator, like '*'
-  SET CHARS("#")="$22A1"   ;"$22A1 is squared dot,
-  QUIT  
-  ;
-DRAWCLRBOX24(RA,GA,BA,OPTION) ;"Do drawing of color cube.  
-  ;"Input: RA, GA, BA -- PASS BY REFERENCE.  red, green blue axis values (RGB coordinates)
-  ;"         Each var has ("MAX") and ("VAL") values
-  ;"       OPTION.  OPTIONAL.  PASS BY REFERENCE.
-  ;"         OPTION("CENTERX"),OPTION("CENTERY") -- screen coordinates for centerpoint, where R=G=B=255.  Default is (23,31)
-  ;"         OPTION("LABEL AXES")=1  -- if 1 then labels shown
-  ;"         OPTION("SHOW FRAME")=1  -- if 1 then frame shown
-  ;"         OPTION("SHOW SELECTED")=1  -- If 1 then selected color shown      
-  ;"         OPTION("CLEAR BOX")=1 -- If 1 then white box is painted before drawing cube.  
-  ;"     GREEN AXIS
-  ;"1  -10         \##########################             
-  ;"2  -9         .#\##########################         
-  ;"3  -8        .#.#\##########################         
-  ;"4  -7       .#.#.#\##########################        
-  ;"5  -6      .#.#.#.#\##########################      
-  ;"6  -5     .#.#.#.#.#\##########################      
-  ;"7  -4    .#.#.#.#.#.#\##########################    
-  ;"8  -3   .#.#.#.#.#.#.#\##########################    
-  ;"9  -2  .#.#.#.#.#.#.#.#\##########################  
-  ;"0  -1 .#.#.#.#.#.#.#.#.#\########################## 
-  ;"1   1.#.#.#.#.#.#.#.#.#.#*-------------------------   RED AXIS
-  ;"2   2 .#.#.#.#.#.#.#.#.#/########################## 
-  ;"3   3  .#.#.#.#.#.#.#.#/##########################  
-  ;"4   4   .#.#.#.#.#.#.#/##########################   
-  ;"5   5    .#.#.#.#.#.#/##########################    
-  ;"6   6     .#.#.#.#.#/##########################     
-  ;"7   7      .#.#.#.#/##########################       
-  ;"8   8       .#.#.#/##########################        
-  ;"9   9        .#.#/##########################         
-  ;"0  10         .#/##########################         
-  ;"1  11          /##########################          
-  ;"         BLUE AXIS                                  
-  ;"              12345678901234567890123456         
-  ;"     12345678901234567890123456789012345678901234567
-  ;
-  ;"NOTE: Each axis goes from MIN to MAX, e.g. 1-26
-  ;"      Center is (CENTERX,CENTERY).  Values are 255 at center, and 0 at edges.  
-  ;"      RA,GA,BA axis is 0 at center and MAX at edges, so opposite direction compared to color values
-  ;"      ** I would like to rework this to directly work with RGB values and get rid of axis values.  
-  ;
-  NEW POS,FG,BG,POS 
-  NEW ADDLABELS SET ADDLABELS=$GET(OPTION("LABEL AXES"))
-  SET POS=$$XFRM("RB",0,0,BA("MAX")+1,.OPTION)
-  NEW WIDTH SET WIDTH=RA("MAX")
-  NEW HEIGHT SET HEIGHT=BA("MAX")   
-  NEW DEPTH SET DEPTH=GA("MAX")  
-  NEW BFLX,BFLY  ;"BOTTOM LEFT X, Y
-  NEW BFLX,BFLY SET BFLX=$PIECE(POS,"^",1),BFLY=$PIECE(POS,"^",2)
-  NEW BBLX,BBLY SET BBLX=BFLX-GA("MAX")-1,BBLY=BFLY-GA("MAX")-1
-  NEW BBRX,BBRY SET BBRX=BBLX+WIDTH,BBRY=BBLY
-  NEW TBLX,TBLY SET TBLX=BBLX+HEIGHT,TBLY=BBLY-HEIGHT
-  NEW BFRX,BFRY SET BFRX=BFLX+WIDTH+1,BFRY=BFLY
-  NEW TFRX,TFRY SET TFRX=BFRX+HEIGHT,TFRY=BFRY-HEIGHT
-  ;
-  IF $GET(OPTION("CLEAR BOX")) DO
-  . NEW X SET X=BBLX
-  . NEW Y SET Y=TBLY
-  . NEW WIDTH SET WIDTH=TFRX-BBLX+1
-  . NEW HT SET HT=BFLY-TBLY 
-  . NEW WS SET WS="" SET $PIECE(WS," ",WIDTH)=" "
-  . FOR Y=TBLY:1:BFLY DO
-  . . DO CUP^TMGTERM(BBLX,Y) WRITE WS
-  ;                         
-  ;"DRAW RG FACE
-  SET BG=$$CLRVEC24^TMGTERM(255,0,0)  ;"255,0,0 = RED
-  SET FG=$$INVCLRVEC^TMGTERM(BG)
-  SET BA=BA("VAL")
-  FOR GA=GA("VAL"):1:GA("MAX") DO
-  . FOR RA=RA("VAL"):1:RA("MAX") DO
-  . . DO DRAWPART("RG",.RA,.GA,.BA,.OPTION) 
-  . . IF ADDLABELS,RA=RA("MAX"),GA=GA("VAL") DO
-  . . . SET POS=$$XFRM("GR",RA+1,GA,BA,.OPTION)
-  . . . SET BG=$$CLRVEC24^TMGTERM(255,0,0)  ;"255,0,0 = RED
-  . . . SET FG=$$INVCLRVEC^TMGTERM(BG)
-  . . . DO CUPOS^TMGTERM(POS)
-  . . . DO VCOLOR24B^TMGTERM(FG,BG)
-  . . . NEW TEMP MERGE TEMP=RA SET TEMP=TEMP("VAL")
-  . . . WRITE "RED: ",$$BYTEVAL(.TEMP)
-  . IF ADDLABELS,GA=GA("MAX") DO
-  . . SET POS=$$XFRM("GR",RA("VAL"),GA+1,BA,.OPTION)
-  . . SET BG=$$CLRVEC24^TMGTERM(0,255,0)  ;"0,255,0 = GREEN
-  . . SET FG=$$INVCLRVEC^TMGTERM(BG)
-  . . DO CUPOS^TMGTERM(POS)
-  . . DO VCOLOR24B^TMGTERM(FG,BG)
-  . . NEW TEMP MERGE TEMP=GA SET TEMP=TEMP("VAL")
-  . . WRITE "GREEN: ",$$BYTEVAL(.TEMP)
-  ;
-  ;"DRAW RB FACE
-  SET GA=GA("VAL")
-  FOR BA=BA("VAL")+1:1:BA("MAX") DO       ;"+1 because we already drew BA("VAL") on RG face
-  . FOR RA=RA("VAL"):1:RA("MAX") DO
-  . . DO DRAWPART("RB",.RA,.GA,.BA,.OPTION)
-  . IF ADDLABELS,BA=BA("MAX") DO
-  . . SET POS=$$XFRM("GR",RA("VAL"),GA,BA+1,.OPTION)
-  . . SET BG=$$CLRVEC24^TMGTERM(0,0,255)  ;"0,0,255 = BLUE
-  . . SET FG=$$INVCLRVEC^TMGTERM(BG)
-  . . DO CUPOS^TMGTERM(POS)
-  . . DO VCOLOR24B^TMGTERM(FG,BG)
-  . . NEW TEMP MERGE TEMP=BA SET TEMP=TEMP("VAL")  
-  . . WRITE "BLUE: ",$$BYTEVAL(.TEMP)
-  ;
-  ;"DRAW BG FACE
-  SET RA=RA("VAL")                          ;"Inc by 0.5 because of face rotated 45 degrees.  
-  FOR GA=GA("VAL")+1:0.5:GA("MAX")+1 DO     ;"+1 because we already drew GA("VAL") on RG face
-  . FOR BA=BA("VAL")+1:0.5:BA("MAX")+1 DO   ;"+1 because we already drew BA("VAL") on RB face
-  . . DO DRAWPART("GB",.RA,.GA,.BA,.OPTION) ;
-  ;
-  ;"DRAW FRAME IF WANTED
-  IF $GET(OPTION("SHOW FRAME")) DO
-  . NEW W
-  . ;"NEW WIDTH SET WIDTH=RA("MAX")
-  . ;"NEW HEIGHT SET HEIGHT=BA("MAX")   
-  . ;"NEW DEPTH SET DEPTH=GA("MAX")
-  . NEW CHARS MERGE CHARS=OPTION("CHARS") IF $DATA(CHARS)=0 DO SETUPCHARS(.CHARS)
-  . DO VTATRIB^TMGTERM(0)
-  . ;"DRAW BASE LEFT EDGE 
-  . NEW O FOR O=1:1:DEPTH DO
-  . . DO CUP^TMGTERM(BFLX-O,BFLY-O)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("\"))
-  . ;"DRAW BASE BACK LEFT CORNER
-  . DO CUP^TMGTERM(BBLX,BBLY)
-  . DO UTF8WRITE^TMGSTUTL(CHARS("."))  
-  . ;"DRAW FRONT BASE HORIZONTAL LINE
-  . SET W=$SELECT((GA("VAL")=0):RA("VAL"),1:WIDTH)
-  . FOR O=1:1:W DO
-  . . DO CUP^TMGTERM(BFLX+O,BFLY)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("-"))  
-  . ;"DRAW BASE FRONT LEFT CORNER
-  . IF W=WIDTH DO
-  . . DO CUP^TMGTERM(BFRX,BFRY)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS(".")) 
-  . ;"DRAW BASE FRONT LEFT CORNER
-  . DO CUP^TMGTERM(BFLX,BFLY)
-  . DO UTF8WRITE^TMGSTUTL(CHARS(".")) 
-  . ;"DRAW BACK BASE HORIZONTAL LINE
-  . SET W=RA("VAL")
-  . FOR O=1:1:W DO
-  . . DO CUP^TMGTERM(BBLX+O,BBLY)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("-")) 
-  . ;"DRAW BACK-LEFT VERTICAL LINE
-  . FOR O=1:1:HEIGHT-1 DO
-  . . DO CUP^TMGTERM(BBLX+O,BBLY-O)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("/"))  
-  . ;"DRAW TOP BACK HORIZONTAL LINE
-  . SET W=$SELECT((BA("VAL")=0):RA("VAL"),1:WIDTH)
-  . FOR O=1:1:W DO
-  . . DO CUP^TMGTERM(TBLX+O,TBLY)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("-"))
-  . ;"DRAW TOP BACK RIGHT CORNER
-  . IF W=WIDTH DO
-  . . DO CUP^TMGTERM(TBLX+WIDTH,TBLY)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS(".")) 
-  . ;"DRAW TOP BACK LEFT CORNER
-  . DO CUP^TMGTERM(TBLX,TBLY)
-  . DO UTF8WRITE^TMGSTUTL(CHARS(".")) 
-  . ;"DRAW BASE RIGHT EDGE
-  . NEW D SET D=GA("VAL")
-  . NEW O FOR O=1:1:D DO
-  . . DO CUP^TMGTERM(BFRX-O,BFRY-O)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("\"))
-  . ;"DRAW FRONT RIGHT VERTICAL LINE
-  . FOR O=1:1:HEIGHT-1 DO
-  . . DO CUP^TMGTERM(BFRX+O,BFRY-O)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("/"))  
-  . ;"DRAW TOP RIGHT EDGE 
-  . SET D=$SELECT(BA("VAL")=0:GA("VAL"),1:DEPTH)
-  . NEW O FOR O=1:1:D DO
-  . . DO CUP^TMGTERM(TFRX-O,TFRY-O)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("\"))
-  . ;"DRAW TOP FRONT RIGHT CORNER
-  . DO CUP^TMGTERM(TFRX,TFRY)
-  . DO UTF8WRITE^TMGSTUTL(CHARS(".")) 
-  . ;"DRAW BACK RIGHT VERTICAL LINE
-  . FOR O=HEIGHT-BA("VAL")+1:1:HEIGHT-1 DO
-  . . DO CUP^TMGTERM(BBRX+O,BBRY-O)
-  . . DO UTF8WRITE^TMGSTUTL(CHARS("/"))    
-  ;
-  ;"DRAW SELECTED COLOR BOX.  
-  IF $GET(OPTION("SHOW SELECTED"))=1 DO
-  . NEW EXTRA SET EXTRA=$SELECT($GET(OPTION("LABEL AXES")):8,1:0)
-  . NEW X SET X=OPTION("CENTERX")+RA("MAX")+2+EXTRA
-  . NEW Y SET Y=OPTION("CENTERY")-GA("MAX")
-  . SET RA=RA("VAL"),GA=GA("VAL"),BA=BA("VAL")
-  . NEW R,G,B SET R=$$BYTEVAL(.RA),G=$$BYTEVAL(.GA),B=$$BYTEVAL(.BA)
-  . NEW S 
-  . SET S(0)="                    "
-  . SET S(1)="   SELECTED COLOR   "
-  . SET S(2)="   ("_$$RJ^XLFSTR(R,3,"0")_","_$$RJ^XLFSTR(G,3,"0")_","_$$RJ^XLFSTR(B,3,"0")_")    "
-  . SET BG=$$CLRVEC24^TMGTERM(R,G,B)  
-  . SET FG=$$INVCLRVEC^TMGTERM(BG)
-  . DO VCOLOR24B^TMGTERM(BG,FG)  ;"<-- I don't understand why I have to switch FG and BG to get it to display properly!
-  . NEW DY FOR DY=1:1:20 DO
-  . . DO CUP^TMGTERM(X,Y+DY)
-  . . NEW IDX SET IDX=$SELECT(DY=2:1,DY=3:2,1:0)
-  . . WRITE S(IDX)
-  . DO
-  . . NEW TEMP SET TEMP("ARC")=1
-  . . DO DRAWBOX^TMGTERM2(X,Y,20,GA("MAX")+12,.TEMP)
-  ;  
-  QUIT
-  ;" 
-DRAWPART(FACE,RA,GA,BA,OPTION) ;
-  ;"Input: FACE -- "BG"/"GB", or "GR"/"RG", or "BR"/"RB"
-  ;"       RA, GA, BA -- PASS BY REFERENCE.  red, green blue axis values (RGB coordinates)
-  ;"         Each var has ("MAX") and ("VAL") values
-  ;"       OPTION
-  NEW POS SET POS=$$XFRM(FACE,RA,GA,BA,.OPTION)
-  NEW CHAR SET CHAR=" "  ;"default char
-  NEW RAISMIN SET RAISMIN=(RA=RA("VAL"))
-  NEW GAISMIN SET GAISMIN=(GA=GA("VAL"))
-  NEW BAISMIN SET BAISMIN=(BA=BA("VAL"))
-  IF "RG,GR"[FACE DO
-  . SET CHAR=$SELECT(GAISMIN&RAISMIN:"$22A1",RAISMIN:"$2572",GAISMIN:"$2500",1:" ")   ;"$22A1 is squared dot, $2572 is like '\'   $2500 is like '-'
-  IF "BR,RB"[FACE DO
-  . SET CHAR=$SELECT(BAISMIN&RAISMIN:"$22A1",RA=RA("VAL"):"$2571",BAISMIN:"$2500",1:" ")  ;"$22A1 is squared dot, $2571 is like '/'  $2500 is like '-'
-  NEW IGNORE SET IGNORE=0
-  IF "GB,BG"[FACE DO  IF IGNORE GOTO DPDN
-  . IF (BA+GA)[".5" SET IGNORE=1
-  DO CUPOS^TMGTERM(POS)
-  NEW FG SET FG=$$CLRVEC24^TMGTERM($$BYTEVAL(.RA),$$BYTEVAL(.GA),$$BYTEVAL(.BA))
-  NEW BG SET BG=$$INVCLRVEC^TMGTERM(FG)
-  DO VCOLOR24B^TMGTERM(FG,BG)
-  IF $LENGTH(CHAR)>1,CHAR["$" DO
-  . DO UTF8WRITE^TMGSTUTL(CHAR)
-  ELSE  WRITE CHAR
-DPDN ;  
-  QUIT
-  ;
-BYTEVAL(A) ;"
-  NEW PCT SET PCT=$$AXISPCT(.A)
-  QUIT $$ROUND^TMGUTIL0(255*PCT,0)
-  ;
-AXISPCT(A) ;"
-  NEW RESULT SET RESULT=((A("MAX")-A)/A("MAX"))
-  IF RESULT<0 SET RESULT=0
-  QUIT RESULT
-  ;
-XFRM(FACE,RA,GA,BA,OPTION) ;"Transform (XFRM) RGB coordinates into XY screen coordinates.  
-  ;"Input: FACE -- "BG"/"GB", or "GR"/"RG", or "BR"/"RB"
-  ;"       RA, GA, BA -- red, green blue axis values (RGB coordinates)
-  ;"                    DON'T PASS BY REFERENCE, they are changed here.  
-  ;"Result: <X>^<Y>  -- screen coordinates.  
-  NEW CENTERX SET CENTERX=$GET(OPTION("CENTERX"),23)
-  NEW CENTERY SET CENTERY=$GET(OPTION("CENTERY"),31)
-  NEW X,Y
-  SET X=(RA*1)+(GA*-1)+(BA*-1)
-  SET Y=(RA*0)+(GA*-1)+(BA*1)
-  IF "BG,GB"[FACE SET X=X+1  ;"not sure why needed, but not right if omitted.   
-  SET X=$$ROUND^TMGUTIL0(CENTERX+X,0)
-  SET Y=$$ROUND^TMGUTIL0(CENTERY+Y,0)
-  QUIT X_"^"_Y
-  ;
   ;"=======================================================================
 WEBCOLOR(NAME,COLORARR) ;"Get color vector, based on standardized web color names
   ;"Input: NAME -- NAME OF COLOR.  NOT Case sensitive
@@ -502,18 +162,21 @@ SETUPCOLORMENU(MENU) ;"Setup menu array for use with RUNMENU^TMGUSRI7
   . SET MENU(1,IDX)="&"_SECTION
   . SET MENU(1,IDX,"SUBMENU")=SUBMENU
   . SET MENU(SUBMENU,"PARENT")=1
-  . NEW NAME SET NAME=""
+  . NEW UNAME SET UNAME=""
   . NEW JDX SET JDX=1
-  . FOR  SET NAME=$ORDER(ARR("SECTION",SECTION,NAME)) QUIT:NAME=""  DO
-  . . NEW CLRVEC24 SET CLRVEC24=$GET(ARR("SECTION",SECTION,NAME))
+  . FOR  SET UNAME=$ORDER(ARR("SECTION",SECTION,UNAME)) QUIT:UNAME=""  DO
+  . . NEW ENTRY SET ENTRY=$GET(ARR("SECTION",SECTION,UNAME))
+  . . NEW CLRVEC24 SET CLRVEC24=$PIECE(ENTRY,"^",1)
+  . . NEW NAME SET NAME=$PIECE(ENTRY,"^",2)
   . . NEW INVCLR SET INVCLR=$$INVCLRVEC^TMGTERM(CLRVEC24)
   . . SET MENU(SUBMENU,JDX)=NAME
   . . SET MENU(SUBMENU,JDX,"DATA")=CLRVEC24
   . . SET MENU(SUBMENU,JDX,"COLOR","TEXT")=CLRVEC24_"^"_INVCLR
-  . . SET MENU(SUBMENU,JDX,"COLOR","SELTEXT")=INVCLR_"^"_CLRVEC24
+  . . SET MENU(SUBMENU,JDX,"COLOR","SELTEXT")=$$LIGHTERCLR(CLRVEC24,0.2)_"^"_$$LIGHTERCLR(INVCLR,0.2)
   . . SET JDX=JDX+1
   . SET SUBMENU=SUBMENU+1
   . SET IDX=IDX+1
+  SET MENU(1,IDX)="^ to QUIT"
   QUIT
   ;
 COLORMENU() ;"Allow user to pick color by name in a menu structure. 
@@ -538,7 +201,7 @@ GETWEBCOLORS(COLORARR) ;
   . SET VEC=$PIECE(LINE,",",2) 
   . SET UNAME=$$UP^XLFSTR(NAME)
   . SET COLORARR("NAME",UNAME)=VEC
-  . SET COLORARR("SECTION",SECTION,UNAME)=VEC
+  . SET COLORARR("SECTION",SECTION,UNAME)=VEC_"^"_NAME
   QUIT
   ;
 WEBCOLORL1 ;  
@@ -898,4 +561,343 @@ INDEXMAP ;" Taken from here: https://en.wikipedia.org/wiki/ANSI_escape_code.  NO
  ;;"96      | 106    | 13      | 13     | Bright  Cyan          | 85;255;255   | 0;255;255      | 0;255;255       |  41;184;219   |  97;214;214   | 0;230;230       |  85;255;255   | 0;255;255     | 0;255;255    | 0;255;255      | 0;255;255
  ;;"97      | 107    | 14      | 15     | Bright  White         | 255;255;255  | 255;255;255    | 255;255;255     |  229;229;229  |  242;242;242  | 230;230;230     |  255;255;255  | 255;255;255   | 255;255;255  | 255;255;255    | 255;255;255
  ;;"<DONE>                                               
-   
+ ;  
+PICKCOLOR24(OPTION) ;"Display colors and allow user to pick desired color.  
+  ;"Input: OPTION.  OPTIONAL.  PASS BY REFERENCE.
+  ;"         OPTION("ORIGIN X"),OPTION("ORIGIN Y") -- screen coordinates for centerpoint, where R=G=B=255.  Default is (23,31)
+  ;"         OPTION("WIDTH")      
+  ;"         OPTION("HEIGHT")      NOTE: if value set 15 or higher, causes bug, not sure why yet.
+  ;"         OPTION("DEPTH")       NOTE: if value set 15 or higher, causes bug, not sure why yet.
+  ;"         OPTION("SHOW FRAME")  if 1, outer frame shown
+  ;"         OPTION("SHOW SELECTED") if 1 then a box displaying color is shown
+  ;"         OPTION("CLEAR BOX")   if 1 then area behind box cleared before drawing.  
+  ;"RESULT: returns 24bit color vector triple, CLRVEC24.  '#;#;#'
+  ;
+  NEW R,G,B,INPUT,CHANGED
+  SET (R,G,B)=220
+  NEW DONE SET DONE=0
+  SET OPTION("ORIGIN X")=$GET(OPTION("ORIGIN X"),43)   ;"screen coordinates of <R,G,B> = <0,0,0>
+  SET OPTION("ORIGIN Y")=$GET(OPTION("ORIGIN Y"),31)
+  SET OPTION("WIDTH")=$GET(OPTION("WIDTH"),26)     
+  SET OPTION("HEIGHT")=$GET(OPTION("HEIGHT"),10)      ;"NOTE: if value set 15 or higher, causes bug, not sure why yet.
+  SET OPTION("DEPTH")=$GET(OPTION("DEPTH"),10)        ;"NOTE: if value set 15 or higher, causes bug, not sure why yet.
+  SET OPTION("SHOW FRAME")=1
+  SET OPTION("SHOW SELECTED")=1  
+  SET OPTION("CLEAR BOX")=1
+  NEW TEMP DO SETUPCHARS(.TEMP) MERGE OPTION("CHARS")=TEMP
+  NEW TEXTHOME SET TEXTHOME="0^"_(OPTION("ORIGIN Y")+13)
+  NEW SHADEPCT SET SHADEPCT=0.15
+  WRITE #  ;"clear screen
+  DO CSRSHOW^TMGTERM(0)
+  NEW WIDTH  SET WIDTH=$GET(OPTION("WIDTH"))     
+  NEW HEIGHT SET HEIGHT=$GET(OPTION("HEIGHT"))  
+  NEW DEPTH  SET DEPTH=$GET(OPTION("DEPTH"))
+  NEW RSTEP SET RSTEP=255/WIDTH
+  NEW GSTEP SET GSTEP=255/DEPTH
+  NEW BSTEP SET BSTEP=255/HEIGHT  
+CB24L1 ;  
+  DO DRAWCLRBOX24(.R,.G,.B,.OPTION)
+  ;"Restore colors.  
+  DO VTATRIB^TMGTERM(0)
+  DO CUPOS^TMGTERM(TEXTHOME)  
+  NEW COL SET COL(1)=20,COL(2)=40
+  NEW ARROWS
+  WRITE "  LEFT/RIGHT: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " RED",!
+  WRITE "       UP/DN: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " GREEN",!
+  WRITE "  Page-Up/Dn: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " BLUE",!
+  WRITE "         A/Z: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " Light/Dark",!
+  WRITE "           ?: Pick color by NAME"
+CB24L2 ;  
+  SET INPUT=$$READKY^TMGUSRI5("e",,1,,.ESCKEY,1) ;"read one char, with ESC processing
+  IF INPUT="" DO  GOTO:DONE CB24DN
+  . IF "RIGHT,LEFT,UP,DOWN,HOME,END"[ESCKEY SET INPUT=ESCKEY QUIT
+  . IF ESCKEY="PREV" SET INPUT="PGUP" QUIT
+  . IF ESCKEY="NEXT" SET INPUT="PGDN" QUIT
+  . IF ESCKEY="DOWN" SET INPUT="DOWN" QUIT               
+  . IF ESCKEY="CR" SET DONE=1 QUIT
+  . IF ESCKEY="TAB" SET DONE=1 QUIT
+  SET INPUT=$$UP^XLFSTR(INPUT)
+  SET CHANGED=0
+  IF (INPUT="LEFT") SET CHANGED=$$DELTAINT(.R,RSTEP)
+  IF (INPUT="RIGHT") SET CHANGED=$$DELTAINT(.R,-RSTEP)
+  IF (INPUT="DOWN") SET CHANGED=$$DELTAINT(.G,GSTEP)
+  IF (INPUT="UP") SET CHANGED=$$DELTAINT(.G,-GSTEP)
+  IF (INPUT="PGUP") SET CHANGED=$$DELTAINT(.B,BSTEP)
+  IF (INPUT="PGDN") SET CHANGED=$$DELTAINT(.B,-BSTEP)
+  IF INPUT="Z" DO  ;"PUSH TOWARDS BLACK
+  . IF R<255 DO DELTA1CLR(.R,SHADEPCT) SET CHANGED=1
+  . IF G<255 DO DELTA1CLR(.G,SHADEPCT) SET CHANGED=1
+  . IF B<255 DO DELTA1CLR(.B,SHADEPCT) SET CHANGED=1
+  IF INPUT="A" DO  ;"PUSH TOWARDS WHITE
+  . IF R>0 DO DELTA1CLR(.R,-SHADEPCT) SET CHANGED=1
+  . IF G>0 DO DELTA1CLR(.G,-SHADEPCT) SET CHANGED=1
+  . IF B>0 DO DELTA1CLR(.B,-SHADEPCT) SET CHANGED=1
+  IF INPUT="?" DO
+  . NEW TEMP SET TEMP=$$COLORMENU()
+  . SET CHANGED=1  ;"force redraw
+  . IF TEMP["ABORT" QUIT
+  . NEW CLRVEC SET CLRVEC=$PIECE(TEMP,"^",2)
+  . DO V24TORGB^TMGTERM(CLRVEC,.R,.G,.B) ;"Split CLRVEC24 to R,G,B components.
+  . SET OPTION("SELECTED")=CLRVEC
+  . SET OPTION("SELECTED","NAME")=$PIECE(TEMP,"^",1)
+  IF CHANGED GOTO CB24L1
+  IF INPUT="^" SET DONE=1 GOTO CB24DN
+  GOTO CB24L2
+CB24DN ;  
+  SET R=$$ROUND^TMGUTIL0(R,0)
+  SET G=$$ROUND^TMGUTIL0(G,0)
+  SET B=$$ROUND^TMGUTIL0(B,0)
+  NEW S SET S=$$RJ^XLFSTR(R,3,"0")_";"_$$RJ^XLFSTR(G,3,"0")_";"_$$RJ^XLFSTR(B,3,"0")
+  DO CSRSHOW^TMGTERM(1)
+  WRITE #
+  QUIT S                 
+  ;
+LIGHTERCLR(CLRVEC,LIGHTPCT) ;
+  QUIT $$DELTACOLOR(.CLRVEC,LIGHTPCT)
+  ;
+DARKERCLR(CLRVEC,DARKPCT) ;
+  QUIT $$DELTACOLOR(.CLRVEC,-DARKPCT)
+  ;
+DELTACOLOR(CLRVEC,SHADEPCT) ;
+  NEW R,G,B DO V24TORGB^TMGTERM(CLRVEC,.R,.G,.B) ;"Split CLRVEC24 to R,G,B components.  
+  DO DELTA1CLR(.R,SHADEPCT)
+  DO DELTA1CLR(.G,SHADEPCT)
+  DO DELTA1CLR(.B,SHADEPCT)
+  QUIT $$CLRVEC24^TMGTERM(R,G,B)
+  ;
+DELTA1CLR(V,PCT) ;"PCT SHOULD BE 0-1
+  IF PCT<0 DO
+  . NEW DELTA SET DELTA=255*(-PCT)
+  . IF DELTA<1 SET DELTA=1
+  . SET V=(V-DELTA)\1
+  ELSE  DO
+  . NEW DELTA SET DELTA=$$ROUND^TMGUTIL0(255*PCT)
+  . IF DELTA<1 SET DELTA=1
+  . SET V=V+DELTA
+  IF V<0 SET V=0
+  IF V>255 SET V=255
+  QUIT
+  ;  
+DELTAINT(V,DELTA) ;
+  NEW INITV SET INITV=V
+  SET V=V+DELTA
+  SET:(V<0) V=0
+  SET:(V>255) V=255
+  QUIT (V'=INITV)
+  ;  
+DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.  
+  ;"Input: R, G, B -- PASS BY REFERENCE.  Selected red, green blue axis values (RGB coordinates)
+  ;"       OPTION.  OPTIONAL.  PASS BY REFERENCE.
+  ;"         OPTION("CENTERX"),OPTION("CENTERY") -- screen coordinates for centerpoint, where R=G=B=255.  Default is (23,31)
+  ;"         OPTION("SHOW FRAME")=1  -- if 1 then frame shown
+  ;"         OPTION("SHOW SELECTED")=1  -- If 1 then selected color shown      
+  ;"         OPTION("CLEAR BOX")=1 -- If 1 then white box is painted before drawing cube.
+  ;
+  ;"             GREEN AXIS
+  ;"1  -1  0         \#########################.             
+  ;"2  -9           .#\#######################.##         
+  ;"3  -8          .#.#\#####################.####         
+  ;"4  -7         .#.#.#\###################.######        
+  ;"5  -6        .#.#.#.#\#################.########      
+  ;"6  -5       .#.#.#.#.#\###############.##########      
+  ;"7  -4      .#.#.#.#.#.#\#############.############    
+  ;"8  -3     .#.#.#.#.#.#.#\###########.##############    
+  ;"9  -2    .#.#.#.#.#.#.#.#\#########.################  
+  ;"0  -1   .#.#.#.#.#.#.#.#.#\#######.################## 
+  ;"1   1  .#.#.#.#.#.#.#.#.#.#*-----.-------------------   RED AXIS
+  ;"2   2   .#.#.#.#.#.#.#.#.#/#######.################## 
+  ;"3   3    .#.#.#.#.#.#.#.#/#########.################  
+  ;"4   4     .#.#.#.#.#.#.#/###########.##############   
+  ;"5   5      .#.#.#.#.#.#/#############.############    
+  ;"6   6       .#.#.#.#.#/###############.##########     
+  ;"7   7        .#.#.#.#/#################.########       
+  ;"8   8         .#.#.#/###################.######        
+  ;"9   9          .#.#/#####################.####         
+  ;"0  10           .#/#######################.##         
+  ;"1  11            /#########################.          
+  ;"             BLUE AXIS                                  
+  ;"                12345678901234567890123456         
+  ;"       12345678901234567890123456789012345678901234567
+  ;
+  NEW POS,FG,BG,POS 
+  NEW ADDLABELS SET ADDLABELS=$GET(OPTION("LABEL AXES"))
+  ;
+  NEW BFLX,BFLY SET POS=$$XFRM(255,255,0,.OPTION)   DO SPLITPOS(POS,.BFLX,.BFLY)  ;"BASE FRONT LEFT  CORNER. 
+  NEW BBLX,BBLY SET POS=$$XFRM(255,0,0,.OPTION)     DO SPLITPOS(POS,.BBLX,.BBLY)  ;"BASE BACK  LEFT  CORNER. 
+  NEW BBRX,BBRY SET POS=$$XFRM(0,0,0,.OPTION)       DO SPLITPOS(POS,.BBRX,.BBRY)  ;"BASE BACK  RIGHT CORNER. 
+  NEW TBLX,TBLY SET POS=$$XFRM(255,0,255,.OPTION)   DO SPLITPOS(POS,.TBLX,.TBLY)  ;"TOP  BACK  LEFT  CORNER. 
+  NEW BFRX,BFRY SET POS=$$XFRM(0,255,0,.OPTION)     DO SPLITPOS(POS,.BFRX,.BFRY)  ;"BASE FRONT RIGHT CORNER. 
+  NEW TFRX,TFRY SET POS=$$XFRM(0,255,255,.OPTION)   DO SPLITPOS(POS,.TFRX,.TFRY)  ;"TOP  FRONT RIGHT CORNER. 
+  NEW TBRX,TBRY SET POS=$$XFRM(0,0,255,.OPTION)     DO SPLITPOS(POS,.TBRX,.TBRY)  ;"TOP  BACK  RIGHT CORNER. 
+  ;
+  IF $GET(OPTION("CLEAR BOX")) DO
+  . NEW X SET X=BBLX
+  . NEW Y SET Y=TBLY
+  . NEW WIDTH SET WIDTH=TFRX-BBLX+1
+  . NEW HT SET HT=BFLY-TBLY 
+  . NEW WS SET WS="" SET $PIECE(WS," ",WIDTH)=" "
+  . FOR Y=TBLY:1:BFLY DO
+  . . DO CUP^TMGTERM(BBLX,Y) WRITE WS
+  ;
+  NEW WIDTH  SET WIDTH=$GET(OPTION("WIDTH"),26)     
+  NEW HEIGHT SET HEIGHT=$GET(OPTION("HEIGHT"),10)  
+  NEW DEPTH  SET DEPTH=$GET(OPTION("DEPTH"),10)
+  NEW RSTEP SET RSTEP=255/WIDTH
+  NEW GSTEP SET GSTEP=255/DEPTH
+  NEW BSTEP SET BSTEP=255/HEIGHT
+  NEW TEMPCLR SET TEMPCLR=$$CLRVEC24^TMGTERM(R,G,B)
+  IF $GET(OPTION("SELECTED"))'=TEMPCLR DO
+  . SET OPTION("SELECTED")=TEMPCLR
+  . SET OPTION("SELECTED","NAME")=""
+  NEW R1,G1,B1
+  SET BG=$$CLRVEC24^TMGTERM(255,0,0)  ;"255,0,0 = RED
+  SET FG=$$INVCLRVEC^TMGTERM(BG)
+  ;
+  ;"DRAW BG FACE
+  NEW GSTEP2 SET GSTEP2=GSTEP/2
+  SET R1=R,G1=0
+  FOR  DO  SET G1=G1+GSTEP2 QUIT:G1>G
+  . NEW BSTEP2 SET BSTEP2=BSTEP/2
+  . SET B1=0
+  . FOR  DO  SET B1=B1+BSTEP2 QUIT:B1>B
+  . . DO DRAWPART("GB",R1,G1,B1,0,0,0,.OPTION) 
+  . . IF (B-B1)<BSTEP2,(B-B1)>0 SET BSTEP2=(B-B1)
+  . IF (G-G1)<GSTEP2,(G-G1)>0 SET GSTEP2=(G-G1)
+  ;
+  ;"DRAW RG FACE
+  SET GSTEP2=GSTEP
+  SET B1=B,G1=0
+  FOR  DO  SET G1=G1+GSTEP2 QUIT:G1>G
+  . NEW RSTEP2 SET RSTEP2=RSTEP
+  . SET R1=0
+  . FOR  DO  SET R1=R1+RSTEP2 QUIT:R1>R
+  . . DO DRAWPART("RG",R1,G1,B1,(R1=R),(G1=G),0,.OPTION)
+  . . IF (R-R1)<RSTEP2,(R-R1)>0 SET RSTEP2=(R-R1)
+  . IF (G-G1)<GSTEP2,(G-G1)>0 SET GSTEP2=(G-G1)
+  ;  
+  ;"DRAW RB FACE
+  NEW BSTEP2 SET BSTEP2=BSTEP
+  SET G1=G,B1=0
+  FOR  DO  SET B1=B1+BSTEP2 QUIT:B1>B
+  . NEW RSTEP2 SET RSTEP2=RSTEP
+  . SET R1=0
+  . FOR  DO  SET R1=R1+RSTEP2 QUIT:R1>R
+  . . DO DRAWPART("RB",R1,G1,B1,(R1=R),0,(B1=B),.OPTION)
+  . . IF (R-R1)<RSTEP2,(R-R1)>0 SET RSTEP2=(R-R1)
+  . IF (B-B1)<BSTEP2,(B-B1)>0 SET BSTEP2=(B-B1)
+  ;
+  ;"DRAW FRAME IF WANTED
+  IF $GET(OPTION("SHOW FRAME")) DO
+  . NEW CHARS MERGE CHARS=OPTION("CHARS") IF $DATA(CHARS)=0 DO SETUPCHARS(.CHARS)
+  . DO VTATRIB^TMGTERM(0)
+  . DO DRAWLINE(.CHARS,"G",0,255+GSTEP,255+RSTEP,0,0,GSTEP)     ;"DRAW BASE LEFT EDGE
+  . DO DRAWLINE(.CHARS,"R",0,255+RSTEP,0,255+GSTEP,0,RSTEP,0,0) ;"DRAW FRONT BASE HORIZONTAL LINE  
+  . DO DRAWLINE(.CHARS,"R",R+RSTEP,255+RSTEP,0,0,0,RSTEP,1,1)   ;"DRAW BACK BASE HORIZONTAL LINE  !! ENDING HAS 2 DOTS.  
+  . DO DRAWLINE(.CHARS,"B",0,255+BSTEP,255+RSTEP,0,0,BSTEP)     ;"DRAW BACK-LEFT VERTICAL LINE  
+  . DO DRAWLINE(.CHARS,"R",0,255+RSTEP,0,0,255+BSTEP,RSTEP)     ;"DRAW TOP BACK HORIZONTAL LINE  
+  . DO DRAWLINE(.CHARS,"G",G+GSTEP,255+GSTEP,0,1,0,GSTEP,1,1)   ;"DRAW BASE RIGHT EDGE  
+  . DO DRAWLINE(.CHARS,"B",0,255+BSTEP,0,255+GSTEP,0,BSTEP)     ;"DRAW FRONT RIGHT VERTICAL LINE    
+  . DO DRAWLINE(.CHARS,"G",0,255+GSTEP,0,0,255+BSTEP,GSTEP)     ;"DRAW TOP RIGHT EDGE  
+  . DO DRAWLINE(.CHARS,"B",B+BSTEP,255+BSTEP,0,1,0,BSTEP,1,0)   ;"DRAW BACK RIGHT VERTICAL LINE    
+  ;
+  ;"DRAW SELECTED COLOR BOX.  
+  IF $GET(OPTION("SHOW SELECTED"))=1 DO
+  . NEW BOXW SET BOXW=20
+  . NEW EXTRA SET EXTRA=$SELECT($GET(OPTION("LABEL AXES")):8,1:0)
+  . NEW X SET X=TFRX+4+EXTRA
+  . NEW Y SET Y=TBRY
+  . NEW CLRNAME SET CLRNAME=$GET(OPTION("SELECTED","NAME"))
+  . NEW S 
+  . SET S(0)=$$CJ^XLFSTR("",BOXW," ")
+  . SET S(1)=$$CJ^XLFSTR("SELECTED COLOR",BOXW," ")
+  . SET S(2)=$$CJ^XLFSTR("("_$$RJ^XLFSTR(R\1,3,"0")_","_$$RJ^XLFSTR(G\1,3,"0")_","_$$RJ^XLFSTR(B\1,3,"0")_")",BOXW," ")
+  . SET S(3)=$$CJ^XLFSTR(CLRNAME,BOXW," ")
+  . SET BG=$$CLRVEC24^TMGTERM(R\1,G\1,B\1)  
+  . SET FG=$$INVCLRVEC^TMGTERM(BG)
+  . DO VCOLOR24B^TMGTERM(BG,FG)  ;"<-- I don't understand why I have to switch FG and BG to get it to display properly!
+  . NEW DY FOR DY=1:1:HEIGHT+10 DO
+  . . DO CUP^TMGTERM(X,Y+DY)
+  . . NEW IDX SET IDX=$SELECT(DY=2:1,DY=3:2,DY=4:3,1:0)
+  . . WRITE S(IDX)
+  . DO
+  . . NEW TEMP SET TEMP("ARC")=1
+  . . DO DRAWBOX^TMGTERM2(X,Y,20,HEIGHT+12,.TEMP)
+  ;  
+  QUIT
+  ;" 
+XFRM(R,G,B,OPTION) ;"Transform (XFRM) RGB coordinates into XY screen coordinates.  
+  ;"Input: R, G, B -- red, green blue values (0-255)
+  ;"Result: <X>^<Y>  -- screen coordinates.  
+  NEW ORIGINX SET ORIGINX=$GET(OPTION("ORIGIN X"),43)  ;"ORIGIN is for RGB = <0,0,0>, BASE BACK RIGHT CORNER
+  NEW ORIGINY SET ORIGINY=$GET(OPTION("ORIGIN Y"),31)  
+  NEW WIDTH  SET WIDTH=$GET(OPTION("WIDTH"),26)     
+  NEW HEIGHT SET HEIGHT=$GET(OPTION("HEIGHT"),10)    
+  NEW DEPTH  SET DEPTH=$GET(OPTION("DEPTH"),10)     
+  NEW RSCALED SET RSCALED=(R/255)*WIDTH
+  NEW GSCALED SET GSCALED=(G/255)*DEPTH
+  NEW BSCALED SET BSCALED=(B/255)*HEIGHT
+  NEW X,Y
+  SET X=(RSCALED*-1)+(GSCALED*1)+(BSCALED*1)
+  SET Y=(RSCALED*0)+(GSCALED*1)+(BSCALED*-1)
+  SET X=$$ROUND^TMGUTIL0(ORIGINX+X,0)
+  SET Y=$$ROUND^TMGUTIL0(ORIGINY+Y,0)
+  QUIT X_"^"_Y
+  ;
+DRAWPART(FACE,R1,G1,B1,RISMAX,GISMAX,BISMAX,OPTION) ;
+  ;"Input: FACE -- "BG"/"GB", or "GR"/"RG", or "BR"/"RB"
+  ;"       R1, G1, B1 -- red, green blue values (0-255) to be drawn.  
+  ;"       OPTION
+  ;"   NOTE: Used in GLOBAL SCOPE: RSTEP,GSTEP,BSTEP
+  NEW POS SET POS=$$XFRM(R1,G1,B1,.OPTION)
+  NEW SELECTED SET SELECTED=$GET(OPTION("SELECTED"))
+  NEW R,G,B DO V24TORGB^TMGTERM(SELECTED,.R,.G,.B) ;"Split CLRVEC24 to R,G,B components.  
+  NEW CHAR SET CHAR=" "  ;"default char
+  ;"NEW RISMAX SET RISMAX=($$ROUND^TMGUTIL0(R1,0)=$$ROUND^TMGUTIL0(R,0))
+  ;"NEW GISMAX SET GISMAX=($$ROUND^TMGUTIL0(G1,0)=$$ROUND^TMGUTIL0(G,0))
+  ;"NEW BISMAX SET BISMAX=($$ROUND^TMGUTIL0(B1,0)=$$ROUND^TMGUTIL0(B,0))
+  NEW CHARS MERGE CHARS=OPTION("CHARS") IF $DATA(CHARS)=0 DO
+  . DO SETUPCHARS(.CHARS)
+  . MERGE OPTION("CHARS")=CHARS  
+  IF "RG,GR"[FACE DO
+  . SET CHAR=$SELECT(GISMAX&RISMAX:CHARS("#"),RISMAX:CHARS("\"),GISMAX:CHARS("-"),1:" ")      
+  IF "BR,RB"[FACE DO
+  . SET CHAR=$SELECT(BISMAX&RISMAX:CHARS("#"),RISMAX:CHARS("/"),BISMAX:CHARS("-"),1:" ")
+  ;"NEW IGNORE SET IGNORE=0
+  ;"IF "GB,BG"[FACE DO  IF IGNORE GOTO DPDN2  
+  ;". ;"IF (B1+G1)[".5" SET IGNORE=1
+  DO CUPOS^TMGTERM(POS)
+  NEW FG SET FG=$$CLRVEC24^TMGTERM(R1\1,G1\1,B1\1)
+  NEW BG SET BG=$$INVCLRVEC^TMGTERM(FG)
+  DO VCOLOR24B^TMGTERM(FG,BG)
+  IF $LENGTH(CHAR)>1,CHAR["$" DO
+  . DO UTF8WRITE^TMGSTUTL(CHAR)
+  ELSE  WRITE CHAR
+DPDN2 ;  
+  QUIT
+  ;  
+DRAWLINE(CHARS,AXIS,START,STOP,R1,G1,B1,STEP,NOSTARTDOT,NOSTOPDOT) ;
+  NEW CH,V
+  FOR V=START:STEP:STOP DO
+  . IF AXIS="R" SET R1=V,CH=CHARS("-")
+  . IF AXIS="G" SET G1=V,CH=CHARS("\")
+  . IF AXIS="B" SET B1=V,CH=CHARS("/")
+  . IF (V=START)&(+$GET(NOSTARTDOT)=0) SET CH=CHARS(".")
+  . IF ((V=STOP)!(V+STEP>STOP))&(+$GET(NOSTOPDOT)=0) SET CH=CHARS(".")
+  . SET POS=$$XFRM(R1,G1,B1,.OPTION)
+  . DO CUPOS^TMGTERM(POS)
+  . DO UTF8WRITE^TMGSTUTL(CH)
+  QUIT
+  ;
+SETUPCHARS(CHARS) ;"SETUP ARRAY OF UNICODE CHARS.  
+  SET CHARS("\")="$2572"
+  SET CHARS("/")="$2571" 
+  SET CHARS("-")="$2500" 
+  SET CHARS(".")="$22C5"  ;"$2572 is dot operator, like '*'
+  SET CHARS("#")="$22A1"   ;"$22A1 is squared dot,
+  QUIT  
+  ;
+SPLITPOS(POS,X,Y) ;
+  SET X=$PIECE(POS,"^",1)
+  SET Y=$PIECE(POS,"^",2)
+  QUIT
+  ;
