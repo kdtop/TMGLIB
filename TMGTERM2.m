@@ -53,26 +53,29 @@ DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,OPTION) ;"Draw square or squircle on screen with l
   ;"                               2 means triple dash
   ;"                               3 means quadruple dash
   ;"            OPTION("ERASE") -- if 1, means we are ERASING box, not drawing.  
+  ;"            OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
+  ;"                           The idea behind this is to send ALL the screen info all at once, to hopefully avoid flickering. 
+  ;"                            NOTE: (See ESCN or ADD2TERMBUF^TMGTERM for more info)   
   SET WIDTH=+$GET(WIDTH) IF WIDTH<2 SET WIDTH=2
   SET HEIGHT=+$GET(HEIGHT) IF HEIGHT<2 SET HEIGHT=2
   SET TOP=+$GET(TOP),LEFT=+$GET(LEFT)
   NEW CHARS DO GETSQARR(.CHARS,.OPTION)
-  DO VCUSAV2^TMGTERM  ;"Save Cursor & Attrs 
+  DO VCUSAV2^TMGTERM(.OPTION)  ;"Save Cursor & Attrs 
   ;"Write top line
-  DO CUP^TMGTERM(LEFT,TOP)
-  DO UTF8WRITE^TMGSTUTL(CHARS("TL"))
-  NEW X FOR X=2:1:WIDTH-1 DO UTF8WRITE^TMGSTUTL(CHARS("TOP/BOT"))
-  DO UTF8WRITE^TMGSTUTL(CHARS("TR"))
+  DO CUP^TMGTERM(LEFT,TOP,.OPTION)
+  DO UTF8WRITE^TMGSTUTL(CHARS("TL"),.OPTION)
+  NEW X FOR X=2:1:WIDTH-1 DO UTF8WRITE^TMGSTUTL(CHARS("TOP/BOT"),.OPTION)
+  DO UTF8WRITE^TMGSTUTL(CHARS("TR"),.OPTION)
   ;"Write sides
   NEW Y FOR Y=1:1:HEIGHT-2 DO
-  . DO CUP^TMGTERM(LEFT,TOP+Y) DO UTF8WRITE^TMGSTUTL(CHARS("SIDE"))
-  . DO CUP^TMGTERM(LEFT+WIDTH-1,TOP+Y) DO UTF8WRITE^TMGSTUTL(CHARS("SIDE"))
+  . DO CUP^TMGTERM(LEFT,TOP+Y,.OPTION) DO UTF8WRITE^TMGSTUTL(CHARS("SIDE"),.OPTION)
+  . DO CUP^TMGTERM(LEFT+WIDTH-1,TOP+Y,.OPTION) DO UTF8WRITE^TMGSTUTL(CHARS("SIDE"),.OPTION)
   ;"Write bottom.
-  DO CUP^TMGTERM(LEFT,TOP+HEIGHT-1)
-  DO UTF8WRITE^TMGSTUTL(CHARS("BL"))
-  NEW X FOR X=2:1:WIDTH-1 DO UTF8WRITE^TMGSTUTL(CHARS("TOP/BOT"))
-  DO UTF8WRITE^TMGSTUTL(CHARS("BR"))
-  DO VCULOAD2^TMGTERM  ;"Restore Cursor & Attrs
+  DO CUP^TMGTERM(LEFT,TOP+HEIGHT-1,.OPTION)
+  DO UTF8WRITE^TMGSTUTL(CHARS("BL"),.OPTION)
+  NEW X FOR X=2:1:WIDTH-1 DO UTF8WRITE^TMGSTUTL(CHARS("TOP/BOT"),.OPTION)
+  DO UTF8WRITE^TMGSTUTL(CHARS("BR"),.OPTION)
+  DO VCULOAD2^TMGTERM(.OPTION)  ;"Restore Cursor & Attrs
   QUIT
   ;
 GETSQARR(OUT,OPTION)  ;"Get array for characters to draw square or squircle

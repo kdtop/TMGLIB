@@ -191,7 +191,7 @@ HndlWatch(tmgAction) ;
   . . . SET tmgWatchLine=tmgWatchLine_" WRITE """_v_" =["" ZWR:$D("_v_") "_TEMPV_" WRITE ""],"" "
   . . . ;"WRITE "tmgWatchLine=",tmgWatchLine,!
   . . ELSE  DO
-  . . . SET tmgWatchLine=tmgWatchLine_" WRITE """_v_" =["",$GET("_v_"),""], """
+  . . . SET tmgWatchLine=tmgWatchLine_" WRITE """_v_" =["",$$NOHIDDENSTR^TMGIDE2C($GET("_v_")),""], """
   ELSE  DO
   . KILL tmgDgbWatches
   . NEW tempCode
@@ -873,7 +873,7 @@ DEBUGWRITE(INDENT,STR,ADDLF) ;
   ;"//kt 3/23/24  IF TMGIDEDEBUG=0 QUIT
   SET TMGIDEDEBUG=$GET(TMGIDEDEBUG)  ;"//kt 3/23/24
   IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3),$DATA(DebugFile) USE DebugFile
-  WRITE STR
+  WRITE $$NOHIDDENSTR(STR)
   IF $GET(ADDLF)=1 DO
   . NEW ENDSPACE SET ENDSPACE=20
   . IF +$GET(IOM)>0,(IOM-$X)<20 SET ENDSPACE=IOM-$X
@@ -882,9 +882,29 @@ DEBUGWRITE(INDENT,STR,ADDLF) ;
   IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3) USE $PRINCIPAL
   QUIT
   ;
+NOHIDDENSTR(STR) ;"Convert any hidden characters to $C(#)
+  NEW RESULT SET RESULT=""
+  NEW LEN SET LEN=$LENGTH(STR)
+  NEW INHIDDEN SET INHIDDEN=0
+  NEW IDX FOR IDX=1:1:LEN DO
+  . NEW CH SET CH=$EXTRACT(STR,IDX)
+  . NEW ASCII SET ASCII=$ASCII(CH)
+  . IF (ASCII<32)!(ASCII>126) DO
+  . . IF INHIDDEN=0 DO
+  . . . SET RESULT=RESULT_"$C(",INHIDDEN=1
+  . . ELSE  SET RESULT=RESULT_","
+  . . SET RESULT=RESULT_ASCII
+  . ELSE  DO
+  . . IF INHIDDEN DO
+  . . . SET RESULT=RESULT_")",INHIDDEN=0
+  . . SET RESULT=RESULT_CH
+  IF INHIDDEN DO
+  . SET RESULT=RESULT_")",INHIDDEN=0
+  QUIT RESULT
+  ;
 ARRDUMP(REF,TMGIDX,INDENT)  ;
   ;"NOTE: Similar to ARRDUMP^TMGMISC3. HOWEVER, this is fundamentally
-  ;"      different because is uses DEBUGWRITE, instead of normal WRITE
+  ;"      different because it uses DEBUGWRITE, instead of normal WRITE
   ;"PUBLIC FUNCTION
   ;"Purpose: to get a custom version of GTM's "zwr" command
   ;"Input: Uses global scope var tmgDbgIndent (if defined)
