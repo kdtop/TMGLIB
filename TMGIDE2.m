@@ -91,7 +91,7 @@ STEPTRAP(tmgIDEPos,tmgMsg)
   SET tmgDbgHangTime=+$GET(tmgDbgHangTime,0.25)
   ;
   IF $GET(tmgRunMode)="" DO  ;"Happens if code clears variable table, e.g. ^XUP
-  . SET tmgRunMode=$GET(^TMG("TMGIDE",$J,"RUNMODE"),1) ;"//kt 1/7/15
+  . SET tmgRunMode=$GET(^TMG("TMGIDE",$J,"RUNMODE"),1) 
   IF ("1234"[tmgRunMode)&(+$GET(tmgDbgOptions("VARTRACE"))=1) DO
   . DO RecordVTrace^TMGIDE6  ;"Keep track of changes to variable system table
   SET tmgStepMode=$GET(tmgStepMode,"into")
@@ -102,8 +102,7 @@ STEPTRAP(tmgIDEPos,tmgMsg)
   NEW %tmg SET %tmg=$GET(%)
   NEW tmgBlankLine,tmgAction,tmgKeyIn,tmgTempI,tmgDone
   NEW tmgViewOffset SET tmgViewOffset=0
-  NEW tmgSavedIO,tmgSavedX,tmgSavedY,tmgDEVInfo,tmgDEVSav
-  SET tmgSavedIO=$IO
+  NEW tmgSavedIO,tmgSavedX,tmgSavedY,tmgDEVInfo,tmgDEVSav SET tmgSavedIO=$IO
   DO DEV2ARR^TMGKERN1($IO,.tmgDEVSav,,.tmgDEVInfo)
   SET tmgSavedX=$X,tmgSavedY=$Y
   SET tmgScrHeight=$GET(tmgScrHeight,10)
@@ -125,11 +124,9 @@ SP2 ;
   NEW tmgRelPos SET tmgRelPos=tmgIDEPos
   NEW tmgOrigIDEPos SET tmgOrigIDEPos=tmgIDEPos
   NEW tmgTempPos SET tmgTempPos=$$ConvertPos^TMGMISC(tmgIDEPos,tmgArrayName)
-  IF tmgTempPos'="" SET tmgIDEPos=tmgTempPos
-  ;"Don't show hidden modules (setup in TMGIDE module)
-  IF $$ShouldSkip^TMGIDE2C($PIECE(tmgIDEPos,"^",2)) GOTO SPDN
-  ;"Record trace, If not a hidden module
-  IF +$GET(tmgDbgOptions("TRACE"))=1 DO RecordTrace^TMGIDE6(tmgOrigIDEPos)
+  IF tmgTempPos'="" SET tmgIDEPos=tmgTempPos  
+  IF $$ShouldSkip^TMGIDE2C($PIECE(tmgIDEPos,"^",2)) GOTO SPDN  ;"Don't show hidden modules (setup in TMGIDE module)  
+  IF +$GET(tmgDbgOptions("TRACE"))=1 DO RecordTrace^TMGIDE6(tmgOrigIDEPos)  ;"Record trace, If not a hidden module
   ;
   ;"-- Conditional Breakpoints-- 
   NEW tmgStpSkip SET tmgStpSkip=0

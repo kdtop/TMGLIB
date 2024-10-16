@@ -158,7 +158,7 @@ CPRSUSR(TMGRESULT,MGRNAME)  ;"RPC: TMG GET USER FROM MGR NAME
   ;"  to time constraints I am hard coding values for now. I would imagine
   ;"  the best way to take care of this would be to add a new field
   ;"  to the NEW PERSON file to hold the Messenger name
-  SET TMGRESULT="-1^CANNOT DETERMINE THE CPRS USER TO ASSIGN AS ADDL SIGNER."
+  SET TMGRESULT="-1^CANNOT DETERMINE THE CPRS USER TO ASSIGN AS ADDL SIGNER. NO ADDL SIGNER CAN BE ADDED."
   SET MGRNAME=$$UP^XLFSTR(MGRNAME)
   IF MGRNAME="EDDIE" SET TMGRESULT="150^Hagood,Eddie L^- System Manager"
   IF MGRNAME="TAMMY" SET TMGRESULT="123^Hensley,Tammy G"

@@ -220,7 +220,7 @@ PPT2 ;
   ELSE  DO
   . IF $GET(tmgRunMode)=4 QUIT
   . DO SETRUNMODE^TMGIDE2(1)  ;"1=Step-by-step mode
-  SET ^TMG("TMGIDE",$J,"RUNMODE")=tmgRunMode ;"//kt 1/7/15
+  SET ^TMG("TMGIDE",$J,"RUNMODE")=tmgRunMode
   ;
   SET $ZSTEP="N tmgTrap S tmgTrap=$$STEPTRAP^TMGIDE2($ZPOS) ZSTEP:(tmgTrap=1) into ZSTEP:(tmgTrap=2) over ZSTEP:(tmgTrap=3) outof zcontinue"
   ZSTEP INTO
@@ -388,6 +388,7 @@ GMCDN  ;
 SHUTDOWN  ;
   DO CLEANVARS
   DO VTATRIB^TMGTERM(0)
+  DO CSRSHOW^TMGTERM(1)  ;"show cursor
   DO RESETKB^XGF  ;"turn off XGF escape key processing code.
   WRITE "Leaving TMG debugging environment.  Goodbye.",!
   QUIT

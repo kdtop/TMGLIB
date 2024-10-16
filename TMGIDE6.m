@@ -456,7 +456,7 @@ EditColors
   NEW USERREF SET USERREF=$name(^TMG("TMGIDE",$J,"COLORS"))
   NEW COLORMODE SET COLORMODE=$GET(@USERREF@("MODE"),"INDEXED") 
   NEW MASTERREF SET MASTERREF=$name(^TMG("TMGIDE","COLORS"))
-  NEW MENU,MENU2,UsrSlct,UsrSlct2,UsrRaw,fg,bg,ct
+  NEW MENU,MENU2,UsrSlct,UsrSlct2,UsrRaw,fg,bg,ct,COLORARR
 M0  
   KILL MENU
   SET ct=1
@@ -483,18 +483,34 @@ M0
   NEW i
 M1 ;
   SET i=0
+  ;"SET UP DISPLAY COLORS FOR MENU 
   FOR  SET i=$ORDER(MENU(i)) QUIT:(i="")  do
   . NEW bg,fg
   . NEW tmgMode SET tmgMode=$PIECE(MENU(i),$CHAR(9),2) QUIT:tmgMode=""
-  . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos"[tmgMode do
-  . . SET bg=+$GET(@USERREF@(tmgMode),TMGCOLBGREY)
-  . . SET fg=$SELECT(bg=0:7,1:10)
-  . ELSE  do
-  . . SET fg=$GET(@USERREF@(tmgMode,"fg"),TMGCOLFGBWHITE)
-  . . SET bg=$GET(@USERREF@(tmgMode,"bg"),TMGCOLBGREY)
-  . . IF bg="@" SET bg=$GET(@USERREF@("BACKGROUND"),TMGCOLBLACK)
-  . SET MENU(i,"COLOR","fg")=fg
-  . SET MENU(i,"COLOR","bg")=bg
+  . IF COLORMODE="24bit" DO
+  . . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos"[tmgMode do
+  . . . SET bg=$GET(@USERREF@(tmgMode))
+  . . . IF +bg=bg SET bg=$$MAPIDXTO24BIT^TMGUSRI8(bg,1)
+  . . . IF ($$ISCLRVEC24^TMGTERM(bg)=0) SET bg=$$WEBCOLOR^TMGUSRI8("LightGray",.COLORARR)
+  . . . SET fg=$$INVCLRVEC^TMGTERM(bg)
+  . . ELSE  DO
+  . . . SET fg=$GET(@USERREF@(tmgMode,"fg"))
+  . . . IF +fg=fg SET fg=$$MAPIDXTO24BIT^TMGUSRI8(fg,1)
+  . . . IF ($$ISCLRVEC24^TMGTERM(fg)=0) SET fg=$$WEBCOLOR^TMGUSRI8("White",.COLORARR)
+  . . . SET bg=$GET(@USERREF@(tmgMode,"bg"))
+  . . . IF bg="@" SET bg=$GET(@USERREF@("BACKGROUND"))
+  . . . IF bg="" SET bg=$$INVCLRVEC^TMGTERM(fg)
+  . . . IF $$ISCLRVEC24^TMGTERM(bg)=0 SET bg=$$INVCLRVEC^TMGTERM(fg)
+  . ELSE  DO
+  . . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos"[tmgMode do
+  . . . SET bg=+$GET(@USERREF@(tmgMode),TMGCOLBGREY)
+  . . . SET fg=$SELECT(bg=0:7,1:10)
+  . . ELSE  do
+  . . . SET fg=$GET(@USERREF@(tmgMode,"fg"),TMGCOLFGBWHITE)
+  . . . SET bg=$GET(@USERREF@(tmgMode,"bg"),TMGCOLBGREY)
+  . . . IF bg="@" SET bg=$GET(@USERREF@("BACKGROUND"),TMGCOLBLACK)
+  . SET MENU(i,"COLOR","fg")=$GET(fg)
+  . SET MENU(i,"COLOR","bg")=$GET(bg)
   ;
   SET UsrSlct=$$MENU^TMGUSRI2(.MENU,"^",.UsrRaw)
   IF UsrSlct="^" GOTO ECDn
@@ -502,12 +518,12 @@ M1 ;
   . SET COLORMODE=$$MENUCOLORMODE(COLORMODE) 
   . SET @USERREF@("MODE")=COLORMODE
   IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos"[UsrSlct DO  GOTO M1
-  . SET @USERREF@(UsrSlct)=$$PICKBGC^TMGUSRI8()
+  . SET @USERREF@(UsrSlct,"bg")=$$PICKBGC^TMGUSRI8(,.COLORMODE)
   IF UsrSlct=0 SET UsrSlct="" GOTO M1
   IF "SPECIAL,LABEL"'[UsrSlct DO  GOTO M1
   . NEW bg SET bg=$GET(@USERREF@("BACKGROUND"),0)
   . WRITE "Setting bg=",bg,!
-  . SET @USERREF@(UsrSlct,"fg")=$$PICKFGC^TMGUSRI8(@USERREF@(UsrSlct,"fg"),bg)
+  . SET @USERREF@(UsrSlct,"fg")=$$PICKFGC^TMGUSRI8(@USERREF@(UsrSlct,"fg"),bg,.COLORMODE)
   ;
   NEW Label SET Label=$GET(MENU(UsrRaw))
   KILL MENU2

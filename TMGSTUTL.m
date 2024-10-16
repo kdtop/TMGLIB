@@ -70,7 +70,7 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"TrimTags(lineS) -- cut out HTML tags (e.g. <...>) from lineS, however, <no data> is protected
  ;"$$ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) -- WRITE the array to the host file system
  ;"$$HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) -- Read array from host file system
- ;"UTF8WRITE(CODEPT) ;"Output Unicode character. 
+ ;"UTF8WRITE(CODEPT) -- Output 1 or more Unicode characters. 
  ;
  ;"=======================================================================
  ;"Dependancies
@@ -1301,23 +1301,17 @@ HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) ;"Host File to Array
         KILL @TMGREF
         QUIT TMGRESULT
         ;
-UTF8WRITE(CODEPT,OPTION) ;"Output Unicode character. 
+UTF8WRITE(CODEPT) ;"Output Unicode character. 
   ;"Input: CODEPT -- This is Unicode codepoint.  (Codepoint is character # for Unicode)
   ;"               Should be a decimal number, unless prefixed with "$" with a hex number
-  ;"       OPTION -- OPTIONAL.
-  ;"          OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
-  ;"          @<BufferName>@("INFO")=<line# to add to>^<current # chars on line>^<buffer line max length>
-  ;"          @<BufferName>@(<buffer#>,<line#>)=escape sequences, text etc to be output later, all at once.
-  ;"         The idea behind this is to send ALL the screen info all at once, to hopefully avoid flickering. 
+  ;"               NOTE: May be multiple chars, if each is ';' delimted.  
   ;"Output: character is written to current device ($IO)
   ;"Result: none.  
-  NEW UNIBYTES,IDX,ABYTE,XPOS SET XPOS=$X 
-  SET UNIBYTES=$$GETUTF8^TMGMISC(CODEPT) 
-  IF $GET(OPTION("BUFFERED"))'="" DO
-  . SET OPTION("BYTES")=1  ;"<-- This will be deleted by ADD2TERMBUF after use.  
-  . DO ADD2TERMBUF^TMGTERM(UNIBYTES,.OPTION)
-  ELSE  DO
-  . FOR IDX=1:1:$LENGTH(UNIBYTES) SET ABYTE=$PIECE(UNIBYTES,",",IDX) IF ABYTE>0 WRITE *ABYTE
+  NEW UNIBYTES,IDX,ABYTE,XPOS,JDX SET XPOS=$X
+  FOR JDX=1:1:$LENGTH(CODEPT,";") DO
+  . NEW ACODEPT SET ACODEPT=$PIECE(CODEPT,";",JDX) QUIT:ACODEPT=""
+  . SET UNIBYTES=$$GETUTF8^TMGMISC(ACODEPT) 
+  . FOR IDX=1:1:$LENGTH(UNIBYTES,",") SET ABYTE=$PIECE(UNIBYTES,",",IDX) IF ABYTE>0 WRITE *ABYTE
   . SET $X=XPOS+1
   QUIT
   ;

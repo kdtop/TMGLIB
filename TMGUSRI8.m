@@ -153,6 +153,16 @@ WEBCOLOR(NAME,COLORARR) ;"Get color vector, based on standardized web color name
   IF $DATA(COLORARR)=0 DO GETWEBCOLORS(.COLORARR)
   QUIT $GET(COLORARR("NAME",UNAME))
   ;
+RANDCOLOR(COLORARR) ;"Get random color vector
+  ;"Input: COLORARR -- OPTIONAL.  PASS BY REFERENCE.  If provided, then data pulled from array.  Filled if empty.  
+  ;"Result: color_vector^color_name, e.g. '255;192;203^ColorName'
+  NEW UNAME SET UNAME=$$UP^XLFSTR($GET(NAME))
+  IF $DATA(COLORARR)=0 DO GETWEBCOLORS(.COLORARR)
+  NEW MAX SET MAX=COLORARR("IDX","MAX")
+  NEW IDX SET IDX=$RANDOM(MAX)+1
+  NEW ACOLOR SET ACOLOR=$GET(COLORARR("IDX",IDX))
+  QUIT ACOLOR
+  ;
 SETUPCOLORMENU(MENU) ;"Setup menu array for use with RUNMENU^TMGUSRI7
   NEW ARR DO GETWEBCOLORS(.ARR)
   NEW IDX SET IDX=1
@@ -169,10 +179,12 @@ SETUPCOLORMENU(MENU) ;"Setup menu array for use with RUNMENU^TMGUSRI7
   . . NEW CLRVEC24 SET CLRVEC24=$PIECE(ENTRY,"^",1)
   . . NEW NAME SET NAME=$PIECE(ENTRY,"^",2)
   . . NEW INVCLR SET INVCLR=$$INVCLRVEC^TMGTERM(CLRVEC24)
+  . . NEW FG SET FG=CLRVEC24
+  . . NEW BG SET BG=INVCLR
   . . SET MENU(SUBMENU,JDX)=NAME
   . . SET MENU(SUBMENU,JDX,"DATA")=CLRVEC24
-  . . SET MENU(SUBMENU,JDX,"COLOR","TEXT")=CLRVEC24_"^"_INVCLR
-  . . SET MENU(SUBMENU,JDX,"COLOR","SELTEXT")=$$LIGHTERCLR(CLRVEC24,0.2)_"^"_$$LIGHTERCLR(INVCLR,0.2)
+  . . SET MENU(SUBMENU,JDX,"COLOR","TEXT")=BG_"^"_FG  ;"CLRVEC24_"^"_INVCLR
+  . . SET MENU(SUBMENU,JDX,"COLOR","SELTEXT")=$$LIGHTERCLR(BG,0.2)_"^"_$$LIGHTERCLR(FG,0.2)
   . . SET JDX=JDX+1
   . SET SUBMENU=SUBMENU+1
   . SET IDX=IDX+1
@@ -184,7 +196,12 @@ COLORMENU() ;"Allow user to pick color by name in a menu structure.
   NEW RESULT SET RESULT=$$RUNMENU^TMGUSRI7(.MENU)
   QUIT RESULT
   ;
-GETWEBCOLORS(COLORARR) ;
+GETWEBCOLORS(COLORARR) ;"Fill array with web colors
+  ;"Input: COLORARR -- PASS BY REFERRANCE.  AN OUT PARAMETER.  FORMAT:
+  ;"          COLORARR("SECTION",<section name>,<color name>)=ColorVec^ColorName
+  ;"          COLORARR("NAME",<color name>)=ColorVec
+  ;"          COLORARR("IDX",#)=ColorVec^ColorName
+  ;"          COLORARR("IDX","MAX")=MaxIndex
   NEW LINE,NAME,UNAME,VEC
   NEW DONE SET DONE=0
   NEW SECTION SET SECTION="?"
@@ -202,6 +219,8 @@ GETWEBCOLORS(COLORARR) ;
   . SET UNAME=$$UP^XLFSTR(NAME)
   . SET COLORARR("NAME",UNAME)=VEC
   . SET COLORARR("SECTION",SECTION,UNAME)=VEC_"^"_NAME
+  . SET COLORARR("IDX",IDX)=VEC_"^"_NAME
+  . SET COLORARR("IDX","MAX")=IDX
   QUIT
   ;
 WEBCOLORL1 ;  
@@ -364,7 +383,9 @@ WEBCOLORL1 ;
   ;;"Snow,255;250;250
   ;;"Ivory,255;255;240
   ;;"White,255;255;255
-  ;;"Gray and black colors
+  ;;"@
+  ;;"@Gray and black colors
+  ;;"@------------
   ;;"Black,0;0;0
   ;;"DarkSlateGray,47;79;79
   ;;"DimGray,105;105;105
@@ -484,35 +505,46 @@ KILLGBLC   ;"Kill Global Colors and MAP array
   ;
   ;"=======================================================================
 PICK1COL(LABEL,INITVAL)   ;
-   ;"Purpose: prompt user to pick a color
-   ;"Input: LABEL -- Foreground or background
-   ;"  INITVAL.  Value to return IF nothing selected.
-   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
+  ;"Purpose: prompt user to pick a color
+  ;"Input: LABEL -- Foreground or background
+  ;"  INITVAL.  Value to return IF nothing selected.
+  ;"Results: returns value 0-15 IF selected, or -1 IF abort.
   NEW RESULT
   WRITE "Enter "_LABEL_" color number (0-15,^ to abort): "
   READ RESULT:$GET(DTIME,3600),!
   IF (RESULT="")!(+RESULT'=RESULT)!(+RESULT<0)!(+RESULT>15) SET RESULT=+$GET(INITVAL)
   QUIT RESULT
   ;
-PICKFGC(FG,BG)   ;
-   ;"Purpose: prompt user to pick a foreground color
-   ;"Input -- FG.  Value to return IF nothing selected.
-   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
-  DO COLORBOX(.BG)
-  NEW RESULT SET RESULT=$$PICK1COL("Foreground (FG)",.FG)
+PICKFGC(FG,BG,COLORMODE)   ;
+  ;"Purpose: prompt user to pick a foreground color
+  ;"Input -- FG.  Value to return IF nothing selected.
+  ;"         BG -- background color
+  ;"         COLORMODE -- optional.  
+  ;"Results: returns value 0-15 IF selected, or -1 IF abort.
+  NEW RESULT 
+  IF $GET(COLORMODE)="24bit" DO
+  . SET RESULT=$$PICKCOLOR24()
+  ELSE  DO
+  . DO COLORBOX(.BG)
+  . SET RESULT=$$PICK1COL("Foreground (FG)",.FG)
   QUIT RESULT
   ;
-PICKBGC(INITVAL)   ;
-   ;"Purpose: prompt user to pick a background color
-   ;"Input -- INITVAL.  Value to return IF nothing selected.
-   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
-  DO COLORBOX(,1)
-  NEW RESULT SET RESULT=$$PICK1COL("Background (BG)",.INITVAL)
+PICKBGC(INITVAL,COLORMODE)   ;
+  ;"Purpose: prompt user to pick a background color
+  ;"Input -- INITVAL.  Value to return IF nothing selected.
+  ;"         COLORMODE -- optional.  
+  ;"Results: returns value 0-15 IF selected, or -1 IF abort.
+  NEW RESULT
+  IF $GET(COLORMODE)="24bit" DO
+  . SET RESULT=$$PICKCOLOR24()
+  ELSE  DO
+  . DO COLORBOX(,1)
+  . SET RESULT=$$PICK1COL("Background (BG)",.INITVAL)
   QUIT RESULT
   ;
 PICKCLRS(FG,BG)   ;
-   ;"Purpose: prompt user to pick a FG and BG colors
-   ;"Results: returns value FG^BG, each 0-15
+  ;"Purpose: prompt user to pick a FG and BG colors
+  ;"Results: returns value FG^BG, each 0-15
   DO COLORBOX()
   SET FG=$$PICK1COL("Foreground (FG)",.FG)
   SET BG=$$PICK1COL("Background (BG)",.BG)
@@ -564,56 +596,110 @@ INDEXMAP ;" Taken from here: https://en.wikipedia.org/wiki/ANSI_escape_code.  NO
  ;  
 PICKCOLOR24(OPTION) ;"Display colors and allow user to pick desired color.  
   ;"Input: OPTION.  OPTIONAL.  PASS BY REFERENCE.
-  ;"         OPTION("ORIGIN X"),OPTION("ORIGIN Y") -- screen coordinates for centerpoint, where R=G=B=255.  Default is (23,31)
+  ;"         OPTION("WORLD->DISPLAY X OFFSET")
+  ;"         OPTION("WORLD->DISPLAY Y OFFSET") 
+  ;"         OPTION("DISPLAY->SCREEN X OFFSET")
+  ;"         OPTION("DISPLAY->SCREEN Y OFFSET") 
   ;"         OPTION("WIDTH")      
   ;"         OPTION("HEIGHT")      NOTE: if value set 15 or higher, causes bug, not sure why yet.
   ;"         OPTION("DEPTH")       NOTE: if value set 15 or higher, causes bug, not sure why yet.
   ;"         OPTION("SHOW FRAME")  if 1, outer frame shown
   ;"         OPTION("SHOW SELECTED") if 1 then a box displaying color is shown
-  ;"         OPTION("CLEAR BOX")   if 1 then area behind box cleared before drawing.  
   ;"RESULT: returns 24bit color vector triple, CLRVEC24.  '#;#;#'
   ;
   NEW R,G,B,INPUT,CHANGED
-  SET (R,G,B)=220
+  SET (R,G,B)=220               
   NEW DONE SET DONE=0
-  SET OPTION("ORIGIN X")=$GET(OPTION("ORIGIN X"),43)   ;"screen coordinates of <R,G,B> = <0,0,0>
-  SET OPTION("ORIGIN Y")=$GET(OPTION("ORIGIN Y"),31)
-  SET OPTION("WIDTH")=$GET(OPTION("WIDTH"),26)     
-  SET OPTION("HEIGHT")=$GET(OPTION("HEIGHT"),10)      ;"NOTE: if value set 15 or higher, causes bug, not sure why yet.
-  SET OPTION("DEPTH")=$GET(OPTION("DEPTH"),10)        ;"NOTE: if value set 15 or higher, causes bug, not sure why yet.
-  SET OPTION("SHOW FRAME")=0
-  ;"SET OPTION("SHOW CUBE")=0
-  SET OPTION("SHOW SELECTED")=0  
-  SET OPTION("CLEAR BOX")=1
-  SET OPTION("BUFFERED")=$NAME(OPTION("TMGTERMBUF"))    
-  NEW TEMP DO SETUPCHARS(.TEMP) MERGE OPTION("CHARS")=TEMP
-  NEW TEXTHOME SET TEXTHOME="0^"_(OPTION("ORIGIN Y")+13)
-  NEW SHADEPCT SET SHADEPCT=0.15
-  WRITE #  ;"clear screen
-  DO CSRSHOW^TMGTERM(0)
+  ;"NOTE  : There are 3 coordinate systems: 
+  ;"   WORLD coordinates (3D).  Same as RGB coordinates.   <0,0,0> is in world base back right corner 
+  ;"   DISPLAY coordinates (2D).  Origin of <1,1> is at the top left of Display area.  Display may be offset on screen
+  ;"   SCREEN coordinates (2D).  This screen coordinates, with <1,1> beign top left corder of terminal window 
+  ;" The WORLD gets mapped to the DISPLAY which gets mapped to the SCREEN
+  SET OPTION("WORLD->DISPLAY X OFFSET")=$GET(OPTION("WORLD->DISPLAY X OFFSET"),29)   ;"OFFSET of WORLD coordinates in DISPLAY space. This means <0,0,0> in WORLD space will be <40,15> in DISPLAY space
+  SET OPTION("WORLD->DISPLAY Y OFFSET")=$GET(OPTION("WORLD->DISPLAY Y OFFSET"),13)   ;"OFFSET of WORLD coordinates in DISPLAY space.
+  SET OPTION("DISPLAY->SCREEN X OFFSET")=$GET(OPTION("DISPLAY->SCREEN X OFFSET"),8)  ;"OFFSET of DISPLAY coordinates in SCREEN space. This means that <0,0> in DISPLAY space will be <8,15> in SCREEN space
+  SET OPTION("DISPLAY->SCREEN Y OFFSET")=$GET(OPTION("DISPLAY->SCREEN Y OFFSET"),10) ;"OFFSET of DISPLAY coordinates in SCREEN space.
+  NEW DISPORIGINX SET DISPORIGINX=OPTION("DISPLAY->SCREEN X OFFSET")
+  NEW DISPORIGINY SET DISPORIGINY=OPTION("DISPLAY->SCREEN Y OFFSET")
+  NEW DISPORIGINPOS DO XY2POS^TMGTERM4(DISPORIGINX,DISPORIGINY,.DISPORIGINPOS)
+  SET OPTION("WIDTH")=$GET(OPTION("WIDTH"),26)     ;"I think these are the dimensions of the color cube itself. 
+  SET OPTION("HEIGHT")=$GET(OPTION("HEIGHT"),10)   
+  SET OPTION("DEPTH")=$GET(OPTION("DEPTH"),10)     
   NEW WIDTH  SET WIDTH=$GET(OPTION("WIDTH"))     
   NEW HEIGHT SET HEIGHT=$GET(OPTION("HEIGHT"))  
-  NEW DEPTH  SET DEPTH=$GET(OPTION("DEPTH"))
+  NEW DEPTH  SET DEPTH=$GET(OPTION("DEPTH"))       
+  NEW DISPWIDTH SET DISPWIDTH=WIDTH+55
+  NEW DISPHEIGHT SET DISPHEIGHT=HEIGHT+19
+  SET OPTION("SHOW FRAME")=1
+  SET OPTION("SHOW SELECTED")=1  
+  SET OPTION("SHOW CUBE")=1
+  SET OPTION("DEBUG MODE")=0
+  SET OPTION("DEBUG MODE","OFFSET")="7^19"
+  NEW DEVSAVE,DEVINFO DO DEV2ARR^TMGKERN1($IO,.DEVSAVE,,.DEVINFO)
+  ;"NEW NULLDEV SET NULLDEV="/dev/null" OPEN NULLDEV  ;"<-- but not yet in 'USE'
+  ;"SET OPTION("PREWRITE EXECUTE")="USE $P FOR  READ *%:0 QUIT:%=-1  "  ;"read and discard anything in typeahead buffer
+  ;"SET OPTION("POSTWRITE EXECUTE")="" ;"USE NULLDEV"   ;"after writing, switch IO back to NULL, to prevent user keystrokes from being sent to output
+  DO INITBUF^TMGTERM4(DISPORIGINPOS,DISPWIDTH,DISPHEIGHT,"OPTION")  ;"Initialize buffered output system.
+  DO CLRBUF^TMGTERM4("OPTION"," ",-1,-1)         ;"Fill buff with character
+  NEW USEBUF,USEWRAP SET USEBUF=$$BUFFERING^TMGTERM4("OPTION")  
+  IF USEBUF DO
+  . NEW TMP ZSHOW "D":TMP SET USEWRAP=($GET(NOWRAP("D",1))'["NOWRAP")  ;"Save of initial status.
+  . USE $IO:(NOWRAP)  ;"Turn off wrapping.
+  NEW TEMP DO SETUPCHARS(.TEMP) MERGE OPTION("CHARS")=TEMP
+  NEW SHADEPCT SET SHADEPCT=0.02
+  DO CSRSHOW^TMGTERM(0)                                                          
   NEW RSTEP SET RSTEP=255/WIDTH
   NEW GSTEP SET GSTEP=255/DEPTH
   NEW BSTEP SET BSTEP=255/HEIGHT  
-CB24L1 ;  
+  NEW UPDNCHAR,ARROWS DO GETARROWCODES^TMGTERM3(.ARROWS) SET UPDNCHAR="%UC%"_$GET(ARROWS("UP-DOWN ARROW"))_"%UC%"
+  NEW INSTRUCTIONS,LINECT SET LINECT=-1
+  SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="  LEFT/RIGHT: "_UPDNCHAR_" RED"              
+  SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="       UP/DN: "_UPDNCHAR_" GREEN"
+  SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="  Page-Up/Dn: "_UPDNCHAR_" BLUE"
+  SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="         A/Z: "_UPDNCHAR_" Light/Dark"       
+  SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="           ?: Pick color by NAME"
+  NEW TEXTHOMEX,TEXTHOMEY SET TEXTHOMEX=0,TEXTHOMEY=DISPHEIGHT-LINECT; 
+  NEW Y
+  NEW FRAMECT SET FRAMECT=0
+  NEW KEYBUFEMPTY
+  NEW AUTOKEY,AUTOCT SET AUTOKEY="RIGHT",AUTOCT=50 ;20
+CB24L1 ;
+  SET KEYBUFEMPTY=0
+  USE $P  ;"Set IO to interactive
+  FOR  DO  QUIT:KEYBUFEMPTY
+  . NEW TEMP SET TEMP=$$READKY^TMGUSRI5("e",0.01,1,,.ESCKEY,1) ;"read one char, with ESC processing
+  . IF TEMP="",ESCKEY="" SET KEYBUFEMPTY=1
+  USE:($GET(NULLDEV)]"") NULLDEV ;"set IO to null to stop key bleed-through during drawing etc.  
+  DO CLRBUF^TMGTERM4("OPTION"," ",-1,-1)         ;"Fill buff with character (clear buffer)
   DO DRAWCLRBOX24(.R,.G,.B,.OPTION)
-  ;"Restore colors.  
-  DO VTATRIB^TMGTERM(0)
-  DO CUPOS^TMGTERM(TEXTHOME)  
-  NEW COL SET COL(1)=20,COL(2)=40
-  NEW ARROWS
-  WRITE "  LEFT/RIGHT: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " RED",!
-  WRITE "       UP/DN: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " GREEN",!
-  WRITE "  Page-Up/Dn: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " BLUE",!
-  WRITE "         A/Z: " DO WRITEARROW^TMGTERM3("UP-DOWN ARROW",.ARROWS) WRITE " Light/Dark",!
-  WRITE "           ?: Pick color by NAME"
+  FOR Y=0:1:4 DO
+  . DO PAINTXY^TMGTERM4(TEXTHOMEX,TEXTHOMEY+Y,-1,-1,INSTRUCTIONS(Y),"OPTION")
+  IF USEBUF DO
+  . SET FRAMECT=(FRAMECT+1)#5  ;"Repeat every 5 cycles.  
+  . ;"Force FULL draw every 5 cycles in case something else overwrote background.  
+  . DO BUF2SCRN^TMGTERM4("OPTION",(FRAMECT=0))
 CB24L2 ;  
+  IF AUTOCT>0 DO  SET INPUT=AUTOKEY GOTO CB24L3
+  . SET AUTOCT=AUTOCT-1
+  . IF AUTOCT>0 QUIT
+  . IF AUTOKEY="RIGHT" DO  QUIT
+  . . SET AUTOKEY="LEFT",AUTOCT=20
+  . IF AUTOKEY="LEFT" DO  QUIT
+  . . SET AUTOKEY="DOWN",AUTOCT=10
+  . IF AUTOKEY="DOWN" DO  QUIT
+  . . SET AUTOKEY="UP",AUTOCT=10
+  . IF AUTOKEY="UP" DO  QUIT
+  . . SET AUTOKEY="PGDN",AUTOCT=10
+  . IF AUTOKEY="PGDN" DO  QUIT
+  . . SET AUTOKEY="PGUP",AUTOCT=10
+  . IF AUTOKEY="PGUP" DO  QUIT
+  . . SET AUTOKEY="RIGHT",AUTOCT=20
+  ;
   SET INPUT=$$READKY^TMGUSRI5("e",,1,,.ESCKEY,1) ;"read one char, with ESC processing
+CB24L3 ;  
   IF INPUT="" DO  GOTO:DONE CB24DN
   . IF "RIGHT,LEFT,UP,DOWN,HOME,END"[ESCKEY SET INPUT=ESCKEY QUIT
-  . IF ESCKEY="PREV" SET INPUT="PGUP" QUIT
+  . IF ESCKEY="PREV" SET INPUT="PGUP" QUIT          
   . IF ESCKEY="NEXT" SET INPUT="PGDN" QUIT
   . IF ESCKEY="DOWN" SET INPUT="DOWN" QUIT               
   . IF ESCKEY="CR" SET DONE=1 QUIT
@@ -626,11 +712,11 @@ CB24L2 ;
   IF (INPUT="UP") SET CHANGED=$$DELTAINT(.G,-GSTEP)
   IF (INPUT="PGUP") SET CHANGED=$$DELTAINT(.B,BSTEP)
   IF (INPUT="PGDN") SET CHANGED=$$DELTAINT(.B,-BSTEP)
-  IF INPUT="Z" DO  ;"PUSH TOWARDS BLACK
+  IF INPUT="A" DO  ;"PUSH TOWARDS WHITE
   . IF R<255 DO DELTA1CLR(.R,SHADEPCT) SET CHANGED=1
   . IF G<255 DO DELTA1CLR(.G,SHADEPCT) SET CHANGED=1
   . IF B<255 DO DELTA1CLR(.B,SHADEPCT) SET CHANGED=1
-  IF INPUT="A" DO  ;"PUSH TOWARDS WHITE
+  IF INPUT="Z" DO  ;"PUSH TOWARDS BLACK
   . IF R>0 DO DELTA1CLR(.R,-SHADEPCT) SET CHANGED=1
   . IF G>0 DO DELTA1CLR(.G,-SHADEPCT) SET CHANGED=1
   . IF B>0 DO DELTA1CLR(.B,-SHADEPCT) SET CHANGED=1
@@ -642,6 +728,8 @@ CB24L2 ;
   . DO V24TORGB^TMGTERM(CLRVEC,.R,.G,.B) ;"Split CLRVEC24 to R,G,B components.
   . SET OPTION("SELECTED")=CLRVEC
   . SET OPTION("SELECTED","NAME")=$PIECE(TEMP,"^",1)
+  . DO CLRBUF^TMGTERM4("OPTION"," ",-1,-1)         ;"Fill buff with character
+  . DO BUF2SCRN^TMGTERM4("OPTION")
   IF CHANGED GOTO CB24L1
   IF INPUT="^" SET DONE=1 GOTO CB24DN
   GOTO CB24L2
@@ -651,6 +739,11 @@ CB24DN ;
   SET B=$$ROUND^TMGUTIL0(B,0)
   NEW S SET S=$$RJ^XLFSTR(R,3,"0")_";"_$$RJ^XLFSTR(G,3,"0")_";"_$$RJ^XLFSTR(B,3,"0")
   DO CSRSHOW^TMGTERM(1)
+  DO VTATRIB^TMGTERM(0)  
+  IF USEBUF,USEWRAP USE $I:(WRAP)  ;"Restore WRAP state of current device.    
+  IF $DATA(DEVSAVE) DO   ;"turn IO back to what it was when coming into this function.
+  . DO RESTORDEV^TMGKERN1(.DEVSAVE,.DEVINFO)  
+  CLOSE:($GET(NULLDEV)]"") NULLDEV
   WRITE #
   QUIT S                 
   ;
@@ -686,7 +779,7 @@ DELTAINT(V,DELTA) ;
   SET:(V<0) V=0
   SET:(V>255) V=255
   QUIT (V'=INITV)
-  ;  
+  ;    
 DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.  
   ;"Input: R, G, B -- PASS BY REFERENCE.  Selected red, green blue axis values (RGB coordinates)
   ;"       OPTION.  OPTIONAL.  PASS BY REFERENCE.
@@ -695,7 +788,6 @@ DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.
   ;"         OPTION("SHOW FRAME")=1  -- if 1 then frame shown
   ;"         OPTION("SHOW SELECTED")=1  -- If 1 then selected color shown      
   ;"         OPTION("CLEAR BOX")=1 -- If 1 then white box is painted before drawing cube.
-  ;"         OPTION("BUFFERED")=1 -- if 1, then buffer used and output all at once.  
   ;
   ;"             GREEN AXIS
   ;"1  -1  0         \#########################.             
@@ -725,11 +817,9 @@ DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.
   ;
   NEW POS,FG,BG,POS 
   NEW ADDLABELS SET ADDLABELS=$GET(OPTION("LABEL AXES"))
-  NEW USEBUF,USEWRAP SET USEBUF=($GET(OPTION("BUFFERED"))'="")  ;"NOTE: Doesn't give me the speed increase I had hoped for....
-  IF USEBUF DO
-  . NEW TMP ZSHOW "D":TMP SET USEWRAP=($GET(NOWRAP("D",1))'["NOWRAP")  ;"Save of initial status.
-  . USE $I:(NOWRAP)  ;"Turn off wrapping.
-  ;
+  NEW USEBUF SET USEBUF=$$BUFFERING^TMGTERM4("OPTION")  
+  ;   
+  ;"Below are in DISPLAY coordinate system.   
   NEW BFLX,BFLY SET POS=$$XFRM(255,255,0,.OPTION)   DO SPLITPOS(POS,.BFLX,.BFLY)  ;"BASE FRONT LEFT  CORNER. 
   NEW BBLX,BBLY SET POS=$$XFRM(255,0,0,.OPTION)     DO SPLITPOS(POS,.BBLX,.BBLY)  ;"BASE BACK  LEFT  CORNER. 
   NEW BBRX,BBRY SET POS=$$XFRM(0,0,0,.OPTION)       DO SPLITPOS(POS,.BBRX,.BBRY)  ;"BASE BACK  RIGHT CORNER. 
@@ -737,16 +827,6 @@ DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.
   NEW BFRX,BFRY SET POS=$$XFRM(0,255,0,.OPTION)     DO SPLITPOS(POS,.BFRX,.BFRY)  ;"BASE FRONT RIGHT CORNER. 
   NEW TFRX,TFRY SET POS=$$XFRM(0,255,255,.OPTION)   DO SPLITPOS(POS,.TFRX,.TFRY)  ;"TOP  FRONT RIGHT CORNER. 
   NEW TBRX,TBRY SET POS=$$XFRM(0,0,255,.OPTION)     DO SPLITPOS(POS,.TBRX,.TBRY)  ;"TOP  BACK  RIGHT CORNER. 
-  ;
-  IF $GET(OPTION("CLEAR BOX")) DO
-  . NEW X SET X=BBLX
-  . NEW Y SET Y=TBLY
-  . NEW WIDTH SET WIDTH=TFRX-BBLX+1
-  . NEW HT SET HT=BFLY-TBLY 
-  . NEW WS SET WS="" SET $PIECE(WS," ",WIDTH)=" "
-  . FOR Y=TBLY:1:BFLY DO
-  . . DO CUP^TMGTERM(BBLX,Y,.OPTION) 
-  . . DO TERMWRITE^TMGTERM(WS,.OPTION)
   ;
   NEW WIDTH  SET WIDTH=$GET(OPTION("WIDTH"),26)     
   NEW HEIGHT SET HEIGHT=$GET(OPTION("HEIGHT"),10)  
@@ -799,7 +879,7 @@ DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.
   ;"DRAW FRAME IF WANTED
   IF $GET(OPTION("SHOW FRAME")) DO
   . NEW CHARS MERGE CHARS=OPTION("CHARS") IF $DATA(CHARS)=0 DO SETUPCHARS(.CHARS)
-  . DO VTATRIB^TMGTERM(0,.OPTION)
+  . ;"DO VTATRIB^TMGTERM(0)
   . DO DRAWLINE(.CHARS,"G",0,255+GSTEP,255+RSTEP,0,0,GSTEP,0,0,.OPTION) ;"DRAW BASE LEFT EDGE 
   . DO DRAWLINE(.CHARS,"R",0,255+RSTEP,0,255+GSTEP,0,RSTEP,0,0,.OPTION) ;"DRAW FRONT BASE HORIZONTAL LINE  
   . DO DRAWLINE(.CHARS,"R",R+RSTEP,255+RSTEP,0,0,0,RSTEP,1,1,.OPTION)   ;"DRAW BACK BASE HORIZONTAL LINE  !! ENDING HAS 2 DOTS.  
@@ -808,7 +888,22 @@ DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.
   . DO DRAWLINE(.CHARS,"G",G+GSTEP,255+GSTEP,0,1,0,GSTEP,1,1,.OPTION)   ;"DRAW BASE RIGHT EDGE  
   . DO DRAWLINE(.CHARS,"B",0,255+BSTEP,0,255+GSTEP,0,BSTEP,0,0,.OPTION) ;"DRAW FRONT RIGHT VERTICAL LINE    
   . DO DRAWLINE(.CHARS,"G",0,255+GSTEP,0,0,255+BSTEP,GSTEP,0,0,.OPTION) ;"DRAW TOP RIGHT EDGE  
-  . DO DRAWLINE(.CHARS,"B",B+BSTEP,255+BSTEP,0,1,0,BSTEP,1,0,.OPTION)   ;"DRAW BACK RIGHT VERTICAL LINE    
+  . DO DRAWLINE(.CHARS,"B",B+BSTEP,255+BSTEP,0,1,0,BSTEP,1,0,.OPTION)   ;"DRAW BACK RIGHT VERTICAL LINE
+  . ;"DRAW BASE                    
+  . ;"DO DRAWLINE(.CHARS,"G",0,255,255,"v",0,GSTEP,0,0,.OPTION)   ;"DRAW BASE LEFT EDGE 
+  . ;"DO DRAWLINE(.CHARS,"R",0,255,"v",255,0,RSTEP,0,0,.OPTION)   ;"DRAW BASE FRONT HORIZONTAL LINE  
+  . ;"DO DRAWLINE(.CHARS,"R",0,255,"v",0,0,RSTEP,1,1,.OPTION)     ;"DRAW BASE BACK HORIZONTAL LINE  !! ENDING HAS 2 DOTS.  
+  . ;"DO DRAWLINE(.CHARS,"G",0,255,0,"v",0,GSTEP,1,1,.OPTION)     ;"DRAW BASE RIGHT EDGE  
+  . ;";"DRAW TOP                                    
+  . ;"DO DRAWLINE(.CHARS,"G",0,255,255,"v",255,GSTEP,0,0,.OPTION) ;"DRAW TOP LEFT EDGE 
+  . ;"DO DRAWLINE(.CHARS,"R",0,255,"v",255,255,RSTEP,0,0,.OPTION) ;"DRAW TOP FRONT HORIZONTAL LINE  
+  . ;"DO DRAWLINE(.CHARS,"R",0,255,"v",0,255,RSTEP,1,1,.OPTION)   ;"DRAW TOP BACK HORIZONTAL LINE  !! ENDING HAS 2 DOTS.  
+  . ;"DO DRAWLINE(.CHARS,"G",0,255,0,"v",255,GSTEP,1,1,.OPTION)   ;"DRAW TOP RIGHT EDGE  
+  . ;";"DRAW VERTICALS             
+  . ;"DO DRAWLINE(.CHARS,"B",0,255,255,0,"v",BSTEP,0,0,.OPTION)   ;"DRAW BACK  LEFT VERTICAL LINE  
+  . ;"DO DRAWLINE(.CHARS,"B",0,255,255,255,"v",BSTEP,0,0,.OPTION) ;"DRAW FRONT LEFT VERTICAL LINE  
+  . ;"DO DRAWLINE(.CHARS,"B",0,255,0,255,"v",BSTEP,0,0,.OPTION)   ;"DRAW FRONT RIGHT VERTICAL LINE
+  . ;"DO DRAWLINE(.CHARS,"B",0,255,0,0,"v",BSTEP,0,0,.OPTION)   ;"DRAW BACK  RIGHT VERTICAL LINE
   ;
   ;"DRAW SELECTED COLOR BOX.  
   IF $GET(OPTION("SHOW SELECTED"))=1 DO
@@ -823,28 +918,22 @@ DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.
   . SET S(2)=$$CJ^XLFSTR("("_$$RJ^XLFSTR(R\1,3,"0")_","_$$RJ^XLFSTR(G\1,3,"0")_","_$$RJ^XLFSTR(B\1,3,"0")_")",BOXW," ")
   . SET S(3)=$$CJ^XLFSTR(CLRNAME,BOXW," ")
   . SET BG=$$CLRVEC24^TMGTERM(R\1,G\1,B\1)  
-  . SET FG=$$INVCLRVEC^TMGTERM(BG)
-  . DO VCOLOR24B^TMGTERM(BG,FG,.OPTION)  ;"<-- I don't understand why I have to switch FG and BG to get it to display properly!
+  . SET FG=$$INVCLRVEC^TMGTERM(BG)              
   . NEW DY FOR DY=1:1:HEIGHT+10 DO
-  . . DO CUP^TMGTERM(X,Y+DY,.OPTION)
   . . NEW IDX SET IDX=$SELECT(DY=2:1,DY=3:2,DY=4:3,1:0)
-  . . DO TERMWRITE^TMGTERM(S(IDX),.OPTION)
+  . . DO PAINTXY^TMGTERM4(X,Y+DY,FG,BG,S(IDX),"OPTION")  
   . DO
   . . NEW TEMP MERGE TEMP=OPTION("ARC") KILL OPTION("ARC") SET OPTION("ARC")=1
-  . . DO DRAWBOX^TMGTERM2(X,Y,20,HEIGHT+12,.OPTION)
+  . . DO DRAWBOX^TMGTERM2(X,Y,20,HEIGHT+12,FG,BG,.OPTION)
   . . KILL OPTION("ARC") MERGE OPTION("ARC")=TEMP
   ;  
-  IF USEBUF DO
-  . NEW BUFNAME SET BUFNAME=$GET(OPTION("BUFFERED"))
-  . DO PUTBUF^TMGTERM(BUFNAME)
-  . IF USEWRAP USE $I:(WRAP)  ;"Restore WRAP state of current device.  
   QUIT
   ;" 
-XFRM(R,G,B,OPTION) ;"Transform (XFRM) RGB coordinates into XY screen coordinates.  
+XFRM(R,G,B,OPTION) ;"Transform (XFRM) 3D-RGB WORLD coordinates into 2D-XY DISPLAY coordinates.  
   ;"Input: R, G, B -- red, green blue values (0-255)
-  ;"Result: <X>^<Y>  -- screen coordinates.  
-  NEW ORIGINX SET ORIGINX=$GET(OPTION("ORIGIN X"),43)  ;"ORIGIN is for RGB = <0,0,0>, BASE BACK RIGHT CORNER
-  NEW ORIGINY SET ORIGINY=$GET(OPTION("ORIGIN Y"),31)  
+  ;"Result: <X>^<Y>  -- DISPLAY coordinates.  
+  NEW WORLDORIGINX SET WORLDORIGINX=OPTION("WORLD->DISPLAY X OFFSET")  ;"OFFSET of WORLD coordinates in DISPLAY space. 
+  NEW WORLDORIGINY SET WORLDORIGINY=OPTION("WORLD->DISPLAY Y OFFSET")  ;"OFFSET of WORLD coordinates in DISPLAY space.
   NEW WIDTH  SET WIDTH=$GET(OPTION("WIDTH"),26)     
   NEW HEIGHT SET HEIGHT=$GET(OPTION("HEIGHT"),10)    
   NEW DEPTH  SET DEPTH=$GET(OPTION("DEPTH"),10)     
@@ -854,8 +943,8 @@ XFRM(R,G,B,OPTION) ;"Transform (XFRM) RGB coordinates into XY screen coordinates
   NEW X,Y
   SET X=(RSCALED*-1)+(GSCALED*1)+(BSCALED*1)
   SET Y=(RSCALED*0)+(GSCALED*1)+(BSCALED*-1)
-  SET X=$$ROUND^TMGUTIL0(ORIGINX+X,0)
-  SET Y=$$ROUND^TMGUTIL0(ORIGINY+Y,0)
+  SET X=$$ROUND^TMGUTIL0(WORLDORIGINX+X,0)
+  SET Y=$$ROUND^TMGUTIL0(WORLDORIGINY+Y,0)
   QUIT X_"^"_Y
   ;
 DRAWPART(FACE,R1,G1,B1,RISMAX,GISMAX,BISMAX,OPTION) ;
@@ -870,7 +959,7 @@ DRAWPART(FACE,R1,G1,B1,RISMAX,GISMAX,BISMAX,OPTION) ;
   NEW CHAR SET CHAR=" "  ;"default char
   NEW CHARS MERGE CHARS=OPTION("CHARS") IF $DATA(CHARS)=0 DO
   . DO SETUPCHARS(.CHARS)
-  . MERGE OPTION("CHARS")=CHARS  
+  . MERGE OPTION("CHARS")=CHARS   
   IF "RG,GR"[FACE DO
   . SET CHAR=$SELECT(GISMAX&RISMAX:CHARS("#"),RISMAX:CHARS("\"),GISMAX:CHARS("-"),1:" ")      
   IF "BR,RB"[FACE DO
@@ -878,27 +967,33 @@ DRAWPART(FACE,R1,G1,B1,RISMAX,GISMAX,BISMAX,OPTION) ;
   ;"NEW IGNORE SET IGNORE=0
   ;"IF "GB,BG"[FACE DO  IF IGNORE GOTO DPDN2  
   ;". ;"IF (B1+G1)[".5" SET IGNORE=1
-  DO CUPOS^TMGTERM(POS,.OPTION)
-  NEW FG SET FG=$$CLRVEC24^TMGTERM(R1\1,G1\1,B1\1)
-  NEW BG SET BG=$$INVCLRVEC^TMGTERM(FG)
-  DO VCOLOR24B^TMGTERM(FG,BG,.OPTION)
-  IF $LENGTH(CHAR)>1,CHAR["$" DO
-  . DO UTF8WRITE^TMGSTUTL(CHAR,.OPTION)
-  ELSE  DO TERMWRITE^TMGTERM(CHAR,.OPTION)
+  NEW BG SET BG=$$CLRVEC24^TMGTERM(R1\1,G1\1,B1\1)
+  NEW FG SET FG=$$INVCLRVEC^TMGTERM(BG)
+  DO PAINT^TMGTERM4(POS,FG,BG,CHAR,"OPTION")
 DPDN2 ;  
   QUIT
   ;  
-DRAWLINE(CHARS,AXIS,START,STOP,R1,G1,B1,STEP,NOSTARTDOT,NOSTOPDOT,OPTION) ;
+DRAWLINE(CHARS,AXIS,START,STOP,R,G,B,STEP,NOSTARTDOT,NOSTOPDOT,OPTION) ;"DRAW AXIS LINE
+  ;"Input:  CHARS -- PASS BY REFERENCE.  Array holding unicodes for drawing lines
+  ;"        AXIS -- should be "R", "G", or "B".  Tells which axis variable will be modified.  
+  ;"        START -- Number 0-255 specifying starting point for drawing loop of line. 
+  ;"        STOP  -- Number 0-255 specifying stopping point for drawing loop of line. 
+  ;"        R,G,B -- Values for R, G,B of line.  
+  ;"                 NOTE: 1 of these values will cycles, the others will be kept constant. 
+  ;"                 For example, if drawing line between <0,255,0> and <255,255,0>, then
+  ;"                 R would be cycled (and AXIS should be "R"), and G will be kept at 255, and B kept at 0
+  ;"        STEP -- how much to step increment the count when moving from START to STOP. 
+  ;"        NOSTARTDOT,NOSTOPDOT -- 0 or 1.  If 1 then end dot not drawn. 
+  ;"        OPTION -- pass by reference.  Array with options and the buffers.  
   NEW CH,V
   FOR V=START:STEP:STOP DO
-  . IF AXIS="R" SET R1=V,CH=CHARS("-")
-  . IF AXIS="G" SET G1=V,CH=CHARS("\")
-  . IF AXIS="B" SET B1=V,CH=CHARS("/")
+  . IF AXIS="R" SET R=V,CH=CHARS("-")
+  . IF AXIS="G" SET G=V,CH=CHARS("\")
+  . IF AXIS="B" SET B=V,CH=CHARS("/")
   . IF (V=START)&(+$GET(NOSTARTDOT)=0) SET CH=CHARS(".")
   . IF ((V=STOP)!(V+STEP>STOP))&(+$GET(NOSTOPDOT)=0) SET CH=CHARS(".")
-  . SET POS=$$XFRM(R1,G1,B1,.OPTION)
-  . DO CUPOS^TMGTERM(POS,.OPTION)
-  . DO UTF8WRITE^TMGSTUTL(CH,.OPTION)
+  . SET POS=$$XFRM(R,G,B,.OPTION)
+  . DO PAINT^TMGTERM4(POS,-1,-1,CH,"OPTION")
   QUIT
   ;
 SETUPCHARS(CHARS) ;"SETUP ARRAY OF UNICODE CHARS.  

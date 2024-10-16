@@ -27,21 +27,25 @@ DEMOBOXES(COUNT) ;
   . SET OPTION("THICK")=THICK
   . SET OPTION("ARC")=ARC
   . SET OPTION("DASH")=DASH
-  . DO DRAWBOX(LEFT,TOP,WT,HT,.OPTION)
+  . DO DRAWBOX(LEFT,TOP,WT,HT,-1,-1,.OPTION)
   DO CSRSHOW^TMGTERM(1) ;"Turn cursor ON(1) or OFF(0)(hide) 
   QUIT
   ; 
 test1() ;  "DELETE LATER
   NEW OPTION SET OPTION("THICK")=3
   NEW OPTION SET OPTION("DASH")=3
-  DO DRAWBOX(10,10,10,10,.OPTION)
+  DO DRAWBOX(10,10,10,10,-1,-1,.OPTION)
   QUIT
   ;
-DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,OPTION) ;"Draw square or squircle on screen with line drawing chars 
+DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw square or squircle on screen with line drawing chars 
   ;"Input:  LEFT - Screen coordinates of position of TOP 
   ;"        TOP  - Screen coordinates of position of TOP
   ;"        WIDTH -- Width of box
   ;"        HEIGHT -- Height of box
+  ;"        FGCOLOR -- foreground color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If BGCOLOR=-1, FGCOLOR is overridden  
+  ;"        BGCOLOR -- background color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If FGCOLOR=-1, BGCOLOR is overridden  
   ;"        OPTION -- Optional.  Format:
   ;"            OPTION("THICK") -- 1 means Light  (default)
   ;"                               2 means Heavy
@@ -54,28 +58,29 @@ DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,OPTION) ;"Draw square or squircle on screen with l
   ;"                               3 means quadruple dash
   ;"            OPTION("ERASE") -- if 1, means we are ERASING box, not drawing.  
   ;"            OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
-  ;"                           The idea behind this is to send ALL the screen info all at once, to hopefully avoid flickering. 
-  ;"                            NOTE: (See ESCN or ADD2TERMBUF^TMGTERM for more info)   
+  ;"                            See TMGTERM4 for more info   
   SET WIDTH=+$GET(WIDTH) IF WIDTH<2 SET WIDTH=2
-  SET HEIGHT=+$GET(HEIGHT) IF HEIGHT<2 SET HEIGHT=2
+  SET HEIGHT=+$GET(HEIGHT) IF HEIGHT<2 SET HEIGHT=2                    
   SET TOP=+$GET(TOP),LEFT=+$GET(LEFT)
   NEW CHARS DO GETSQARR(.CHARS,.OPTION)
   DO VCUSAV2^TMGTERM(.OPTION)  ;"Save Cursor & Attrs 
+  NEW STR 
   ;"Write top line
-  DO CUP^TMGTERM(LEFT,TOP,.OPTION)
-  DO UTF8WRITE^TMGSTUTL(CHARS("TL"),.OPTION)
-  NEW X FOR X=2:1:WIDTH-1 DO UTF8WRITE^TMGSTUTL(CHARS("TOP/BOT"),.OPTION)
-  DO UTF8WRITE^TMGSTUTL(CHARS("TR"),.OPTION)
+  SET STR=CHARS("TL")_";"
+  NEW X FOR X=2:1:WIDTH-1 SET STR=STR_CHARS("TOP/BOT")_";"
+  SET STR=STR_CHARS("TR")
+  DO PAINTXY^TMGTERM4(LEFT,TOP,FGCOLOR,BGCOLOR,STR,"OPTION")  
   ;"Write sides
   NEW Y FOR Y=1:1:HEIGHT-2 DO
-  . DO CUP^TMGTERM(LEFT,TOP+Y,.OPTION) DO UTF8WRITE^TMGSTUTL(CHARS("SIDE"),.OPTION)
-  . DO CUP^TMGTERM(LEFT+WIDTH-1,TOP+Y,.OPTION) DO UTF8WRITE^TMGSTUTL(CHARS("SIDE"),.OPTION)
-  ;"Write bottom.
-  DO CUP^TMGTERM(LEFT,TOP+HEIGHT-1,.OPTION)
-  DO UTF8WRITE^TMGSTUTL(CHARS("BL"),.OPTION)
-  NEW X FOR X=2:1:WIDTH-1 DO UTF8WRITE^TMGSTUTL(CHARS("TOP/BOT"),.OPTION)
-  DO UTF8WRITE^TMGSTUTL(CHARS("BR"),.OPTION)
-  DO VCULOAD2^TMGTERM(.OPTION)  ;"Restore Cursor & Attrs
+  . DO PAINTXY^TMGTERM4(LEFT,TOP+Y,FGCOLOR,BGCOLOR,CHARS("SIDE"),"OPTION")
+  . DO PAINTXY^TMGTERM4(LEFT+WIDTH-1,TOP+Y,FGCOLOR,BGCOLOR,CHARS("SIDE"),"OPTION")
+  ;"Write bottom.   
+  SET STR=CHARS("BL")_";"
+  NEW X FOR X=2:1:WIDTH-1 SET STR=STR_CHARS("TOP/BOT")_";"
+  SET STR=STR_CHARS("BR")
+  DO PAINTXY^TMGTERM4(LEFT,TOP+HEIGHT-1,FGCOLOR,BGCOLOR,STR,"OPTION")
+  ;"Restore Cursor & Attrs
+  DO VCULOAD2^TMGTERM(.OPTION)  
   QUIT
   ;
 GETSQARR(OUT,OPTION)  ;"Get array for characters to draw square or squircle
