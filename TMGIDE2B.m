@@ -38,15 +38,26 @@ CLRLINE ;
   SET $X=tempX
   QUIT
   ;
-SETTEMPBKCOLOR(tmgMode)  ;
+SETTEMPBKCOLOR(tmgMode,COLOR)  ;"Set background color that should be combined with other foreground colors
+  ;"Input: tmgMode : Should be Reset,Highlight,HighExecPos,BkPos,HighBkPos,FORCE
+  ;"       COLOR: OPTIONAL.  Used only if tmgMode=FORCE, used to force a color number into background 
   SET tmgMode=$GET(tmgMode) QUIT:tmgMode=""
-  NEW ref SET ref=$name(^TMG("TMGIDE",$J,"COLORS"))
+  NEW ref DO GETCOLORSTOREREF^TMGIDE6(.ref)
+  NEW COLORMODE SET COLORMODE=$GET(@ref@("MODE"))
   IF tmgMode="Reset" KILL @ref@("TEMP BACKGROUND") QUIT
-  IF "Highlight,HighExecPos,BkPos,HighBkPos"'[tmgMode QUIT
+  IF "Highlight,HighExecPos,BkPos,HighBkPos,FORCE"'[tmgMode QUIT
   IF $DATA(@ref)=0 DO INITCOLORS^TMGIDE6
-  NEW bg SET bg=$GET(@ref@(tmgMode))
-  IF bg="" QUIT
-  SET @ref@("TEMP BACKGROUND")=bg
+  IF COLORMODE="24bit" DO
+  . NEW bg 
+  . IF tmgMode="FORCE" set bg=COLOR
+  . ELSE  SET bg=$GET(@ref@(tmgMode,"24bit"))
+  . IF bg="" QUIT
+  . SET @ref@("TEMP BACKGROUND","24bit")=bg
+  ELSE  DO  
+  . NEW bg SET bg=$GET(@ref@(tmgMode))
+  . IF tmgMode="FORCE" set bg=COLOR
+  . IF bg="" QUIT
+  . SET @ref@("TEMP BACKGROUND")=bg
   QUIT
   ;  
 XLTCMDKEYS(tmgAction,tmgXGRT,FORCEUP)  ;
@@ -106,6 +117,11 @@ EVALWATCHES  ;
   . xecute tmgWatchLine
   IF $DATA(tmgDgbWatches("*")) DO ShowVTrace^TMGIDE6
   WRITE !
+  QUIT
+  ;
+REFRESHCODE  ;
+  ;"Uses vars in global scope:  tmgIDEPos,tmgScrWidth,tmgScrHeight,tmgViewOffset,tmgLROffset,tmgCsrOnBreakline
+  DO SHOWCODE(.tmgIDEPos,.tmgScrWidth,.tmgScrHeight,0,.tmgViewOffset,.tmgLROffset,.tmgCsrOnBreakline) 
   QUIT
   ;
 SHOWCODE(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrOnBreakline)  ;
@@ -202,7 +218,7 @@ SHOWCODE(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
   . IF cHighCsrPos DO SETTEMPBKCOLOR("Highlight")
   . IF cHighExecPos DO SETTEMPBKCOLOR("HighExecPos")
   . IF cBrkLine DO
-  . . IF (cHighCsrPos=0)&(cHighExecPos=0) DO
+  . . IF (cHighCsrPos)!(cHighExecPos) DO    ;"was IF (cHighCsrPos=0)&(cHighExecPos=0) DO  //kt 10/18/24
   . . . DO SETTEMPBKCOLOR("HighBkPos")
   . . ELSE  DO
   . . . DO SETTEMPBKCOLOR("BkPos")

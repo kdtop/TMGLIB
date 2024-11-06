@@ -73,10 +73,13 @@ TMGIDE2C ;TMG/kst/A debugger/tracer for YottaDB (Utility functions) ;3/21/24
   ;
 HndlMCode ;
   ;"Purpose: Handle option to execute arbitrary code.
-  DO CUU^TMGTERM(1)
-  DO CHA^TMGTERM(1) ;"move to x=1 on this line
-  WRITE tmgBlankLine,!
-  DO CUU^TMGTERM(1)
+  ;"//kt 10/2024 -- DO CUU^TMGTERM(1)
+  ;"//kt 10/2024 -- DO CHA^TMGTERM(1) ;"move to x=1 on this line
+  ;"//kt 10/2024 -- WRITE tmgBlankLine,!
+  ;"//kt 10/2024 -- DO CUU^TMGTERM(1)
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
+  DO SETCOLORS("NORM")  ;"//kt 10/22/24
+  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
   NEW tmgTpLine SET tmgTpLine=$$Trim^TMGSTUTL($PIECE(tmgOrigAction," ",2,999))
   IF tmgTpLine="" READ " enter M code (^ to cancel): ",tmgTpLine:$GET(DTIME,3600),!
   IF (tmgTpLine'="^") DO
@@ -84,17 +87,18 @@ HndlMCode ;
   . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
   . WRITE !  ;"get below bottom line for output.
   . XECUTE tmgTpLine
+  DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
   ;
 HndlShow ;
   ;"Purpose: Handle option to show a variable.
-  DO Box
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    ;"DO Box
   DO SETCOLORS("NORM")
   DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-  ;"NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
   NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
   IF +$GET(tmgDbgRemoteJob) SET varName=$$GetRemoteVar^TMGIDE2(varName)
-  WRITE !   ;"get below bottom line for output.
+  ;"WRITE !   ;"get below bottom line for output.
   NEW zbTemp SET zbTemp=0
   IF varName["$" DO
   . NEW tempCode
@@ -107,14 +111,15 @@ HndlShow ;
   . SET varName=$$CREF^DILF(varName)  ;"convert open to closed format
   . IF $$ARRDUMP(varName)  ;"//kt 3/23/24,  ignore result
   IF zbTemp=0 DO
-  . DO SETCOLORS("Highlight")
+  . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
   . DO PRESS2GO^TMGUSRI2
   DO SETCOLORS("Reset")
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
   QUIT
   ;
 HndlZWR  ;
   ;"Purpose: Handle option to ZWRITE a variable.
-  DO Box
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    ;"DO Box
   DO SETCOLORS("NORM")
   DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
   ;"NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
@@ -133,9 +138,10 @@ HndlZWR  ;
   . SET varName=$$CREF^DILF(varName)  ;"convert open to closed format
   . DO ZWRITE^TMGZWR(varName)  ;"ZWRITE @varName
   IF zbTemp=0 DO
-  . DO SETCOLORS("Highlight")
+  . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
   . DO PRESS2GO^TMGUSRI2
   DO SETCOLORS("Reset")
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
   QUIT
   ;
 HndlToggleMode(tmgMode)  ;
@@ -192,6 +198,8 @@ HndlWatch(tmgAction) ;
   . . . ;"WRITE "tmgWatchLine=",tmgWatchLine,!
   . . ELSE  DO
   . . . SET tmgWatchLine=tmgWatchLine_" WRITE """_v_" =["",$$NOHIDDENSTR^TMGIDE2C($GET("_v_")),""], """
+  ELSE  IF (tmgAction["@") DO
+  . SET tmgWatchLine=""
   ELSE  DO
   . KILL tmgDgbWatches
   . NEW tempCode
@@ -242,7 +250,7 @@ HndlScrWH ;
   WRITE "Enter screen height: "_tmgScrHeight_"//" READ tempVal:$GET(DTIME,3600),!
   IF (+tempVal>5) SET tmgScrHeight=tempVal ;",ScrHeight=tempVal
   WRITE # ;"clear screen
-  DO SHOWCODE^TMGIDE2(tmgIDEPos,tmgScrWidth,tmgScrHeight,,tmgViewOffset,tmgLROffset,.tmgCsrOnBreakline) ;"<---- not working!
+  DO SHOWCODE^TMGIDE2B(tmgIDEPos,tmgScrWidth,tmgScrHeight,,tmgViewOffset,tmgLROffset,.tmgCsrOnBreakline) ;"<---- not working!
   QUIT
   ;
 HndlExpand ;
@@ -260,7 +268,8 @@ HndlStack(ShowPos,tmgViewOffset) ;
   ;"Input: ShowPos -- OPTIONAL.  PASS BY REFERENCE.  Will be changed to user selected value.
   ;"  tmgViewOffset -- OPTIONAL.  PASS BY REFERENCE.  Will be changed to 0 IF user selects NEW Pos.
   ;"Globally scoped vars used: tmgOrigIDEPos
-  WRITE !   ;"get below bottom line for output.
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    
+  ;"//kt 10/22/24 WRITE !   ;"get below bottom line for output.
   NEW Stack DO GetStackInfo(.Stack,tmgOrigIDEPos)
   NEW Menu SET Menu(0)="Pick Stack Entry to BROWSE TO"
   NEW menuI SET menuI=1
@@ -278,7 +287,8 @@ HndlStack(ShowPos,tmgViewOffset) ;
   IF (UsrSlct["^")&($LENGTH(UsrSlct)>1) DO
   . SET ShowPos=UsrSlct
   . SET tmgViewOffset=0
-  WRITE # ;"clr screen.
+  ;"//kt 10/22/24  WRITE # ;"clr screen.
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
   QUIT
   ;
 GetStackInfo(Stack,ExecPos)   ;
@@ -300,16 +310,25 @@ GetStackInfo(Stack,ExecPos)   ;
   ;  
 HndlNodes ;
   ;"Purpse: Handle option to browse a variable by nodes.
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
+  DO SETCOLORS("NORM")  ;"//kt 10/22/24
+  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
   NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,7,999))
   WRITE !   ;"get below bottom line for output.
   DO BRWSASK2^TMGMISC
+  DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
   ;
 HndlBrowse ;
   ;"Purpose: Handle option to browse a variable.
   NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,7,999))
   WRITE !   ;"get below bottom line for output.
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
+  DO SETCOLORS("NORM")  ;"//kt 10/22/24
+  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
   DO BRWSNOD2^TMGMISC(varName)
+  DO ALTBUF^TMGTERM(0)
   QUIT
   ;
 HndlBrkCond ;
@@ -555,6 +574,9 @@ RelBreakpoint(pos)  ;
   ;
 HndlTable ;
   ;"Purpose: Handle option for Table command
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
+  DO SETCOLORS("NORM")  ;"//kt 10/22/24
+  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
   NEW tmgARGS SET tmgARGS=$PIECE(tmgOrigAction," ",2,99)
   IF +$GET(tmgDbgRemoteJob) DO
   . NEW MSG SET MSG="TABLE"
@@ -581,11 +603,16 @@ HndlTable ;
   . . IF $EXTRACT(STR,1,3)="tmg" QUIT
   . . IF (tmgFilter'=""),$EXTRACT(STR,1,$LENGTH(tmgFilter))'=tmgFilter QUIT
   . . WRITE STR,!
-  NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
+  ;"NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
+  DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
   ;
 HndlVars(tmgOrigAction) ;
   ;"Purpose: Handle option for VARS command
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
+  DO SETCOLORS("NORM")  ;"//kt 10/22/24
+  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
   SET tmgOrigAction=$GET(tmgOrigAction)
   NEW tmgARGS SET tmgARGS=$PIECE(tmgOrigAction," ",2,99)
   SET tmgARGS=$PIECE(tmgARGS,"*",1)
@@ -613,7 +640,9 @@ HndlVars(tmgOrigAction) ;
   . . IF tmgARGS'="" QUIT:($EXTRACT(VARNAME,1,$LENGTH(tmgARGS))'=tmgARGS)
   . . NEW VARVAL SET VARVAL=$PIECE(LINE,"=",2,9999)
   . . WRITE VARNAME," = ",VARVAL,!
-  NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
+  ;"NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
+  DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
   ;
 HndlJmpDisp(ShowPos,tmgViewOffset)
@@ -692,30 +721,221 @@ HlpWrite(line)  ;
   DO SETCOLORS("NORM")
   QUIT
   ;
-SETCOLORS(tmgMode)  ;   
+HndlMenu()  ;
+  NEW MENU
+  DO SETUPMENU(.MENU,1,1) ;
+  NEW RUNOPT
+  SET RUNOPT("ON PREDRAW")="HNDLPREDRAW^TMGIDE2C"
+  NEW RESULT SET RESULT=$$RUNMENU^TMGUSRI7(.MENU,.RUNOPT)
+  SET RESULT=$PIECE(RESULT,"^",2,99)
+  ;"IF RESULT["^" SET RESULT=$PIECE(RESULT,"^",2)
+  IF RESULT["?" DO
+  . NEW MSG,TEMP SET TEMP=""
+  . IF RESULT["#" DO
+  . . SET TEMP=$PIECE(RESULT,"#",2,99),RESULT=$PIECE(RESULT,"#",1)
+  . . DO SPLIT2AR^TMGSTUT2(TEMP,"\n",.MSG)
+  . SET OPTION("POS","X")=5
+  . SET OPTION("POS","Y")=2
+  . SET OPTION("ALT BUFFER")=1
+  . NEW PARAM SET PARAM=$$EDITDLG^TMGUSRI6(.MSG,.OPTION)
+  . SET RESULT=$PIECE(RESULT,"?",1)_PARAM
+  IF RESULT["/\" SET RESULT=$$REPLSTR^TMGSTUT3(RESULT,"/\","^")
+  DO SETCOLORS("Reset")
+  QUIT RESULT
+  ;
+SETUPMENU(MENU,X,Y)  ;"
+  NEW TEMP,CURMENU
+  DO SETUPMENUDATA(.MENU,.X,.Y)
+  SET MENU("FOCUS IDX")=1  
+  ;"-- Menu drawing options
+  SET MENU("OPTION","NO TERM SAVE")=1
+  NEW CURREF DO GETCOLORSTOREREF^TMGIDE6(.CURREF)
+  NEW SELBG SET SELBG=$$GETCOLOR24^TMGIDE6(CURREF,"MENUSELBKGROUND","bg") 
+  NEW TEMP SET TEMP=$$COLORMODEPAIR^TMGIDE2C("MENUTEXT")                      ;"NormalFG^NormalBG
+  SET MENU("OPTION","COLOR","TEXT")=TEMP                                      ;"NormalFG^NormalBG
+  SET MENU("OPTION","COLOR","SELTEXT")=$PIECE(TEMP,"^",1)_"^"_SELBG           ;"NormalFG^SelectedBG
+  SET TEMP=$$COLORMODEPAIR^TMGIDE2C("MENUALTKEY")                             ;"AltKeyFG^NormalBG
+  SET MENU("OPTION","COLOR","ALTKEY")=TEMP                                    ;"AltKeyFG^NormalBG
+  SET MENU("OPTION","COLOR","SELALTKEY")=$PIECE(TEMP,"^",1)_"^"_SELBG         ;"AltKeyFG^SelectedBG
+  SET MENU("OPTION","COLOR","BORDER")=$$COLORMODEPAIR^TMGIDE2C("MENUBORDER")  ;"BorderFG^NormalBG
+  QUIT
+  ;
+SETUPMENUDATA(MENU,X,Y)  ;"
+  NEW OFFSET,IDX,DONE SET IDX=0,DONE=0
+  NEW ARR1,ARR2
+  ;"Read in lines of menu data
+  FOR OFFSET=1:1 DO  QUIT:DONE
+  . NEW LINE SET LINE=$TEXT(MENUDATA+OFFSET^TMGIDE2C)
+  . SET LINE=$$TRIM^XLFSTR($PIECE(LINE,";;""",2))
+  . IF LINE["<DONE>" SET DONE=1 QUIT
+  . IF $EXTRACT(LINE,1)="#" QUIT  ;"ignore comment
+  . NEW NODE SET NODE=$PIECE(LINE,"^",1) QUIT:NODE=""
+  . NEW SUBLINE SET SUBLINE=$PIECE(LINE,"^",2,99) QUIT:SUBLINE=""
+  . SET IDX=IDX+1,ARR1(NODE,IDX)=SUBLINE
+  NEW MAP,CURMENU,NODE
+  NEW MENUNUM SET MENUNUM=1,MAP("TOP")=MENUNUM
+  ;"Compile MAP of named submenus into numbered submenus
+  SET NODE=""
+  FOR  SET NODE=$ORDER(ARR1(NODE)) QUIT:NODE=""  DO
+  . SET IDX=0
+  . FOR  SET IDX=$ORDER(ARR1(NODE,IDX)) QUIT:IDX'>0  DO
+  . . NEW SUBLINE SET SUBLINE=$GET(ARR1(NODE,IDX)) QUIT:SUBLINE=""
+  . . NEW DISPLAY SET DISPLAY=$PIECE(SUBLINE,"^",1)
+  . . NEW DATA SET DATA=$PIECE(SUBLINE,"^",2)
+  . . NEW SUBMENU SET SUBMENU=$PIECE(SUBLINE,"^",3) QUIT:SUBMENU=""
+  . . IF $DATA(MAP(SUBMENU))=0 SET MENUNUM=MENUNUM+1,MAP(SUBMENU)=MENUNUM
+  ;"Copy ARR1(named) into ARR2(numbered)  
+  SET NODE=""
+  FOR  SET NODE=$ORDER(ARR1(NODE)) QUIT:NODE=""  DO
+  . SET MENUNUM=+$GET(MAP(NODE)) QUIT:MENUNUM'>0
+  . NEW IDX,JDX SET SUBLINE="",IDX=0,JDX=0
+  . FOR  SET IDX=$ORDER(ARR1(NODE,IDX)),JDX=JDX+1 QUIT:IDX'>0  DO
+  . . NEW SUBLINE SET SUBLINE=$GET(ARR1(NODE,IDX)) QUIT:SUBLINE=""
+  . . IF $EXTRACT(SUBLINE,1)="@" DO  QUIT
+  . . . SET SUBLINE=$EXTRACT(SUBLINE,2,$LENGTH(SUBLINE))
+  . . . NEW CODE SET CODE="SET ARR2(MENUNUM"_SUBLINE
+  . . . XECUTE CODE
+  . . NEW DISPLAY SET DISPLAY=$PIECE(SUBLINE,"^",1)
+  . . NEW DATA SET DATA=$PIECE(SUBLINE,"^",2)
+  . . NEW SUBMENU SET SUBMENU=$PIECE(SUBLINE,"^",3),SUBMENU=+$GET(MAP(SUBMENU))
+  . . SET ARR2(MENUNUM,JDX)=DISPLAY
+  . . SET ARR2(MENUNUM,JDX,"DATA")=DATA
+  . . IF SUBMENU>0 SET ARR2(MENUNUM,JDX,"SUBMENU")=SUBMENU
+  ;"Add CLOSE MENU option to all menus.  
+  SET MENUNUM=0
+  FOR  SET MENUNUM=$ORDER(ARR2(MENUNUM)) QUIT:MENUNUM'>0  DO
+  . SET IDX=0
+  . FOR  SET IDX=$ORDER(ARR2(MENUNUM,IDX)) QUIT:(+IDX'=IDX)
+  . SET IDX=$ORDER(ARR2(MENUNUM,IDX),-1)
+  . SET ARR2(MENUNUM,IDX+1)="&Close Menu"
+  . SET ARR2(MENUNUM,IDX+1,"DATA")="^"  
+  KILL MENU MERGE MENU=ARR2
+  QUIT
+  ;
+MENUDATA ;"FORMAT:  Menu#^DisplayName^ReturnValue^SubMenu
+  ;;"TOP^&RunMode^^RM
+  ;;"TOP^&View^^VM
+  ;;"TOP^&Breakpoints^^BKM
+  ;;"TOP^&Vars^^VARS
+  ;;"TOP^&Watch^^WM
+  ;;"TOP^&Utility^^UM
+  ;;"TOP^@,"TOP MENU BAR")=1  
+  ;;"TOP^@,"POS","X")=+$GET(X,1)
+  ;;"TOP^@,"POS","Y")=+$GET(Y,25)
+  ;;
+  ;;"#---RunMode menu -------------
+  ;;"RM^Jump to &Cursor^J  
+  ;;"RM^Run Continuous^^ARM
+  ;;"RM^Step &Into^I
+  ;;"RM^Step O&ver^O
+  ;;"RM^Step Ou&tOf^T
+  ;;"RM^Turn O&ff Debug^X
+  ;;"RM^Abort^Q
+  ;;"RM^Stack^STACK
+  ;;
+  ;;"#---Continous running mode menu ---
+  ;;"ARM^Continuous &Fast mode^R
+  ;;"ARM^Continuous s&Low mode^L
+  ;;"ARM^Continuous &Hidden mode^H
+  ;;"ARM^Continuous H&opping mode^HOP
+  ;;
+  ;;"# ---Breakpoints Menu -----
+  ;;"BKM^&Toggle Breakpoint at Current Line^B
+  ;;"BKM^C&ustom Breakpoint^C
+  ;;"BKM^&Delete Breakpoints^DBK
+  ;;"BKM^Breakpoint Co&de^BC^
+  ;;
+  ;;"#--- View menu --------------
+  ;;"VM^&Clear Screen^CLS
+  ;;"VM^Scroll &Left^[
+  ;;"VM^Scroll &Right^]
+  ;;"VM^Page &Left^[[
+  ;;"VM^Page &Right^]]
+  ;;"VM^Page &Down^ZZ
+  ;;"VM^Page &Up^AA
+  ;;"VM^Code &Display^^CDM
+  ;;"VM^Change Code &Viewpoint Location^G
+  ;;
+  ;;"#--- Code display menu --------------
+  ;;"CDM^Force &Expanded M Cmds^XCMD
+  ;;"CDM^Force Shor&tened M Cmds^SCMD
+  ;;"CDM^Force &Upper Case^UCASE
+  ;;"CDM^Force &Lower Case^LCASE
+  ;;
+  ;;"#--- Vars menu --------------
+  ;;"VARS^&Show Var^SHOW ? #Enter Name of Variable\nTo Show
+  ;;"VARS^&Browse Var^BROWSE ? #Enter Name of Variable\nTo Browse
+  ;;"VARS^&Node View Var^NODES ? #Enter Name of Variable\nFor Nodes
+  ;;"VARS^&ZWRITE Var^ZWR ? #Enter Name of Variable\nTo ZWRITE
+  ;;"VARS^Show Var &Table^VARS ? #OPTIONAL\nEnter Mask\nE.g. TMG* for Vars Starting with 'TMG'
+  ;;"VARS^Show Var Changes^VDIFF
+  ;;"VARS^Toggle Var Tracing^TVDIFF
+  ;;"VARS^Show T&race
+  ;;"VARS^Execute M code^M ? #Enter Valid M/Mumps Code to Execute
+  ;;
+  ;;"#--- Watch menu --------------
+  ;;"WM^Enter Watch &M Code^W ? #Enter Valid M/Mumps Code to Execute\nFor Variable Watch\nE.g. 'WRITE "[",MYVAR,"]"'
+  ;;"WM^&Add Watch Var^W +? #Enter Variable Name\nTo Add to Watch List
+  ;;"WM^&Remove Watch Var^W -? #Enter Variable Name\nTo Remove from Watch List
+  ;;"WM^&Clear all Watches^W @
+  ;;"WM^Add Watch of &Naked Ref^W +/\
+  ;;"WM^Watch Var &Changes^W +*
+  ;;"WM^&Run Data Watch^RDW
+  ;;
+  ;;"# --- Utility -----
+  ;;"UM^Edit Display Colors^COLORS
+  ;;"UM^Resync Display^RESYNC
+  ;;"UM^Expand Current Line^E
+  ;;"UM^Manually Set Display Size^=
+  ;;"UM^Manage/Hide modules^HIDE
+  ;;"UM^Restore Keyboard Functionality^INITKB
+  ;;"UM^Remove Terminal Scroll Areas^FULL
+  ;;"<DONE>
+  ;  
+HNDLPREDRAW(MENU) ;
+  DO REFRESHCODE^TMGIDE2B
+  QUIT 1
+  ;
+SETCOLORS(tmgMode)  ;"Change display output colors based on names (e.g. 'NORM')   
   ;"Purpose: SET colors in central location
   ;"Input: tmgMode -- the tmgMode to change the colors to
   ;"       bg -- OPTIONAL -- the default background.  Default=15
   ;"set ^TMG("TMP","SETCOLORS MODE",$ZH)=$get(tmgMode)
-  SET tmgMode=$GET(tmgMode) 
-  IF tmgMode="" SET tmgMode="Reset"
-  NEW ref SET ref=$name(^TMG("TMGIDE",$J,"COLORS"))
-  IF $DATA(@ref)=0 DO
-  . DO INITCOLORS^TMGIDE6
-  IF tmgMode="Reset" DO  GOTO SCDn
+  NEW fg,bg
+  IF $GET(tmgMode)="Reset" DO  GOTO GFBDN
   . DO VTATRIB^TMGTERM(0)   ;"reset colors
-  NEW colorSet MERGE colorSet=@ref@(tmgMode) ;"Get colors for mode
-  NEW fg SET fg=$GET(colorSet("fg"),15)
-  NEW bg SET bg=$GET(colorSet("bg"),15)
-  IF (bg="@") DO
-  . SET bg=$GET(@ref@("TEMP BACKGROUND"),"@")
-  . IF bg="@" SET bg=$GET(@ref@("BACKGROUND"),0)
-  IF fg=bg DO
-  . IF (fg<15) SET fg=fg+1
-  . ELSE  IF (fg>0) SET fg=fg-1
+  DO GETFGBG(.tmgMode,.fg,.bg)
   DO COLORS^TMGTERM(fg,bg)
 SCDn ;
   QUIT
+  ;
+GETFGBG(tmgMode,fg,bg,ref)  ;"get fg and bg for Mode
+  SET tmgMode=$GET(tmgMode) 
+  IF tmgMode="" SET tmgMode="Reset"
+  IF $GET(ref)="" DO GETCOLORSTOREREF^TMGIDE6(.ref)
+  IF $DATA(@ref)=0 DO INITCOLORS^TMGIDE6
+  NEW COLORMODE SET COLORMODE=$GET(@ref@("MODE"))
+  IF COLORMODE="24bit" DO
+  . SET fg=$$GETCOLOR24^TMGIDE6(ref,tmgMode,"fg")
+  . SET bg=$$GETCOLOR24^TMGIDE6(ref,tmgMode,"bg")
+  ELSE  DO
+  . SET fg=$GET(@ref@(tmgMode,"fg"),15)
+  . SET bg=$GET(@ref@(tmgMode,"bg"),15)
+  . IF (bg="$") DO
+  . . SET bg=$GET(@ref@("MENUBKGROUND"),"@")
+  . IF (bg="@") DO
+  . . SET bg=$GET(@ref@("TEMP BACKGROUND"),"@")
+  . . IF bg="@" SET bg=$GET(@ref@("BACKGROUND"),0)
+  . IF fg=bg DO
+  . . IF (fg<15) SET fg=fg+1
+  . . ELSE  IF (fg>0) SET fg=fg-1
+GFBDN ;  
+  QUIT
+  ;
+COLORMODEPAIR(tmgMode)  ;"Get color pair for mode.
+  ;"NOTE: tmgMode should NOT be 'Reset' -- not handled here.  
+  NEW fg,bg DO GETFGBG(.tmgMode,.fg,.bg)
+  QUIT fg_"^"_bg
   ;
 Box    ;
   ;"Purpose: Draw a box on the top of the screen.

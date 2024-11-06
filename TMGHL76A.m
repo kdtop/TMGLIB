@@ -12,7 +12,6 @@ TMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19, 2/27/20, 3/24/2
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
  ;"NOTE: this is code for working with ADT messages from BALLAD
- ;"      FYI -- Pathgroup code is in TMGHL73
  ;"             Laughlin code is in TMGHL74
  ;"             Laughlin RADIOLOGY is in TMGHL74R
  ;"             Quest code is in TMGHL75
@@ -138,11 +137,19 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         NEW EVENTIDX SET EVENTIDX=$ORDER(TMGHL7MSG("B","EVN",0))
         IF EVENTIDX'>0 DO  GOTO FADTDN
         . SET TMGRESULT="-1^Unable to find EVN segment in HL7 message"
-        NEW ADTEVENT SET ADTEVENT=$G(TMGHL7MSG(EVENTIDX,1))
-        NEW ADTEVENTNAME SET ADTEVENTNAME=$G(TMGADTTYPES(ADTEVENT))
-        NEW ADTDATE SET ADTDATE=$$HL72FMDT^TMGHL7U3($G(TMGHL7MSG(EVENTIDX,2)))
+        ;"
+     ;" EVN Fields
+        ;"  EVN.1 - Event Type Code
+        ;"  EVN.2 - Recorded Date/Time
+        ;"  EVN.4 - Event Reason Code
+        ;"
+        NEW ADTEVENT SET ADTEVENT=$G(TMGHL7MSG(EVENTIDX,1))                     ;"Event Type Code
+        NEW ADTEVENTNAME SET ADTEVENTNAME=$G(TMGADTTYPES(ADTEVENT))             
+        NEW ADTDATE SET ADTDATE=$$HL72FMDT^TMGHL7U3($G(TMGHL7MSG(EVENTIDX,2)))  ;"Recorded Date/Time
+        NEW EVENTTYPE SET EVENTTYPE=$$UP^XLFSTR($G(TMGHL7MSG(EVENTIDX,4)))      ;"Event Reason Code
         NEW VISITTYPE SET VISITTYPE=""
         SET ADTEDATE=$$EXTDATE^TMGDATE(ADTDATE)
+        ;"
         NEW PIDIDX SET PIDIDX=$ORDER(TMGHL7MSG("B","PID",0))
         IF PIDIDX'>0 DO  GOTO FADTDN
         . SET TMGRESULT="-1^Unable to find PID segment in HL7 message"
@@ -155,71 +162,118 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         ;"NEW ALRTDUZ SET ALRTDUZ=150  ;"//hard coded to Eddie Hagood user
         NEW ALRTDUZ SET ALRTDUZ=1053  ;"//Setting to Lindsey
         NEW ERDCNOTE SET ERDCNOTE=0
-        ;"NEW ALRTDUZ SET ALRTDUZ=140  ;"Brenda for now while Eddie is on vacation
+        ;"
+     ;" USED HL7 SEGMENTS
+        ;"   PID - Patient Information
+        ;"   PD1 - Patient Additional Demographic
+        ;"   PV1 - Patient Visit
+        ;"   PV2 - Patient Visit - Additional Information
+        ;"
         NEW PATNAME SET PATNAME=$P($G(^DPT(TMGDFN,0)),"^",1)
         NEW PV1IDX SET PV1IDX=+$ORDER(TMGHL7MSG("B","PV1",0))
         NEW PV2IDX SET PV2IDX=+$ORDER(TMGHL7MSG("B","PV2",0))
         NEW PD1IDX SET PD1IDX=+$ORDER(TMGHL7MSG("B","PD1",0))
-        ;"NEW FACILITYLOC SET FACILITYLOC=$GET(TMGHL7MSG(1,4,1),"<not found>")
-        NEW FACILITYLOC SET FACILITYLOC=$GET(TMGHL7MSG(PD1IDX,3,1),"<not found>") 
-        NEW DATARR
-        ;
-        NEW LOC SET LOC=$GET(TMGHL7MSG(+PV1IDX,2))  ;"2 -> 'patient class'
-        IF "INPATIENT^OBSERVATION^EMERGENCY^HOSPITAL OUT"'[LOC GOTO FADTDN   ;"//kt <--- is this too strict?
-        NEW VSTDESC SET VSTDESC=$GET(TMGHL7MSG(+PV2IDX,12))
-        IF VSTDESC["PRE-ADMISSION TESTING" GOTO FADTDN    ;"3/31/20
-        IF VSTDESC["RAD FILM PERMANENT TRANSFER" GOTO FADTDN    ;"10/12/21
         ;"
-        IF ADTEVENT="A01" DO  ;"ADMISSION
-        . IF LOC="EMERGENCY" DO
+     ;" USED HL7 FIELDS
+        ;"   PD1.3 - Patient Primary Facility
+        ;"   PV1.2 - Patient Class
+        ;"   PV1.3 - Assigned Patient Location
+        ;"   PV1.4 - Admission Type
+        ;"   PV1.7 - Attending Doctor (Subpiece 3,Subpiece 2 = LName,FName)
+        ;"   PV2.12 - Visit Description 
+        ;"
+        NEW PRIMFACILITY SET PRIMFACILITY=$GET(TMGHL7MSG(PD1IDX,3,1),"")        ;"Patient Primary Facility
+        NEW ASSIGNEDFACILITY SET ASSIGNEDFACILITY=$GET(TMGHL7MSG(+PV1IDX,3,1))  ;"Assigned Patient Location
+        NEW PREVLOC SET PREVLOC=$GET(TMGHL7MSG(+PV1IDX,4))                      ;"Admission Type (Points to Prev Location)
+        NEW PV2VISITTYPE SET PV2VISITTYPE=$GET(TMGHL7MSG(+PV2IDX,12))           ;"Visit Description            
+        NEW PATCLASS SET PATCLASS=$GET(TMGHL7MSG(+PV1IDX,2))                    ;"Patient Class
+        NEW PHYSICIAN SET PHYSICIAN=$GET(TMGHL7MSG(+PV1IDX,7,2))_","_$GET(TMGHL7MSG(+PV1IDX,7,3)) ;"Physician Name
+        ;"
+     ;" Message Exclusions Below
+        ;"
+        IF "INPATIENT^OBSERVATION^EMERGENCY^HOSPITAL OUT^OUTPATIENT"'[PATCLASS GOTO FADTDN  ;"Ignore all other patient classes
+        IF PV2VISITTYPE["PRE-ADMISSION TESTING" GOTO FADTDN                                 ;"Ignore Pre-Admissions 3/31/20
+        IF PV2VISITTYPE["RAD FILM PERMANENT TRANSFER" GOTO FADTDN                           ;"Ignore Film Transfers 10/12/21
+        IF (ADTEVENT="A03")&(ASSIGNEDFACILITY="GCHE WOMENS") GOTO FADTDN                    ;"Ignore Women's Center D/Cs 11/1/24
+        IF (ADTEVENT="A03")&(ASSIGNEDFACILITY="GCHE MRI") GOTO FADTDN                       ;"Ignore MRI D/Cs 11/1/24
+        IF (ADTEVENT="A03")&(PATCLASS="OUTPATIENT") GOTO FADTDN                             ;"Ignore Outpatient D/Cs 11/1/24
+        ;"
+     ;" TIU NOTE TITLES
+        NEW ERNOTETITLE SET ERNOTETITLE="HOSPITAL EMERGENCY ROOM (HL7)"
+        NEW ADMITNOTETITLE SET ADMITNOTETITLE="HOSPITAL ADMISSION (HL7)"
+        NEW DCNOTETITLE SET DCNOTETITLE="HOSPITAL DISCHARGE (HL7)"
+        NEW TRANSNOTETITLE SET TRANSNOTETITLE="HOSPITAL ER TO INPATIENT TRANSFER (HL7)"
+        NEW PROCNOTETITLE SET PROCNOTETITLE="HOSPITAL OUTPATIENT PROCEDURE (HL7)"
+        NEW EXTOVNOTETITLE SET EXTOVNOTETITLE="EXTERNAL OFFICE VISIT (HL7)"
+        ;"
+     ;"  **ADMISSION VISIT**
+        IF ADTEVENT="A01" DO      
+        . IF PATCLASS="EMERGENCY" DO
         . . SET VISITTYPE="EMERGENCY DEPARTMENT"
-        . . SET NOTETITLE="HOSPITAL EMERGENCY ROOM (HL7)"
+        . . SET NOTETITLE=ERNOTETITLE
         . . SET EDDIEMSG=PATNAME_" ENTERED THE ER ON "_ADTEDATE
         . ELSE  DO
         . . SET VISITTYPE="INPATIENT"
-        . . SET NOTETITLE="HOSPITAL ADMISSION (HL7)"
+        . . SET NOTETITLE=ADMITNOTETITLE
         . . SET EDDIEMSG=PATNAME_" WAS ADMITTED ON "_ADTEDATE
-        ;
+        ;"
+     ;"  **PATIENT TRANSFER**
         IF ADTEVENT="A02" DO  ;"TRANSFER   ADDED ON 6/11/24
-        . IF LOC="INPATIENT" DO
-        . . NEW PREVLOC SET PREVLOC=$GET(TMGHL7MSG(+PV1IDX,4))   ;"4 -> 'admission type'
+        . IF PATCLASS="INPATIENT" DO
         . . IF PREVLOC="ER" DO  ;"THIS SHOULD POINT TO THE FACT THAT THE PATIENT IS NOW INPATIENT BUT WAS PREVIOUSLY IN THE ER
         . . . SET VISITTYPE="TRANSFER, ED TO INPATIENT"
-        . . . SET NOTETITLE="HOSPITAL ER TO INPATIENT TRANSFER (HL7)"
+        . . . SET NOTETITLE=TRANSNOTETITLE
         . . . SET EDDIEMSG=PATNAME_" ADMITTED FROM ED ON "_ADTEDATE
-        ;
+        ;"
+     ;"  **DISCHARGE**
         IF ADTEVENT="A03" DO  ;"DISCHARGE
-        . IF LOC="EMERGENCY" DO
+        . IF PATCLASS="EMERGENCY" DO
         . . SET VISITTYPE="EMERGENCY DEPARTMENT"
-        . . SET NOTETITLE="HOSPITAL EMERGENCY ROOM (HL7)"
+        . . SET NOTETITLE=ERNOTETITLE
         . . SET EDDIEMSG=PATNAME_" WAS D/C'd FROM THE ER ON "_ADTEDATE
         . . SET ERDCNOTE=1
-        . ELSE  IF LOC="HOSPITAL OUT" DO
+        . ELSE  IF PATCLASS="HOSPITAL OUT" DO
         . . SET VISITTYPE="OUTPATIENT PROCEDURE"
-        . . SET NOTETITLE="HOSPITAL OUTPATIENT PROCEDURE (HL7)"
+        . . SET NOTETITLE=PROCNOTETITLE
         . . SET EDDIEMSG=PATNAME_" HAD AN OUTPATIENT PROCEDURE ON "_ADTEDATE
         . ELSE  DO
-        . . SET VISITTYPE="INPATIENT"
-        . . SET NOTETITLE="HOSPITAL DISCHARGE (HL7)"
+        . . SET VISITTYPE="UNKNOWN/"_ASSIGNEDFACILITY
+        . . SET NOTETITLE=DCNOTETITLE
         . . SET EDDIEMSG=PATNAME_" WAS DISCHARGED ON "_ADTEDATE
-        ;	
-        ;"NOTE FOR EDDIE -- VISITTYPE etc is undefined if ADTEVENT is not A01 or A03.  Please work on. 
         ;
+     ;"  **EXTERNAL OUTPATIENT VISIT**
+        IF ADTEVENT="A08" DO ;"CHECKOUT FOR OFFICE VISIT  --  ADDED ON 10/24/24
+        . IF (PV2VISITTYPE["OFFICE VISIT")&(EVENTTYPE["ENCOUNTER CLOSE") DO  ;"ONLY HANDLE IF AN "ENCOUNTER CLOSE"
+        . . IF PV2VISITTYPE'="" DO
+        . . . SET VISITTYPE=PV2VISITTYPE
+        . . ELSE  DO
+        . . . SET VISITTYPE="OFFICE VISIT"
+        . . SET NOTETITLE=EXTOVNOTETITLE
+        . . SET PRIMFACILITY=ASSIGNEDFACILITY
+        . . SET ADTEVENTNAME="END OF VISIT"
+        . . SET EDDIEMSG=PATNAME_" WAS SEEN AT "_PRIMFACILITY_" ON "_ADTEDATE
+        ;"
+     ;"  Populate the data for the TIU Note
         NEW IDX SET IDX=1;
         SET ARR(IDX)="PATIENT NAME^"_PATNAME       SET IDX=IDX+1
-        SET ARR(IDX)="FACILITY^"_FACILITYLOC       SET IDX=IDX+1
+        SET ARR(IDX)="FACILITY^"_ASSIGNEDFACILITY  SET IDX=IDX+1
         SET ARR(IDX)="DATE^"_ADTEDATE              SET IDX=IDX+1
         SET ARR(IDX)="VISIT TYPE^"_VISITTYPE       SET IDX=IDX+1
         SET ARR(IDX)="EVENT TYPE^"_ADTEVENTNAME    SET IDX=IDX+1
+        SET ARR(IDX)="PHYSICIAN^"_PHYSICIAN        SET IDX=IDX+1
         ;
+     ;"  Get the Diagnosis codes and turn 
         NEW DLGIDX SET DLGIDX=0
         NEW HASCOVIDDX SET HASCOVIDDX=0
         FOR  SET DLGIDX=$ORDER(TMGHL7MSG("B","DG1",DLGIDX)) QUIT:DLGIDX'>0  DO  
         . NEW DIAGSTR SET DIAGSTR=$$DLGINFO(.TMGHL7MSG,DLGIDX)
-        . SET ARR(IDX)="VISIT DIAGNOSIS^"_DIAGSTR,IDX=IDX+1
+        . SET ARR(IDX)="VISIT DX^"_DIAGSTR,IDX=IDX+1
         . ;" LEAVE THIS TURNED OFF FOR NOW  10/13/22  IF DIAGSTR["COVID" SET HASCOVIDDX=1
         ;
+     ;"   Create the Alert if a message has been assigned to it
         IF EDDIEMSG'="" DO INFRMALT^TMGXQAL(.ALERTRESULT,ALRTDUZ,EDDIEMSG)
+        ;"
+     ;"   If we have a PCP and a VisitType, Create the TIU Note
         ;"IF PCPDUZ>0,$DATA(VISITTYPE) DO
         IF PCPDUZ>0,VISITTYPE'="" DO
         . SET TMGRESULT=$$MAKENOTE(TMGDFN,PCPDUZ,ADTDATE,NOTETITLE,.ARR,ERDCNOTE)

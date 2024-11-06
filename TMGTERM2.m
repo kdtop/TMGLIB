@@ -9,6 +9,62 @@ TMGTERM2  ;TMG/kst/Terminal interface (Unicode line drawing) ;3/28/24
   ;" always be distributed with this file.
   ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
   ; 
+  ;"=======================================================================
+  ;" API -- Public Functions.
+  ;"=======================================================================
+  ;"DEMOBOXES(COUNT) ;     
+  ;"DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,FGCOLOR,BGCOLOR,OPTION) -- Draw square or squircle on screen with line drawing chars 
+  ;"DRAWHLINE(LEFT,TOP,WIDTH,FGCOLOR,BGCOLOR,OPTION) -- Draw HORIZONTAL line on screen with line drawing chars
+  ;"DRAWVLINE(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) -- Draw VERTICAL line on screen with line drawing chars
+  ;"DRAWIBEAM(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) -- Draw connecting VERTICAL 'I' line with line drawing chars       
+  ;"DRAWCRT(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) -- Draw connecting VERTICAL '[' with line drawing chars
+  ;"DRAWCLF(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) -- Draw connecting VERTICAL ']' with line drawing chars       
+  ;"DRAWCNCTVLINE(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,CNCTS,OPTION) --Draw connecting VERTICAL 'I' line on screen with line drawing chars
+  ;"GET4BOXARR(OUT,OPTION)  -- Get array for characters to draw 4 boxes
+  ;"GETSQARR(OUT,OPTION)  -- Get array for characters to draw square or squircle
+  ;"  
+  ;"=======================================================================
+  ;"Private Functions
+  ;"=======================================================================
+  ;"GETTOP(REF,OPTION) --Get Top
+  ;"GETSIDE(REF,OPTION) --Get Side  
+  ;"GETBTRT(REF,OPTION) --Get Bottom Right
+  ;"GETBTLF(REF,OPTION) --Get Bottom Left  
+  ;"GETTOPLF(REF,OPTION) --Get Top Left  
+  ;"GETTOPRT(REF,OPTION) -- Get Top Right
+  ;"GETTEEDN(REF,OPTION) -- Get Tee down ("T" shape)
+  ;"GETTEEUP(REF,OPTION) -- Get Tee up (upside down "T" shape)
+  ;"GETTEERT(REF,OPTION) -- Get Tee RT ("T" shape, pointing to RT)
+  ;"GETTEELF(REF,OPTION) -- Get Tee LF ("T" shape, pointing to LF)
+  ;"GETCROSS(REF,OPTION) -- Get cross, ("+" shape)
+  ;"GET2DIRS(REF,DIR1,DIR2,OPTION) ;  
+  ;"GET4DIRS(REF,UP,DN,LF,RT,OPTION) ;    
+  ;"COLLAPSEMODES(ARR)  --Convert ARR(<MODE>,<CODEPOINT>) --> ARR(CODEPOINT)
+  ;"ADDNAMES(ARR,REF)  --(Debugging function) Add names to codepoints
+  ;"OTHERDIR(OUT,DIR1,DIR2,DIR3) --Return DIR that is not in DIR1,DIR2,DIR3
+  ;"NOTARR(OUT,ARR1,ARR2)  --Return elements of ARR1 that are NOT in ARR2
+  ;"ANDARRS(OUT,ARR1,ARR2) --Return array of intersection (AND) of two array sets
+  ;"GETLINECHARSREF()  ;
+  ;"ENSURELINECODES(REF,FORCE) --Ensure codes set up in global
+  ;"GETLINECODES(ARR) --Set up array of line drawing codes
+  ;"PARSE1(STR,OUT)  ;  
+  ;"GETSHADEARR(ARR) ;
+  ;"GETSHADECHARSREF()  ;
+  ;"ENSURESHADECODES(REF,FORCE) --Ensure codes set up in global
+  ;"GETSHADECODES(ARR) --Set up shading drawing codes
+  ;
+  ;"=======================================================================
+  ;"Private Testing Functions
+  ;"=======================================================================
+  ;"test1() ; 
+  ;"TESTHLINE ;
+  ;"TESTVLINE ;
+  ;"TESTCTVLINE ;
+  ;"TESTIBEAM ;
+  ;"TESTCRT ;"Test Draw connecting VERTICAL '[' with line drawing chars 
+  ;"TESTCLF ;
+  ;"TEST2BOX ;
+  ;
 DEMOBOXES(COUNT) ;     
   DO CSRSHOW^TMGTERM(0) ;"Turn cursor ON(1) or OFF(0)(hide) 
   NEW SCRNH,SCRNW IF $$GETSCRSZ^TMGKERNL(.SCRNH,.SCRNW) ;"ignore result
@@ -31,10 +87,11 @@ DEMOBOXES(COUNT) ;
   DO CSRSHOW^TMGTERM(1) ;"Turn cursor ON(1) or OFF(0)(hide) 
   QUIT
   ; 
-test1() ;  "DELETE LATER
-  NEW OPTION SET OPTION("THICK")=3
-  NEW OPTION SET OPTION("DASH")=3
-  DO DRAWBOX(10,10,10,10,-1,-1,.OPTION)
+test1() ; 
+  NEW OPTION 
+  ;"SET OPTION("THICK")=3
+  ;"SET OPTION("DASH")=3
+  DO DRAWBOX(10,25,10,10,-1,-1,.OPTION)
   QUIT
   ;
 DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw square or squircle on screen with line drawing chars 
@@ -59,11 +116,13 @@ DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw square or squircle 
   ;"            OPTION("ERASE") -- if 1, means we are ERASING box, not drawing.  
   ;"            OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
   ;"                            See TMGTERM4 for more info   
+  ;"            OPTION("NO TERM SAVE")=1 -- optional. If found, then prior terminal state is NOT saved and restored  
   SET WIDTH=+$GET(WIDTH) IF WIDTH<2 SET WIDTH=2
   SET HEIGHT=+$GET(HEIGHT) IF HEIGHT<2 SET HEIGHT=2                    
   SET TOP=+$GET(TOP),LEFT=+$GET(LEFT)
+  NEW NOTERMSAVE SET NOTERMSAVE=($GET(OPTION("NO TERM SAVE"))=1)
   NEW CHARS DO GETSQARR(.CHARS,.OPTION)
-  DO VCUSAV2^TMGTERM(.OPTION)  ;"Save Cursor & Attrs 
+  IF 'NOTERMSAVE DO VCUSAV2^TMGTERM(.OPTION)  ;"Save Cursor & Attrs 
   NEW STR 
   ;"Write top line
   SET STR=CHARS("TL")_";"
@@ -80,9 +139,283 @@ DRAWBOX(LEFT,TOP,WIDTH,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw square or squircle 
   SET STR=STR_CHARS("BR")
   DO PAINTXY^TMGTERM4(LEFT,TOP+HEIGHT-1,FGCOLOR,BGCOLOR,STR,"OPTION")
   ;"Restore Cursor & Attrs
-  DO VCULOAD2^TMGTERM(.OPTION)  
+  IF 'NOTERMSAVE DO VCULOAD2^TMGTERM(.OPTION)  
   QUIT
   ;
+TESTHLINE ;
+  WRITE #
+  DO CUP^TMGTERM(5,20)
+  WRITE "1234567890"
+  DO DRAWHLINE(5,21,10,"0;0;0","255;255;255")
+  DO CUP^TMGTERM(5,22)
+  QUIT
+  ;
+DRAWHLINE(LEFT,TOP,WIDTH,FGCOLOR,BGCOLOR,OPTION) ;"Draw HORIZONTAL line on screen with line drawing chars
+  ;"Input:  LEFT - Screen coordinates of position of TOP 
+  ;"        TOP  - Screen coordinates of position of TOP
+  ;"        WIDTH -- Width of line
+  ;"        FGCOLOR -- foreground color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If BGCOLOR=-1, FGCOLOR is overridden  
+  ;"        BGCOLOR -- background color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If FGCOLOR=-1, BGCOLOR is overridden  
+  ;"        OPTION -- Optional.  Format:
+  ;"            OPTION("THICK") -- 1 means Light  (default)
+  ;"                               2 means Heavy
+  ;"                               3 means Double
+  ;"            OPTION("DASH") --  0 means mode OFF       Default=0
+  ;"                               1 means double dash
+  ;"                               2 means triple dash
+  ;"                               3 means quadruple dash
+  ;"            OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
+  ;"                            See TMGTERM4 for more info   
+  ;"            OPTION("NO TERM SAVE")=1 -- optional. If found, then prior terminal state is NOT saved and restored
+  SET WIDTH=+$GET(WIDTH) IF WIDTH<1 SET WIDTH=1
+  SET TOP=+$GET(TOP),LEFT=+$GET(LEFT)
+  NEW NOTERMSAVE SET NOTERMSAVE=($GET(OPTION("NO TERM SAVE"))=1)
+  NEW CHARS DO GETSQARR(.CHARS,.OPTION)
+  IF 'NOTERMSAVE DO VCUSAV2^TMGTERM(.OPTION)  ;"Save Cursor & Attrs 
+  NEW STR SET STR=""
+  ;"Write top line
+  NEW X FOR X=1:1:WIDTH SET STR=STR_CHARS("TOP/BOT")_";"
+  DO PAINTXY^TMGTERM4(LEFT,TOP,FGCOLOR,BGCOLOR,STR,"OPTION")  
+  ;"Restore Cursor & Attrs
+  IF 'NOTERMSAVE DO VCULOAD2^TMGTERM(.OPTION)  
+  QUIT
+  ;  
+TESTVLINE ;
+  WRITE #
+  DO CUP^TMGTERM(1,20)
+  WRITE "1",!
+  WRITE "2",!
+  WRITE "3",!
+  WRITE "4",!
+  WRITE "5",!
+  DO DRAWVLINE(3,20,5,"0;0;0","255;255;255")
+  DO CUP^TMGTERM(5,26)
+  QUIT
+  ;
+DRAWVLINE(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw VERTICAL line on screen with line drawing chars
+  ;"Input:  LEFT - Screen coordinates of position of TOP 
+  ;"        TOP  - Screen coordinates of position of TOP
+  ;"        HEIGHT -- Height of line
+  ;"        FGCOLOR -- foreground color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If BGCOLOR=-1, FGCOLOR is overridden  
+  ;"        BGCOLOR -- background color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If FGCOLOR=-1, BGCOLOR is overridden  
+  ;"        OPTION -- Optional.  Format:
+  ;"            OPTION("THICK") -- 1 means Light  (default)
+  ;"                               2 means Heavy
+  ;"                               3 means Double
+  ;"            OPTION("DASH") --  0 means mode OFF       Default=0
+  ;"                               1 means double dash
+  ;"                               2 means triple dash
+  ;"                               3 means quadruple dash
+  ;"            OPTION("ERASE") -- if 1, means we are ERASING box, not drawing.  
+  ;"            OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
+  ;"                            See TMGTERM4 for more info   
+  ;"            OPTION("NO TERM SAVE")=1 -- optional. If found, then prior terminal state is NOT saved and restored  
+  SET HEIGHT=+$GET(HEIGHT) IF HEIGHT<1 SET HEIGHT=1                    
+  SET TOP=+$GET(TOP),LEFT=+$GET(LEFT)
+  NEW NOTERMSAVE SET NOTERMSAVE=($GET(OPTION("NO TERM SAVE"))=1)
+  NEW CHARS DO GETSQARR(.CHARS,.OPTION)
+  IF 'NOTERMSAVE DO VCUSAV2^TMGTERM(.OPTION)  ;"Save Cursor & Attrs 
+  NEW STR SET STR=""
+  NEW Y FOR Y=0:1:HEIGHT-1 DO
+  . DO PAINTXY^TMGTERM4(LEFT,TOP+Y,FGCOLOR,BGCOLOR,CHARS("SIDE"),"OPTION")
+  ;"Restore Cursor & Attrs
+  IF 'NOTERMSAVE DO VCULOAD2^TMGTERM(.OPTION)  
+  QUIT
+  ;
+TESTCTVLINE ;
+  WRITE #
+  DO CUP^TMGTERM(1,20)
+  WRITE "1",!
+  WRITE "2",!
+  WRITE "3",!
+  WRITE "4",!
+  WRITE "5",!
+  NEW CNCTS
+  SET CNCTS("TOP","LEFT")=1     
+  SET CNCTS("TOP","RIGHT")=0      
+  SET CNCTS("BOTTOM","LEFT")=1    
+  SET CNCTS("BOTTOM","RIGHT")=0   
+  DO DRAWCNCTVLINE(3,20,5,"0;0;0","255;255;255",.CNCTS)
+  DO CUP^TMGTERM(5,26)
+  QUIT
+  ;
+TESTIBEAM ;
+  NEW OPTION SET OPTION("THICK")=1
+  DO DRAWIBEAM(2,25,3,-1,-1,.OPTION)
+  QUIT
+  ;
+DRAWIBEAM(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw connecting VERTICAL 'I' line with line drawing chars       
+  NEW CNCTS
+  SET CNCTS("TOP","LEFT")=1     
+  SET CNCTS("TOP","RIGHT")=1      
+  SET CNCTS("BOTTOM","LEFT")=1    
+  SET CNCTS("BOTTOM","RIGHT")=1   
+  DO DRAWCNCTVLINE(.LEFT,.TOP,.HEIGHT,.FGCOLOR,.BGCOLOR,.CNCTS,.OPTION)
+  QUIT
+  ;
+TESTCRT ;"Test Draw connecting VERTICAL '[' with line drawing chars 
+  NEW OPTION SET OPTION("THICK")=2
+  DO DRAWCRT(2,25,3,-1,-1,.OPTION)
+  QUIT
+  ;
+DRAWCRT(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw connecting VERTICAL '[' with line drawing chars       
+  NEW CNCTS
+  SET CNCTS("TOP","LEFT")=0     
+  SET CNCTS("TOP","RIGHT")=1      
+  SET CNCTS("BOTTOM","LEFT")=0    
+  SET CNCTS("BOTTOM","RIGHT")=1   
+  DO DRAWCNCTVLINE(.LEFT,.TOP,.HEIGHT,.FGCOLOR,.BGCOLOR,.CNCTS,.OPTION)
+  QUIT
+  ;
+TESTCLF ;
+  NEW OPTION SET OPTION("THICK")=2
+  DO DRAWCLF(2,25,3,-1,-1,.OPTION)
+  QUIT
+  ;
+DRAWCLF(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,OPTION) ;"Draw connecting VERTICAL ']' with line drawing chars       
+  NEW CNCTS
+  SET CNCTS("TOP","LEFT")=1     
+  SET CNCTS("TOP","RIGHT")=0      
+  SET CNCTS("BOTTOM","LEFT")=1    
+  SET CNCTS("BOTTOM","RIGHT")=0   
+  DO DRAWCNCTVLINE(.LEFT,.TOP,.HEIGHT,.FGCOLOR,.BGCOLOR,.CNCTS,.OPTION)
+  QUIT
+  ;
+DRAWCNCTVLINE(LEFT,TOP,HEIGHT,FGCOLOR,BGCOLOR,CNCTS,OPTION) ;"Draw connecting VERTICAL 'I' line on screen with line drawing chars
+  ;"Input:  LEFT - Screen coordinates of position of TOP 
+  ;"        TOP  - Screen coordinates of position of TOP
+  ;"        HEIGHT -- Height of line.  Must be at least 3, 1 for top+bottom connectors and one for vert line.  
+  ;"        FGCOLOR -- foreground color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If BGCOLOR=-1, FGCOLOR is overridden  
+  ;"        BGCOLOR -- background color.  Format same as accepted by COLORS^TMGTERM
+  ;"                  If -1, then terminal color is RESET to default.  If FGCOLOR=-1, BGCOLOR is overridden
+  ;"        CNCTS -- CONNECTIONS ARRAY.  Format:
+  ;"            CNCTS("TOP","LEFT")=1       if found, V line connects at top to line going LEFT
+  ;"            CNCTS("TOP","RIGHT")=1      if found, V line connects at top to line going RIGHT
+  ;"            CNCTS("BOTTOM","LEFT")=1    if found, V line connects at bottom to line going LEFT
+  ;"            CNCTS("BOTTOM","RIGHT")=1   if found, V line connects at bottom to line going RIGHT
+  ;"        OPTION -- Optional.  Format:
+  ;"            OPTION("THICK") -- 1 means Light  (default)
+  ;"                               2 means Heavy
+  ;"                               3 means Double
+  ;"            OPTION("DASH") --  0 means mode OFF       Default=0
+  ;"                               1 means double dash
+  ;"                               2 means triple dash
+  ;"                               3 means quadruple dash                          
+  ;"            OPTION("ERASE") -- if 1, means we are ERASING box, not drawing.  
+  ;"            OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
+  ;"                            See TMGTERM4 for more info   
+  ;"            OPTION("NO TERM SAVE")=1 -- optional. If found, then prior terminal state is NOT saved and restored  
+  SET HEIGHT=+$GET(HEIGHT) IF HEIGHT<3 SET HEIGHT=3                    
+  SET TOP=+$GET(TOP),LEFT=+$GET(LEFT)
+  NEW NOTERMSAVE SET NOTERMSAVE=($GET(OPTION("NO TERM SAVE"))=1)
+  NEW CHARS DO GET4BOXARR(.CHARS,.OPTION)
+  IF 'NOTERMSAVE DO VCUSAV2^TMGTERM(.OPTION)  ;"Save Cursor & Attrs
+  NEW TL SET TL=$GET(CNCTS("TOP","LEFT"))
+  NEW TR SET TR=$GET(CNCTS("TOP","RIGHT"))
+  NEW BL SET BL=$GET(CNCTS("BOTTOM","LEFT"))
+  NEW BR SET BR=$GET(CNCTS("BOTTOM","RIGHT"))                     
+  NEW STR SET STR=""
+  NEW Y FOR Y=0:1:HEIGHT-1 DO
+  . NEW CH SET CH=""
+  . IF Y=0 DO
+  . . IF (TL=1)&(TR=1) SET CH=CHARS("TOP T")
+  . . ELSE  IF (TL=1)&(TR=0) SET CH=CHARS("TR")
+  . . ELSE  IF (TL=0)&(TR=1) SET CH=CHARS("TL")
+  . . ELSE  SET CH=CHARS("VERT")
+  . ELSE  IF Y=(HEIGHT-1) DO
+  . . IF (BL=1)&(BR=1) SET CH=CHARS("BOT T")
+  . . ELSE  IF (BL=1)&(BR=0) SET CH=CHARS("BR")
+  . . ELSE  IF (BL=0)&(BR=1) SET CH=CHARS("BL")
+  . . ELSE  SET CH=CHARS("VERT")
+  . ELSE  DO
+  . . SET CH=CHARS("VERT")
+  . DO PAINTXY^TMGTERM4(LEFT,TOP+Y,FGCOLOR,BGCOLOR,CH,"OPTION")
+  ;"Restore Cursor & Attrs
+  IF 'NOTERMSAVE DO VCULOAD2^TMGTERM(.OPTION)  
+  QUIT
+  ;  
+TEST4BOX ;
+  NEW CHARS,OPTION,CT
+  NEW TOP SET TOP=25
+  NEW LEFT SET LEFT=5
+  DO GET4BOXARR(.CHARS,.OPTION)
+  NEW X SET X=LEFT
+  NEW Y SET Y=TOP
+  ;"TOP LINE
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TL"),"OPTION")        SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP T"),"OPTION")     SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TR"),"OPTION")        SET X=X+1              
+  ;"SIDES                  
+  SET X=LEFT,Y=Y+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("SIDE"),"OPTION") SET X=X+3   
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("SIDE"),"OPTION") SET X=X+3 
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("SIDE"),"OPTION")
+  ;"MIDDLE LINE
+  SET X=LEFT,Y=Y+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("T RT"),"OPTION")      SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("CROSS"),"OPTION")     SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("T LF"),"OPTION")      SET X=X+1
+  ;"SIDES                  
+  SET X=LEFT,Y=Y+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("SIDE"),"OPTION") SET X=X+3   
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("SIDE"),"OPTION") SET X=X+3 
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("SIDE"),"OPTION")
+  ;"BOT LINE
+  SET X=LEFT,Y=Y+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("BL"),"OPTION")        SET X=X+1 
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("BOT T"),"OPTION")     SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("TOP/BOT"),"OPTION")   SET X=X+1
+  DO PAINTXY^TMGTERM4(X,Y,-1,-1,CHARS("BR"),"OPTION")        SET X=X+1
+  QUIT
+  ;
+GET4BOXARR(OUT,OPTION)  ;"Get array for characters to draw I beam
+  ;"     +----+----+
+  ;"     |    |    |
+  ;"     +----+----+
+  ;"     |    |    |
+  ;"     +----+----+
+  ;
+  ;"Input:  OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format: 
+  ;"                   OUT("TOP T") 
+  ;"                   OUT("VERT") <-- SAME AS OUT("SIDE") 
+  ;"                   OUT("BOT T") 
+  ;"                   OUT("TL") 
+  ;"                   OUT("TR") 
+  ;"                   OUT("BL") 
+  ;"                   OUT("BR") 
+  ;"                   OUT("TOP/BOT") 
+  ;"                   OUT("SIDE")  
+  ;"                   OUT("CROSS")  <-- CENTER CHAR.
+  ;"                   OUT("T LF")
+  ;"                   OUT("T RT")
+  ;"        OPTION -- Optional.  As passed to GET2DIRS
+  DO GETSQARR(.OUT,.OPTION)
+  NEW REF SET REF=$$GETLINECHARSREF()
+  SET OPTION("DEFAULT",1)=1
+  SET OUT("TOP T")=$$GETTEEDN(REF,.OPTION) ;" Get Tee down ("T" shape)
+  SET OUT("BOT T")=$$GETTEEUP(REF,.OPTION) ;" Get Tee up (upside down "T" shape)
+  SET OUT("VERT")=OUT("SIDE")
+  SET OUT("CROSS")=$$GETCROSS(REF,.OPTION) ;" Get cross, ("+" shape)
+  SET OUT("T RT")=$$GETTEERT(REF,.OPTION)  ;" Get Tee RT ("T" shape, pointing to RT)
+  SET OUT("T LF")=$$GETTEELF(REF,.OPTION)  ;" Get Tee LF ("T" shape, pointing to LF)
+  QUIT
+  ;  
 GETSQARR(OUT,OPTION)  ;"Get array for characters to draw square or squircle
   ;"Input:  OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format: 
   ;"                   OUT("TL") 
@@ -91,17 +424,7 @@ GETSQARR(OUT,OPTION)  ;"Get array for characters to draw square or squircle
   ;"                   OUT("BR") 
   ;"                   OUT("TOP/BOT") 
   ;"                   OUT("SIDE") 
-  ;"        OPTION -- Optional.  Format:
-  ;"            OPTION("THICK") -- 1 means Light  (default)
-  ;"                               2 means Heavy
-  ;"                               3 means Double
-  ;"            OPTION("ARC") -- if 1 then return ARC value, otherwise exclude.  Default=0
-  ;"                           An arc gives a rounded corner
-  ;"            OPTION("DASH") --  0 means mode OFF       Default=0
-  ;"                               1 means double dash
-  ;"                               2 means triple dash
-  ;"                               3 means quadruple dash
-  ;"            OPTION("ERASE") -- if 1, means we are ERASING box, not drawing.  
+  ;"        OPTION -- Optional.  As passed to GET2DIRS
   NEW REF SET REF=$$GETLINECHARSREF()
   SET OPTION("DEFAULT",1)=1
   SET OUT("TL")=$$GETTOPLF(REF,.OPTION) 
@@ -136,10 +459,129 @@ GETTOPRT(REF,OPTION) ;" Get Top Right
   SET OPTION("DEFAULT",2)="+"
   QUIT $$GET2DIRS(REF,"DN","LF",.OPTION)
   ;
-GET2DIRS(REF,DIR1,DIR2,OPTION) ;  
+GETTEEDN(REF,OPTION) ;" Get Tee down ("T" shape)
+  SET OPTION("DEFAULT",2)="T"
+  NEW UP,DN,LF,RT SET (DN,LF,RT)=1
+  QUIT $$GET4DIRS(REF,.UP,.DN,.LF,.RT,.OPTION)
+  ;  
+GETTEEUP(REF,OPTION) ;" Get Tee up (upside down "T" shape)
+  SET OPTION("DEFAULT",2)="T"
+  NEW UP,DN,LF,RT SET (UP,LF,RT)=1
+  QUIT $$GET4DIRS(REF,.UP,.DN,.LF,.RT,.OPTION)
+  ;
+GETTEERT(REF,OPTION) ;" Get Tee RT ("T" shape, pointing to RT)
+  SET OPTION("DEFAULT",2)="T"
+  NEW UP,DN,LF,RT SET (UP,DN,RT)=1
+  QUIT $$GET4DIRS(REF,.UP,.DN,.LF,.RT,.OPTION)
+  ;  
+GETTEELF(REF,OPTION) ;" Get Tee LF ("T" shape, pointing to LF)
+  SET OPTION("DEFAULT",2)="T"
+  NEW UP,DN,LF,RT SET (UP,DN,LF)=1
+  QUIT $$GET4DIRS(REF,.UP,.DN,.LF,.RT,.OPTION)
+  ;  
+GETCROSS(REF,OPTION) ;" Get cross, ("+" shape)
+  SET OPTION("DEFAULT",2)="T"
+  NEW UP,DN,LF,RT SET (UP,DN,LF,RT)=1
+  QUIT $$GET4DIRS(REF,.UP,.DN,.LF,.RT,.OPTION)
+  ;
+GET2DIRS(REF,DIR1,DIR2,OPTION) ;
+  NEW UP SET UP=(DIR1="UP")!(DIR2="UP")
+  NEW DN SET DN=(DIR1="DN")!(DIR2="DN")
+  NEW LF SET LF=(DIR1="LF")!(DIR2="LF")
+  NEW RT SET RT=(DIR1="RT")!(DIR2="RT")
+  NEW RESULT SET RESULT=$$GET4DIRS(.REF,UP,DN,LF,RT,.OPTION)
+  QUIT RESULT
+  ;
+  ;"GET2DIRS0(REF,DIR1,DIR2,OPTION) ;  
+  ;"  ;"INPUT: REF -- REF to stored codes array.
+  ;"  ;"       DIR1 - UP, DN, LF, or RT
+  ;"  ;"       DIR2 - UP, DN, LF, or RT
+  ;"  ;"       OPTION -- Optional.  Format:
+  ;"  ;"            OPTION("THICK") -- 1 means Light  (default)
+  ;"  ;"                               2 means Heavy
+  ;"  ;"                               3 means Double
+  ;"  ;"            OPTION("ARC") -- if 1 then return ARC value, otherwise exclude.  Default=0
+  ;"  ;"                          An arc gives a rounded corner
+  ;"  ;"            OPTION("DASH") --  0 means mode OFF       Default=0
+  ;"  ;"                               1 means double dash
+  ;"  ;"                               2 means triple dash
+  ;"  ;"                               3 means quadruple dash
+  ;"  ;"            OPTION("DEFAULT") -- character to return if nothing found. METHOD #1
+  ;"  ;"            OPTION("DEFAULT",1) -- #. If nothing found, try again with Thick=#,Arc=0,Dash=0.     <-- METHOD #2
+  ;"  ;"            OPTION("DEFAULT",2) -- If attempt at 1 didn't work, the return this simple char, e.g. '+'
+  ;"  ;"            OPTION("ERASE") -- if 1, means we are ERASING box, not drawing.  
+  ;"  ;"Result: returns CodePoint, or default value if CodePoint not found, or space (32, or $20) if ERASE=1
+  ;"  NEW ERASE SET ERASE=+$GET(OPTION("ERASE")) IF ERASE QUIT "$20"  
+  ;"  NEW THICK SET THICK=+$GET(OPTION("THICK")) IF "123"'[THICK SET THICK=1
+  ;"  NEW MODE SET MODE=$SELECT(THICK=1:"Light",THICK=2:"Heavy",THICK=3:"Double")
+  ;"  NEW ARC SET ARC=+$GET(OPTION("ARC"))
+  ;"  IF ARC=1 SET MODE="Light"  ;"Arc is only available in Light
+  ;"  NEW DASH SET DASH=+$GET(OPTION("DASH")) IF "0123"'[DASH SET DASH=0
+  ;"  NEW DASHMODE SET DASHMODE=$SELECT(DASH=0:"",DASH=1:"Double",DASH=2:"Triple",DASH=3:"Quadruple")
+  ;"  NEW ARR1,ARR2,OUT
+  ;"  ;"Get all entries containing desired directions.  
+  ;"  NEW TEMPREF
+  ;"  IF DASHMODE="" DO
+  ;"  . SET TEMPREF=$NAME(@REF@("XREF","MODE",MODE))
+  ;"  ELSE  IF DASHMODE'="" DO
+  ;"  . SET TEMPREF=$NAME(@REF@("XREF","DASH",DASHMODE,MODE))    
+  ;"  MERGE ARR1=@TEMPREF@(DIR1)
+  ;"  MERGE ARR2=@TEMPREF@(DIR2)
+  ;"  DO ANDARRS(.OUT,.ARR1,.ARR2)  ;"may return many entries
+  ;"  DO ADDNAMES(.OUT,REF)    
+  ;"  ;"Exclude unwanted directions
+  ;"  NEW TEMP DO OTHERDIR(.TEMP,DIR1,DIR2) ;"get list of directions NOT wanted.  
+  ;"  NEW ADIR SET ADIR=""
+  ;"  FOR  SET ADIR=$ORDER(TEMP(ADIR)) QUIT:ADIR=""  DO
+  ;"  . NEW XARR MERGE XARR=@REF@("XREF","DIR",ADIR)
+  ;"  . DO COLLAPSEMODES(.XARR)  ;"Convert ARR(<MODE>,<CODEPOINT>) --> ARR(CODEPOINT)
+  ;"  . DO ADDNAMES(.XARR,REF)
+  ;"  . NEW TEMP2 DO NOTARR(.TEMP2,.OUT,.XARR) 
+  ;"  . KILL OUT MERGE OUT=TEMP2
+  ;"  ;"Exclude ARC entries if not wanted.  
+  ;"  IF ARC=0 DO
+  ;"  . NEW XARR MERGE XARR=@REF@("XREF","ARC","Light")   ;"NOTE: ARC only comes in Light.  
+  ;"  . DO COLLAPSEMODES(.XARR)  ;"Convert ARR(<DIR>,<CODEPOINT>) --> ARR(CODEPOINT)
+  ;"  . DO ADDNAMES(.XARR,REF)
+  ;"  . NEW TEMP2 DO NOTARR(.TEMP2,.OUT,.XARR) 
+  ;"  . KILL OUT MERGE OUT=TEMP2
+  ;"  ;"Exclude DASH entries if not wanted
+  ;"  IF DASH=0 DO
+  ;"  . NEW MULT SET MULT=""
+  ;"  . FOR  SET MULT=$ORDER(@REF@("XREF","DASH",MULT)) QUIT:MULT=""  DO
+  ;"  . . NEW MODE SET MODE=""
+  ;"  . . FOR  SET MODE=$ORDER(@REF@("XREF","DASH",MULT,MODE)) QUIT:MODE=""  DO
+  ;"  . . . NEW XARR MERGE XARR=@REF@("XREF","DASH",MULT,MODE)
+  ;"  . . . DO COLLAPSEMODES(.XARR)  ;"Convert ARR(<DIR>,<CODEPOINT>) --> ARR(CODEPOINT)
+  ;"  . . . DO ADDNAMES(.XARR,REF)
+  ;"  . . . NEW TEMP2 DO NOTARR(.TEMP2,.OUT,.XARR) 
+  ;"  . . . KILL OUT MERGE OUT=TEMP2
+  ;"  NEW CODEPT SET CODEPT=""
+  ;"  FOR  SET CODEPT=$ORDER(OUT(CODEPT)) QUIT:CODEPT=""  DO
+  ;"  . NEW NAME SET NAME=$GET(OUT(CODEPT))
+  ;"  . IF +$GET(ARC)=1,(NAME'["Arc") KILL OUT(CODEPT) QUIT
+  ;"  . IF +$GET(ARC)=0,(NAME["Arc") KILL OUT(CODEPT) QUIT
+  ;"  NEW RESULT SET RESULT=$ORDER(OUT(""))
+  ;"  IF RESULT="" DO
+  ;"  . SET RESULT=$GET(OPTION("DEFAULT"))
+  ;"  . IF RESULT="" SET RESULT=$GET(OPTION("DEFAULT",1))
+  ;"  . IF RESULT>0 DO
+  ;"  . . NEW TEMPOPT
+  ;"  . . SET TEMPOPT("THICK")=+RESULT
+  ;"  . . SET TEMPOPT("ARC")=0,TEMPOPT("DASH")=0
+  ;"  . . SET TEMPOPT("DEFAULT")=$GET(OPTION("DEFAULT",2),"+")
+  ;"  . . SET RESULT=$$GET2DIRS(REF,DIR1,DIR2,.TEMPOPT)
+  ;"  . IF $EXTRACT(RESULT,1)'="$" DO
+  ;"  . . SET RESULT=$ASCII(RESULT)
+  ;"  . . SET RESULT="$"_$$HEXCHR2^TMGMISC(RESULT)
+  ;"  QUIT RESULT
+  ;"  ;
+GET4DIRS(REF,UP,DN,LF,RT,OPTION) ;  
   ;"INPUT: REF -- REF to stored codes array.
-  ;"       DIR1 - UP, DN, LF, or RT
-  ;"       DIR2 - UP, DN, LF, or RT
+  ;"       UP -- 1 if wanted 0 if not
+  ;"       DN -- 1 if wanted 0 if not
+  ;"       LF -- 1 if wanted 0 if not
+  ;"       RT -- 1 if wanted 0 if not
   ;"       OPTION -- Optional.  Format:
   ;"            OPTION("THICK") -- 1 means Light  (default)
   ;"                               2 means Heavy
@@ -162,25 +604,32 @@ GET2DIRS(REF,DIR1,DIR2,OPTION) ;
   IF ARC=1 SET MODE="Light"  ;"Arc is only available in Light
   NEW DASH SET DASH=+$GET(OPTION("DASH")) IF "0123"'[DASH SET DASH=0
   NEW DASHMODE SET DASHMODE=$SELECT(DASH=0:"",DASH=1:"Double",DASH=2:"Triple",DASH=3:"Quadruple")
-  NEW ARR1,ARR2,OUT
-  ;"Get all entries containing desired directions.  
+  NEW UPARR,DNARR,LFARR,RTARR,OUT
+  SET UP=$GET(UP),DN=$GET(DN),LF=$GET(LF),RT=$GET(RT)
+  ;"Get all entries containing desired directions.                                                
   NEW TEMPREF
   IF DASHMODE="" DO
   . SET TEMPREF=$NAME(@REF@("XREF","MODE",MODE))
   ELSE  IF DASHMODE'="" DO
   . SET TEMPREF=$NAME(@REF@("XREF","DASH",DASHMODE,MODE))    
-  MERGE ARR1=@TEMPREF@(DIR1)
-  MERGE ARR2=@TEMPREF@(DIR2)
-  DO ANDARRS(.OUT,.ARR1,.ARR2)  ;"may return many entries
+  IF UP MERGE UPARR=@TEMPREF@("UP")
+  IF DN MERGE DNARR=@TEMPREF@("DN")
+  IF LF MERGE LFARR=@TEMPREF@("LF")
+  IF RT MERGE RTARR=@TEMPREF@("RT")
+  DO ANDARRS(.OUT,.UPARR,.DNARR,.LFARR,.RTARR)  ;"may return many entries
   DO ADDNAMES(.OUT,REF)    
   ;"Exclude unwanted directions
-  NEW TEMP DO OTHERDIR(.TEMP,DIR1,DIR2) ;"get list of directions NOT wanted.  
+  NEW DIRUP IF UP SET DIRUP="UP"
+  NEW DIRDN IF DN SET DIRDN="DN"
+  NEW DIRLF IF LF SET DIRLF="LF"
+  NEW DIRRT IF RT SET DIRRT="RT"
+  NEW EXCLARR DO OTHERDIR(.EXCLARR,.DIRUP,.DIRDN,.DIRLF,.DIRRT) ;"get list of directions NOT wanted.  
   NEW ADIR SET ADIR=""
-  FOR  SET ADIR=$ORDER(TEMP(ADIR)) QUIT:ADIR=""  DO
+  FOR  SET ADIR=$ORDER(EXCLARR(ADIR)) QUIT:ADIR=""  DO  ;"This ADIR is a direction NOT WANTED      
   . NEW XARR MERGE XARR=@REF@("XREF","DIR",ADIR)
   . DO COLLAPSEMODES(.XARR)  ;"Convert ARR(<MODE>,<CODEPOINT>) --> ARR(CODEPOINT)
   . DO ADDNAMES(.XARR,REF)
-  . NEW TEMP2 DO NOTARR(.TEMP2,.OUT,.XARR) 
+  . NEW TEMP2 DO NOTARR(.TEMP2,.OUT,.XARR) ;"Return all entries from OUT that are NOT found in XARR
   . KILL OUT MERGE OUT=TEMP2
   ;"Exclude ARC entries if not wanted.  
   IF ARC=0 DO
@@ -214,7 +663,7 @@ GET2DIRS(REF,DIR1,DIR2,OPTION) ;
   . . SET TEMPOPT("THICK")=+RESULT
   . . SET TEMPOPT("ARC")=0,TEMPOPT("DASH")=0
   . . SET TEMPOPT("DEFAULT")=$GET(OPTION("DEFAULT",2),"+")
-  . . SET RESULT=$$GET2DIRS(REF,DIR1,DIR2,.TEMPOPT)
+  . . SET RESULT=$$GET4DIRS(REF,UP,DN,LF,RT,.TEMPOPT)
   . IF $EXTRACT(RESULT,1)'="$" DO
   . . SET RESULT=$ASCII(RESULT)
   . . SET RESULT="$"_$$HEXCHR2^TMGMISC(RESULT)
@@ -238,9 +687,12 @@ ADDNAMES(ARR,REF)  ;"(Debugging function) Add names to codepoints
   . SET ARR(CODEPT)=NAME
   QUIT
   ;
-OTHERDIR(OUT,DIR1,DIR2,DIR3) ;"Return DIR that is not in DIR1,DIR2,DIR3
+OTHERDIR(OUT,DIR1,DIR2,DIR3,DIR4) ;"Return DIR that is not in DIR1,DIR2,DIR3
   SET OUT("UP")="",OUT("DN")="",OUT("LF")="",OUT("RT")=""
-  KILL OUT($GET(DIR1)),OUT($GET(DIR2)),OUT($GET(DIR3))
+  IF $GET(DIR1)'="" KILL OUT(DIR1)
+  IF $GET(DIR2)'="" KILL OUT(DIR2)
+  IF $GET(DIR3)'="" KILL OUT(DIR3)
+  IF $GET(DIR4)'="" KILL OUT(DIR4)
   QUIT
   ;
 NOTARR(OUT,ARR1,ARR2)  ;"Return elements of ARR1 that are NOT in ARR2
@@ -250,13 +702,19 @@ NOTARR(OUT,ARR1,ARR2)  ;"Return elements of ARR1 that are NOT in ARR2
   . IF $DATA(ARR2(CODEPT)) KILL OUT(CODEPT)
   QUIT
   ;
-ANDARRS(OUT,ARR1,ARR2) ;"Return array of intersection (AND) of two array sets
+ANDARRS(OUT,ARR1,ARR2,ARR3,ARR4) ;"Return array of intersection (AND) of 2-4 array sets
   KILL OUT
+  IF $DATA(ARR1)=0 DO
+  . IF $DATA(ARR4) MERGE ARR1=ARR4 KILL ARR4 QUIT
+  . IF $DATA(ARR3) MERGE ARR1=ARR3 KILL ARR3 QUIT
+  . IF $DATA(ARR2) MERGE ARR1=ARR2 KILL ARR2 QUIT
   NEW CODEPT SET CODEPT=""
   FOR  SET CODEPT=$ORDER(ARR1(CODEPT)) QUIT:CODEPT=""  DO
-  . IF $DATA(ARR2(CODEPT)) SET OUT(CODEPT)=""
+  . IF $DATA(ARR2)>0,$DATA(ARR2(CODEPT))=0 QUIT
+  . IF $DATA(ARR3)>0,$DATA(ARR3(CODEPT))=0 QUIT
+  . IF $DATA(ARR4)>0,$DATA(ARR4(CODEPT))=0 QUIT
+  . SET OUT(CODEPT)=""
   QUIT
-  ;"ARR("$2557")="Double Down and Left"
   ;  
 GETLINECHARSREF()  ;
   NEW REF SET REF=$NAME(^TMG("UNICODE","LINE CHARS"))

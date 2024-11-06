@@ -97,7 +97,7 @@ PARSLINE(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE A LINE, including any DO block a
   ;"          @REFOUT@(OFFSET,"COMMENT")=<comment>                         
   ;"          @REFOUT@(OFFSET,"STRINGS",#)=strings
   ;"          @REFOUT@(OFFSET,"INDENT")=<text that indents from left margin>
-  ;"          @REFOUT@(OFFSET,"TRAINLING")=<trailing spaces>
+  ;"          @REFOUT@(OFFSET,"TRAILING")=<trailing spaces>
   ;"          @REFOUT@(OFFSET,<cmd #>,"CMD")=<CMD> as found in code
   ;"          @REFOUT@(OFFSET,<cmd #>,"CMD","ABVR")=<CMD> shortened form
   ;"          @REFOUT@(OFFSET,<cmd #>,"CMD","XPND")=<CMD> expanded form

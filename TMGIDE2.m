@@ -231,26 +231,28 @@ CMDPROMPT  ;
   . IF tmgRunMode=4 set tmgAction="X" 
   . ELSE  SET tmgAction=$$READ^TMGIDE() WRITE !
   . IF tmgAction="" SET tmgAction=$$UP^XLFSTR($EXTRACT(tmgStepMode,1,1))
+  . IF ";MENU;menu;/;"[(";"_tmgAction_";") DO  QUIT:tmgAction["^" 
+  . . SET tmgAction=$$HndlMenu^TMGIDE2C() 
   . NEW tmgOrigAction SET tmgOrigAction=tmgAction
   . DO XLTCMDKEYS^TMGIDE2B(.tmgAction,$GET(tmgXGRT),1)
   . SET tmgDone=("RLIHOXTQ"[tmgAction)
-  . IF tmgAction="R" DO SETRUNMODE(0) QUIT         ;"Run Quickly
-  . IF tmgAction="L" DO SETRUNMODE(3) QUIT         ;"Run slowly
-  . IF tmgAction="H" DO SETRUNMODE(2) QUIT         ;"HIDE
-  . IF tmgAction="HOP" DO SETRUNMODE(4) QUIT       ;"HOPPING
-  . IF tmgAction="I" SET tmgStepMode="into" QUIT   ;"Step INTO
-  . IF tmgAction="O" SET tmgStepMode="over" QUIT   ;"Step OVER
-  . IF tmgAction="T" SET tmgStepMode="outof" QUIT  ;"Step OUTOF
-  . IF tmgAction="X" DO HndlDone^TMGIDE2C QUIT              ;"Turn off debugger (keep running)
-  . IF tmgAction="Q" DO HndlQuit^TMGIDE2C QUIT              ;"Quit from debugger (stop running)
-  . IF tmgAction="M" DO HndlMCode^TMGIDE2C QUIT             ;"Execute M code
-  . IF tmgAction="B" DO HndlSetBrk^TMGIDE2C QUIT            ;"Toggle a breakpoint at current location
-  . IF tmgAction="J" DO HndlJmpBrk^TMGIDE2C QUIT            ;"Toggle a Jump-to breakpoint at current location
-  . IF tmgAction="E" DO HndlExpand^TMGIDE2C QUIT            ;"Expand line
-  . IF tmgAction="W" DO HndlWatch^TMGIDE2C(tmgOrigAction) QUIT    ;"Watch
-  . IF tmgAction="C" DO HndlCstBrk^TMGIDE2C QUIT            ;"Custom breakpoint
+  . IF tmgAction="R" DO SETRUNMODE(0) QUIT                                    ;"Run Quickly
+  . IF tmgAction="L" DO SETRUNMODE(3) QUIT                                    ;"Run slowly
+  . IF tmgAction="H" DO SETRUNMODE(2) QUIT                                    ;"HIDE
+  . IF tmgAction="HOP" DO SETRUNMODE(4) QUIT                                  ;"HOPPING
+  . IF tmgAction="I" SET tmgStepMode="into" QUIT                              ;"Step INTO
+  . IF tmgAction="O" SET tmgStepMode="over" QUIT                              ;"Step OVER
+  . IF tmgAction="T" SET tmgStepMode="outof" QUIT                             ;"Step OUTOF
+  . IF tmgAction="X" DO HndlDone^TMGIDE2C QUIT                                ;"Turn off debugger (keep running)
+  . IF tmgAction="Q" DO HndlQuit^TMGIDE2C QUIT                                ;"Quit from debugger (stop running)
+  . IF tmgAction="M" DO HndlMCode^TMGIDE2C QUIT                               ;"Execute M code
+  . IF tmgAction="B" DO HndlSetBrk^TMGIDE2C QUIT                              ;"Toggle a breakpoint at current location
+  . IF tmgAction="J" DO HndlJmpBrk^TMGIDE2C QUIT                              ;"Toggle a Jump-to breakpoint at current location
+  . IF tmgAction="E" DO HndlExpand^TMGIDE2C QUIT                              ;"Expand line
+  . IF tmgAction="W" DO HndlWatch^TMGIDE2C(tmgOrigAction) QUIT                ;"Watch
+  . IF tmgAction="C" DO HndlCstBrk^TMGIDE2C QUIT                              ;"Custom breakpoint
   . IF tmgAction="G" DO HndlJmpDisp^TMGIDE2C(.tmgIDEPos,.tmgViewOffset) QUIT  ;"Jump to NEW display location
-  . IF tmgAction="BC" DO HndlBrkCond^TMGIDE2C QUIT          ;"Enter a breakpoint condition (IF code)
+  . IF tmgAction="BC" DO HndlBrkCond^TMGIDE2C QUIT                            ;"Enter a breakpoint condition (IF code)
   . IF $$MOVEKEY(tmgAction) QUIT
   . IF tmgAction="+" SET tmgScrWidth=$GET(tmgScrWidth)+1 QUIT
   . IF tmgAction="-" SET:(tmgScrWidth>10) tmgScrWidth=$GET(tmgScrWidth)-1 QUIT

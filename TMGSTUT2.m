@@ -1,4 +1,4 @@
-TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
+TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19,10/28/24
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -36,7 +36,7 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
   ;"SPLIT2AR(TEXT,DIVIDER,ARRAY,INITINDEX,OPTION) -- Slit into array, by DIVIDER
   ;"ARR2STR(ARR,DIVIDER)  -- COMBINE ARRAY ELEMENTS INTO LONG STRING, OPPOSITE OF SPLIT2AR  
   ;"ADDWRAPARR(ARR,STR,MAXWIDTH,NEWLINE) -- Add STR to ARR, wrapping if needed
-  ;"STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE) -- Take a long string and wrap it into formal WP format
+  ;"STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE) -- Take a long string and wrap it into WP format (NOT Fileman 0 based WP format)
   ;"WP2STR(PARRAY,DIVCH,MAXLEN,INITLINE) -- Takes a WP field, and concatenates into one long string.
   ;"WP2ARRAY(REF,OUTREF) -- Convert a Fileman WP array into a flat ARRAY
   ;"ARRAY2WP(REFARRAY,REF) -- Convert an ARRAY to a Fileman-format WP array
@@ -44,6 +44,7 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19, 6/27/22
   ;"INSERTARR(OUT,ARR1,ARR2,INSERTIDX) -- Insert merge (potentially overlapping) #-indexed ARR1 into ARR2
   ;"PREFIXARR(ARR,HEADERARR) -- PREFIX HEADER ARRAY ONTO ARR
   ;"APPENDARR(ARR,TAILARR) -- APPEND TAIL ARRAY ONTO ARR
+  ;"MAXWIDTH(ARR)  -- Return length of longest line in ARR
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
@@ -519,7 +520,7 @@ ADDWRAPARR(ARR,MAXWIDTH,NEWLINE,STR) ;"Add STR to ARR, wrapping if needed
   QUIT  
   ;
 STR2WP(STR,PARRAY,WIDTH,DIVCH,INITLINE)  ;
-  ;"Purpose: to take a long string and wrap it into formal WP format
+  ;"Purpose: to take a long string and wrap it into WP format  (NOT Fileman 0 based WP format)
   ;"Input: STR:  the long string to wrap into the WP array (but not 0 based)
   ;"      PARRAY: the NAME of the array to put output into.
   ;"              Any pre-existing data in this array will NOT be killed
@@ -715,4 +716,12 @@ APPENDARR(ARR,TAILARR) ;"APPEND TAIL ARRAY ONTO ARR
   NEW TEMP DO INSERTARR(.TEMP,.TAILARR,.ARR,LASTIDX+1)
   KILL ARR MERGE ARR=TEMP
   QUIT
-  
+  ;
+MAXWIDTH(ARR)  ;"Return length of longest line in ARR
+  NEW RESULT SET RESULT=0
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  . NEW LEN SET LEN=$LENGTH(ARR(IDX))
+  . IF LEN>RESULT SET RESULT=LEN
+  QUIT RESULT
+  ;

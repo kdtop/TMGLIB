@@ -9,6 +9,25 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15, 9/12/24
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
+ ;"NOTE: Below relies on hard-coded escape sequences.  Many terminals are
+ ;"      standardized, but there can be differences.  
+ ;"      Another way to handle this would be to use Linux functionality 
+ ;"      that standardizes this.  It maintains a database of escape sequences
+ ;"      and returns the appropriate one for the current terminal that the
+ ;"      user is connected with.
+ ;"      Related concepts:
+ ;"       tput cup 1 2  This does cursor positioning
+ ;"       terminfo -- this is the database itself holding all the sequences. 
+ ;"          man terminfo will give information about items contained
+ ;"       infocmp -- reports on entries in the esc sequences database
+ ;"          infocmp xterm --> show all xterm entries.  
+ ;"      fyi, ncurses and screen both rely on this same functionality.  
+ ;"      Details to workout:
+ ;"        -- would I want to spin up a linux shell to access the tput for each call (SLOW)
+ ;"        -- would I want to query the database and store the sequences locally for a given session?
+ ;"        -- etc.  
+ ;"      //kt 10/20/24
+ ;  
  ;"Terminal interface
  ;"ANSI Standard (X3.64) Control Sequences for Video Terminals and Peripherals
  ;"      in alphabetic order by mnemonic
@@ -73,6 +92,7 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15, 9/12/24
  ;"VCULOAD     ;Unsave Cursor               ESC [ u
  ;"VCUSAV2     ;Save Cursor & Attrs         ESC 7
  ;"VCULOAD2    ;Restore Cursor & Attrs      ESC 8
+ ;"ALTBUF(ON)  ;Toggle alternate buffer     ESC [ ? 1049h activates, ESC [ ? 1049l disables and returns to normal
  ;
  ;"VT100 specific calls
  ;"--------------------
@@ -85,18 +105,18 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15, 9/12/24
  ;"VCUSAV      ;Save Cursor                                ESC [ s
  ;"ESSCR       ;Enable scrolling for entire display
  ;"QCUP        ;Query cursor position
- ;"VTATRIB(n)  ;Set Text attributes    <ESC>[{attr1};...;{attrn}m
- ;"VCOLORIDXFG(n) ;Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
- ;"VCOLORIDXBG(n) ;Set Text Background Color  <ESC>[{attr1};...;{attrn}m
- ;"VCOLORSIDX(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
- ;"SETGBLCO  //Set Global Colors
- ;"CLRVEC24(R,G,B) -- Return 24bit color vector triple
- ;"INVCLRV24(R,G,B)  --Return 24bit color vector triple, that is INVERTED from RGB
- ;"INVCLRVEC(CLRVEC) --Invert a 24bit color vector triple.
- ;"ISCLRVEC24(STR) -- Returns if STR is in format of 24bit color vector triple, CLRVEC24
- ;"V24TORGB(CLRVEC,R,G,B) --Split CLRVEC24 to R,G,B components. 
- ;"PUTTERMBUF() --Output buffer to current IO.  
- 
+ ;"VTATRIB(n)             ;Set Text attributes    <ESC>[{attr1};...;{attrn}m
+ ;"VCOLORIDXFG(n)         ;Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
+ ;"VCOLORIDXBG(n)         ;Set Text Background Color  <ESC>[{attr1};...;{attrn}m
+ ;"VCOLORSIDX(FG,BG)      ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
+ ;"SETGBLCO               ;Set Global Colors
+ ;"CLRVEC24(R,G,B)        ;Return 24bit color vector triple
+ ;"INVCLRV24(R,G,B)       ;Return 24bit color vector triple, that is INVERTED from RGB
+ ;"INVCLRVEC(CLRVEC)      ;Invert a 24bit color vector triple.
+ ;"ISCLRVEC24(STR)        ;Returns if STR is in format of 24bit color vector triple, CLRVEC24
+ ;"ISCOLOR24PAIR(PAIR)    ;Does PAIR have ClrVec24^ClrVec24 pattern?
+ ;"V24TORGB(CLRVEC,R,G,B) ;Split CLRVEC24 to R,G,B components. 
+ ; 
  ;"=======================================================================
  ;"DEPENDENCIES: XLFSTR
  ;"=======================================================================
@@ -340,9 +360,11 @@ VCULOAD(OPTION)  ;"Unsave Cursor                              ESC [ u
   DO ESCN(,,"u") QUIT    
   ;
 VCUSAV2(OPTION)  ;"Save Cursor & Attrs                        ESC 7
+  ;"DO SYSSTATUSDUMP^TMGDEBUG("VR")
   DO ESCCMD("7") QUIT
   ;
 VCULOAD2(OPTION)  ;"Restore Cursor & Attrs                    ESC 8
+  ;"DO SYSSTATUSDUMP^TMGDEBUG("R")
   DO ESCCMD("8") QUIT
   ;
 CSRSHOW(ON) ;"Turn cursor ON(1) or OFF(0)(hide)      ESC [ ? 25 l/h
@@ -356,6 +378,23 @@ CSRBLINK(ON) ;"Set cursor blinking ON(1) or OFF(0)    ESC [ ? 25 l/h
   SET ON=+$GET(ON,1)
   NEW CMD SET CMD=$SELECT($GET(ON)=1:"h",1:"l")
   DO ESCN("?12",,CMD) 
+  QUIT
+  ;
+ALTBUF(ON)   ;"Toggle use of alternate buffer     
+  ;"ESC [ ? 1049h activates alt buffer, 
+  ;"ESC [ ? 1049l disables alt buffer and returns to normal
+  ;"source: https://invisible-island.net/xterm/xterm.faq.html#xterm_tite     
+  ;"-----
+  ;"More info from here: https://xtermjs.org/docs/api/vtfeatures/  **NOTE -- search on page for DECSET and click [more]
+  ;"1047 	Use Alternate Screen Buffer.
+  ;"1048 	Save cursor as in DECSC.
+  ;"1049 	Save cursor and switch to alternate buffer clearing it.  
+  ;"-----
+  ;"When this is turned on, output goes to a new blank screen.  When the mode
+  ;"  it turned back off, the former screen is restored, with all the prior output.  
+  SET ON=+$GET(ON,1)
+  NEW CMD SET CMD=$SELECT(ON=1:"h",1:"l")
+  DO ESCN("?1049",,CMD) 
   QUIT
   ;
   ;"--------------------------------------------------------------
@@ -383,15 +422,6 @@ VCS(OPTION)      ;"Erase entire screen                        Esc [ 2 J
   ;
 VCUSAV(OPTION)   ;"Save Cursor                                ESC [ s
   DO ESCN(,,"s") QUIT
-  ;
-  ;"VCULOAD  ;"Unsave Cursor                              ESC [ u
-  ;"       DO ESCN(,,"u") QUIT
-  ;
-  ;"VCUSAV2  ;"Save Cursor & Attrs                        ESC 7
-  ;"       DO ESCCMD("7") QUIT
-  ;
-  ;"VCULOAD2  ;"Restore Cursor & Attrs                    ESC 8
-  ;"       DO ESCCMD("8") QUIT
   ;
 ESSCR(OPTION)   ;"Enable scrolling for entire display
   ;"I am not sure if this is VT100 specific or not
@@ -543,7 +573,16 @@ INVCLRVEC(CLRVEC) ;"Invert a 24bit color vector triple.
   ;  
 ISCLRVEC24(STR) ;"Returns if STR is in format of 24bit color vector triple, CLRVEC24.  '#;#;#'
   NEW RESULT,IDX,VAL SET RESULT=($LENGTH(STR,";")=3) 
-  FOR IDX=1:1:3 QUIT:(RESULT=0)  SET VAL=$PIECE(STR,";",IDX),RESULT=(+VAL=VAL)
+  FOR IDX=1:1:3 QUIT:(RESULT=0)  SET VAL=$PIECE(STR,";",IDX),RESULT=$$ISNUM^TMGSTUT3(VAL)
+  QUIT RESULT
+  ;
+ISCOLOR24PAIR(PAIR) ;"Does PAIR have ClrVec24^ClrVec24 pattern?
+  NEW RESULT SET RESULT=0
+  IF PAIR["^" DO
+  . NEW FG,BG SET FG=$PIECE(PAIR,"^",1),BG=$PIECE(PAIR,"^",2)
+  . IF $$ISCLRVEC24(FG)=0 QUIT
+  . IF $$ISCLRVEC24(BG)=0 QUIT
+  . SET RESULT=1
   QUIT RESULT
   ;
 V24TORGB(CLRVEC,R,G,B) ;"Split CLRVEC24 to R,G,B components.  

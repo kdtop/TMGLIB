@@ -540,7 +540,16 @@ CHARDEMO ;
   QUIT
 
 
-  
+TESTMONA ;
+  NEW TEMP DO GETMONA(.TEMP)
+  DO ALTBUF^TMGTERM(1)  ;"switch to alternative buffer
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(TEMP(IDX)) QUIT:IDX'>0  DO
+  . WRITE $GET(TEMP(IDX)),!
+  DO PRESS2GO^TMGUSRI2  
+  DO ALTBUF^TMGTERM(0)  ;"switch back to normal buffer
+  QUIT
+  ;  
 GETMONA(OUT)
   NEW DONE SET DONE=0
   NEW IDX FOR IDX=1:1 DO  QUIT:DONE
@@ -609,7 +618,7 @@ MONAREF
   ;;"XX$$$$X$$$$$$$$$&$$&&&$&&$&$$$$$$$$$$Xxx++++++++++++++++++++++++++++xxxxXX$$$$$$$$$$$$$$$$&&$&&$&&&$
   ;;"$XX$$$X$$$$$&$$$&$$&&$&&$$&&$$$$$$Xxxx+++++;++;++++++;++++++;;;;++;+++++xXX$$$&$$$$X$$$$$&&&$$&$&&&$
   ;;"$$$$$$$X$$$$$$&&&&$&$$$$$$$$$$$XXxxxx++;+;;;;;;;;;;;+;;;;;;;;;;;;;;;++x+xxXXX$$$$$X$$$X$$&&$$$&$&&&&
-  ;;"<done>                                                                                                        
+  ;;"<DONE>                                                                                                        
   ;
 TESTPIPE  
   WRITE "THIS JOB IS: ",$J,!
@@ -744,4 +753,22 @@ TESTPIPE2 ;
   . IF SHOWDBLOG CLOSE LOGPIPE
   ;
   USE TMGIO
+
+
+PRIME ; Calculate prime numbers up to 10,000
+    NEW N, I, J, IsPrime
+    SET N=10000
+
+    ; Initialize an array to mark non-prime numbers
+    FOR I=2:1:N SET IsPrime(I)=1
+
+    ; Sieve of Eratosthenes
+    FOR I=2:1:N IF IsPrime(I) DO
+    . FOR J=I*2:1:N SET IsPrime(J)=0
+
+    ; Collect and display the prime numbers
+    WRITE "Prime numbers up to ", N, ":", !
+    FOR I=2:1:N IF IsPrime(I) WRITE I, " "
+    WRITE !
+    QUIT
   

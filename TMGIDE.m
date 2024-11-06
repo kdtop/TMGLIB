@@ -61,7 +61,7 @@ M1 ;
   SET tmgMenu(tmgCt)="Edit HIDE modules"_$CHAR(9)_"EditHIDE",tmgCt=tmgCt+1
   SET tmgMenu(tmgCt)="Debug ANOTHER PROCESS"_$CHAR(9)_"Interrupt",tmgCt=tmgCt+1
   SET tmgMenu(tmgCt)="KILL ANOTHER PROCESS"_$CHAR(9)_"KillOther",tmgCt=tmgCt+1
-  SET tmgMenu(tmgCt)="Run ^ZJOB"_$CHAR(9)_"ZJob",tmgCt=tmgCt+1
+  SET tmgMenu(tmgCt)="Run ^TMGZJOB"_$CHAR(9)_"ZJob",tmgCt=tmgCt+1
   ;"SET tmgMenu(tmgCt)="View TRACE log from last run"_$CHAR(9)_"Trace",tmgCt=tmgCt+1
   ;
   SET tmgUserSelect=$$MENU^TMGUSRI2(.tmgMenu,"^")
@@ -74,7 +74,7 @@ M1 ;
   IF tmgUserSelect="KillBreakpoint" DO KBKPT GOTO M1
   IF tmgUserSelect="Interrupt" DO PICKINTR^TMGIDE5 GOTO M1
   IF tmgUserSelect="KillOther" DO KILLOTHER GOTO M1
-  IF tmgUserSelect="ZJob" DO ^ZJOB GOTO M1
+  IF tmgUserSelect="ZJob" DO ^TMGZJOB GOTO M1
   IF tmgUserSelect="EditHIDE" DO SetupSkips^TMGIDE2C GOTO M1
   IF tmgUserSelect="Trace" DO ShowTrace^TMGIDE6 GOTO M1
   IF tmgUserSelect="DataWatch" DO  GOTO MENUDONE:(tmgDataWatchMode) GOTO M1
@@ -132,7 +132,7 @@ DEBUGINIT  ;
 SETHIDELIST  ;
   SET tmgDbgHideList=$NAME(^TMG("TMGIDE",$J,"HIDE LIST"))
   KILL @tmgDbgHideList
-  IF 1=1 DO
+  IF 0=1 DO
   . SET @tmgDbgHideList@("TMGIDE*")=""
   ELSE  DO
   . SET @tmgDbgHideList@("TMGIDE")=""

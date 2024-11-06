@@ -14,56 +14,65 @@ TMGUSRI8 ;TMG/kst/USER INTERFACE -- Terminal Color Picker ;9/20/24
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"======================================================================= 
- ;"COLORBOX(SETBG,SETFG)  -- WRITE a grid on the screen, showing all the color combos
- ;"PICKCOLOR24(OPTION)
- ;"COLORMENU() -- Allow user to pick color by name in a menu structure. 
- ;"WEBCOLOR(NAME,COLORARR) --Get color vector, based on standardized web color names
- ;"LIGHTERCLR(CLRVEC,LIGHTPCT) ;
- ;"DARKERCLR(CLRVEC,DARKPCT) ;
- ;"DELTACOLOR(CLRVEC,SHADEPCT) ;
- ;
  ;"=======================================================================
- ;"INDEX COLOR FUNCTIONS
+ ;"GENERAL FUNCTIONS
  ;"=======================================================================
- ;"PICK1COL(LABEL,INITVAL)   --prompt user to pick a color
- ;"PICKFGC(FG,BG)   -- prompt user to pick a foreground color
- ;"PICKBGC(INITVAL)   --prompt user to pick a background color
- ;"PICKCLRS(FG,BG)   --prompt user to pick a FG and BG colors
- ;"COLORPAIR(FG,BG,ARR) --Return a 'FG^BG' based on names.  INDEXED COLOR MODE
- ;"SETGBLCO   --Set Global Colors
- ;"KILLGBLC   --Kill Global Colors and MAP array
- ;"=======================================================================
- ;"256 COLOR FUNCTIONS
- ;"=======================================================================
+ ;"MAPIDXTO24BIT(IDXCOLOR,ISBKGND) ;"
+ ;"SPLITPOS(POS,X,Y) -- Split 'X^Y' into X and Y
+ ;"SPLITCOLORPAIR(COLORPAIR,.FG,.BG)  ;"Split CLRVEC24 pair into FG and BG
  ;
  ;"=======================================================================
  ;"24BIT COLOR FUNCTIONS
  ;"=======================================================================
  ;"DRAWCLRBOX24(RA,GA,BA,OPTION) -- Do actual drawing of 3D color box
+ ;"COLOR24PAIR(FGNAME,BGNAME,ARR,FGC,BGC) --Return a 'FG^BG' based on web colornames.  24bit COLOR MODE
+ ;"WEBCOLOR(NAME,COLORARR) --Get color vector, based on standardized web color names
+ ;"COLORMENU() -- Allow user to pick 24bit color by name in a menu structure. 
+ ;"GETWEBCOLORS(COLORARR) --Fill array with web colors 
+ ;"RANDCOLOR(COLORARR) --Get random color vector 24bit
+ ;"RANDCOLORPAIR(COLORARR) --Get pair random color vector 24bit, with FG being inverse of random BG
+ ;"PICKCOLOR24(OPTION,INITCOLOR) --Display colors and allow user to pick desired color.  
+ ;"LIGHTERCLR(CLRVEC,LIGHTPCT) --Return 24B color that is % lighter than input
+ ;"DARKERCLR(CLRVEC,DARKPCT) --Return 24B color that is % darker than input
+ ;"DELTACOLOR(CLRVEC,SHADEPCT) --Return 24B color that is +/- % changed from ligher/darker than input
+ ;
+ ;"=======================================================================
+ ;"INDEX COLOR FUNCTIONS
+ ;"=======================================================================
+ ;"COLORBOX(SETBG,SETFG)  -- WRITE a grid on the screen, showing all the INDEXED color combos
+ ;"COLORPAIR(FG,BG,ARR) --Return a 'FG^BG' based on names.  INDEXED COLOR MODE
+ ;"ISCOLORPAIR(PAIR)  --Does PAIR have #^# format?
+ ;"SETGBLCO   --Set Global Colors
+ ;"PICK1COL(LABEL,INITVAL)   --prompt user to pick a color
+ ;"PICKFGC(FG,BG)   -- prompt user to pick a foreground color
+ ;"PICKBGC(INITVAL)   --prompt user to pick a background color
+ ;"PICKCLRS(FG,BG)   --prompt user to pick a FG and BG colors
+ ;"KILLGBLC   --Kill Global Colors and MAP array
+ ;
+ ;"=======================================================================
+ ;"256 COLOR FUNCTIONS
+ ;"=======================================================================
  ;
  ;"=======================================================================
  ;"Demo Functions
  ;"=======================================================================
  ;"DEMOCOLR(OPTION)   --Show color demo. Indexed colors, 256 color, or 24bit color
  ;"DEMO24 --DEMONSTRATION OF 24 BIT COLOR 
+ ;
  ;"=======================================================================
  ;"Private Functions
  ;"=======================================================================
- ;"SETUPCHARS(CHARS) 
+ ;"SETUPCOLORMENU(MENU) --Setup menu array for use with RUNMENU^TMGUSRI7
  ;"GETIDXMAP(MAPARR) 
- ;"MAPIDXTO24BIT(IDXCOLOR,ISBKGND) 
- ;"DRAWPART(FACE,RA,GA,BA,RISMAX,GISMAX,BISMAX,OPTION) ;
  ;"DELTA1CLR(ARR,PCT) 
+ ;"DELTAINT(V,DELTA) ;
+ ;"DRAWPART(FACE,RA,GA,BA,RISMAX,GISMAX,BISMAX,OPTION) ;
  ;"BYTEVAL(A) ;"
  ;"AXISPCT(A) ;"
  ;"XFRM(FACE,RA,GA,BA,OPTION) --Transform (XFRM) RGB coordinates into XY screen coordinates.  
- ;"WEBCOLOR(NAME,COLORARR) --Get color vector, based on standardized web color names
- ;"GETWEBCOLORS(COLORARR) ;
  ;"SETUPCOLORMENU(MENU) -- Setup menu array for use with RUNMENU^TMGUSRI7
- ;"DELTA1CLR(V,PCT) --PCT SHOULD BE 0-1
- ;"DELTAINT(V,DELTA) 
  ;"DRAWLINE(CHARS,AXIS,START,STOP,R1,G1,B1,STEP,NOSTARTDOT,NOSTOPDOT) ;
- ;"SPLITPOS(POS,X,Y) ;
+ ;"SETUPCHARS(CHARS) 
  ;
  ;"=======================================================================
  ;"=======================================================================
@@ -145,6 +154,16 @@ COLORBOX(SETBG,SETFG)  ;"WRITE a grid on the screen, showing all the color combo
   QUIT
   ;  
   ;"=======================================================================
+COLOR24PAIR(FGNAME,BGNAME,ARR,FGC,BGC) ;"Return a 'FG^BG' based on web colornames.  24bit COLOR MODE
+  ;"Input: FGNAME -- the web color name (as defined in WEBCOLOR1 data) of foreground color
+  ;"       BGNAME -- the web color name (as defined in WEBCOLOR1 data) of background color
+  ;"       ARR -- OPTIONAL.  PASS BY REFERENCE.  Can use with repeated calls to save time.
+  ;"       FGC -- OPTIONAL. PASS BY REFERENC, AN OUT PARAMETER.  Returns chosen FG color
+  ;"       BGC -- OPTIONAL. PASS BY REFERENC, AN OUT PARAMETER.  Returns chosen BG color
+  SET FGC=$$WEBCOLOR(.FGNAME,.ARR)
+  SET BGC=$$WEBCOLOR(.BGNAME,.ARR)
+  QUIT FGC_"^"_BGC
+  ;         
 WEBCOLOR(NAME,COLORARR) ;"Get color vector, based on standardized web color names
   ;"Input: NAME -- NAME OF COLOR.  NOT Case sensitive
   ;"       COLORARR -- OPTIONAL.  PASS BY REFERENCE.  If provided, then data pulled from array.  Filled if empty.  
@@ -153,15 +172,24 @@ WEBCOLOR(NAME,COLORARR) ;"Get color vector, based on standardized web color name
   IF $DATA(COLORARR)=0 DO GETWEBCOLORS(.COLORARR)
   QUIT $GET(COLORARR("NAME",UNAME))
   ;
-RANDCOLOR(COLORARR) ;"Get random color vector
+RANDCOLOR(COLORARR) ;"Get random color vector 24bit
   ;"Input: COLORARR -- OPTIONAL.  PASS BY REFERENCE.  If provided, then data pulled from array.  Filled if empty.  
   ;"Result: color_vector^color_name, e.g. '255;192;203^ColorName'
   NEW UNAME SET UNAME=$$UP^XLFSTR($GET(NAME))
   IF $DATA(COLORARR)=0 DO GETWEBCOLORS(.COLORARR)
   NEW MAX SET MAX=COLORARR("IDX","MAX")
   NEW IDX SET IDX=$RANDOM(MAX)+1
+  SET IDX=$ORDER(COLORARR("IDX",IDX-0.5))
   NEW ACOLOR SET ACOLOR=$GET(COLORARR("IDX",IDX))
   QUIT ACOLOR
+  ;
+RANDCOLORPAIR(COLORARR) ;"Get pair random color vector 24bit, with FG being inverse of random BG
+  ;"Input: COLORARR -- OPTIONAL.  PASS BY REFERENCE.  If provided, then data pulled from array.  Filled if empty.  
+  ;"Result: color_vector^color_vector
+  NEW BG SET BG=$$RANDCOLOR(.COLORARR) 
+  SET BG=$PIECE(BG,"^",1)
+  NEW FG SET FG=$$INVCLRVEC^TMGTERM(BG)
+  QUIT FG_"^"_BG
   ;
 SETUPCOLORMENU(MENU) ;"Setup menu array for use with RUNMENU^TMGUSRI7
   NEW ARR DO GETWEBCOLORS(.ARR)
@@ -400,10 +428,12 @@ WEBCOLORL1 ;
   ;  
   ;"=======================================================================
   ;"=======================================================================
-COLORPAIR(FG,BG,ARR) ;"Return a 'FG^BG' based on names.  INDEXED COLOR MODE
+COLORPAIR(FG,BG,ARR,FGC,BGC) ;"Return a 'FG^BG' based on names.  INDEXED COLOR MODE
   ;"Input: FG -- the name (as defined below) of foreground color
   ;"       BG -- the name (as defined below) of background color
-  ;"       ARR -- OPTIONAL.  PASS BY REFERENCE.  Can use with repeated calls to save time.  
+  ;"       ARR -- OPTIONAL.  PASS BY REFERENCE.  Can use with repeated calls to save time.
+  ;"       FGC -- OPTIONAL. PASS BY REFERENC, AN OUT PARAMETER.  Returns chosen FG color
+  ;"       BGC -- OPTIONAL. PASS BY REFERENC, AN OUT PARAMETER.  Returns chosen BG color
   IF $DATA(TMGCOLBLACK)=0 DO SETGBLCO
   IF $DATA(ARR)=0 DO       
   . SET ARR("FG","BLACK")=TMGCOLBLACK                    ;"0
@@ -439,11 +469,15 @@ COLORPAIR(FG,BG,ARR) ;"Return a 'FG^BG' based on names.  INDEXED COLOR MODE
   . SET ARR("BG","BRIGHT CYAN")=TMGCOLBCYAN              ;"13
   . SET ARR("BG","DARK GREY")=TMGCOLBGREY                ;"14
   . SET ARR("BG","WHITE")=TMGCOLWHITE                    ;"15
-  NEW FGC SET FGC=$GET(ARR("FG",$$UP^XLFSTR(FG)),0)
-  NEW BGC SET BGC=$GET(ARR("BG",$$UP^XLFSTR(BG)),15)
+  SET FGC=$GET(ARR("FG",$$UP^XLFSTR(FG)),0)
+  SET BGC=$GET(ARR("BG",$$UP^XLFSTR(BG)),15)
   SET RESULT=FGC_"^"_BGC
   QUIT RESULT
-  ;    
+  ;   
+ISCOLORPAIR(PAIR)  ;"Does PAIR have #^# format?
+  NEW RESULT SET RESULT=PAIR?1.3N1"^"1.3N
+  QUIT RESULT
+  ;
 SETGBLCO   ;"Set Global Colors
   SET TMGCOLBLACK=0
   SET TMGCOLRED=1
@@ -523,7 +557,7 @@ PICKFGC(FG,BG,COLORMODE)   ;
   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
   NEW RESULT 
   IF $GET(COLORMODE)="24bit" DO
-  . SET RESULT=$$PICKCOLOR24()
+  . SET RESULT=$$PICKCOLOR24(,.FG)
   ELSE  DO
   . DO COLORBOX(.BG)
   . SET RESULT=$$PICK1COL("Foreground (FG)",.FG)
@@ -536,7 +570,7 @@ PICKBGC(INITVAL,COLORMODE)   ;
   ;"Results: returns value 0-15 IF selected, or -1 IF abort.
   NEW RESULT
   IF $GET(COLORMODE)="24bit" DO
-  . SET RESULT=$$PICKCOLOR24()
+  . SET RESULT=$$PICKCOLOR24(,.INITVAL)
   ELSE  DO
   . DO COLORBOX(,1)
   . SET RESULT=$$PICK1COL("Background (BG)",.INITVAL)
@@ -594,7 +628,7 @@ INDEXMAP ;" Taken from here: https://en.wikipedia.org/wiki/ANSI_escape_code.  NO
  ;;"97      | 107    | 14      | 15     | Bright  White         | 255;255;255  | 255;255;255    | 255;255;255     |  229;229;229  |  242;242;242  | 230;230;230     |  255;255;255  | 255;255;255   | 255;255;255  | 255;255;255    | 255;255;255
  ;;"<DONE>                                               
  ;  
-PICKCOLOR24(OPTION) ;"Display colors and allow user to pick desired color.  
+PICKCOLOR24(OPTION,INITCOLOR) ;"Display colors and allow user to pick desired color.  
   ;"Input: OPTION.  OPTIONAL.  PASS BY REFERENCE.
   ;"         OPTION("WORLD->DISPLAY X OFFSET")
   ;"         OPTION("WORLD->DISPLAY Y OFFSET") 
@@ -605,10 +639,12 @@ PICKCOLOR24(OPTION) ;"Display colors and allow user to pick desired color.
   ;"         OPTION("DEPTH")       NOTE: if value set 15 or higher, causes bug, not sure why yet.
   ;"         OPTION("SHOW FRAME")  if 1, outer frame shown
   ;"         OPTION("SHOW SELECTED") if 1 then a box displaying color is shown
+  ;"        INITCOLOR -- OPTIONAL.  If not provided, default is "220;220;220"
   ;"RESULT: returns 24bit color vector triple, CLRVEC24.  '#;#;#'
   ;
   NEW R,G,B,INPUT,CHANGED
-  SET (R,G,B)=220               
+  SET INITCOLOR=$GET(INITCOLOR,"220;220;220")
+  SET R=$PIECE(INITCOLOR,";",1),G=$PIECE(INITCOLOR,";",2),B=$PIECE(INITCOLOR,";",3)
   NEW DONE SET DONE=0
   ;"NOTE  : There are 3 coordinate systems: 
   ;"   WORLD coordinates (3D).  Same as RGB coordinates.   <0,0,0> is in world base back right corner 
@@ -659,10 +695,10 @@ PICKCOLOR24(OPTION) ;"Display colors and allow user to pick desired color.
   SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="         A/Z: "_UPDNCHAR_" Light/Dark"       
   SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="           ?: Pick color by NAME"
   NEW TEXTHOMEX,TEXTHOMEY SET TEXTHOMEX=0,TEXTHOMEY=DISPHEIGHT-LINECT; 
-  NEW Y
+  NEW Y                              
   NEW FRAMECT SET FRAMECT=0
   NEW KEYBUFEMPTY
-  NEW AUTOKEY,AUTOCT SET AUTOKEY="RIGHT",AUTOCT=50 ;20
+  NEW AUTOKEY,AUTOCT SET AUTOKEY="RIGHT",AUTOCT=0 ;20
 CB24L1 ;
   SET KEYBUFEMPTY=0
   USE $P  ;"Set IO to interactive
@@ -747,13 +783,19 @@ CB24DN ;
   WRITE #
   QUIT S                 
   ;
-LIGHTERCLR(CLRVEC,LIGHTPCT) ;
+LIGHTERCLR(CLRVEC,LIGHTPCT) ;"Return 24B color that is % lighter than input
+  ;"INPUT: CLRVEC -- 24bit color vector
+  ;"       LIGHTPCT -- percentage, should be 0.0-1.0
   QUIT $$DELTACOLOR(.CLRVEC,LIGHTPCT)
   ;
-DARKERCLR(CLRVEC,DARKPCT) ;
+DARKERCLR(CLRVEC,DARKPCT) ;"Return 24B color that is % darker than input
+  ;"INPUT: CLRVEC -- 24bit color vector
+  ;"       DARKPCT -- percentage, should be 0.0-1.0
   QUIT $$DELTACOLOR(.CLRVEC,-DARKPCT)
   ;
-DELTACOLOR(CLRVEC,SHADEPCT) ;
+DELTACOLOR(CLRVEC,SHADEPCT) ;"Return 24B color that is +/- % changed from ligher/darker than input
+  ;"INPUT: CLRVEC -- 24bit color vector
+  ;"       SHADEPCT -- percentage, should be 0.0-1.0
   NEW R,G,B DO V24TORGB^TMGTERM(CLRVEC,.R,.G,.B) ;"Split CLRVEC24 to R,G,B components.  
   DO DELTA1CLR(.R,SHADEPCT)
   DO DELTA1CLR(.G,SHADEPCT)
@@ -761,6 +803,8 @@ DELTACOLOR(CLRVEC,SHADEPCT) ;
   QUIT $$CLRVEC24^TMGTERM(R,G,B)
   ;
 DELTA1CLR(V,PCT) ;"PCT SHOULD BE 0-1
+  ;"INPUT: V -- 24bit color vector
+  ;"       PCT -- percentage, should be 0.0-1.0
   IF PCT<0 DO
   . NEW DELTA SET DELTA=255*(-PCT)
   . IF DELTA<1 SET DELTA=1
@@ -800,7 +844,7 @@ DRAWCLRBOX24(R,G,B,OPTION) ;"Do drawing of color cube.
   ;"8  -3     .#.#.#.#.#.#.#\###########.##############    
   ;"9  -2    .#.#.#.#.#.#.#.#\#########.################  
   ;"0  -1   .#.#.#.#.#.#.#.#.#\#######.################## 
-  ;"1   1  .#.#.#.#.#.#.#.#.#.#*-----.-------------------   RED AXIS
+  ;"1   1  .#.#.#.#.#.#.#.#.#.#*-------------------------   RED AXIS
   ;"2   2   .#.#.#.#.#.#.#.#.#/#######.################## 
   ;"3   3    .#.#.#.#.#.#.#.#/#########.################  
   ;"4   4     .#.#.#.#.#.#.#/###########.##############   
@@ -1004,8 +1048,12 @@ SETUPCHARS(CHARS) ;"SETUP ARRAY OF UNICODE CHARS.
   SET CHARS("#")="$22A1"   ;"$22A1 is squared dot,
   QUIT  
   ;
-SPLITPOS(POS,X,Y) ;
+SPLITPOS(POS,X,Y) ;"Split 'X^Y' into X and Y
   SET X=$PIECE(POS,"^",1)
   SET Y=$PIECE(POS,"^",2)
   QUIT
   ;
+SPLITCOLORPAIR(COLORPAIR,FG,BG)  ;"Split CLRVEC24 pair into FG and BG
+  SET FG=$PIECE(COLORPAIR,"^",1)
+  SET BG=$PIECE(COLORPAIR,"^",2)
+  QUIT

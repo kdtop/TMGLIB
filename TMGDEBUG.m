@@ -55,3 +55,8 @@ ARRNODES(PARR) ;
   . SET TMGI=$ORDER(@PARR@(TMGI))
   QUIT
   ;
+SYSSTATUSDUMP(ARG) ;"Dump ZSHOW info to global
+  ;"Input: ARG -- optional  Default is "*"
+  SET ARG=$GET(ARG,"*")
+  NEW zzstackDump ZSHOW ARG:^TMP("TMGIDE",$J,$H)
+  QUIT

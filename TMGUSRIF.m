@@ -64,6 +64,8 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"                 @TMGPSCRLARR@("COL",3,5,7,"TXT",3)="  3rd line can go here. "   
   ;"                 @TMGPSCRLARR@("COL",3,"SELECTED",<#>)=1 if selected
   ;"       OPTION -- PASS BY REFERENCE.  format:
+  ;"          OPTION("UNICODE LINES")=1  If found, then unicode drawing chars use.  Otherwise "-" used.  
+  ;"          OPTION("UNICODE LINES","OPTION")=<ARRAY> OPTIONAL.  Options passed to DRAWHLINE^TMGTERM.  See details there.  
   ;"          OPTION("HEADER",1)=Header line TEXT
   ;"          OPTION("HEADER",2)=More Header line TEXT (any number of lines)
   ;"          OPTION("HEADER","COL",<COL#>)=Header for specified column #.  IGNORED unless OPTION("COLUMNS","NUM") > 1
@@ -79,10 +81,13 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"                                   NOTE: OPTION("SCRN HEIGHT") should be set to shortened value to account for top blank lines.
   ;"                                   This was primarly implemented to allow debugger to run on top of screen with scroller on bottom. 
   ;"          ---- COLORs (optional) ------
-  ;"          NOTE: This routine doesn't intrinsically know about the names of colors, e.g. 'RED', or 'BLUE'. 
+  ;"          NOTE: When writing text such as 'This is {{HIGH}}text.', the HIGH color will be set, based on definition below. 
+  ;"                This scroller  doesn't intrinsically know about the names of colors, e.g. 'RED', or 'BLUE'. 
   ;"                It expect '#^#' pairs instead
   ;"                In order to convert names to pairs, use --> e.g. $$COLORPAIR^TMGUSRI8("WHITE","BLUE",.TMPCLR)
   ;"                ALSO, a color name can be defined; see 'SomeName' example below.   
+  ;"                ALTERNATIVELY, this is supported: 'This is {{5^8}}text' which will set FG to 5 and BG to 8
+  ;"                               or FG^BG can both be CLRVEC24's.  E.g. {{0;0;0^255;255;255}}  (see TMGTERM for details)
   ;"          OPTION("COLORS","NORM")=FG^BG  -- default foreground (FG) and background(colors)
   ;"                 If not provided, White on Blue used.
   ;"          OPTION("COLORS","HIGH")=FG^BG  -- Highlight colors. If not provided, White on Cyan used.
@@ -156,10 +161,12 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"                  INFO("DRAW MAIN","SHOW INDEX")=SHOWIDX
   ;"                  INFO("DRAW MAIN","DATA INDEX")=IDX      
   ;"                  INFO("DRAW MAIN","COLUMN NUM")=COLNUM    <-- READ ONLY
+  ;"                  INFO("DRAW MAIN","COLORS")=COLORS (merged array) <-- READ ONLY  
+  ;"          OPTION("ON BEFORE FOOTERS")="FnName^Module" -- code to execute before Footers drawn.   E.g. DO FnName^Module(TMGPSCRLARR,.OPTION,.INFO) 
   ;"          NOTES about events.  Functions will be called as follows:
   ;"              DO FnName^Module(TMGPSCRLARR,.OPTION,.INFO)
   ;"                TMGPSCRLARR and OPTION are the same data received by this function
-  ;"                  -- thus OPTION can be used to can other custom information.
+  ;"                  -- thus OPTION can be used to carry other custom information.
   ;"                INFO has extra info as outlined above.
   ;"              Functions may set a globally-scoped var named TMGSCLRMSG to communicate back
   ;"                      TMGSCLRMSG="^" --> Scroller will exit
@@ -167,23 +174,23 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"              Functions may set OPTION("HIGHLINE")=# or OPTION("COLUMNS",<COL#>,"HIGHLINE")=# to tell 
   ;"                      the scroller to set the highlight line to #.  This will not trigger further events
   ;"Result: none
-  ;
-  NEW SCRNLINE,SPACELINE ;"To hold string for "   " and "---" lines, matching width of display area. 
-  NEW WIDTH        ;"Array, for widths of each column: WIDTH(<col#>)=#
-  NEW MAINTOP      ;"Screen Y position of first line of main area
-  NEW TOPLINE      ;"Array, for starting data index of first line in main area. TOPLINE(<col#>)=<starting data index>
-  NEW HIGHLINE     ;"Array, for data index of highlighted line in main area. HIGHLINE(<col#>)=<data index>
-  NEW XOFFSET      ;"Array, for holding X offset, which allows left-right scrolling.  
-  NEW INFO         ;"Array, for holding information to pass to event handlers     
-  NEW ENTRYCT      ;"Array, for holding number of data elements for column. ENTRYCT(<col#>)=<number of data elements>
-  NEW NUMIDXDIGITS ;"Array, for max number of digits if showing index numbers, per column.  NUMIDXDIGITS(<col#>)=#
-  NEW MAINLINES    ;"Number of screen lines in main area.
-  NEW COLS         ;"Number of columns to display
-  NEW ACTIVECOL    ;"Which column is active, meaning hold user cursor
-  NEW BUILDCMD SET BUILDCMD="" ;"Var to hold command as user builds it up through typing letters
+  ;            
+  NEW SCRNLINE,SPACELINE            ;"To hold string for "   " and "---" lines, matching width of display area. 
+  NEW WIDTH                         ;"Array, for widths of each column: WIDTH(<col#>)=#
+  NEW MAINTOP                       ;"Screen Y position of first line of main area
+  NEW TOPLINE                       ;"Array, for starting data index of first line in main area. TOPLINE(<col#>)=<starting data index>
+  NEW HIGHLINE                      ;"Array, for data index of highlighted line in main area. HIGHLINE(<col#>)=<data index>
+  NEW XOFFSET                       ;"Array, for holding X offset, which allows left-right scrolling.  
+  NEW INFO                          ;"Array, for holding information to pass to event handlers     
+  NEW ENTRYCT                       ;"Array, for holding number of data elements for column. ENTRYCT(<col#>)=<number of data elements>
+  NEW NUMIDXDIGITS                  ;"Array, for max number of digits if showing index numbers, per column.  NUMIDXDIGITS(<col#>)=#
+  NEW MAINLINES                     ;"Number of screen lines in main area.
+  NEW COLS                          ;"Number of columns to display
+  NEW ACTIVECOL                     ;"Which column is active, meaning hold user cursor
+  NEW BUILDCMD SET BUILDCMD=""      ;"Var to hold command as user builds it up through typing letters
   NEW TMGSCLRMSG SET TMGSCLRMSG=""  ;"Special variable available to event handlers to send back message by setting value
-  NEW LASTSCRNW SET LASTSCRNW=-1 ;"Var to track if screen size has changed. 
-  NEW FNCYCLE      ;"1 to enable and show instructions for FN to cycle active column  
+  NEW LASTSCRNW SET LASTSCRNW=-1    ;"Var to track if screen size has changed. 
+  NEW FNCYCLE                       ;"1 to enable and show instructions for FN to cycle active column  
 
   DO SETDEFCOLORS(.OPTION)
   NEW SCRNH DO CHECKSCRNHEIGHT(.SCRNH,.OPTION) 
@@ -201,10 +208,11 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   . . ;  
   . . DO DRAWHEADER(.OPTION,.SCRNW,.MAINTOP,.WIDTH) ;"DRAW HEADER AREA
   . . DO DRAWMAIN(.OPTION,.WIDTH,.MAINTOP)   ;"DRAW MAIN AREA
+  . . DO EVENT(.OPTION,"ON BEFORE FOOTERS")
   . . DO DRAWFOOTER(.OPTION)                 ;"DRAW FOOTER AREA
   . . ;
   . . DO PREPINFO(.INFO,TMGPSCRLARR,"CURRENT LINE",HIGHLINE(1))  
-  . . DO DRAWCMDAREA()  
+  . . DO DRAWCMDAREA()
   . . ;
   . SET TMGSCLRMSG=""  ;"Initialize message variable that can be used by event handlers to send back message. 
   . NEW TEMP SET TEMP=$$USER(.OPTION)  ;"interact with users, trigger events etc. 
@@ -399,6 +407,7 @@ DRAWHEADER(OPTION,SCRNW,MAINTOP,WIDTH) ;
   ;"          SCRNLINE
   SET MAINTOP=$GET(OPTION("SCRN TOP OFFSET"),1)
   DO CUP^TMGTERM(1,MAINTOP)
+  NEW NUMCOLS SET NUMCOLS=+$GET(OPTION("COLUMNS","NUM"))
   IF $DATA(OPTION("HEADER")) DO
   . DO SETCOLOR("HEADER",.OPTION)
   . NEW IDX SET IDX=""
@@ -411,7 +420,6 @@ DRAWHEADER(OPTION,SCRNW,MAINTOP,WIDTH) ;
   . . IF HALFPAD'=(PAD/2) SET HALFPAD=(PAD\2)+1
   . . NEW IDX FOR IDX=1:1:HALFPAD SET TEXT=TEXT_" "  
   . . DO WCLTEXT(TEXT,SCRNW,.OPTION) WRITE ! SET MAINTOP=MAINTOP+1
-  . NEW NUMCOLS SET NUMCOLS=+$GET(OPTION("COLUMNS","NUM"))
   . IF $DATA(OPTION("HEADER","COL")),NUMCOLS>1 DO
   . . NEW TEXT SET TEXT=""
   . . NEW COLNUM FOR COLNUM=1:1:NUMCOLS DO
@@ -426,18 +434,34 @@ DRAWHEADER(OPTION,SCRNW,MAINTOP,WIDTH) ;
   . . . NEW IDX FOR IDX=1:1:HALFPAD-1 SET TEXT(COLNUM)=TEXT(COLNUM)_" "
   . . . SET TEXT(COLNUM)=TEXT(COLNUM)_$SELECT(COLNUM<NUMCOLS:"|",1:" ")
   . . FOR COLNUM=1:1:NUMCOLS SET TEXT=TEXT_TEXT(COLNUM)
-  . . DO SETCOLOR("TOP LINE",.OPTION)
-  . . WRITE SCRNLINE,! SET MAINTOP=MAINTOP+1  
+  . . DO DRAWSCRNLINE("TOP LINE",.OPTION)
+  . . SET MAINTOP=MAINTOP+1  
   . . DO SETCOLOR("HEADER",.OPTION)
-  . . DO WCLTEXT(TEXT,SCRNW,.OPTION,1) WRITE ! SET MAINTOP=MAINTOP+1
+  . . DO WCLTEXT(TEXT,SCRNW,.OPTION,1) 
+  . . WRITE ! SET MAINTOP=MAINTOP+1
+  DO DRAWSCRNLINE("TOP LINE",.OPTION)
+  SET MAINTOP=MAINTOP+1
+  IF $DATA(OPTION("HEADER","COL")),NUMCOLS>1,$GET(OPTION("UNICODE LINES"))=1 DO
+  . NEW LINEOPT MERGE LINEOPT=OPTION("UNICODE LINES","OPTION")  
+  . NEW FG,BG DO SETCOLOR("TOP LINE",.OPTION,.FG,.BG)
+  . NEW COLPOS SET COLPOS=0
+  . NEW COLNUM FOR COLNUM=0:1:NUMCOLS DO
+  . . IF COLNUM=0 DO
+  . . . DO DRAWCRT^TMGTERM2(1,MAINTOP-3,3,FG,BG,.LINEOPT)         ;"DRAW [ ON LEFT SIDE
+  . . . SET COLPOS=WIDTH(1)
+  . . ELSE  IF COLNUM=NUMCOLS DO
+  . . . DO DRAWCLF^TMGTERM2(SCRNW,MAINTOP-3,3,FG,BG,.LINEOPT)     ;"DRAW ] ON RIGHT SIDE
+  . . ELSE  DO
+  . . . DO DRAWIBEAM^TMGTERM2(COLPOS,MAINTOP-3,3,FG,BG,.LINEOPT)  ;"DRAW I
+  . . . SET COLPOS=COLPOS+WIDTH(COLNUM+1)
+  . DO CUP^TMGTERM(1,MAINTOP)
+
   QUIT
   ;
 DRAWMAIN(OPTION,WIDTH,MAINTOP) ;
   ;"NOTE: Uses vars in global scope, defined in SCROLLER scope: 
   ;"          SCRNLINE,COLS,HIGHLINE,TOPLINE,NUMIDXDIGITS,MAINLINES,INFO
   NEW SHOWIDX
-  DO SETCOLOR("TOP LINE",.OPTION)
-  WRITE SCRNLINE,! SET MAINTOP=MAINTOP+1
   NEW COLNUM FOR COLNUM=1:1:COLS DO
   . NEW XPOS SET XPOS=$$COLLEFT(.WIDTH,COLNUM)
   . NEW DATAREF SET DATAREF=$$DATAREF(COLNUM)
@@ -446,7 +470,7 @@ DRAWMAIN(OPTION,WIDTH,MAINTOP) ;
   . DO SETCOLOR("NORM",.COLORS)
   . NEW LINECT FOR LINECT=1:1:MAINLINES DO 
   . . NEW IDX SET IDX=TOPLINE(COLNUM)+LINECT-1  ;"DATA INDEX
-  . . DO CUP^TMGTERM(XPOS,MAINTOP+LINECT-1)
+  . . NEW YPOS SET YPOS=MAINTOP+LINECT-1
   . . NEW TEXT SET TEXT=$$GETDATATEXT(COLNUM,IDX,.HIGHLINE,.XOFFSET)
   . . NEW SELECTED SET SELECTED=$SELECT(COLNUM=1:+$GET(@TMGPSCRLARR@("SELECTED",IDX)),1:0)
   . . NEW ONHIGHLINE SET ONHIGHLINE=(IDX=HIGHLINE(COLNUM))&(COLNUM=ACTIVECOL)
@@ -460,6 +484,7 @@ DRAWMAIN(OPTION,WIDTH,MAINTOP) ;
   . . . SET INFO("DRAW MAIN","SHOW INDEX")=SHOWIDX
   . . . SET INFO("DRAW MAIN","DATA INDEX")=IDX
   . . . SET INFO("DRAW MAIN","COLUMN NUM")=COLNUM    ;"<-- READ ONLY
+  . . . MERGE INFO("DRAW MAIN","COLORS")=COLORS      ;"<-- READ ONLY
   . . . DO EVENT(.OPTION,"ON DRAW MAIN LINE")
   . . . SET TEXT=$GET(INFO("DRAW MAIN","TEXT"))
   . . . SET SELECTED=$GET(INFO("DRAW MAIN","SELECTED"))
@@ -469,10 +494,17 @@ DRAWMAIN(OPTION,WIDTH,MAINTOP) ;
   . . . SET IDX=+$GET(INFO("DRAW MAIN","DATA INDEX"))
   . . NEW INDEXSTR SET INDEXSTR=""
   . . IF SHOWIDX SET INDEXSTR="{{INDEX}}"_$$RJ^XLFSTR(IDX,NUMIDXDIGITS(COLNUM))_"."
-  . . SET TEXT=INDEXSTR_"{{"_TEXTCOLOR_"}}"_TEXT
+  . . IF TEXTCOLOR'="" SET TEXTCOLOR="{{"_TEXTCOLOR_"}}"
+  . . SET TEXT=INDEXSTR_TEXTCOLOR_TEXT
   . . NEW TEXTLEN SET TEXTLEN=$$NOCOLEN(TEXT)
   . . NEW TAILPAD SET TAILPAD=$EXTRACT(SPACELINE,1,(WIDTH(COLNUM)-TEXTLEN))
   . . SET TEXT=TEXT_TAILPAD
+  . . DO CUP^TMGTERM(XPOS,YPOS)
+  . . ;"DEBUGGING
+  . . ;"NEW AREF SET AREF=$NAME(^TMP("TMGUSRIF",$J))
+  . . ;"NEW ZZ SET ZZ=$ORDER(@AREF@(""),-1)+1
+  . . ;"SET @AREF@(ZZ)=$H_"; XPOS="_XPOS_", YPOS="_YPOS
+  . . ;"---
   . . DO WCLTEXT(TEXT,$$COLRIGHT(.WIDTH,COLNUM),.COLORS)
   . . DO SETCOLOR("RESET",.COLORS) WRITE !
   QUIT
@@ -483,8 +515,7 @@ DRAWFOOTER(OPTION) ;
   SET FNCYCLE=$GET(OPTION("COLUMNS","FN TOGGLE NUM"))
   IF (FNCYCLE'="")&(COLS>1) DO
   . SET OPTION("FOOTER",0,0)=FNCYCLE_" CYCLE ACTIVE COLUMN"
-  DO SETCOLOR("BOTTOM LINE",.OPTION)
-  WRITE SCRNLINE,!
+  DO DRAWSCRNLINE("BOTTOM LINE",.OPTION) ;
   DO SETCOLOR("FOOTER",.OPTION)
   NEW IDX SET IDX=""
   FOR  SET IDX=$ORDER(OPTION("FOOTER",IDX)) QUIT:(IDX="")  DO
@@ -510,7 +541,20 @@ DRAWFOOTER(OPTION) ;
   . . . ELSE  DO
   . . . . SET STRA=$EXTRACT(STR,1,SCRNW)
   . . . . SET STR=$EXTRACT(STR,SCRNW+1,$LENGTH(STR))
-  . . . WRITE STRA,!
+  . . . WRITE STRA,!               
+  QUIT
+  ;
+DRAWSCRNLINE(COLORMODE,OPTION) ;
+  ;"NOTE: Uses vars in global scope, defined in SCROLLER scope:
+  ;"       SCRNLINE
+  NEW FG,BG
+  DO SETCOLOR(COLORMODE,.OPTION,.FG,.BG)
+  IF $GET(OPTION("UNICODE LINES"))=1 DO
+  . NEW LINEOPT MERGE LINEOPT=OPTION("UNICODE LINES","OPTION")
+  . DO DRAWHLINE^TMGTERM2($X,$Y,$LENGTH(SCRNLINE),FG,BG,.LINEOPT)
+  . WRITE !
+  ELSE  DO
+  . WRITE SCRNLINE,!
   QUIT
   ;
 DRAWCMDAREA()  ;
@@ -524,13 +568,13 @@ GETDATATEXT(COLNUM,IDX,HIGHLINE,XOFFSET)
   IF COLNUM=1 DO
   . SET TEXT=$ORDER(@TMGPSCRLARR@(IDX,""))
   ELSE  DO
-  . ;"NEW LEFTSEL SET LEFTSEL=HIGHLINE(COLNUM-1)
-  . ;"SET TEXT=$GET(@TMGPSCRLARR@("COL",COLNUM,LEFTSEL,IDX))
   . NEW REF SET REF=$$DATAREF(COLNUM)    
   . SET TEXT=$GET(@REF@(IDX))      
   IF TEXT[$CHAR(9) SET TEXT=$$REPLSTR^TMGSTUT3(TEXT,$CHAR(9),"  ")
   IF $GET(XOFFSET(COLNUM))>0 DO
-  . SET TEXT=$$MIDSTRCOLOR^TMGSTUT3(TEXT,XOFFSET(COLNUM)+1,$LENGTH(TEXT))
+  . ;"SET TEXT=$$MIDSTRCOLOR^TMGSTUT3(TEXT,XOFFSET(COLNUM)+1,$LENGTH(TEXT))
+  . NEW OPTION SET OPTION("KEEP TAGS")=1  
+  . SET TEXT=$$MKSTRMID^TMGSTUT3(.TEXT,XOFFSET(COLNUM)+1,$LENGTH(TEXT),"{{","}}",.OPTION)
   QUIT TEXT
   ;
 INITSCREEN() ;
@@ -650,6 +694,7 @@ ENSURHLONSCRN(HIGHLINE,TOPLINE,COL) ;"Ensure the highline (selected line) is on 
   QUIT
   ;
 INBOUNDS(NUM,LOW,HI) ;"Return number, within bounds
+  IF LOW>HI NEW ZZ SET ZZ=HI,HI=LOW,LOW=ZZ
   NEW RESULT SET RESULT=$SELECT(NUM<LOW:LOW,NUM>HI:HI,1:NUM)
   QUIT RESULT
   ;
@@ -689,6 +734,9 @@ WCLTEXT(TEXT,MAXX,OPTION,CLIP) ;"WRITE (OPTIONALLY) COLORED TEXT
   . DO TRIMWRITE(TEXTA,MAXX,.CLIP)
   . IF $$COLORDEFINED(TEXTCOLOR,.OPTION) DO
   . . DO SETCOLOR(TEXTCOLOR,.OPTION)
+  . ELSE  IF $$ISCOLORPAIR^TMGUSRI8(TEXTCOLOR)!$$ISCOLOR24PAIR^TMGTERM(TEXTCOLOR) DO
+  . . NEW FG,BG SET FG=$PIECE(TEXTCOLOR,"^",1),BG=$PIECE(TEXTCOLOR,"^",2)
+  . . DO COLORS^TMGTERM(FG,BG)
   . ELSE  WRITE "{{"_TEXTCOLOR_"}}"
   DO TRIMWRITE(TEXT,MAXX,.CLIP)
   QUIT
@@ -750,20 +798,21 @@ EVENT(OPTION,EVENT) ;"Trigger event, if defined.
 COLORDEFINED(LABEL,OPTION) ;"Return if color has been defined.
   QUIT ($DATA(OPTION("COLORS",LABEL))>0)
   ;
-SETCOLOR(LABEL,OPTION) ;
+SETCOLOR(LABEL,OPTION,FG,BG) ;
   ;"Purpose: to SET color, based on LABEL name. (A utility function for Scroller)
   ;"Input: LABEL -- the name of the color, i.e. NORM, HIGH, etc.
   ;"              If LABEL=REST, then special ResetTerminal function called.
   ;"       OPTION -- PASS BY REFERENCE.  The same option array passed to Scroller, with color info
   ;"                Specifically used: OPTION('COLORS',SomeName,'FG')=foregroundCOLOR
   ;"                                 OPTION('COLORS',SomeName,'BG')=backgroundCOLOR
+  ;"       FG,BG -- OPTIONAL.  OUT PARAMETERS.  PASS BY REFERENCE to retrieve resulting FG and BG colors.  
   ;"Note: IF color label not found, then no color change is made.
   ;
   NEW SAVEIF SET SAVEIF=$T
   IF LABEL="RESET" DO VTATRIB^TMGTERM(0) QUIT  ;"reset colors
   IF $DATA(OPTION("COLORS",LABEL))=0 DO SETDEFCOLORS(.OPTION)  ;
-  NEW FG SET FG=$GET(OPTION("COLORS",LABEL,"FG"),1) ;"default to black
-  NEW BG SET BG=$GET(OPTION("COLORS",LABEL,"BG"),0) ;"default to white
+  SET FG=$GET(OPTION("COLORS",LABEL,"FG"),1) ;"default to black
+  SET BG=$GET(OPTION("COLORS",LABEL,"BG"),0) ;"default to white
   IF BG="@" SET BG=$GET(OPTION("COLORS","NORM","BG"),0) ;"default to white
   DO COLORS^TMGTERM(FG,BG)
   IF SAVEIF  ;"restore $T
@@ -806,7 +855,7 @@ PARSCOLR(TEXT,TEXTA)  ;
   ;"          Output TEXTA = 'This is '
   ;"            function result = 'HIGH'
   ;"Input: TEXT -- PASS BY REFERENCE
-  ;"         TEXTA -- PASS BY REFERENCE, and OUT PARAMETER
+  ;"         TEXTA -- PASS BY REFERENCE, an OUT PARAMETER
   ;"Result: the color name inside brackets, e.g. 'HIGH'
   NEW STR,RESULT
   SET STR=TEXT

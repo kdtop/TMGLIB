@@ -193,7 +193,8 @@ DoWrite(s,CurLen,MaxLen)
 MarkupLine(LINE,OPTIONS)
   ;"Purpose: To take an arbitrary LINE of code and parse into data structure
   ;"Input : LINE -- the line of code to consider.  DON'T pass by reference.
-  ;"        OPTIONS -- PASS BY REFERENCE.   Format:
+  ;"        OPTIONS -- PASS BY REFERENCE. 
+  ;"             OPTIONS("Tab") -- optional.  Length of tabs.  Default = 5
   ;"Results: Returns line with color encoding.  
   NEW RESULT SET RESULT=""
   NEW TOKEN,CMD,ARG,TABSTR,POS,CH
@@ -413,155 +414,392 @@ NextBlock(LINE,Div)
   ;
 INITCOLORS
   ;"Purpose: to establish tmgDbgOptions globally-scoped var for colors,
-  NEW USERREF SET USERREF=$name(^TMG("TMGIDE",$J,"COLORS"))
-  NEW MASTERREF SET MASTERREF=$name(^TMG("TMGIDE","COLORS"))
-  IF ($DATA(@USERREF)=0) do
-  . IF ($DATA(@MASTERREF)'=0) do
-  . . MERGE @USERREF=^TMG("TMGIDE","COLORS") ;"copy master into job's
-  . ELSE  do
-  . . IF $DATA(TMGCOLBLACK)=0 DO SETGBLCO^TMGUSRI8
-  . . SET @USERREF@("BACKGROUND")=TMGCOLBLUE
-  . . SET @USERREF@("HighExecPos")=TMGCOLGREY
-  . . SET @USERREF@("HighBkPos")=TMGCOLBRED
-  . . SET @USERREF@("BkPos")=TMGCOLRED
-  . . SET @USERREF@("Highlight")=TMGCOLFGBWHITE
-  . . ;"-----------------------------------
-  . . SET @USERREF@("LABEL","fg")=TMGCOLBYELLOW
-  . . SET @USERREF@("LABEL","bg")=TMGCOLRED
-  . . SET @USERREF@("SPECIAL","fg")=TMGCOLBYELLOW
-  . . SET @USERREF@("SPECIAL","bg")=TMGCOLRED
-  . . ;"-----------------------------------
-  . . SET @USERREF@("NORM","fg")=TMGCOLFGBWHITE
-  . . SET @USERREF@("NORM","bg")="@" ;"signal to use current background color
-  . . SET @USERREF@("CMD","fg")=TMGCOLBRED
-  . . SET @USERREF@("CMD","bg")="@"
-  . . SET @USERREF@("FN","fg")=TMGCOLBCYAN
-  . . SET @USERREF@("FN","bg")="@"
-  . . SET @USERREF@("MOD","fg")=TMGCOLBBLUE
-  . . SET @USERREF@("MOD","bg")="@"
-  . . SET @USERREF@("IFN","fg")=TMGCOLRED
-  . . SET @USERREF@("IFN","bg")="@"
-  . . SET @USERREF@("STR","fg")=TMGCOLBMAGENTA
-  . . SET @USERREF@("STR","bg")="@"
-  . . SET @USERREF@("PC","fg")=TMGCOLBRED
-  . . SET @USERREF@("PC","bg")="@"
-  . . SET @USERREF@("#","fg")=TMGCOLBYELLOW
-  . . SET @USERREF@("#","bg")="@"
-  . . MERGE @MASTERREF=@USERREF
+  NEW CURREF,MASTERREF,USERREF DO GETCOLORSTOREREF(.CURREF,.MASTERREF,.USERREF)
+  DO INITCOLORSREF(CURREF,MASTERREF,USERREF) 
   QUIT
   ;
-EditColors
+INITCOLORSREF(CURREF,MASTERREF,USERREF) ;
+  ;"Purpose: to establish tmgDbgOptions globally-scoped var for colors,
+  IF $DATA(@CURREF)>0 QUIT  ;"Colors already defined, no need for anything further.  
+  IF $DATA(@USERREF)>0 DO  QUIT
+  . MERGE @CURREF=@USERREF ;"copy user's default colors into job's
+  IF $DATA(@MASTERREF)>0 DO  QUIT
+  . MERGE @CURREF=@MASTERREF ;"copy master into job's
+  ;"--------------------------------------------
+  DO COLORSBOOTSTRAP(CURREF)
+  MERGE @MASTERREF=@CURREF
+  QUIT
+  ;
+COLORSBOOTSTRAP(CURREF) ;
+  IF $DATA(TMGCOLBLACK)=0 DO SETGBLCO^TMGUSRI8
+  SET @CURREF@("BACKGROUND")=TMGCOLBLUE
+  SET @CURREF@("HighExecPos")=TMGCOLGREY
+  SET @CURREF@("HighBkPos")=TMGCOLBRED
+  SET @CURREF@("BkPos")=TMGCOLRED
+  SET @CURREF@("Highlight")=TMGCOLFGBWHITE
+  ;"-----------------------------------
+  SET @CURREF@("LABEL","fg")=TMGCOLBYELLOW
+  SET @CURREF@("LABEL","bg")=TMGCOLRED
+  SET @CURREF@("SPECIAL","fg")=TMGCOLBYELLOW
+  SET @CURREF@("SPECIAL","bg")=TMGCOLRED
+  ;"-----------------------------------
+  SET @CURREF@("NORM","fg")=TMGCOLFGBWHITE
+  SET @CURREF@("NORM","bg")="@" ;"@ is signal to use current background color
+  SET @CURREF@("CMD","fg")=TMGCOLBRED
+  SET @CURREF@("CMD","bg")="@"
+  SET @CURREF@("FN","fg")=TMGCOLBCYAN
+  SET @CURREF@("FN","bg")="@"
+  SET @CURREF@("MOD","fg")=TMGCOLBBLUE
+  SET @CURREF@("MOD","bg")="@"
+  SET @CURREF@("IFN","fg")=TMGCOLRED
+  SET @CURREF@("IFN","bg")="@"
+  SET @CURREF@("STR","fg")=TMGCOLBMAGENTA
+  SET @CURREF@("STR","bg")="@"
+  SET @CURREF@("PC","fg")=TMGCOLBRED
+  SET @CURREF@("PC","bg")="@"
+  SET @CURREF@("#","fg")=TMGCOLBYELLOW
+  SET @CURREF@("#","bg")="@"
+  ;"--------------------------------------------
+  SET @CURREF@("MENUBKGROUND")=TMGCOLBBLUE
+  SET @CURREF@("MENUSELBKGROUND")=TMGCOLGREY 
+  SET @CURREF@("MENUBORDER","fg")=TMGCOLBRED 
+  SET @CURREF@("MENUBORDER","bg")="$"
+  SET @CURREF@("MENUTEXT","fg")=TMGCOLBLACK
+  SET @CURREF@("MENUTEXT","bg")="$"  ;"$ is signal to use current menu background color
+  SET @CURREF@("MENUALTKEY","fg")=TMGCOLBRED
+  SET @CURREF@("MENUALTKEY","bg")="$"  ;"$ is signal to use current menu background color
+  ;"--------------------------------------------
+  DO ENSUR24COLS(CURREF)
+  QUIT
+  ;
+ENSUR24COLS(REF) ;"Enusure that the color palate has been prepped for 24bit color mode, using Index mode colors as default  
+  NEW BG,FG,VAL
+  NEW MODE SET MODE=""
+  FOR  SET MODE=$ORDER(@REF@(MODE)) QUIT:MODE=""  DO
+  . IF $DATA(@REF@(MODE,"24bit")) QUIT  ;"ALREADY SET UP.  
+  . SET VAL=$GET(@REF@(MODE))
+  . SET FG=$GET(@REF@(MODE,"fg"))
+  . SET BG=$GET(@REF@(MODE,"bg"))
+  . IF VAL'="" SET @REF@(MODE,"24bit")=$$MAPIDXTO24BIT^TMGUSRI8(VAL,1)
+  . IF FG'="" DO
+  . . IF FG="@" SET @REF@(MODE,"24bit","fg")="@" QUIT
+  . . SET @REF@(MODE,"24bit","fg")=$$MAPIDXTO24BIT^TMGUSRI8(FG,0)
+  . IF BG'="" DO
+  . . IF BG="@" SET @REF@(MODE,"24bit","bg")="@" QUIT
+  . . SET @REF@(MODE,"24bit","bg")=$$MAPIDXTO24BIT^TMGUSRI8(BG,1)
+  QUIT
+  ;  
+TESTEDITCOLORS ;
+  NEW TEMPCOLORS,TEMPMASTER DO INITCOLORSREF("TEMPCOLORS","TEMPMASTER")
+  DO EDITCOLORSREF("TEMPCOLORS")
+  QUIT
+  ;
+TestColors ;
+  DO INITCOLORS
+  NEW ARR DO GETCOLORDESCR(.ARR) 
+  DO SETCOLORS^TMGIDE2C("Reset")
+  WRITE !,"Here are currently define colors:",!
+  WRITE "----------------------------------",!
+  NEW MAXLEN SET MAXLEN=0
+  NEW ENTRY SET ENTRY=""
+  FOR  SET ENTRY=$ORDER(ARR(ENTRY)) QUIT:ENTRY=""  DO
+  . NEW LINE SET LINE=$GET(ARR(ENTRY)) QUIT:LINE=""
+  . NEW STR SET STR=$PIECE(LINE,$CHAR(9),1)
+  . IF $LENGTH(STR)>MAXLEN SET MAXLEN=$LENGTH(STR)  
+  SET ENTRY=""
+  FOR  SET ENTRY=$ORDER(ARR(ENTRY)) QUIT:ENTRY=""  DO
+  . NEW LINE SET LINE=$GET(ARR(ENTRY)) QUIT:LINE=""
+  . NEW STR SET STR=$PIECE(LINE,$CHAR(9),1)
+  . NEW MODE SET MODE=$PIECE(LINE,$CHAR(9),2)
+  . WRITE "Colors for ",STR,": ",?MAXLEN+15,"|"
+  . DO SETCOLORS^TMGIDE2C(MODE)
+  . WRITE "The Quick Brown Fox Jumps Over the Lazy Dog"
+  . DO SETCOLORS^TMGIDE2C("Reset")
+  . WRITE "|",!
+  DO PRESS2GO^TMGUSRI2
+  WRITE !
+  QUIT
+  ;  
+GETCOLORSTOREREF(CURREF,MASTERREF,USERREF,SCHEMEREF) ;
+  SET CURREF=$NAME(^TMG("TMGIDE",$J,"COLORS"))
+  SET MASTERREF=$NAME(^TMG("TMGIDE","COLORS"))
+  SET SCHEMEREF=$NAME(^TMG("TMGIDE","COLOR SCHEMES"))  ;"Format: @SCHEMEREF@(<SchemeName>)=<array of colors, format as above)
+  SET USERREF=$NAME(^TMG("TMGIDE","USER PREFS",+$GET(DUZ),"COLORS"))
+  QUIT
+  ;
+EditColors  ;"Purpose: Enable Edit Colors
+  NEW CURREF,MASTERREF,USERREF,SCHEMEREF DO GETCOLORSTOREREF(.CURREF,.MASTERREF,.USERREF,.SCHEMEREF)
+  NEW MENU,USRSLCT,IDX
+ECM1 ;  
+  KILL MENU SET IDX=0
+  SET MENU(IDX)="Select Option for Colors",IDX=IDX+1
+  SET MENU(IDX)="View current colors"_$CHAR(9)_"VIEW",IDX=IDX+1
+  SET MENU(IDX)="Edit individual colors"_$CHAR(9)_"EDIT",IDX=IDX+1
+  SET MENU(IDX)="Load default colors"_$CHAR(9)_"MASTER",IDX=IDX+1
+  NEW ANAME SET ANAME=""
+  FOR  SET ANAME=$ORDER(@SCHEMEREF@(ANAME)) QUIT:ANAME=""  DO
+  . SET MENU(IDX)="Load color scheme: ["_ANAME_"]"_$CHAR(9)_"SCHEME:"_ANAME,IDX=IDX+1
+  SET MENU(IDX)="Save current colors to..."_$CHAR(9)_"SAVE",IDX=IDX+1
+  SET USRSLCT=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRSLCT="EDIT" DO   ;"GOTO ECM1  <-- NEED TO BE ABLE TO FALL DOWN TO "SAVE" BELOW.  
+  . DO EDITCOLORSREF(CURREF)  
+  . NEW % SET %=1
+  . WRITE "Save current colors for future session" DO YN^DICN WRITE !
+  . IF %=1 SET USRSLCT="SAVE"
+  IF USRSLCT="MASTER" DO  GOTO ECM1
+  . IF $DATA(@MASTERREF)=0 QUIT
+  . KILL @CURREF MERGE @CURREF=@MASTERREF
+  . WRITE !,"Colors from Master Default Color Set copied into current colors",!
+  . DO PRESS2GO^TMGUSRI2
+  IF USRSLCT["SCHEME:" DO  GOTO ECM1
+  . NEW SCHEME SET SCHEME=$PIECE(USRSLCT,"SCHEME:",2) QUIT:SCHEME=""
+  . IF $DATA(@SCHEMEREF@(SCHEME))=0 QUIT
+  . KILL @CURREF MERGE @CURREF=@SCHEMEREF@(SCHEME)
+  . WRITE !,"Colors from Scheme [",SCHEME,"] copied into current colors",!
+  . DO PRESS2GO^TMGUSRI2
+  IF USRSLCT="SAVE" DO  GOTO ECM1
+  . DO SAVECOLORS(CURREF,MASTERREF,USERREF,SCHEMEREF) 
+  IF USRSLCT="VIEW" DO  GOTO ECM1
+  . DO TestColors
+  IF USRSLCT="^" GOTO ECMDN
+  GOTO ECM1
+ECMDN ;  
+  QUIT
+  ;  
+SAVECOLORS(CURREF,MASTERREF,USERREF,SCHEMEREF) ;
+  NEW MENU,USRSLCT,IDX
+SCM1 ;  
+  KILL MENU SET IDX=0
+  SET MENU(IDX)="SAVE Colors To ... ",IDX=IDX+1
+  SET MENU(IDX)="My Default Colors"_$CHAR(9)_"USER",IDX=IDX+1
+  SET MENU(IDX)="Master Default Colors"_$CHAR(9)_"MASTER",IDX=IDX+1
+  NEW ANAME SET ANAME=""
+  FOR  SET ANAME=$ORDER(@SCHEMEREF@(ANAME)) QUIT:ANAME=""  DO
+  . SET MENU(IDX)="Save to Color Scheme: ["_ANAME_"]"_$CHAR(9)_"SCHEME:"_ANAME,IDX=IDX+1
+  SET MENU(IDX)="Save to NEW Color Scheme"_$CHAR(9)_"NEW_SCHEME",IDX=IDX+1
+  SET USRSLCT=$$MENU^TMGUSRI2(.MENU,"^")
+  IF USRSLCT="USER" DO
+  . NEW OVERWRITE SET OVERWRITE=($DATA(@USERREF)>0)
+  . IF $$CONFIRMSAVE("My Default Colors",OVERWRITE)=0 QUIT
+  . KILL @USERREF MERGE @USERREF=@CURREF
+  IF USRSLCT="MASTER" DO
+  . NEW OVERWRITE SET OVERWRITE=($DATA(@MASTERREF)>0)
+  . IF $$CONFIRMSAVE("Master Default Colors",OVERWRITE)=0 QUIT
+  . KILL @MASTERREF MERGE @MASTERREF=@CURREF
+  IF USRSLCT="NEW_SCHEME" DO
+  . NEW SCHEME
+  . FOR  DO  QUIT:(SCHEME'="")
+  . . WRITE !,"Enter scheme name (e.g. 'Light', 'Dark', 'Vibrant' etc) '^' to abort: "
+  . . READ SCHEME WRITE !
+  . . IF ($LENGTH(SCHEME)>20) DO  QUIT
+  . . . WRITE !,"Too long.  Please make 20 characters or less.",!
+  . . . SET SCHEME=""
+  . IF SCHEME["^" QUIT
+  . SET USRSLCT="SCHEME:"_SCHEME   ;"This will fall through to below.  
+  IF USRSLCT["SCHEME:" DO
+  . NEW SCHEME SET SCHEME=$PIECE(USRSLCT,"SCHEME:",2) QUIT:SCHEME=""
+  . NEW OVERWRITE SET OVERWRITE=($DATA(@SCHEMEREF@(SCHEME))>0)
+  . IF $$CONFIRMSAVE("Color Scheme ["_SCHEME_"]",OVERWRITE)=0 QUIT
+  . KILL @SCHEMEREF@(SCHEME) MERGE @SCHEMEREF@(SCHEME)=@CURREF
+  IF USRSLCT="^" GOTO SCDN
+  GOTO SCM1
+SCDN ;
+  QUIT
+  ;
+CONFIRMSAVE(DEST,OVERWRITE) ;
+  WRITE !
+  IF $GET(OVERWRITE) WRITE "NOTE: This will delete any prior saved colors",!
+  NEW % SET %=2 WRITE "Confirm saving to: "_DEST DO YN^DICN WRITE !
+  QUIT (%=1)
+  ;
+EDITCOLORSREF(CURREF)  ;
   ;"Purpose: Enable Edit Colors
   WRITE #
-  NEW USERREF SET USERREF=$name(^TMG("TMGIDE",$J,"COLORS"))
-  NEW COLORMODE SET COLORMODE=$GET(@USERREF@("MODE"),"INDEXED") 
-  NEW MASTERREF SET MASTERREF=$name(^TMG("TMGIDE","COLORS"))
-  NEW MENU,MENU2,UsrSlct,UsrSlct2,UsrRaw,fg,bg,ct,COLORARR
+  NEW COLORMODE SET COLORMODE=$GET(@CURREF@("MODE"),"INDEXED") 
+  NEW MENU,MENU2,UsrSlct,UsrSlct2,UsrRaw,fg,bg,menubg,ct,COLORARR
+  NEW CURCOLORS
 M0  
-  KILL MENU
-  SET ct=1
+  KILL MENU DO GETCOLORDESCR(.MENU)
   SET MENU(0)="Pick Color to Edit"
-  SET MENU(ct)="Window Background color"_$CHAR(9)_"BACKGROUND",ct=ct+1
-  SET MENU(ct)="Current Execution Position Background Color"_$CHAR(9)_"HighExecPos",ct=ct+1
-  SET MENU(ct)="Highlighted Breakpoint Background Color"_$CHAR(9)_"HighBkPos",ct=ct+1
-  SET MENU(ct)="Breakpoint Background Color"_$CHAR(9)_"BkPos",ct=ct+1
-  SET MENU(ct)="Highlight Background Color"_$CHAR(9)_"Highlight",ct=ct+1
-  ;
-  SET MENU(ct)="Label Foreground & Background Color"_$CHAR(9)_"LABEL",ct=ct+1
-  SET MENU(ct)="'Special' Foreground & Background Color"_$CHAR(9)_"SPECIAL",ct=ct+1
-  ;
-  SET MENU(ct)="Normal Text Foreground Color"_$CHAR(9)_"NORM",ct=ct+1
-  SET MENU(ct)="Command Foreground Color"_$CHAR(9)_"CMD",ct=ct+1
-  SET MENU(ct)="Functions Foreground Color"_$CHAR(9)_"FN",ct=ct+1
-  SET MENU(ct)="Module/Global reference Foreground Color"_$CHAR(9)_"MOD",ct=ct+1
-  SET MENU(ct)="Mumps intrinsic functions Foreground Color"_$CHAR(9)_"IFN",ct=ct+1
-  SET MENU(ct)="String Foreground Color"_$CHAR(9)_"STR",ct=ct+1
-  SET MENU(ct)="Post-conditional Foreground Color"_$CHAR(9)_"PC",ct=ct+1
-  SET MENU(ct)="Comments Foreground Color"_$CHAR(9)_"#",ct=ct+1
+  SET ct=$ORDER(MENU(""),-1)+1
   SET MENU(ct)="-------------------------------------"_$CHAR(9)_"",ct=ct+1
   SET MENU(ct)="Change COLOR MODE (currently="_COLORMODE_")"_$CHAR(9)_"COLORMODE",ct=ct+1
   NEW i
-M1 ;
+M1 ; 
+  KILL CURCOLORS
   SET i=0
   ;"SET UP DISPLAY COLORS FOR MENU 
-  FOR  SET i=$ORDER(MENU(i)) QUIT:(i="")  do
-  . NEW bg,fg
+  FOR  SET i=$ORDER(MENU(i)) QUIT:(i="")  DO
+  . NEW bg,fg set (bg,fg,menubg)=""
   . NEW tmgMode SET tmgMode=$PIECE(MENU(i),$CHAR(9),2) QUIT:tmgMode=""
   . IF COLORMODE="24bit" DO
-  . . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos"[tmgMode do
-  . . . SET bg=$GET(@USERREF@(tmgMode))
-  . . . IF +bg=bg SET bg=$$MAPIDXTO24BIT^TMGUSRI8(bg,1)
-  . . . IF ($$ISCLRVEC24^TMGTERM(bg)=0) SET bg=$$WEBCOLOR^TMGUSRI8("LightGray",.COLORARR)
+  . . NEW val
+  . . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos,MENUBKGROUND,MENUSELBKGROUND"[tmgMode DO
+  . . . SET bg=$$GETCOLOR24(CURREF,tmgMode,"bg") 
   . . . SET fg=$$INVCLRVEC^TMGTERM(bg)
+  . . ELSE  IF "SPECIAL,LABEL"[tmgMode DO
+  . . . SET fg=$$GETCOLOR24(CURREF,tmgMode,"fg") 
+  . . . SET bg=$$GETCOLOR24(CURREF,tmgMode,"bg") 
+  . . ELSE  IF "MENUBORDER,MENUTEXT,MENUALTKEY"[tmgMode DO
+  . . . SET fg=$$GETCOLOR24(CURREF,tmgMode,"fg",$$WEBCOLOR^TMGUSRI8("Black",.COLORARR)) 
+  . . . SET bg=$$GETCOLOR24(CURREF,"MENUBKGROUND","bg") 
   . . ELSE  DO
-  . . . SET fg=$GET(@USERREF@(tmgMode,"fg"))
-  . . . IF +fg=fg SET fg=$$MAPIDXTO24BIT^TMGUSRI8(fg,1)
-  . . . IF ($$ISCLRVEC24^TMGTERM(fg)=0) SET fg=$$WEBCOLOR^TMGUSRI8("White",.COLORARR)
-  . . . SET bg=$GET(@USERREF@(tmgMode,"bg"))
-  . . . IF bg="@" SET bg=$GET(@USERREF@("BACKGROUND"))
-  . . . IF bg="" SET bg=$$INVCLRVEC^TMGTERM(fg)
-  . . . IF $$ISCLRVEC24^TMGTERM(bg)=0 SET bg=$$INVCLRVEC^TMGTERM(fg)
-  . ELSE  DO
-  . . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos"[tmgMode do
-  . . . SET bg=+$GET(@USERREF@(tmgMode),TMGCOLBGREY)
+  . . . SET fg=$$GETCOLOR24(CURREF,tmgMode,"fg",$$WEBCOLOR^TMGUSRI8("Black",.COLORARR)) 
+  . . . SET bg=$$GETCOLOR24(CURREF,"BACKGROUND","bg") 
+  . ELSE  DO  ;"INDEXED COLOR MODE
+  . . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos,MENUBKGROUND,MENUSELBKGROUND"[tmgMode DO
+  . . . SET bg=+$GET(@CURREF@(tmgMode),TMGCOLBGREY)
   . . . SET fg=$SELECT(bg=0:7,1:10)
-  . . ELSE  do
-  . . . SET fg=$GET(@USERREF@(tmgMode,"fg"),TMGCOLFGBWHITE)
-  . . . SET bg=$GET(@USERREF@(tmgMode,"bg"),TMGCOLBGREY)
-  . . . IF bg="@" SET bg=$GET(@USERREF@("BACKGROUND"),TMGCOLBLACK)
-  . SET MENU(i,"COLOR","fg")=$GET(fg)
-  . SET MENU(i,"COLOR","bg")=$GET(bg)
+  . . ELSE  DO
+  . . . SET fg=$GET(@CURREF@(tmgMode,"fg"),TMGCOLFGBWHITE)
+  . . . SET bg=$GET(@CURREF@(tmgMode,"bg"),TMGCOLBGREY)
+  . . . IF bg="@" SET bg=$GET(@CURREF@("BACKGROUND"),TMGCOLBLACK)
+  . . . IF bg="$" SET bg=$GET(@CURREF@("MENUBKGROUND"),TMGCOLBLACK)
+  . IF fg'="" SET MENU(i,"COLOR","fg")=fg,CURCOLORS(tmgMode,"fg")=fg          
+  . IF bg'="" SET MENU(i,"COLOR","bg")=bg,CURCOLORS(tmgMode,"bg")=bg
   ;
+  SET (fg,bg,menubg)=""
   SET UsrSlct=$$MENU^TMGUSRI2(.MENU,"^",.UsrRaw)
   IF UsrSlct="^" GOTO ECDn
   IF UsrSlct="COLORMODE" DO  GOTO M0
-  . SET COLORMODE=$$MENUCOLORMODE(COLORMODE) 
-  . SET @USERREF@("MODE")=COLORMODE
-  IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos"[UsrSlct DO  GOTO M1
-  . SET @USERREF@(UsrSlct,"bg")=$$PICKBGC^TMGUSRI8(,.COLORMODE)
-  IF UsrSlct=0 SET UsrSlct="" GOTO M1
-  IF "SPECIAL,LABEL"'[UsrSlct DO  GOTO M1
-  . NEW bg SET bg=$GET(@USERREF@("BACKGROUND"),0)
-  . WRITE "Setting bg=",bg,!
-  . SET @USERREF@(UsrSlct,"fg")=$$PICKFGC^TMGUSRI8(@USERREF@(UsrSlct,"fg"),bg,.COLORMODE)
+  . SET COLORMODE=$$MENUCOLORMODE(COLORMODE,CURREF) 
+  . SET @CURREF@("MODE")=COLORMODE
+  IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos,MENUBKGROUND,MENUSELBKGROUND"[UsrSlct DO  GOTO M1B  
+  . SET bg=$GET(CURCOLORS(UsrSlct,"bg"))
+  . SET bg=$$PICKBGC^TMGUSRI8(bg,.COLORMODE)
+  IF "SPECIAL,LABEL"[UsrSlct DO  GOTO M1B  
+  . DO EDITFGBG(CURREF,UsrSlct,.COLORMODE)  
+  . SET fg=$$GETCOLOR24(CURREF,UsrSlct,"fg") 
+  . SET bg=$$GETCOLOR24(CURREF,UsrSlct,"bg")   
+  IF $DATA(@CURREF@(UsrSlct))=0 DO COLORSBOOTSTRAP(CURREF) ;
+  IF $DATA(@CURREF@(UsrSlct)) DO  GOTO M1B      
+  . SET fg=$get(CURCOLORS(UsrSlct,"fg"))
+  . IF "MENUTEXT,MENUALTKEY,MENUBORDER"[UsrSlct DO
+  . . SET bg="$"  ;"Signal to use menu background
+  . ELSE  DO
+  . . SET bg="@"  ;"Signal to use normal background.  
+  . IF COLORMODE="24bit" DO
+  . . SET fg=$$PICKCOLOR24^TMGUSRI8(,fg)
+  . ELSE  DO
+  . . NEW tempbg SET tempbg=$GET(@CURREF@("BACKGROUND"),0)  ;"This bg value should not be stored.  
+  . . WRITE "Setting bg=",tempbg,!
+  . . SET fg=$$PICKFGC^TMGUSRI8(fg,tempbg,.COLORMODE)   
+M1B ;  
+  IF COLORMODE="24bit" DO
+  . IF fg'="" SET @CURREF@(UsrSlct,"24bit","fg")=fg
+  . IF bg'="" DO
+  . . IF "BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos,MENUBKGROUND,MENUSELBKGROUND"[UsrSlct DO
+  . . . SET @CURREF@(UsrSlct,"24bit")=bg   ;"These background-only colors are not stored in "bg" according to prior indexed system
+  . . ELSE  DO
+  . . . SET @CURREF@(UsrSlct,"24bit","bg")=bg
+  ELSE  DO
+  . IF fg'="" SET @CURREF@(UsrSlct,"fg")=fg
+  . IF bg'="" SET @CURREF@(UsrSlct,"bg")=bg
+  GOTO M1
   ;
+ECDn  ;
+  QUIT
+  ;  
+GETCOLORDESCR(ARR) ;
+  KILL ARR
+  SET CT=0
+  SET CT=CT+1,ARR(CT)="Window Background color"_$CHAR(9)_"BACKGROUND"         
+  SET CT=CT+1,ARR(CT)="Menus Background color"_$CHAR(9)_"MENUBKGROUND"         
+  SET CT=CT+1,ARR(CT)="Normal Text Foreground Color"_$CHAR(9)_"NORM"
+  SET CT=CT+1,ARR(CT)="Command Foreground Color"_$CHAR(9)_"CMD"
+  SET CT=CT+1,ARR(CT)="Functions Foreground Color"_$CHAR(9)_"FN"
+  SET CT=CT+1,ARR(CT)="Module/Global reference Foreground Color"_$CHAR(9)_"MOD"
+  SET CT=CT+1,ARR(CT)="Mumps intrinsic functions Foreground Color"_$CHAR(9)_"IFN"
+  SET CT=CT+1,ARR(CT)="String Foreground Color"_$CHAR(9)_"STR"
+  SET CT=CT+1,ARR(CT)="Post-conditional Foreground Color"_$CHAR(9)_"PC"
+  SET CT=CT+1,ARR(CT)="Comments Foreground Color"_$CHAR(9)_"#"
+  SET CT=CT+1,ARR(CT)="Menu Text Foreground Color"_$CHAR(9)_"MENUTEXT"
+  SET CT=CT+1,ARR(CT)="Menu Alt Key Foreground Color"_$CHAR(9)_"MENUALTKEY"
+  SET CT=CT+1,ARR(CT)="Menu Border Foreground Color"_$CHAR(9)_"MENUBORDER"
+  ;"--------------------------
+  SET CT=CT+1,ARR(CT)="Menu Selection Background Color"_$CHAR(9)_"MENUSELBKGROUND"
+  SET CT=CT+1,ARR(CT)="Current Execution Position Background Color"_$CHAR(9)_"HighExecPos"
+  SET CT=CT+1,ARR(CT)="Highlighted Breakpoint Background Color"_$CHAR(9)_"HighBkPos"
+  SET CT=CT+1,ARR(CT)="Breakpoint Background Color"_$CHAR(9)_"BkPos"
+  SET CT=CT+1,ARR(CT)="Highlight Background Color"_$CHAR(9)_"Highlight"
+  ;"--------------------------
+  SET CT=CT+1,ARR(CT)="Label Foreground & Background Color"_$CHAR(9)_"LABEL"
+  SET CT=CT+1,ARR(CT)="'Special' Foreground & Background Color"_$CHAR(9)_"SPECIAL"
+  QUIT
+  ;  
+GETCOLOR24(CURREF,ITEM,FGBG,DEFAULT) ;
+  ;"NOTE: for ITEM = BACKGROUND,Highlight,HighBkPos,HighExecPos,BkPos ...
+  ;"      these items are stored in @CURREF@(ITEM,"24bit"), NOT @CURREF@(ITEM,"24bit","bg")
+  ;"      I will indicate this by setting FGBG to ""
+  NEW RESULT
+  SET FGBG=$GET(FGBG)
+  IF FGBG="" DO
+  . SET RESULT=$GET(@CURREF@(ITEM,"24bit"),$GET(DEFAULT))  
+  ELSE  DO
+  . SET RESULT=$GET(@CURREF@(ITEM,"24bit",FGBG),$GET(DEFAULT))
+  . IF RESULT="" DO
+  . . SET RESULT=$GET(@CURREF@(ITEM,"24bit"))
+  IF RESULT="@" DO
+  . SET RESULT=$GET(@CURREF@("TEMP BACKGROUND","24bit")) QUIT:RESULT'=""
+  . SET RESULT=$GET(@CURREF@("BACKGROUND","24bit")) QUIT:RESULT'=""
+  . SET RESULT=$GET(@CURREF@("BACKGROUND","24bit",FGBG))
+  IF RESULT="$" DO
+  . SET RESULT=$GET(@CURREF@("MENUBKGROUND","24bit")) QUIT:RESULT'=""
+  . SET RESULT=$GET(@CURREF@("MENUBKGROUND","24bit",FGBG))
+  QUIT RESULT
+  ;
+EDITFGBG(CURREF,UsrSlct,COLORMODE) ;
   NEW Label SET Label=$GET(MENU(UsrRaw))
-  KILL MENU2
+  NEW MENU2,fg,bg,UsrSlct2
   SET MENU2(0)="For "_$PIECE(Label,$CHAR(9),1)_"..."
   SET MENU2(1)="Edit Foreground color"_$CHAR(9)_"fg"
-  SET MENU2(2)="Edit Background color"_$CHAR(9)_"bg"
+  SET MENU2(2)="Edit Background color"_$CHAR(9)_"bg"        
   SET MENU2(3)="Edit BOTH colors"_$CHAR(9)_"fg&bg"
   WRITE !
 M2 ;
-  SET fg=+$GET(@USERREF@(UsrSlct,"fg"),1)
-  SET bg=+$GET(@USERREF@(UsrSlct,"bg"),0)
-  DO COLORS^TMGTERM(fg,bg)
-  WRITE "Here are the current colors..."
-  DO VTATRIB^TMGTERM(0) ;"Reset colors
-  WRITE !
+  IF COLORMODE="24bit" DO
+  . SET fg=$$GETCOLOR24(CURREF,UsrSlct,"fg")
+  . SET bg=$$GETCOLOR24(CURREF,UsrSlct,"bg")
+  . SET MENU2(1,"COLOR","fg")=$GET(fg)             
+  . SET MENU2(1,"COLOR","bg")=$$INVCLRVEC^TMGTERM(fg)
+  . ;
+  . SET MENU2(2,"COLOR","bg")=bg
+  . SET MENU2(2,"COLOR","fg")=$$INVCLRVEC^TMGTERM(bg)
+  . ;
+  . SET MENU2(3,"COLOR","fg")=fg
+  . SET MENU2(3,"COLOR","bg")=bg         
+  ELSE  DO                                 
+  . SET fg=$GET(@CURREF@(UsrSlct,"fg"),1)
+  . SET bg=$GET(@CURREF@(UsrSlct,"bg"),0)
+  . DO COLORS^TMGTERM(fg,bg)
+  . WRITE "Here are the current colors..."
+  . DO VTATRIB^TMGTERM(0) ;"Reset colors
+  . WRITE !
   SET UsrSlct2=$$MENU^TMGUSRI2(.MENU2,"^",.UsrRaw)
-  IF UsrSlct2="^" GOTO M1  
-M3 ;
-  IF UsrSlct2="fg" DO  GOTO M2
-  . SET @USERREF@(UsrSlct,"fg")=$$PICKFGC^TMGUSRI8(@USERREF@(UsrSlct,"fg"),@USERREF@(UsrSlct,"bg"))
-  IF UsrSlct2="bg" DO  GOTO M2
-  . SET @USERREF@(UsrSlct,"bg")=$$PICKBGC^TMGUSRI8(@USERREF@(UsrSlct,"bg"))
-  IF UsrSlct2="fg&bg" DO   GOTO M2
-  . DO PICKCLRS^TMGTERM(.fg,.bg)
-  . SET @USERREF@(UsrSlct,"fg")=fg
-  . SET @USERREF@(UsrSlct,"bg")=bg
+  IF UsrSlct2="^" GOTO EFGBGDN  
+M3 ;                                        
+  IF UsrSlct2="fg" DO  GOTO M4
+  . SET fg=$$PICKFGC^TMGUSRI8(fg,bg,.COLORMODE)
+  IF UsrSlct2="bg" DO  GOTO M4
+  . SET bg=$$PICKBGC^TMGUSRI8(bg,.COLORMODE)
+  IF UsrSlct2="fg&bg" DO  GOTO M4
+  . IF COLORMODE="24bit" DO
+  . . WRITE !,"Edit FOREGROUND color",!
+  . . DO PRESS2GO^TMGUSRI2
+  . . SET fg=$$PICKCOLOR24^TMGUSRI8(,fg)
+  . . WRITE !,"Edit BACKGROUND color",!
+  . . DO PRESS2GO^TMGUSRI2
+  . . SET bg=$$PICKCOLOR24^TMGUSRI8(,bg)
+  . ELSE  DO
+  . . DO PICKCLRS^TMGTERM(.fg,.bg,.COLORMODE)
+M4 ;  
+  SET @CURREF@(UsrSlct,"fg")=fg
+  SET @CURREF@(UsrSlct,"bg")=bg
   GOTO M2
-  ;
-ECDn  ;
-  NEW % SET %=2
-  WRITE "Set current colors as default"
-  DO YN^DICN
-  IF %=1 do
-  . KILL ^TMG("TMGIDE","COLORS")
-  . MERGE @MASTERFEF=@USERREF  ;"^TMG("TMGIDE","COLORS")=^TMG("TMGIDE",$J,"COLORS")
+EFGBGDN ;
   QUIT
   ;
-MENUCOLORMODE(MODE) ;
+MENUCOLORMODE(MODE,REF) ;
   NEW RESULT SET RESULT=MODE
   NEW MENU,UsrSlct,IDX
 MCM1 ;  
@@ -577,17 +815,8 @@ MCM1 ;
   . SET RESULT=UsrSlct
   GOTO MCM1
 MCMDN ;  
+  IF RESULT="24bit" DO ENSUR24COLS(.REF)
   QUIT RESULT
-  ;
-TestColors ;
-  DO INITCOLORS
-  NEW tmgMode
-  FOR tmgMode="Highlight","HighExecPos","BkPos","HighBkPos","SPECIAL","NORM","LABEL","CMD","FN","MOD","IFN","STR","PC","#" do
-  . DO SETCOLORS^TMGIDE2C(tmgMode)
-  . WRITE "Here is text for ",tmgMode,"...."
-  . DO SETCOLORS^TMGIDE2C("Reset")
-  . WRITE !
-  QUIT
   ;
 ShowColorBox ;
   ;"NOTE: COLORBOX^TMGUSRI8 is actually better than this function.

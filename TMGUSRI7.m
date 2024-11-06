@@ -47,7 +47,8 @@ TEST1(MENU,X,Y) ;"Draw 1 menu and quit
   ;
 TEST2(USESCRN) ;"Draw menu and interact with user.  
   NEW MENU
-  DO TESTSETUP(.MENU,1,1) ;
+  ;"DO TESTSETUP(.MENU,1,15) ;
+  DO SETUPMENU^TMGIDE2C(.MENU,1,15) ;
   NEW RUNOPT
   IF +$GET(USESCRN) SET RUNOPT("ON PREDRAW")="HNDLPREDRAW^TMGUSRI7"
   NEW RESULT SET RESULT=$$RUNMENU(.MENU,.RUNOPT)  
@@ -103,11 +104,22 @@ TESTSETUP(MENU,X,Y) ;
   SET MENU(6,2)="Find Next"
   SET MENU(6,3)="Find Prev"  
   ;"-- Menu drawing options
-  SET MENU("OPTION","COLOR","BORDER")=$$COLORPAIR^TMGUSRI8("RED","BLUE",.TEMP) 
-  SET MENU("OPTION","COLOR","TEXT")=$$COLORPAIR^TMGUSRI8("WHITE","BLUE",.TEMP) 
-  SET MENU("OPTION","COLOR","SELTEXT")=$$COLORPAIR^TMGUSRI8("BLUE","GREY",.TEMP) 
-  SET MENU("OPTION","COLOR","ALTKEY")=$$COLORPAIR^TMGUSRI8("RED","BLACK",.TEMP) 
-  SET MENU("OPTION","COLOR","SELALTKEY")=$$COLORPAIR^TMGUSRI8("RED","GREY",.TEMP)  
+  ;"SET MENU("OPTION","COLOR","BORDER")=$$COLORPAIR^TMGUSRI8("RED","BLUE",.TEMP) 
+  ;"SET MENU("OPTION","COLOR","TEXT")=$$COLORPAIR^TMGUSRI8("WHITE","BLUE",.TEMP) 
+  ;"SET MENU("OPTION","COLOR","SELTEXT")=$$COLORPAIR^TMGUSRI8("BLUE","GREY",.TEMP) 
+  ;"SET MENU("OPTION","COLOR","ALTKEY")=$$COLORPAIR^TMGUSRI8("RED","BLACK",.TEMP) 
+  ;"SET MENU("OPTION","COLOR","SELALTKEY")=$$COLORPAIR^TMGUSRI8("RED","GREY",.TEMP)  
+  ;"-----------
+  NEW CURREF DO GETCOLORSTOREREF^TMGIDE6(.CURREF)
+  NEW SELBG SET SELBG=$$GETCOLOR24^TMGIDE6(CURREF,"MENUSELBKGROUND","bg") 
+  NEW TEMP SET TEMP=$$COLORMODEPAIR^TMGIDE2C("MENUTEXT")                      ;"NormalFG^NormalBG
+  SET MENU("OPTION","COLOR","TEXT")=TEMP                                      ;"NormalFG^NormalBG
+  SET MENU("OPTION","COLOR","SELTEXT")=$PIECE(TEMP,"^",1)_"^"_SELBG           ;"NormalFG^SelectedBG
+  SET TEMP=$$COLORMODEPAIR^TMGIDE2C("MENUALTKEY")                             ;"AltKeyFG^NormalBG
+  SET MENU("OPTION","COLOR","ALTKEY")=TEMP                                    ;"AltKeyFG^NormalBG
+  SET MENU("OPTION","COLOR","SELALTKEY")=$PIECE(TEMP,"^",1)_"^"_SELBG         ;"AltKeyFG^SelectedBG
+  SET MENU("OPTION","COLOR","BORDER")=$$COLORMODEPAIR^TMGIDE2C("MENUBORDER")  ;"BorderFG^NormalBG
+  ;"------
   SET MENU("FOCUS IDX")=1  
   QUIT
   ;
@@ -342,7 +354,9 @@ DRAWMENU(IDX,MENU)  ;"Draw one menu box.
   ;"          MENU("OPTION","COLOR","SELTEXT")="FG^BG"  -- optional.  Default is FG=WHITE,BG=BLACK
   ;"          MENU("OPTION","COLOR","ALTKEY")="FG^BG"   -- optional.  Default is FG=WHITE,BG=BLACK  If text is "&File", then F will be ALTKEY color 
   ;"          MENU("OPTION","COLOR","SELALTKEY")="FG^BG"   -- optional.  Default is FG=WHITE,BG=BLACK  If text is "&File", then F will be ALTKEY color 
-  DO VCUSAV2^TMGTERM 
+  ;"          MENU("OPTION","NO TERM SAVE")=1 -- optional. If found, then prior terminal state is NOT saved and restored
+  NEW NOTERMSAVE SET NOTERMSAVE=($GET(MENU("OPTION","NO TERM SAVE"))=1)
+  IF 'NOTERMSAVE DO VCUSAV2^TMGTERM 
   SET IDX=+$GET(IDX)              
   IF $GET(MENU("FOCUS IDX"))="" SET MENU("FOCUS IDX")=IDX
   NEW INFO DO MENUINFO(IDX,.MENU,.INFO) ;"Get info about menu   
@@ -428,12 +442,13 @@ DRAWMENU(IDX,MENU)  ;"Draw one menu box.
   . . SET POS=POS+$LENGTH(STR)
   . FOR POS=POS:1:MAX WRITE " "
   . IF USINGSUBMENU WRITE $SELECT(SUBMENU>0:" >",1:"  ")
-  DO VCULOAD2^TMGTERM
+  IF 'NOTERMSAVE DO VCULOAD2^TMGTERM
   DO VTATRIB^TMGTERM(0)  ;"reset attribs and colors
   QUIT  
   ;
 DRAWBARMENU(IDX,MENU) ;"Draw top horizontal bar menu.
   ;"Input: see DRAWMENU for description of variables. 
+  NEW NOTERMSAVE SET NOTERMSAVE=($GET(MENU("OPTION","NO TERM SAVE"))=1)
   SET IDX=+$GET(IDX)              
   IF $GET(MENU("FOCUS IDX"))="" SET MENU("FOCUS IDX")=IDX
   NEW INFO DO MENUINFO(IDX,.MENU,.INFO) ;"Get info about menu   
@@ -484,7 +499,7 @@ DRAWBARMENU(IDX,MENU) ;"Draw top horizontal bar menu.
   . . WRITE STR
   . DO SETCOLORS("TEXT",.COLARR2)  ;" establish colors for selection, background etc.  
   . WRITE "____"  ;"spacing between entries.  
-  DO VCULOAD2^TMGTERM
+  IF 'NOTERMSAVE DO VCULOAD2^TMGTERM
   DO VTATRIB^TMGTERM(0)  ;"reset attribs and colors
   QUIT
   ;
@@ -499,6 +514,7 @@ MENUINFO(IDX,MENU,OUT) ;"Get info about menu
   ;"               OUT("USING CHECK")=USINGCHECK
   ;"               OUT("USING SUBMENU")=USINGSUBMENU
   ;"               OUT("TOP MENU BAR")=TOPMENUBAR
+  ;"               OUT("NO TERM SAVE")=MENU("OPTION","NO TERM SAVE")  <-- If found
   ;"RESULT: none
   NEW WT SET WT=0
   NEW HT SET HT=0
@@ -539,7 +555,8 @@ MENUINFO(IDX,MENU,OUT) ;"Get info about menu
   . SET OUT("WT")=WT
   . SET OUT("USING ICON")=USINGICON
   . SET OUT("USING CHECK")=USINGCHECK
-  . SET OUT("USING SUBMENU")=USINGSUBMENU      
+  . SET OUT("USING SUBMENU")=USINGSUBMENU
+  MERGE OUT("NO TERM SAVE")=MENU("OPTION","NO TERM SAVE")
   QUIT
   ;    
 SETCOLORS(MODE,ARR) ;" Set color

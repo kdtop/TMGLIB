@@ -219,7 +219,7 @@ INEXACT(OUT,FROM,DIR)    ;
   ;"       DIR -- should be 1 or -1
   ;"NOTE: TMGIGNOREINACTIVE is may be used in global scope here, or in descendant functions
   ;"Results: NONE
-  ;
+  ;"
   NEW I,IEN,CNT,FROMIEN,TMGNAME
   SET CNT=44,I=0,FROMIEN=0
   SET DIR=$GET(DIR,1)
@@ -243,7 +243,7 @@ INEXACT(OUT,FROM,DIR)    ;
   NEW TMGOUT,TMGMSG
   DO FIND^DIC(2,,"@;.01","PBC",TMGSRCH,"*",,,,"TMGOUT","TMGMSG")
   KILL OUT
-  IF +TMGOUT("DILIST",0)'>0 QUIT  ;"No matches found.
+  IF +TMGOUT("DILIST",0)'>0 GOTO INEDN    ;"QUIT  ;"No matches found.
   ;
   ;"Gather ALL matching patients so can be sorted alphabetically
   NEW TMGBYIEN,TMGTEMP
@@ -282,8 +282,35 @@ INEXACT(OUT,FROM,DIR)    ;
   . . SET I=I+1 
   . . SET OUT(I)=IEN_U_FROM_U_U_U_U_TMGNAME      
   ;            
+INEDN
+  ;"Here we will additionally search for nicknames (no matter if the above returned results or not
+  NEW LNAME,FNAME
+  SET LNAME=$P(TMGSRCH,",",1),FNAME=$P(TMGSRCH,",",2)
+  K TMGOUT,TMGMSG
+  DO FIND^DIC(2,,"@;.01","PBC",LNAME,"*",,,,"TMGOUT","TMGMSG")
+  IF +TMGOUT("DILIST",0)'>0 QUIT  ;"No matches found.
+  SET TMGIDX=0
+  FOR  SET TMGIDX=$ORDER(TMGOUT("DILIST",TMGIDX)) QUIT:(TMGIDX="")  DO
+  . SET TMGNAME=$PIECE($GET(TMGOUT("DILIST",TMGIDX,0)),U,2)
+  . SET IEN=+$PIECE($GET(TMGOUT("DILIST",TMGIDX,0)),U,1)
+  . NEW PERFNAME SET PERFNAME=$P($G(^DPT(IEN,.24)),"^",5)
+  . IF PERFNAME[FNAME DO
+  . . IF $GET(TMGIGNOREINACTIVE),$$ACTIVEPT(IEN)=0 QUIT
+  . . ;"NEW ZN SET ZN=$GET(^DPT(IEN,0)) ; Get zero node name.
+  . . NEW DUPLICATE SET DUPLICATE=$$CHKDUP(.OUT,IEN)
+  . . IF DUPLICATE=1 QUIT  ;" DON'T ADD DUPLICATE
+  . . SET I=I+1
+  . . SET OUT(I)=IEN_U_TMGSRCH_" -- "_TMGNAME_" "_""""_$$UP^XLFSTR(PERFNAME)_""""_U_U_U_U_TMGNAME
   QUIT
   ;
+CHKDUP(ARRAY,IEN) ;"CHECK THE SENT ARRAY FOR DUPLICATE DFN
+  NEW TMGRESULT SET TMGRESULT=0
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$O(ARRAY(IDX)) QUIT:IDX'>0  DO
+  . NEW ONEIEN SET ONEIEN=$P($G(ARRAY(IDX)),"^",1)
+  . IF ONEIEN=IEN SET TMGRESULT=1
+  QUIT TMGRESULT
+  ;"
 LSTHIPAA(TMGOUT,TMGDFN,FORMAT)   ;
   ;"PURPOSE: To return date of last HIPAA scanned into CPRS
   ;"INPUT: TMGDFN - Patient's DFN

@@ -9,7 +9,6 @@ TMGTERM3  ;TMG/kst/Terminal interface (Unicode ARROW drawing) ;9/19/2024
   ;" always be distributed with this file.
   ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
   ; 
-
 WRITEARROW(DIR,ARR,OPTION) ;"Print unicode arrow. 
   ;"INPUT:  DIR - 'UP','DOWN','LEFT','RIGHT'
   ;"             or NAME from listing in ARROWREF

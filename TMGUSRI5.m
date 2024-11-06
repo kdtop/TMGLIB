@@ -240,7 +240,7 @@ EVENT(OPTION,NAME,NUMPARAMS,PARAM1,PARAM2,PARAM3,PARAM4) ;"Fire event, if handle
   NEW IDX FOR IDX=1:1:NUMPARAMS SET PARAMS=PARAMS_$SELECT(PARAMS="":"",1:",")_".PARAM"_IDX
   SET CODE="SET RESULT=$$"_CODE_"("_PARAMS_")"
   DO
-  . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""",RESULT=""^"""
+  . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.) "",! SET $ETRAP="""",$ecode="""",RESULT=""^"""
   . XECUTE CODE
 EVDN ;  
   QUIT RESULT

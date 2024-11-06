@@ -1,4 +1,4 @@
-TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
+TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14, 11/2024
          ;;1.0;TMG-LIB;**1**;09/01/05
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -66,9 +66,8 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"$$StrBounds(s,p) -- return position of end of string
  ;"NonWhite(s,p) -- return index of first non-whitespace character
  ;"Pad2Pos(Pos,ch) -- return a padding string from current $X up to Pos, using ch
- ;"HTML2TXT(Array) -- Take WP array that is HTML formatted, and strip <P>, and return in a format of 1 line per array node.
  ;"TrimTags(lineS) -- cut out HTML tags (e.g. <...>) from lineS, however, <no data> is protected
- ;"$$ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) -- WRITE the array to the host file system
+ ;"$$ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) -- ;"DEPRECIATED.  Use ARR2HFS^TMGIOUT3
  ;"$$HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) -- Read array from host file system
  ;"UTF8WRITE(CODEPT) -- Output 1 or more Unicode characters. 
  ;
@@ -97,6 +96,8 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14
  ;"        s=input string, spec=array passed by reference
  ;"        spec format:
  ;"        spec("Any_Search_String")="Replacement_String"
+ ;"  compare to$$REPLSTR^TMGSTUT3(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
+
  ;"$$STRIP^XLFSTR(s,Char) -- returns string striped of all instances of Char
 
  ;"=======================================================================
@@ -172,68 +173,68 @@ QNSp
                                                                                   
 
 FormatArray(InArray,OutArray,Divider)
-        ;"PUBLIC FUNCTION
-        ;"Purpose: The XML parser does not recognize whitespace, or end-of-line
-        ;"        characters.  Thus many lines get lumped together.  However, IF there
-        ;"        is a significant amount of text, then the parser will put the text into
-        ;"        several lines (when get attrib text called etc.)
-        ;"        SO, this function is to take an array composed of input lines (each
-        ;"        with multiple sublines clumped together), and format it such that each
-        ;"        line is separated in the array.
-        ;"        e.g. Take this input array"
-        ;"        InArray(cText,1)="line one\nline two\nline three\n
-        ;"        InArray(cText,2)="line four\nline five\nline six\n
-        ;"        and convert to:
-        ;"        OutArray(1)="line one"
-        ;"        OutArray(2)="line two"
-        ;"        OutArray(3)="line three"
-        ;"        OutArray(4)="line four"
-        ;"        OutArray(5)="line five"
-        ;"        OutArray(6)="line six"
-        ;"Input: InArray, best IF passed by reference (faster) -- see example above
-        ;"                Note: expected to be in format: InArray(cText,n)
-        ;"        OutArray, must be passed by reference-- see example above
-        ;"        Divider: the character(s) that divides lines ("\n" in this example)
-        ;"Note: It is expected that InArray will be index by integers (i.e. 1, 2, 3)
-        ;"        And this should be the case, as that is how XML functions pass back.
-        ;"        Limit of 256 separate lines on any one InArray line
-        ;"Output: OutArray is set, any prior data is killed
-        ;"RESULT: 1=OK to continue, 0=abort
-
-        SET DEBUG=$GET(DEBUG,0)
-        SET cOKToCont=$GET(cOKToCont,1)
-        SET cAbort=$GET(cAbort,0)
-
-        NEW RESULT SET RESULT=cOKToCont
-        NEW InIndex
-        NEW OutIndex SET OutIndex=1
-        NEW TempArray
-        NEW Done
-
-        KILL OutArray ;"remove any prior data
-                          
-        IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Input array:")
-        IF DEBUG DO ZWRITE^TMGZWR("InArray")
-
-        IF $DATA(Divider)=0 DO  GOTO FADone
-        . SET RESULT=cAbort
-
-        SET Done=0                 
-        FOR InIndex=1:1 DO  QUIT:Done
-        . IF $DATA(InArray(cText,InIndex))=0 SET Done=1 QUIT
-        . IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Converting line: ",InArray(cText,InIndex))
-        . DO CleaveToArray^TMGSTUTL(InArray(cText,InIndex),Divider,.TempArray,OutIndex)
-        . IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Resulting temp array:")
-        . IF DEBUG DO ZWRITE^TMGZWR("TempArray")
-        . SET OutIndex=TempArray(cMaxNode)+1
-        . KILL TempArray(cMaxNode)
-        . MERGE OutArray=TempArray
-        . IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"OutArray so far:")
-        . IF DEBUG DO ZWRITE^TMGZWR("OutArray")
-
-FADone
-        QUIT RESULT
-
+  ;"PUBLIC FUNCTION
+  ;"Purpose: The XML parser does not recognize whitespace, or end-of-line
+  ;"        characters.  Thus many lines get lumped together.  However, IF there
+  ;"        is a significant amount of text, then the parser will put the text into
+  ;"        several lines (when get attrib text called etc.)
+  ;"        SO, this function is to take an array composed of input lines (each
+  ;"        with multiple sublines clumped together), and format it such that each
+  ;"        line is separated in the array.
+  ;"        e.g. Take this input array"
+  ;"        InArray(cText,1)="line one\nline two\nline three\n
+  ;"        InArray(cText,2)="line four\nline five\nline six\n
+  ;"        and convert to:
+  ;"        OutArray(1)="line one"
+  ;"        OutArray(2)="line two"
+  ;"        OutArray(3)="line three"
+  ;"        OutArray(4)="line four"
+  ;"        OutArray(5)="line five"
+  ;"        OutArray(6)="line six"
+  ;"Input: InArray, best IF passed by reference (faster) -- see example above
+  ;"                Note: expected to be in format: InArray(cText,n)
+  ;"        OutArray, must be passed by reference-- see example above
+  ;"        Divider: the character(s) that divides lines ("\n" in this example)
+  ;"Note: It is expected that InArray will be index by integers (i.e. 1, 2, 3)
+  ;"        And this should be the case, as that is how XML functions pass back.
+  ;"        Limit of 256 separate lines on any one InArray line
+  ;"Output: OutArray is set, any prior data is killed
+  ;"RESULT: 1=OK to continue, 0=abort
+  ;  
+  SET DEBUG=$GET(DEBUG,0)
+  SET cOKToCont=$GET(cOKToCont,1)
+  SET cAbort=$GET(cAbort,0)
+  ;
+  NEW RESULT SET RESULT=cOKToCont
+  NEW InIndex
+  NEW OutIndex SET OutIndex=1
+  NEW TempArray
+  NEW Done
+  ;
+  KILL OutArray ;"remove any prior data
+  ;                  
+  IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Input array:")
+  IF DEBUG DO ZWRITE^TMGZWR("InArray")
+  ;
+  IF $DATA(Divider)=0 DO  GOTO FADone
+  . SET RESULT=cAbort
+  ;
+  SET Done=0                 
+  FOR InIndex=1:1 DO  QUIT:Done
+  . IF $DATA(InArray(cText,InIndex))=0 SET Done=1 QUIT
+  . IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Converting line: ",InArray(cText,InIndex))
+  . DO CleaveToArray^TMGSTUTL(InArray(cText,InIndex),Divider,.TempArray,OutIndex)
+  . IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"Resulting temp array:")
+  . IF DEBUG DO ZWRITE^TMGZWR("TempArray")
+  . SET OutIndex=TempArray(cMaxNode)+1
+  . KILL TempArray(cMaxNode)
+  . MERGE OutArray=TempArray
+  . IF DEBUG>0 DO DEBUGMSG^TMGDEBU4(.TMGDBINDENT,"OutArray so far:")
+  . IF DEBUG DO ZWRITE^TMGZWR("OutArray")
+  ;
+FADone  ;
+  QUIT RESULT
+  ;
 REPLACE(IN,SPEC)        ;"See $$REPLACE in MDC minutes.
         ;"Taken from REPLACE^XLFSTR
         QUIT:'$D(IN) ""
@@ -258,94 +259,86 @@ RE3     I $E(%7,%2)=" " S %8=%8_$E(IN,%2) Q
         S:$D(%8(%2)) %8=%8_%8(%2)
         Q
         ;
- 
-
-TrimL(S,TrimCh)
-        ;"Purpose: To a trip a string of leading white space
-        ;"        i.e. convert "  hello" into "hello"
-        ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
-        ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
-        ;"Results: returns modified string
-        ;"Note: processing limitation is string length=1024
-
-        SET TrimCh=$GET(TrimCh," ")
-
-        NEW RESULT SET RESULT=$GET(S)
-        NEW Ch SET Ch=""
-        FOR  DO  QUIT:(Ch'=TrimCh)
-        . SET Ch=$EXTRACT(RESULT,1,1)
-        . IF Ch=TrimCh SET RESULT=$EXTRACT(RESULT,2,1024)
-
-        QUIT RESULT
-
-      
-TrimR(S,TrimCh)
-        ;"Purpose: To a trip a string of trailing white space
-        ;"        i.e. convert "hello   " into "hello"
-        ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
-        ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
-        ;"Results: returns modified string
-        ;"Note: processing limitation is string length=1024
-        ;
-        ;"SET DEBUG=$GET(DEBUG,0)
-        ;"SET cOKToCont=$GET(cOKToCont,1)
-        ;"SET cAbort=$GET(cAbort,0)
-        SET TrimCh=$GET(TrimCh," ")
-        NEW RESULT SET RESULT=$GET(S)
-        NEW Ch SET Ch=""
-        NEW L       
-        FOR  DO  QUIT:(Ch'=TrimCh)
-        . SET L=$LENGTH(RESULT)
-        . SET Ch=$EXTRACT(RESULT,L,L)
-        . IF Ch=TrimCh DO
-        . . SET RESULT=$EXTRACT(RESULT,1,L-1)
-        QUIT RESULT          
-        ;
-Trim(S,TrimCh)
-        ;"Purpose: To a trip a string of leading and trailing white space
-        ;"        i.e. convert "    hello   " into "hello"
-        ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
-        ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
-        ;"Results: returns modified string
-        ;"Note: processing limitation is string length=1024
-
-        ;"NOTE: this function could be replaced with $$TRIM^XLFSTR
-
-        ;"SET DEBUG=$GET(DEBUG,0)
-        ;"SET cOKToCont=$GET(cOKToCont,1)
-        ;"SET cAbort=$GET(cAbort,0)
-        SET TrimCh=$GET(TrimCh," ")                  
-        NEW RESULT SET RESULT=$GET(S)
-        SET RESULT=$$TrimL(.RESULT,TrimCh)
-        SET RESULT=$$TrimR(.RESULT,TrimCh)
-        QUIT RESULT
-
+TrimL(S,TrimCh)  ;
+  ;"Purpose: To a trip a string of leading white space
+  ;"        i.e. convert "  hello" into "hello"
+  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"Results: returns modified string
+  ;"Note: processing limitation is string length=1024
+  SET TrimCh=$GET(TrimCh," ")
+  NEW RESULT SET RESULT=$GET(S)
+  NEW Ch SET Ch=""
+  FOR  DO  QUIT:(Ch'=TrimCh)
+  . SET Ch=$EXTRACT(RESULT,1,1)
+  . IF Ch=TrimCh SET RESULT=$EXTRACT(RESULT,2,1024)
+  QUIT RESULT
+  ;
+TrimR(S,TrimCh)  ;
+  ;"Purpose: To a trip a string of trailing white space
+  ;"        i.e. convert "hello   " into "hello"
+  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"Results: returns modified string
+  ;"Note: processing limitation is string length=1024
+  ;
+  ;"SET DEBUG=$GET(DEBUG,0)
+  ;"SET cOKToCont=$GET(cOKToCont,1)
+  ;"SET cAbort=$GET(cAbort,0)
+  SET TrimCh=$GET(TrimCh," ")
+  NEW RESULT SET RESULT=$GET(S)
+  NEW Ch SET Ch=""
+  NEW L       
+  FOR  DO  QUIT:(Ch'=TrimCh)
+  . SET L=$LENGTH(RESULT)
+  . SET Ch=$EXTRACT(RESULT,L,L)
+  . IF Ch=TrimCh DO
+  . . SET RESULT=$EXTRACT(RESULT,1,L-1)
+  QUIT RESULT          
+  ;
+Trim(S,TrimCh) ;
+  ;"Purpose: To a trip a string of leading and trailing white space
+  ;"        i.e. convert "    hello   " into "hello"
+  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"Results: returns modified string
+  ;"Note: processing limitation is string length=1024
+  ;"NOTE: this function could be replaced with $$TRIM^XLFSTR
+  ;
+  ;"SET DEBUG=$GET(DEBUG,0)
+  ;"SET cOKToCont=$GET(cOKToCont,1)
+  ;"SET cAbort=$GET(cAbort,0)
+  SET TrimCh=$GET(TrimCh," ")                  
+  NEW RESULT SET RESULT=$GET(S)
+  SET RESULT=$$TrimL(.RESULT,TrimCh)
+  SET RESULT=$$TrimR(.RESULT,TrimCh)
+  QUIT RESULT
+  ;
 TrimRType(S,type)
-        ;"Scope: PUBLIC FUNCTION
-        ;"Purpose: trim characters on the right of the string of a specified type.
-        ;"         Goal, to be able to distinguish between numbers and strings.
-        ;"         i.e. "1234<=" --> "1234" by trimming strings
-        ;"Input: S -- The string to work on
-        ;"       type -- the type of characters to TRIM: N for numbers,C for non-numbers (characters)
-        ;"Results : modified string
-
-        SET tempS=$GET(S)
-        SET type=$$UP^XLFSTR($GET(type)) GOTO:(type="") TRTDone
-        NEW DONE SET DONE=0
-        FOR  QUIT:(tempS="")!DONE  DO
-        . NEW c SET c=$EXTRACT(tempS,$LENGTH(tempS))
-        . NEW cType SET cType="C"
-        . IF +c=c SET cType="N"
-        . IF type["N" DO
-        . . IF cType="N" SET tempS=$EXTRACT(tempS,1,$LENGTH(tempS)-1) QUIT
-        . . SET DONE=1
-        . ELSE  IF type["C" DO
-        . . IF cType="C"  SET tempS=$EXTRACT(tempS,1,$LENGTH(tempS)-1) QUIT
-        . . SET DONE=1
-        . ELSE  SET DONE=1
-
-TRTDone QUIT tempS
-
+  ;"Scope: PUBLIC FUNCTION
+  ;"Purpose: trim characters on the right of the string of a specified type.
+  ;"         Goal, to be able to distinguish between numbers and strings.
+  ;"         i.e. "1234<=" --> "1234" by trimming strings
+  ;"Input: S -- The string to work on
+  ;"       type -- the type of characters to TRIM: N for numbers,C for non-numbers (characters)
+  ;"Results : modified string
+  SET tempS=$GET(S)
+  SET type=$$UP^XLFSTR($GET(type)) GOTO:(type="") TRTDone
+  NEW DONE SET DONE=0
+  FOR  QUIT:(tempS="")!DONE  DO
+  . NEW c SET c=$EXTRACT(tempS,$LENGTH(tempS))
+  . NEW cType SET cType="C"
+  . IF +c=c SET cType="N"
+  . IF type["N" DO
+  . . IF cType="N" SET tempS=$EXTRACT(tempS,1,$LENGTH(tempS)-1) QUIT
+  . . SET DONE=1
+  . ELSE  IF type["C" DO
+  . . IF cType="C"  SET tempS=$EXTRACT(tempS,1,$LENGTH(tempS)-1) QUIT
+  . . SET DONE=1
+  . ELSE  SET DONE=1
+TRTDone ;
+  QUIT tempS
+  ;
 CleaveToArray(Text,Divider,Array,InitIndex)
         DO SPLIT2AR^TMGSTUT2(.Text,.Divider,.Array,.InitIndex)
         QUIT
@@ -1180,72 +1173,7 @@ NonWhite(s,p)
 
 Pad2Pos(Pos,ch)
         QUIT $$PAD2POS^TMGSTUT2(.Pos,.ch)
-
-HTML2TXT(Array)
-        ;"NOTICE: DEPRECIATED.  USE VERSION IN ^TMGHTM1
-        ;"--- THERE HAS BEEN A FORK BETWEEN THAT VERSION AND THIS...
-        ;"Purpose: text a WP array that is HTML formatted, and strip <P>, and
-        ;"         return in a format of 1 line per array node.
-        ;"Input: Array -- PASS BY REFERENCE.  This array will be altered.
-        ;"Results: none
-        ;"NOTE: This conversion causes some loss of HTML tags, so a round trip
-        ;"      conversion back to HTML would fail.
-        ;"NOTE: NO LONGER USED.  USED TO BE CALLED FROM TMGTIUO3
-
-        NEW outArray,outI
-        SET outI=1
-
-        ;"Clear out confusing non-breaking spaces.
-        NEW spec
-        SET spec("&nbsp;")=" "
-        SET spec("&lt;")="<"
-        SET spec("&gt;")=">"
-        SET spec("&amp;")="&"
-        SET spec("&quot;")=""""
-        NEW line SET line=0
-        FOR  SET line=$ORDER(Array(line)) QUIT:(line="")  DO
-        . NEW lineS SET lineS=$GET(Array(line,0))
-        . SET Array(line,0)=$$REPLACE^XLFSTR(lineS,.spec)
-
-        NEW s2 SET s2=""
-        NEW line SET line=0
-        FOR  SET line=$ORDER(Array(line)) QUIT:(line="")  DO
-        . NEW lineS SET lineS=s2_$GET(Array(line,0))
-        . SET s2=""
-        . FOR  DO  QUIT:(lineS'["<")
-        . . IF (lineS["<P>")&($PIECE(lineS,"<P>",1)'["<BR>") DO  QUIT
-        . . . SET outArray(outI,0)=$PIECE(lineS,"<P>",1)
-        . . . SET outI=outI+1
-        . . . SET outArray(outI,0)=""  ;"Add blank line to create paragraph break.
-        . . . SET outI=outI+1
-        . . . SET lineS=$PIECE(lineS,"<P>",2,999)
-        . . IF (lineS["</P>")&($PIECE(lineS,"</P>",1)'["<BR>") DO  QUIT
-        . . . SET outArray(outI,0)=$PIECE(lineS,"</P>",1)
-        . . . SET outI=outI+1
-        . . . SET outArray(outI,0)=""  ;"Add blank line to create paragraph break.
-        . . . SET outI=outI+1
-        . . . SET lineS=$PIECE(lineS,"</P>",2,999)
-        . . IF (lineS["</LI>")&($PIECE(lineS,"</LI>",1)'["<BR>") DO  QUIT
-        . . . SET outArray(outI,0)=$PIECE(lineS,"</LI>",1)   ;"   _"</LI>"
-        . . . SET outI=outI+1
-        . . . SET outArray(outI,0)=""  ;"Add blank line to create paragraph break.
-        . . . SET outI=outI+1
-        . . . SET lineS=$PIECE(lineS,"</LI>",2,999)
-        . . IF lineS["<BR>" DO  QUIT
-        . . . SET outArray(outI,0)=$PIECE(lineS,"<BR>",1)
-        . . . SET outI=outI+1
-        . . . SET lineS=$PIECE(lineS,"<BR>",2,999)
-        . . SET s2=lineS,lineS=""
-        . SET s2=s2_lineS
-        IF s2'="" DO
-        . SET outArray(outI,0)=s2
-        . SET outI=outI+1
-
-        KILL Array
-        MERGE Array=outArray
-        QUIT
-
-
+                                       
 TrimTags(lineS)
         ;"Purpose: To cut out HTML tags (e.g. <...>) from lineS, however, <no data> is protected
         ;"Input: lineS : the string to work on.
@@ -1260,47 +1188,48 @@ TrimTags(lineS)
         . NEW temp SET temp=$EXTRACT(RESULT,$LENGTH(partA)+1,999)
         . SET partB=$PIECE(temp,">",2,99)
         . SET RESULT=partA_partB
-       QUIT RESULT
+       QUIT RESULT                            
 
-ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) ;"Array to Host File
-        ;"NOTE: This may be duplicate of ARR2HFS^TMGIOUT3
-        ;"Purpose: to WRITE the array to the host file system
-        ;"Input: TMGARRAY -- PASS BY REFERENCE -- The array containing the text of the output file
-        ;"                  example: TMGARRAY(1)="line #1"   <-- note, **don't** use TMGARRAY(1,0)="Line#1" format
-        ;"                  TMGARRAY(2)="line #2"
-        ;"       TMGFPATH -- The full path, upto but not including the filename.
-        ;"       TMGFNAME -- the name of the file to save to
-        ;"Result: 1 if OK, -1^Message IF problem.
-        NEW TMGRESULT
-        NEW TMGREF SET TMGREF=$NAME(^TMP($J,"TMG STUTL HFS"))
-        KILL @TMGREF
-        MERGE @TMGREF=TMGARRAY
-        SET TMGRESULT=$$GTF^%ZISH($NAME(@TMGREF@(1)),3,TMGFPATH,TMGFNAME)
-        IF TMGRESULT'>0 SET TMGRESULT="-1^Unable to output to file: "_TMGFPATH_TMGFNAME
-        KILL @TMGREF
-        QUIT TMGRESULT
-        ;
-HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) ;"Host File to Array
-        ;"NOTE: This may be duplicate of HFS2ARR^TMGIOUT3
-        ;"Purpose: to WRITE the array to the host file system
-        ;"Input: TMGARRAY -- PASS BY REFERENCE -- The array to containing the text reading from the file
-        ;"         example: TMGARRAY(1)="line #1 from host file system"
-        ;"                  TMGARRAY(2)="line #2 from host file system"
-        ;"       TMGFPATH -- The full path, upto but not including the filename.
-        ;"       TMGFNAME -- the name of the file to save to
-        ;"Result: 1 if OK, -1^Message IF problem.
-        NEW TMGRESULT
-        KILL TMGARRAY
-        NEW TMGREF SET TMGREF=$NAME(^TMP($J,"TMG STUTL HFS"))
-        KILL @TMGREF
-        SET TMGRESULT=$$FTG^%ZISH(TMGFPATH,TMGFNAME,$NAME(@TMGREF@(1)),3)
-        IF TMGRESULT'>0 SET TMGRESULT="-1^Unable to read from file: "_TMGFPATH_TMGFNAME
-        NEW TMGI SET TMGI=0
-        FOR  SET TMGI=$ORDER(@TMGREF@(TMGI)) QUIT:(+TMGI'>0)  DO
-        . SET TMGARRAY(TMGI)=$GET(@TMGREF@(TMGI))
-        KILL @TMGREF
-        QUIT TMGRESULT
-        ;
+  ;"//kt I can't find this is being used anywhere.  Delete later.  11/2024
+  ;"DEPRECIATED ARRTOHF(TMGARRAY,TMGFPATH,TMGFNAME) ;"Array to Host File
+  ;"DEPRECIATED         ;"NOTE: This may be duplicate of ARR2HFS^TMGIOUT3
+  ;"DEPRECIATED         ;"Purpose: to WRITE the array to the host file system
+  ;"DEPRECIATED         ;"Input: TMGARRAY -- PASS BY REFERENCE -- The array containing the text of the output file
+  ;"DEPRECIATED         ;"                  example: TMGARRAY(1)="line #1"   <-- note, **don't** use TMGARRAY(1,0)="Line#1" format
+  ;"DEPRECIATED         ;"                  TMGARRAY(2)="line #2"
+  ;"DEPRECIATED         ;"       TMGFPATH -- The full path, upto but not including the filename.
+  ;"DEPRECIATED         ;"       TMGFNAME -- the name of the file to save to
+  ;"DEPRECIATED         ;"Result: 1 if OK, -1^Message IF problem.
+  ;"DEPRECIATED         NEW TMGRESULT
+  ;"DEPRECIATED         NEW TMGREF SET TMGREF=$NAME(^TMP($J,"TMG STUTL HFS"))
+  ;"DEPRECIATED         KILL @TMGREF
+  ;"DEPRECIATED         MERGE @TMGREF=TMGARRAY
+  ;"DEPRECIATED         SET TMGRESULT=$$GTF^%ZISH($NAME(@TMGREF@(1)),3,TMGFPATH,TMGFNAME)
+  ;"DEPRECIATED         IF TMGRESULT'>0 SET TMGRESULT="-1^Unable to output to file: "_TMGFPATH_TMGFNAME
+  ;"DEPRECIATED         KILL @TMGREF
+  ;"DEPRECIATED         QUIT TMGRESULT
+  ;"DEPRECIATED         ;
+  ;"DEPRECIATED HFTOARR(TMGARRAY,TMGFPATH,TMGFNAME) ;"Host File to Array
+  ;"DEPRECIATED         ;"NOTE: This may be duplicate of HFS2ARR^TMGIOUT3
+  ;"DEPRECIATED         ;"Purpose: to WRITE the array to the host file system
+  ;"DEPRECIATED         ;"Input: TMGARRAY -- PASS BY REFERENCE -- The array to containing the text reading from the file
+  ;"DEPRECIATED         ;"         example: TMGARRAY(1)="line #1 from host file system"
+  ;"DEPRECIATED         ;"                  TMGARRAY(2)="line #2 from host file system"
+  ;"DEPRECIATED         ;"       TMGFPATH -- The full path, upto but not including the filename.
+  ;"DEPRECIATED         ;"       TMGFNAME -- the name of the file to save to
+  ;"DEPRECIATED         ;"Result: 1 if OK, -1^Message IF problem.
+  ;"DEPRECIATED         NEW TMGRESULT
+  ;"DEPRECIATED         KILL TMGARRAY
+  ;"DEPRECIATED         NEW TMGREF SET TMGREF=$NAME(^TMP($J,"TMG STUTL HFS"))
+  ;"DEPRECIATED         KILL @TMGREF
+  ;"DEPRECIATED         SET TMGRESULT=$$FTG^%ZISH(TMGFPATH,TMGFNAME,$NAME(@TMGREF@(1)),3)
+  ;"DEPRECIATED         IF TMGRESULT'>0 SET TMGRESULT="-1^Unable to read from file: "_TMGFPATH_TMGFNAME
+  ;"DEPRECIATED         NEW TMGI SET TMGI=0
+  ;"DEPRECIATED         FOR  SET TMGI=$ORDER(@TMGREF@(TMGI)) QUIT:(+TMGI'>0)  DO
+  ;"DEPRECIATED         . SET TMGARRAY(TMGI)=$GET(@TMGREF@(TMGI))
+  ;"DEPRECIATED         KILL @TMGREF
+  ;"DEPRECIATED         QUIT TMGRESULT
+  ;"DEPRECIATED         ;
 UTF8WRITE(CODEPT) ;"Output Unicode character. 
   ;"Input: CODEPT -- This is Unicode codepoint.  (Codepoint is character # for Unicode)
   ;"               Should be a decimal number, unless prefixed with "$" with a hex number

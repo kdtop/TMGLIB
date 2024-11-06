@@ -1,4 +1,4 @@
-TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 2/26/23
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/2/24
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;
@@ -19,21 +19,24 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 2/26/23
   ;
   ;"=======================================================================
   ;" API -- Public Functions.
-  ;"=======================================================================
+  ;"=======================================================================                                   
   ;"NICESPLT(S,LEN,S1,S2,S2MIN,DIVCH) -- Split string to length, at spaces
+  ;"NEEDEDWS(S,SPECIALINDENT,INDENT) --NEEDED WHITE SPACE
+  ;"NUMLWS(S)  -- NUM LEFT WHITE SPACE
+  ;"$$MAKEWS(N)  -- Return a whitespace string that is n characters long
   ;"$$REPLSTR(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
   ;"STRIPARR(REF,STR) --Strip STR from each line of @REF array
   ;"REPLARR(REF,SRCHSTR,REPLSTR) -- Replace each instance of SRCHSTR with REPLSTR from each line of @REF array
   ;"$$MATCHXTR(STR,DIVCH,GROUP,MAP) -- Extract a string bounded by DIVCH, honoring matching encapsulators
   ;"$$LMATCH(STR,SUBSTR) -- Does left part of STR match SUBSTR?
-  ;"$$RMATCH(STR,SUBSTR) -- Does right part of STR match SUBSTR? 
+  ;"$$RMATCH(STR,SUBSTR) -- Does right part of STR match SUBSTR?   
   ;"MAPMATCH(STR,MAP) -- map a string with nested braces, parentheses etc (encapsulators)
-  ;"$$MAKEWS(N)  -- Return a whitespace string that is n characters long
+  ;"MAPMATCH2(STR,MAP,ENCAPS) -- MAP MATCHING ENCAPSULATORS, allowing multi-char, arbitarily-paired encapsulators
   ;"$$QTPROTCT(STR)-- Protects quotes by converting all quotes to double quotes
   ;"$$UNQTPROT(STR) --Reversed quotes protection by converting all double quotes to single quotes
   ;"$$ISALPHNUM(CH) -- is character alphanumeric?
   ;"$$ISNUM(STR) -- Return IF STR is numeric
-  ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB
+  ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB  
   ;"$$EXTRACTNUM(STR) --Extract numbers scattered through string, exluding any non-number.
   ;"$$RANDSTR(LEN,FLAGS,EXCLUDE) --Output a random string of given length, with options
   ;"$$TRIM2NUM(STR) --Trim of anything in string up to, but not including, a number
@@ -41,20 +44,29 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 2/26/23
   ;"STRIPCMD(STR)  -- Strip command characters
   ;"$$POS(SUBSTR,S,COUNT)  ;return the beginning position of SUBSTR in S
   ;"$$POSSET(STR,SUBSTRSET,STARTPOS) --POSITION OF CHARACTER FROM SET -- different from $$POS()
+  ;"INQT(STR,POS)  -- In Quote?
   ;"$$ENDQTPOS(STR,P1) -- return position of closing quotes 
   ;"$$GETWORD(STR,POS,OPENDIV,CLOSEDIV) -- Extract a word from a sentance, bounded by OPENDIV,CLOSEDIV 
   ;"$$NEXTTOKN(STR) --GET NEXT TOKEN
   ;"$$NEXTWORD(STR,DIVCHS) --Get next word, based on first found divisor character 
-  ;"$$PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED) Get indexed word, based on first found divisor character 
-  ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.  
-  ;"$$NEXTCH2(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.
+  ;"$$PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED) Get indexed word, based on first found divisor character       
+  ;"$$NEXTFRAG(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.
+  ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.
+  ;"LMATCH(STR,SUBSTR,CASESPEC) - Does left part of STR match SUBSTR?
+  ;"RMATCH(STR,SUBSTR,CASESPEC) - Does right part of STR match SUBSTR?  
   ;"$$SUBASCII(STR)  --TAKES INPUT OF AAC AND RETURNS AAB (useful for finding just before, to $ORDER to STR)
   ;"$$MIDSTRCOLOR(TEXT,START,LEN) -- similar to MidStr(), but skipping over {{color}} tags
+  ;"MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) --MARKUP-STR-MID().  Like MidStr() or $EXTRACT(), but for Markup strings
+  ;"MKSTRLEN(TEXT,TAGSTART,TAGEND) --Length of Markup string (excluding tags)
+  ;"MKSTRLTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-LTRIM().   
+  ;"MKSTRRTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-RTRIM().   
   ;"$$FINDDT(TEXT,SPOS,OUT,SPT,EPT) --Find date in TEXT, starting at option SPOS, return value found in DTOUT
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
   ;"$$NEEDEDWS(S,SPECIALINDENT,INDENT) -- create white space need for wrapped lines
+  ;"GETMATCHENCAP(OUT,ENCAP) ;  
+  ;"INTAG(POS,MAP) --Based on MAP from MAPMATCH2, is POS inside a non-nested encapsulator?  
   ;"=======================================================================
   ;"Dependancies: XLFSTR
   ;
@@ -209,7 +221,7 @@ MATCHXTR(STR,DIVCH,GROUP,MAP,RESTRICT) ;"MATCH EXTRACT
   . SET RESULT=$EXTRACT(STR,P(1)+1,P(2)-1)
   QUIT RESULT
   ;
-MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS
+MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS.  NOTE: See also MAPMATCH2() for extra functionality
   ;"Purpose to map a string with nested braces, parentheses etc (encapsulators)
   ;"Note: the following markers are honored as paired encapsulators:
   ;"      ( ),  { },  | |,  < >,  # #,  " "
@@ -220,14 +232,25 @@ MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS
   ;"           MAP(GROUP,Depth,"Pos",2)=index of paired closing symbol
   ;"       RESTRICT -- OPTIONAL.  A string of allowed opening encapsulators (allows others to be ignored)
   ;"                  e.g. "{(|"  <-- will cause "<>#[]" to be ignored
+  ;"E.g.  STR="Hello there (friend)"
+  ;"           MAP(1,1)="("         <-- encapsulator found
+  ;"           MAP(1,1,"Pos",1)=13  <-- start pos
+  ;"           MAP(1,1,"Pos",2)=20  <-- end pos
+  ;"E.g. STR="Hello there (friend), what are you doing (today)?"
+  ;"           MAP(1,1)="("         <-- first group encapsulator
+  ;"           MAP(1,1,"Pos",1)=13
+  ;"           MAP(1,1,"Pos",2)=20
+  ;"           MAP(2,1)="("         <-- second group encapsulator
+  ;"           MAP(2,1,"Pos",1)=42
+  ;"           MAP(2,1,"Pos",2)=48
   ;"E.g.  STR="Hello |There{|friend|}|"
-  ;"           MAP(1,1)="|"
+  ;"           MAP(1,1)="|"        <-- first group encapsulator
   ;"           MAP(1,1,"Pos",1)=7
   ;"           MAP(1,1,"Pos",2)=23
-  ;"           MAP(1,2)="{"
+  ;"           MAP(1,2)="{"        <-- inside group 1, we have a subgroup, depth=2
   ;"           MAP(1,2,"Pos",1)=13
   ;"           MAP(1,2,"Pos",2)=22
-  ;"           MAP(1,3)="|"
+  ;"           MAP(1,3)="|"        <-- inside group 1, we have a sub-subgroup, depth=3
   ;"           MAP(1,3,"Pos",1)=14
   ;"           MAP(1,3,"Pos",2)=21
   ;"Eg.   STR="Hello |There{|friend|}|  This is more (and I (want { to say} !) OK?)"
@@ -249,16 +272,20 @@ MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS
   ;"           map(2,3)="{"
   ;"           map(2,3,"Pos",1)=52
   ;"           map(2,3,"Pos",2)=60
+  ;"E.g. STR="Hello There |Friend { and | neighbors }" <-- notice that nesting is inconsistent/broken    
+  ;"           MAP(1,1)="|"          <-- First group encapsulator
+  ;"           MAP(1,1,"Closer")="|"
+  ;"           MAP(1,1,"Pos",1)=13   <-- Opening position found, but closing not found      
+  ;"           MAP(1,2)="{"          <-- inside group 1, we find start of another encapsulator, depth=2 
+  ;"           MAP(1,2,"Closer")="}"
+  ;"           MAP(1,2,"Pos",1)=21   <-- Opening position found, but closing not found   
+  ;"           MAP(1,3)="|"          <-- NOTE: this is NOT seen as match to starting "|" because it is inside {}
+  ;"           MAP(1,3,"Closer")="|" 
+  ;"           MAP(1,3,"Pos",1)=27   <-- Interpreted as another opener, and no matching closer found                     
   ;"Results: none
   SET RESTRICT=$GET(RESTRICT,"({|<#""")
   NEW MATCH,DEPTH,IDX,GROUP
   DO GETMATCHENCAP(.MATCH,RESTRICT) 
-  ;"IF RESTRICT["(" SET MATCH("(")=")"
-  ;"IF RESTRICT["{" SET MATCH("{")="}"
-  ;"IF RESTRICT["|" SET MATCH("|")="|"
-  ;"IF RESTRICT["<" SET MATCH("<")=">"
-  ;"IF RESTRICT["#" SET MATCH("#")="#"
-  ;"IF RESTRICT["""" SET MATCH("""")=""""
   KILL MAP
   SET DEPTH=0,GROUP=1
   FOR IDX=1:1:$LENGTH(STR) DO
@@ -275,13 +302,75 @@ MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS
   . SET MAP(GROUP,DEPTH,"Pos",1)=IDX
   QUIT
   ;
-GETMATCHENCAP(OUT,ENCAP) ;
+GETMATCHENCAP(OUT,ENCAP) ;  
   IF ENCAP["(" SET OUT("(")=")"
   IF ENCAP["{" SET OUT("{")="}"
   IF ENCAP["|" SET OUT("|")="|"
   IF ENCAP["<" SET OUT("<")=">"
   IF ENCAP["#" SET OUT("#")="#"
   IF ENCAP["""" SET OUT("""")=""""
+  QUIT
+  ;  
+TESTMM2 ;
+  ;"SET X="Hello there (Friend) and (Neighbor)"
+  SET X="Hello |There{|friend|}|"
+  NEW MAP
+  DO MAPMATCH2(X,.MAP)           
+  QUIT
+  ;
+MAPMATCH2(STR,MAP,ENCAPS)  ;" MAP MATCHING ENCAPSULATORS, allowing multi-char, arbitarily-paired encapsulators
+  ;"Purpose to map a string with nested braces, parentheses etc (encapsulators)
+  ;"Note: the following markers are honored as paired encapsulators:
+  ;"      ( ),  { },  | |,  < >,  # #,  " "
+  ;"Input: STR -- string to evaluate
+  ;"       MAP -- PASS BY REFERENCE.  An OUT PARAMETER.  Prior values are killed.  Format:
+  ;"           MAP(GROUP,Depth)=OpeningFrag^ClosingFrag 
+  ;"           MAP(GROUP,Depth,"Pos",1)=index of opening symbol
+  ;"           MAP(GROUP,Depth,"Pos",2)=index of paired closing symbol
+  ;"       ENCAPS -- OPTIONAL.  ARRAY of opening and closing encapsulators.  Format:
+  ;"           ENCAPS(<OpenEncapsulator>)=<CloseEncapsulator>
+  ;"           e.g. ENCAPS("{{")="}}"
+  ;"           e.g. ENCAPS("<")=">"
+  ;"           e.g. ENCAPS("ABC")="XYZ"
+  ;"           If not provided, then default is ( ),  { },  | |,  < >,  # #,  " "
+  NEW TEMPSTR SET TEMPSTR=STR
+  IF $DATA(ENCAPS)=0 DO GETMATCHENCAP(.ENCAPS,"({|<#""")
+  NEW GROUP,DEPTH SET GROUP=1,DEPTH=0
+  NEW IDX,CLSRS,ACLSR SET IDX="" 
+  FOR  SET IDX=$ORDER(ENCAPS(IDX)) QUIT:IDX=""  DO
+  . SET ACLSR=$GET(ENCAPS(IDX)) QUIT:ACLSR="" 
+  . SET CLSRS(ACLSR)=IDX
+  NEW TAGS MERGE TAGS=ENCAPS,TAGS=CLSRS
+  NEW TAG,TAGPOS
+  NEW LEN SET LEN=$LENGTH(TEMPSTR)
+  NEW OPENTAG,CLOSETAG,OPENPOS,CLOSEPOS
+  NEW POS SET POS=1
+  NEW DONE SET DONE=0
+  FOR  DO  QUIT:DONE  
+  . ;"SET TAG=$$NEXTFRAG(TEMPSTR,POS,.TAGS,.TAGPOS)
+  . SET OPENTAG=$$NEXTFRAG(TEMPSTR,POS,.ENCAPS,.OPENPOS)
+  . SET CLOSETAG=$$NEXTFRAG(TEMPSTR,POS,.CLSRS,.CLOSEPOS)
+  . IF OPENPOS>0,(OPENPOS<CLOSEPOS)!(CLOSEPOS=0) DO
+  . . SET TAG=OPENTAG,TAGPOS=OPENPOS
+  . ELSE  IF CLOSEPOS>0,(CLOSEPOS<OPENPOS)!(OPENPOS=0) DO
+  . . SET TAG=CLOSETAG,TAGPOS=CLOSEPOS
+  . ELSE  IF (OPENPOS=0)&(CLOSEPOS=0) DO  QUIT
+  . . SET DONE=1
+  . ELSE  IF OPENPOS=CLOSEPOS,OPENPOS>0 DO
+  . . SET TAG=OPENTAG,TAGPOS=OPENPOS
+  . ELSE  DO  QUIT
+  . . SET DONE=1
+  . SET POS=TAGPOS+1 
+  . IF TAG=CLOSETAG,TAG=$GET(MAP(GROUP,DEPTH,"Closer")) DO  QUIT
+  . . SET MAP(GROUP,DEPTH,"Pos",2)=TAGPOS
+  . . KILL MAP(GROUP,DEPTH,"Closer")
+  . . SET DEPTH=DEPTH-1
+  . . IF DEPTH=0 SET GROUP=GROUP+1
+  . SET DEPTH=DEPTH+1
+  . NEW MATCHCLOSER SET MATCHCLOSER=$GET(ENCAPS(TAG))
+  . SET MAP(GROUP,DEPTH)=TAG_"^"_MATCHCLOSER 
+  . SET MAP(GROUP,DEPTH,"Closer")=MATCHCLOSER
+  . SET MAP(GROUP,DEPTH,"Pos",1)=TAGPOS
   QUIT
   ;
 QTPROTCT(STR) ;QUOTE PROTECT
@@ -586,17 +675,18 @@ PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED)  ;"Get indexed word, based on first found di
   ;"        If one of the divisors is not found in string, nothing is returned.
   SET IDX2=+$GET(IDX2) IF IDX2=0 SET IDX2=IDX 
   NEW JDX FOR JDX=1:1:$LENGTH(DIVCHS) SET DIVCHS($EXTRACT(DIVCHS,JDX))=""
-  SET DIVUSED=$$NEXTCH2(STR,0,.DIVCHS)
+  SET DIVUSED=$$NEXTFRAG(STR,0,.DIVCHS)
   NEW RESULT SET RESULT=$PIECE(STR,DIVUSED,IDX,IDX2)
   QUIT RESULT
   ;
-NEXTCH2(STR,STARTPOS,FRAGS) ;"Get first next character (or string fragment), matching from array of possible inputs.  
+NEXTFRAG(STR,STARTPOS,FRAGS,FOUNDPOS) ;"Get first next character (or string fragment), matching from array of possible inputs.  
   ;"Purpose: Check string to determine which string fragment comes first and return it
   ;"INPUTS: STR -- the string to check
   ;"        STARTPOS -- the index to start $FIND at, default is 0
   ;"        FRAGS. PASS BY REFERENCE.  Format:
   ;"          FRAG("test string1")=""
   ;"          FRAG("test string2")=""
+  ;"        FOUNDPOS -- OPTIONAL  An OUT parameter.  Position of resulting frag
   ;"Results: returns which of inputs is found first, or "" if none found.  
   NEW MAX SET MAX=$LENGTH(STR)+1
   NEW TEST,POS,MIN,IDX,JDX SET MIN=MAX,(IDX,JDX)=1
@@ -612,14 +702,14 @@ NEXTCH2(STR,STARTPOS,FRAGS) ;"Get first next character (or string fragment), mat
   . IF POS(JDX)'<MIN QUIT
   . SET MIN=POS(JDX)
   . SET MINIDX=JDX
+  SET FOUNDPOS=+$GET(POS(MINIDX))
   QUIT $GET(POS(MINIDX,"TEST"))
   ;      
-NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G,H,I) ;"Get first next character (or string fragment), matching from 7 possible inputs.  
-  ;"ELH  ADDED H AND I TO THE SEARCH
+NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G,H,I) ;"Get first next character (or string fragment), matching from 9 possible inputs.  
   ;"Purpose: Check string to determine which string fragment comes first and return it
   ;"INPUTS: STR -- the string to check
   ;"        STARTPOS -- the index to start $FIND at, default is 0
-  ;"        A..G the inputs to test for.  
+  ;"        A..I the inputs to test for.  
   ;"Results: returns which of inputs is found first, or "" if none found.
   SET A=$GET(A),B=$GET(B),C=$GET(C),D=$GET(D),E=$GET(E),F=$GET(F),G=$GET(G),H=$GET(H),I=$GET(I)
   NEW FRAGS                  SET:A'="" FRAGS(A)=""      
@@ -627,7 +717,7 @@ NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G,H,I) ;"Get first next character (or string fra
   SET:D'="" FRAGS(D)=""      SET:E'="" FRAGS(E)=""      
   SET:F'="" FRAGS(F)=""      SET:G'="" FRAGS(G)=""
   SET:H'="" FRAGS(H)=""      SET:I'="" FRAGS(I)=""
-  QUIT $$NEXTCH2(.STR,.STARTPOS,.FRAGS)     
+  QUIT $$NEXTFRAG(.STR,.STARTPOS,.FRAGS)     
   ;    
 LMATCH(STR,SUBSTR,CASESPEC) ;"Does left part of STR match SUBSTR?
   SET STR=$GET(STR),SUBSTR=$GET(SUBSTR) IF (STR="")!(SUBSTR="") QUIT 0
@@ -650,32 +740,230 @@ SUBASCII(STR)  ;"TAKES INPUT OF 'AAC' AND RETURNS 'AAB'
   SET RESULT=RESULT_CH
   QUIT RESULT
   ;  
-MIDSTRCOLOR(TEXT,START,LEN) ;"SIMILAR to MidStr(), but skipping over {{color}} tags
-  ;"Exmple: TEXT = 'hello {{red}} world {{blue}} and stars'
-  ;"                         ^-- this is pos 10
-  ;"                00000000011111111112222222222333333333
-  ;"                12345678901234567890123456789012345678
-  ;"        START 10
-  ;"        LEN = 9999
-  ;"Result: ' world  and stars'
+  ;"DELETE LATER  //kt 11/2024
+  ;"DEPRECIATED -- MIDSTRCOLOR(TEXT,START,LEN) ;"SIMILAR to MidStr(), but skipping over {{color}} tags
+  ;"DEPRECIATED --   ;"Exmple: TEXT = 'hello {{red}} world {{blue}} and stars'
+  ;"DEPRECIATED --   ;"                         ^-- this is pos 10
+  ;"DEPRECIATED --   ;"                00000000011111111112222222222333333333
+  ;"DEPRECIATED --   ;"                12345678901234567890123456789012345678
+  ;"DEPRECIATED --   ;"        START 10
+  ;"DEPRECIATED --   ;"        LEN = 9999
+  ;"DEPRECIATED --   ;"Result: ' world  and stars'
+  ;"DEPRECIATED --   NEW RESULT SET RESULT=""
+  ;"DEPRECIATED --   NEW IDX
+  ;"DEPRECIATED --   NEW NONCOLORPOS SET NONCOLORPOS=0
+  ;"DEPRECIATED --   NEW INCOLOR SET INCOLOR=0
+  ;"DEPRECIATED --   FOR IDX=1:1 DO  QUIT:(IDX>=$LENGTH(TEXT))!(LEN=0)
+  ;"DEPRECIATED --   . NEW CH SET CH=$EXTRACT(TEXT,IDX)
+  ;"DEPRECIATED --   . NEW CH2 SET CH2=$EXTRACT(TEXT,IDX+1)
+  ;"DEPRECIATED --   . IF CH="{",CH2="{" DO  QUIT
+  ;"DEPRECIATED --   . . SET INCOLOR=1,IDX=IDX+1
+  ;"DEPRECIATED --   . IF CH="}",CH2="}" DO  QUIT
+  ;"DEPRECIATED --   . . SET INCOLOR=0,IDX=IDX+1
+  ;"DEPRECIATED --   . IF INCOLOR=0 SET NONCOLORPOS=NONCOLORPOS+1
+  ;"DEPRECIATED --   . IF NONCOLORPOS<START QUIT
+  ;"DEPRECIATED --   . IF INCOLOR QUIT
+  ;"DEPRECIATED --   . SET RESULT=RESULT_CH
+  ;"DEPRECIATED --   . SET LEN=LEN-1
+  ;"DEPRECIATED --   QUIT RESULT
+  ;"DEPRECIATED --   ;  
+TESTMKSM ;
+  NEW TEXT SET TEXT="Hello {{red}} world {{blue}} and stars"
+  SET OPTION("STRIP TAGS")=1
+  WRITE $$MKSTRMID(TEXT,8,999,"{{","}}",.OPTION),!
+  SET OPTION("STRIP TAGS")=0
+  WRITE $$MKSTRMID(TEXT,8,999,"{{","}}",.OPTION),!
+  KILL OPTION("STRIP TAGS")
+  SET OPTION("KEEP TAGS")=1
+  WRITE $$MKSTRMID(TEXT,1,5,"{{","}}",.OPTION),!
+  WRITE $$MKSTRMID(TEXT,8,5,"{{","}}",.OPTION),!
+  WRITE $$MKSTRMID(TEXT,15,999,"{{","}}",.OPTION),!
+  QUIT
+  ;
+MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) ;"MARKUP-STR-MID().  Like MidStr() or $EXTRACT(), but for Markup strings
+  ;"SIMILAR to MidStr(), but skipping over MarkupString tags, E.G. 'Hello {{red}} world {{blue}} and stars'
+  ;"INPUT: TEXT -- the text to extract from
+  ;"       START -- index position to START from.  This is number of NON-TAG characters.  E.g. 'ab{{TAG}}cd', index 3->'c'
+  ;"             NOTE: This START is counted *differently* from MIDSTRCOLOR() above.  
+  ;"       LEN -- number of NON-tag characters to return.  
+  ;"       TAGSTART -- starting chars of markup tag.  E.g. "{{"
+  ;"       TAGEND -- ending chars of markup tag, E.g. "}}"
+  ;"       OPTION -- Optional.  
+  ;"         OPTION("STRIP TAGS")=1.  If found, tags are not return with result, and are stripped out.  
+  ;"                              If NOT found, then tags are returned in output string, but not counted in length returned.
+  ;"         OPTION("KEEP TAGS")=1  If found, then ALL tags are returned, even those outside specified range.  
   NEW RESULT SET RESULT=""
-  NEW IDX
-  NEW NONCOLORPOS SET NONCOLORPOS=0
-  NEW INCOLOR SET INCOLOR=0
-  FOR IDX=1:1 DO  QUIT:(IDX>=$LENGTH(TEXT))!(LEN=0)
-  . NEW CH SET CH=$EXTRACT(TEXT,IDX)
-  . NEW CH2 SET CH2=$EXTRACT(TEXT,IDX+1)
-  . IF CH="{",CH2="{" DO  QUIT
-  . . SET INCOLOR=1,IDX=IDX+1
-  . IF CH="}",CH2="}" DO  QUIT
-  . . SET INCOLOR=0,IDX=IDX+1
-  . IF INCOLOR=0 SET NONCOLORPOS=NONCOLORPOS+1
-  . IF NONCOLORPOS<START QUIT
-  . IF INCOLOR QUIT
-  . SET RESULT=RESULT_CH
-  . SET LEN=LEN-1
+  SET TAGSTART=$GET(TAGSTART) IF TAGSTART="" GOTO MSMSDN 
+  SET TAGEND=$GET(TAGEND) IF TAGEND="" GOTO MSMSDN
+  NEW ENCAPS SET ENCAPS(TAGSTART)=TAGEND
+  NEW MAP DO MAPMATCH2(TEXT,.MAP,.ENCAPS)
+  NEW TEXTLEN SET TEXTLEN=$LENGTH(TEXT)
+  NEW STRIP SET STRIP=($GET(OPTION("STRIP TAGS"))=1)
+  NEW KEEPTAGS SET KEEPTAGS=($GET(OPTION("KEEP TAGS"))=1)
+  NEW OUTCT SET OUTCT=0
+  NEW PLAINCT SET PLAINCT=0
+  NEW STARTREACHED SET STARTREACHED=0
+  NEW DONE SET DONE=0
+  NEW POS,INTAG
+  FOR POS=1:1:TEXTLEN DO  QUIT:(DONE=1)&(KEEPTAGS=0)
+  . SET INTAG=$$INTAG(POS,.MAP)            
+  . IF INTAG DO
+  . . IF STRIP QUIT
+  . . IF (STARTREACHED!KEEPTAGS) SET RESULT=RESULT_$EXTRACT(TEXT,POS)
+  . ELSE  DO  ;"INTAG=0
+  . . SET PLAINCT=PLAINCT+1
+  . . IF PLAINCT<START QUIT
+  . . SET STARTREACHED=1
+  . . IF OUTCT'<LEN SET DONE=1 QUIT
+  . . SET RESULT=RESULT_$EXTRACT(TEXT,POS),OUTCT=OUTCT+1
+MSMSDN ;
   QUIT RESULT
-  ;  
+  ;
+MKSTRLEN(TEXT,TAGSTART,TAGEND)  ;"Length of Markup string (excluding tags)
+  ;"INPUT: TEXT -- the text to count
+  ;"       TAGSTART -- starting chars of markup tag.  E.g. "{{"
+  ;"       TAGEND -- ending chars of markup tag, E.g. "}}"
+  NEW RESULT SET RESULT=0
+  SET TAGSTART=$GET(TAGSTART) IF TAGSTART="" GOTO MKSLDN
+  SET TAGEND=$GET(TAGEND) IF TAGEND="" GOTO MKSLDN
+  NEW ENCAPS SET ENCAPS(TAGSTART)=TAGEND
+  NEW MAP DO MAPMATCH2(TEXT,.MAP,.ENCAPS)
+  NEW TEXTLEN SET TEXTLEN=$LENGTH(TEXT)
+  NEW POS,INTAG
+  FOR POS=1:1:TEXTLEN DO  
+  . SET INTAG=$$INTAG(POS,.MAP) 
+  . IF INTAG QUIT
+  . SET RESULT=RESULT+1
+MKSLDN ;
+  QUIT RESULT
+  ;
+TESTMKLTRIM ;
+  SET %="ABC{{blue}}DEFGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}"),!
+  SET %="{{blue}}ABCDEFGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}"),!
+  SET %="ABCD{{blue}}EFGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}"),!
+  SET %="ABCDE{{blue}}FGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}"),!
+  WRITE "--",!
+  NEW OPTION SET OPTION("KEEP TAGS")=1
+  SET %="ABC{{blue}}DEFGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}",.OPTION),!
+  SET %="{{blue}}ABCDEFGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}",.OPTION),!
+  SET %="ABCD{{blue}}EFGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}",.OPTION),!
+  SET %="ABCDE{{blue}}FGHI"
+  WRITE $$MKSTRLTRIM(%,4,"{{","}}",.OPTION),!
+  QUIT
+  ;
+MKSTRLTRIM(TEXT,NUM,TAGSTART,TAGEND,OPTION) ;"MARKUP-STR-LTRIM().   
+  ;"INPUT: TEXT -- the text to extract from
+  ;"       NUM -- Number of NON-tag characters to trip from LEFT of TEXT
+  ;"       TAGSTART -- starting chars of markup tag.  E.g. "{{"
+  ;"       TAGEND -- ending chars of markup tag, E.g. "}}"
+  ;"       OPTION -- Optional.  
+  ;"         OPTION("KEEP TAGS")=1  If found, then ALL tags are returned, even those outside specified range.  
+  ;"E.g. ABC{{blue}}DEFGHI,  trim 4 --> EFGHI
+  ;"E.g. {{blue}}ABCDEFGHI,  trim 4 --> EFGHI
+  ;"E.g. ABCD{{blue}}EFGHI,  trim 4 --> EFGHI  <-- NOTE: {{blue}} excluded because trimming 4, means starting at 5, which is PAST tag
+  ;"E.g. ABCDE{{blue}}EFGHI,  trim 4 --> E{{blue}}FGHI 
+  ;"Below are if OPTION("KEEP TAGS")=1
+  ;"E.g. ABC{{blue}}DEFGHI,  trim 4 --> {{blue}}EFGHI
+  ;"E.g. {{blue}}ABCDEFGHI,  trim 4 --> {{blue}}EFGHI
+  ;"E.g. ABCD{{blue}}EFGHI,  trim 4 --> {{blue}}EFGHI  <-- NOTE: {{blue}} included
+  ;"E.g. ABCDE{{blue}}EFGHI,  trim 4 --> E{{blue}}FGHI 
+  NEW RESULT SET RESULT=$$MKSTRMID(.TEXT,NUM+1,$LENGTH(TEXT),.TAGSTART,.TAGEND,.OPTION)  
+  QUIT RESULT
+  ;
+TESTMKRTRIM ;
+  SET %="ABCDEFG{{blue}}HI"
+  WRITE $$MKSTRRTRIM(%,1,"{{","}}"),!
+  WRITE $$MKSTRRTRIM(%,2,"{{","}}"),!
+  WRITE $$MKSTRRTRIM(%,3,"{{","}}"),!
+  NEW OPTION SET OPTION("KEEP TAGS")=1
+  WRITE $$MKSTRRTRIM(%,1,"{{","}}"),!
+  WRITE $$MKSTRRTRIM(%,2,"{{","}}"),!
+  WRITE $$MKSTRRTRIM(%,3,"{{","}}"),!
+  QUIT
+  ;
+MKSTRRTRIM(TEXT,NUM,TAGSTART,TAGEND) ;"MARKUP-STR-RTRIM().   
+  ;"INPUT: TEXT -- the text to extract from
+  ;"       NUM -- Number of NON-tag characters to trip from RIGHT of TEXT
+  ;"       TAGSTART -- starting chars of markup tag.  E.g. "{{"
+  ;"       TAGEND -- ending chars of markup tag, E.g. "}}"
+  ;"       OPTION -- Optional.  
+  ;"         OPTION("KEEP TAGS")=1  If found, then ALL tags are returned, even those outside specified range.  
+  ;"E.g. ABCDEFG{{blue}}HI,  trim 1 --> ABCDEFG{{blue}}H
+  ;"E.g. ABCDEFG{{blue}}HI,  trim 2 --> ABCDEFG{{blue}}  <-- NOTE: {{blue}} is included. 
+  ;"E.g. ABCDEFG{{blue}}HI,  trim 3 --> ABCDEF
+  ;"Below are if OPTION("KEEP TAGS")=1
+  ;"E.g. ABCDEFG{{blue}}HI,  trim 1 --> ABCDEFG{{blue}}H
+  ;"E.g. ABCDEFG{{blue}}HI,  trim 2 --> ABCDEFG{{blue}}  
+  ;"E.g. ABCDEFG{{blue}}HI,  trim 3 --> ABCDEF{{blue}}   <-- NOTE: {{blue}} is included. 
+  NEW LEN SET LEN=$$MKSTRLEN(.TEXT,.TAGSTART,.TAGEND)  ;"Length of Markup string (excluding tags)
+  NEW RESULT SET RESULT=$$MKSTRMID(.TEXT,1,LEN-NUM,.TAGSTART,.TAGEND,.OPTION)  
+  QUIT RESULT
+  ;
+INTAG(POS,MAP)  ;"Based on MAP from MAPMATCH2, is POS inside an encapsulator?  Only considers top level, non-nested encapsulators.
+  NEW RESULT SET RESULT=0
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(MAP(IDX)) QUIT:(IDX'>0)!(RESULT=1)  DO
+  . NEW TAGS SET TAGS=$GET(MAP(IDX,1))
+  . NEW OPENTAG SET OPENTAG=$PIECE(TAGS,"^",1)
+  . NEW CLOSETAG SET CLOSETAG=$PIECE(TAGS,"^",2)
+  . NEW STARTPOS SET STARTPOS=+$GET(MAP(IDX,1,"Pos",1))
+  . NEW ENDPOS SET ENDPOS=+$GET(MAP(IDX,1,"Pos",2))+$LENGTH(CLOSETAG)-1
+  . IF (POS<STARTPOS)!(POS>ENDPOS) QUIT
+  . SET RESULT=1
+  QUIT RESULT
+  ;
+TESTFE ;
+  NEW % SET %="ABC{{RECORD# 1}}DEFG{{RECORD# 2}}HIJK{{RECORD# 3}}LMNOP"
+  DO FOREACHTAG(%,"{{","}}","TESTCALLBACK^TMGSTUT3")
+  QUIT
+  ;
+TESTCALLBACK(TEXT,ATAG,POS) ;"CALLBACK FOR TESTFE
+  WRITE "FOUND ",ATAG,!
+  NEW PARTA SET PARTA=$EXTRACT(TEXT,1,POS-1)
+  NEW PARTB SET PARTB=$EXTRACT(TEXT,POS+$LENGTH(ATAG),$LENGTH(TEXT))
+  SET ATAG=$PIECE(ATAG,"RECORD# ",2)
+  SET TEXT=PARTA_ATAG_PARTB
+  QUIT
+  ;
+FOREACHTAG(TEXT,TAGSTART,TAGEND,HNDTAG) ;"Cycle through each tag, calling callback Fn HNDTAG
+  ;"INPUT: TEXT -- the text to process
+  ;"       TAGSTART -- starting chars of markup tag.  E.g. "{{"
+  ;"       TAGEND -- ending chars of markup tag, E.g. "}}"
+  ;"       HNDTAG -- LABEL^MODULE for callback code.  Must be informat, e.g. MYLABEL^MYCODE(TEXT,ATAG,POS)
+  ;"                TEXT will be pass by reference and code may modify it.  NOTE: scanner is cycling
+  ;"                   through TEXT and will continue after tag for next cycle.  If ATAG is modified, 
+  ;"                   then POS will be automatically adjusted accordingly.  
+  ;"                ATAG -- The text of the tag, without TAGSTART or TAGEND.  Passed by reference, may be modified
+  ;"                POS -- this is index, in TEXT, that immediately starts ATAG.  READ ONLY
+  ;"                Code should NOT return result
+  ;"NOTE: this code is not designed to handle nested tags.  
+  ;"      Any execution errors in callback code will be caught and ignored
+  SET TAGSTART=$GET(TAGSTART) IF TAGSTART="" QUIT 
+  SET TAGEND=$GET(TAGEND) IF TAGEND="" QUIT
+  SET HNDTAG=$GET(HNDTAG) IF HNDTAG="" QUIT
+  SET TEXT=$GET(TEXT) IF TEXT="" QUIT
+  NEW L2 SET L2=$LENGTH(TAGEND)
+  NEW POS SET POS=1
+  NEW DONE SET DONE=0
+  FOR  DO  QUIT:DONE
+  . SET POS=$FIND(TEXT,TAGSTART,POS) IF POS=0 SET DONE=1 QUIT
+  . NEW P2 SET P2=$FIND(TEXT,TAGEND,POS) IF P2'>0 SET DONE=1 QUIT
+  . NEW ATAG SET ATAG=$EXTRACT(TEXT,POS,P2-L2-1)
+  . NEW CODE SET CODE="DO "_HNDTAG_"(.TEXT,.ATAG,POS)"
+  . DO
+  . . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!  Error Trapped.)"",! SET $ETRAP="""",$ECODE="""""
+  . . XECUTE CODE
+  . SET POS=POS+$LENGTH(ATAG)+L2
+  . IF POS>$LENGTH(TEXT) SET DONE=1  
+  QUIT
+  ;
 FINDDT(TEXT,SPOS,OUT,SPT,EPT) ;"Find date in TEXT, starting at option SPOS, return value found in DTOUT
   ;"NOTE: at least intially, I will be looking for date in format of ##/##/## or ##/##/#### (the number of numbers does NOT matter)
   ;"      This could be expanded later....
