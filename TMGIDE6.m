@@ -859,9 +859,12 @@ EBM1 ;
   . SET Found(zbS)=1
   ;"-----Also get breakpoints stored in GT.M --------------
   NEW gtmBrkPts zshow "B":gtmBrkPts
+  ;"//kt NOTE: after upgrade to r202 from r132, format of gtmBrkPts has changed
+  ;"           Now it is LABEL+OFFSET^ROUTINE>breakpoint m code.  
   NEW zbI SET zbI=0
   FOR  SET zbI=$ORDER(gtmBrkPts("B",zbI)) QUIT:(zbI="")  do
   . SET zbS=$GET(gtmBrkPts("B",zbI)) QUIT:zbS=""
+  . SET zbS=$PIECE(zbS,">",1)  ;"//kt 1/7/24  remove execution code at zbreak
   . ;"WRITE "one gtm found",zbS,!
   . IF $GET(Found(zbS))=1 QUIT
   . SET Menu(ct)=zbS_$CHAR(9)_zbS,ct=ct+1
@@ -885,9 +888,12 @@ GetGTMBrkPts(LIST) ;
   ;"Input: LIST -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;"         LIST(Position)=1
   NEW gtmBrkPts zshow "B":gtmBrkPts
+  ;"//kt NOTE: after upgrade to r202 from r132, format of gtmBrkPts has changed
+  ;"           Now it is LABEL+OFFSET^ROUTINE>breakpoint m code.  
   NEW zbI SET zbI=0
   FOR  SET zbI=$ORDER(gtmBrkPts("B",zbI)) QUIT:(zbI="")  do
   . SET zbS=$GET(gtmBrkPts("B",zbI)) QUIT:zbS=""
+  . SET zbS=$PIECE(zbS,">",1)  ;"//kt 1/7/24  remove execution code at zbreak
   . IF $GET(LIST(zbS))=1 QUIT
   . SET LIST(zbS)=1
   QUIT

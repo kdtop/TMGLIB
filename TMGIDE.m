@@ -444,6 +444,8 @@ READ2(XGCHARS,XGTO)   ;"Taken from READ^XGKB
   ;"       "NEXT"
   ;"       "RIGHT"
   ;"       "LEFT"
+  DO DEV2ARR^TMGKERN1($IO,.tmgDEVRead2Save,,.tmgDEVInfo)  ;"//kt 11/23/24
+  USE $IO:(ESCAPE)                                        ;"//kt 11/23/24 
   NEW S,XGW1,XGT1,XGSEQ ;"string,window,timer,timer sequence
   KILL DTOUT
   SET tmgXGRT=""
@@ -471,5 +473,7 @@ READ2(XGCHARS,XGTO)   ;"Taken from READ^XGKB
   . DO E^XGEVNT1(XGW1,"T",XGT1,"","TIMER")
   ELSE  IF $L(tmgXGRT),$D(^TMP("XGKEY",$J,tmgXGRT)) XECUTE ^(tmgXGRT)  ;"do some action
   ;" this really should be handled by keyboard mapping -- later
+  IF $DATA(tmgDEVRead2Save) DO   ;"turn IO back to what it was when coming into this function.    //kt 11/23/24
+  . DO RESTORDEV^TMGKERN1(.tmgDEVRead2Save,.tmgDEVInfo)                                         ;"//kt 11/23/24
   QUIT S
   ;

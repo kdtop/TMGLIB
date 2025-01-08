@@ -35,6 +35,13 @@ TMGLRU1 ;TMG/kst-Utility for managing lab order dialog ;12/15/22
  ;"Dependancies
  ;"=======================================================================
  ;
+ ;"NOTICE: This module is about compiling from the old autohotkey dialog 
+ ;"   system's .INI file, and compiling into 22751.  
+ ;"   HOWEVER, after it was done once, the two systems basically forked, 
+ ;"   and I have not wanted to use this any more.
+ ;
+ ;"   The module for compiling 22751 into a proper ORDER DIALOG (101.41) is TMGLRU2.m
+ ;
 REPORT(DIALOGNAME,OUT) ;"Generate flattened report of dialog
   NEW TEMP DO RPTARR(.DIALOGNAME,.TEMP)
   DO ZWR2ARR^TMGZWR("TEMP","OUT") 
@@ -61,8 +68,8 @@ REPORTONE(IEN,REF) ;"Report on 1 element, and all its contained ITEMS
   ;"Input: IEN -- IEN in 22751 
   ;"       REF -- PASS BY NAME.  An OUT PARAMETER
   ;"Output -- @REF is filled, format as follows
-  ;"       @REF@(#)=<IEN>^<Name>^<Type>^<Fasting>^<LinkDx>^<LinkableDxList "," separated>
-  ;"       @REF@(#,#)=<Name>^<Type>^<Fasting>^<LinkDx>  <-- 1 entry for each element in ITEMS
+  ;"       @REF@(#)=<IEN22751>^<Name>^<Type>^<Fasting>^<LinkDx>^<LinkableDxList "," separated>^<IENS101D42>
+  ;"       @REF@(#,#)=<IEN22751>^<Name>^<Type>^<Fasting>^<LinkDx>^<IENS101D42>  <-- 1 entry for each element in ITEMS
   ;"Result: None
   NEW ZN SET ZN=$GET(^TMG(22751,IEN,0))
   NEW NAME SET NAME=$PIECE(ZN,"^",1)
@@ -80,7 +87,9 @@ REPORTONE(IEN,REF) ;"Report on 1 element, and all its contained ITEMS
   . . NEW PTR SET PTR=+$GET(^TMG(22751,IEN,20,IDX,0)) QUIT:PTR'>0
   . . IF DXLST'="" SET DXLST=DXLST_","
   . . SET DXLST=DXLST_PTR
-  SET @REF=IEN_"^"_NAME_"^"_$PIECE(ZN,"^",2)_"^"_FASTING_"^"_NEEDSLINKDX_"^"_DXLST
+  NEW N21 SET N21=$GET(^TMG(22751,IEN,21))
+  NEW IENS101D42 SET IENS101D42=$PIECE(N21,"^",2)  
+  SET @REF=IEN_"^"_NAME_"^"_$PIECE(ZN,"^",2)_"^"_FASTING_"^"_NEEDSLINKDX_"^"_DXLST_"^"_IENS101D42
   NEW JDX SET JDX=0
   FOR  SET JDX=$ORDER(^TMG(22751,IEN,1,JDX)) QUIT:JDX'>0  DO
   . NEW PTIEN SET PTIEN=+$GET(^TMG(22751,IEN,1,JDX,0))
@@ -278,7 +287,7 @@ ENSUREGROUP(ARR,NAME,TYPE) ;"Ensure GROUP is created (with ARR elements being pu
   . NEW SUBIEN SET SUBIEN=+$$ENSURESUBREC(ANIEN,IEN)
   QUIT IEN
   ;
-ENSUREARR(ARR,TYPE)  ;"Ensure entrIes are found in FM file 22751 TMG LAB ORDER DIALOG ELEMENTS  
+ENSUREARR(ARR,TYPE)  ;"Ensure entries are found in FM file 22751 TMG LAB ORDER DIALOG ELEMENTS  
   ;"INPUT: ARR -- the array with info from INI file. PASS BY REFERENCE
   ;"         Example:
   ;"         ARR

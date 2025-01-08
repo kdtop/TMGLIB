@@ -1,5 +1,33 @@
-TMGORWD1 ;TMG/kst/ExtraOrderPrint functions 9/1/2022
+TMGORWD1 ;TMG/kst/ExtraOrderPrint functions 9/1/2022, 11/10/24
          ;;1.0;TMG-LIB;**1**;09/01/2022
+  ;
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;"Copyright (c) 11/10/24  Kevin S. Toppenberg MD
+  ;"
+  ;"This file is part of the TMG LIBRARY, and may only be used in accordence
+  ;" to license terms outlined in separate file TMGLICNS.m, which should   
+  ;" always be distributed with this file.                              
+  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;
+  ;"=======================================================================
+  ;"PUBLIX FUNCTIONS
+  ;"=======================================================================  
+  ;"CHK4FAX(PRTLIST) -- called from PRINTGUI^ORWD1. Checks text of order and if "FAX" is found, sends an alert to Eddie
+  ;"WEDGE(ORDER,ARR,WIDTH) -- called from ORDTEXT^ORCSAVE1() to effext custom saver in Fields 22700/22701
+  ;"TMGORTX(IEN100,IEN100D008,ARR,WIDTH) --Replacement function for ORTX^ORCSAVE1.  Called via WEDGE
+  ;"INSTNUM(DA)  -- Return computed field TMG INSTANCE # (22700) for subfile ITEMS in 101.41 (ORDER DIALOG)
+  ;"CMPDTEXT(DA) --Return computed value for FIELD 22700 IN RESPONSES SUBFILE IN ORDER FILE (100)  RETURNS DISPLAY TEXT.
+  ;"CMPHLPMG(DA) --Return computed value for FIELD 22701 IN RESPONSES SUBFILE IN ORDER FILE (100)  RETURNS HELP MESSAGE
+  ;
+  ;"=======================================================================
+  ;"PRIVATE API FUNCTIONS
+  ;"=======================================================================
+  ;"GETDLGINFO(ARR,OUT,IEN101D41) ;"Load info about order dialog
+  ;"GET1INSTINFO(IEN101D41,ITEMIEN,INSTNUM,FLDS,FLAGS,OUTREF,MSGREF) --Get info for 1 type:instance element. Utility function for possible future use.  
+  ;"TESTG1II ;
+  ;"GETINFO(DA,FLD) ;"Return computed value for FIELD 22700 or 22701 IN RESPONSES SUBFILE IN ORDER FILE (100) 
+  ;"=======================================================================
+  ;           
 CHK4FAX(PRTLIST) ;
     ;"This is called from PRINTGUI^ORWD1. It checks the text of the order and if the word
     ;"   "FAX" is found, it sends an alert to Eddie to verify that the lab results
@@ -30,8 +58,9 @@ WEDGE(ORDER,ARR,WIDTH) ;
   ;"This is called from ORDTEXT^ORCSAVE1()
   ;"Purpose: * This function will look for special compilation code stored
   ;"           in a linked order dialog.  This code linked by custom, site-specific
-  ;"           field 22700, TMG ORDER TEXT COMPILER TAG, 
-  ;"           and field 22701 TMG ORDER TEXT COMPILER RTN  
+  ;"           Field 22700 (TMG ORDER TEXT COMPILER TAG),  
+  ;"           and Field 22701 (TMG ORDER TEXT COMPILER RTN)
+  ;"           in File 101.41 (ORDER DIALOG)
   ;"         * The linked-to compiler function must accept same number of paramaters
   ;"           as example code TMGORTX^TMGORWD1()
   ;"         * The code must compile the text of the order and save into the 
@@ -56,21 +85,34 @@ WEDGE(ORDER,ARR,WIDTH) ;
   ;"        0 if not handled.
   ;"       -1^Error message
   NEW RESULT SET RESULT=0
-	NEW IEN100 SET IEN100=+$GET(ORDER)
-	NEW IEN100D008 SET IEN100D008=+$PIECE(ORDER,";",2)
-	;"Get linked OR DIALOG (if any)
-	NEW IEN101D41 SET IEN101D41=$PIECE($GET(^OR(100,IEN100,3)),"^",4)  ;"Variable pointer field
-	SET IEN101D41=$SELECT(IEN101D41[";ORD(101.41":+IEN101D41,1:0) ;"Make null if not to 101.41
-	IF IEN101D41=0 GOTO WDN
-	;"See if OR DIALOG has data for custom fields 22700, 22701
-	NEW TMG SET TMG=$GET(^ORD(101.41,IEN101D41,22700)) IF TMG="" GOTO WDN
-	NEW TAG,ROUTINE SET TAG=$PIECE(TMG,"^",1),ROUTINE=$PIECE(TMG,"^",2) IF (TAG="")!(ROUTINE="") GOTO WDN
-	;"Call custom code
-	NEW CODE SET CODE="SET RESULT=$$"_TAG_"^"_ROUTINE_"("_IEN100_","_IEN100D008_",.ARR,"_WIDTH_")"
-	XECUTE CODE
+  NEW IEN100 SET IEN100=+$GET(ORDER)
+  NEW IEN100D008 SET IEN100D008=+$PIECE(ORDER,";",2)
+  ;"Get linked OR DIALOG (if any)
+  NEW IEN101D41 SET IEN101D41=$PIECE($GET(^OR(100,IEN100,3)),"^",4)  ;"Variable pointer field
+  SET IEN101D41=$SELECT(IEN101D41[";ORD(101.41":+IEN101D41,1:0) ;"Make null if not to 101.41
+  IF IEN101D41=0 GOTO WDN
+  ;"See if OR DIALOG has data for custom fields 22700, 22701
+  NEW TMG SET TMG=$GET(^ORD(101.41,IEN101D41,22700)) IF TMG="" GOTO WDN
+  NEW TAG,ROUTINE SET TAG=$PIECE(TMG,"^",1),ROUTINE=$PIECE(TMG,"^",2) IF (TAG="")!(ROUTINE="") GOTO WDN
+  ;"Call custom code
+  NEW CODE SET CODE="SET RESULT=$$"_TAG_"^"_ROUTINE_"("_IEN100_","_IEN100D008_",.ARR,"_WIDTH_")"
+  XECUTE CODE
 WDN ;                                                        
   QUIT RESULT
   ;
+EXAMINE100(IEN100,OUT)  ;"Dump value of file 100 for TMG stored lab dialog responses
+  SET IEN100=+$GET(IEN100) IF IEN100'>0 GOTO E100DN 
+  NEW ZN SET ZN=$GET(^OR(100,IEN100,0))
+  NEW IEN101D41 SET IEN101D41=$PIECE(ZN,"^",5)  ;"0;5 = ORDER DIALOG  e.g. 16021;ORD(101.41,
+  IF $PIECE(IEN101D41,";",2)'="ORD(101.41," GOTO E100DN
+  SET IEN101D41=+IEN101D41   ;"E.g. 16021
+  NEW ARR SET ARR=IEN101D41
+  NEW SUBIEN SET SUBIEN=0
+  FOR  SET SUBIEN=$ORDER(^OR(100,IEN100,4.5,SUBIEN)) QUIT:SUBIEN'>0  DO
+  . ;"FINISH LATER...  I would love to not have to recreate how to make ARR to pass to GETDLGINFO....
+E100DN ;
+  QUIT
+  ;  
 GETDLGINFO(ARR,OUT,IEN101D41) ;"Load info about order dialog
   ;"Input:   ARR -- ARRAY, Format as per ARR in TMGORTX.  
   ;"            ARR=IEN101.41 of top-level dialog
@@ -81,6 +123,30 @@ GETDLGINFO(ARR,OUT,IEN101D41) ;"Load info about order dialog
   ;"            ARR("WP",COMPIEN101.41,1,#,0)=<LINE OF TEXT>  <-- if WP field above
   ;"            ARR("ORTS")=0
   ;"            ARR("TYPE",<type>,<COMPIEN101.41><instance>)=""
+  ;"            E.G. 
+  ;"                ARR=16021
+  ;"                ARR(16022)="116^^"    <-- TMG LAB ORDER Y/N (`16022 in #101.41)
+  ;"                ARR(16022,0)="Y"
+  ;"                ARR(16022,9)=1
+  ;"                ARR(16022,14)=1      
+  ;"                ARR(16024)="29^^"     <-- TMG LAB COMMON DX ENTRY (`16024 in #101.41)
+  ;"                ARR(16024,0)="Y"
+  ;"                ARR(16024,9)=1
+  ;"                ARR(16026)="92^^"     <-- TMG LAB DISPLAY GROUP (`16026 in #101.41)
+  ;"                ARR(16026,0)="F"
+  ;"                ARR(16027)="97^^"     <-- TMG LAB BUNDLE ENTRY (`16027 in #101.41)
+  ;"                ARR(16027,0)="F"
+  ;"                ARR(16032)="102^^"    <-- TMG LAB LISTBOX GROUP (`16032 in #101.41) 
+  ;"                ARR(16032,0)="N"     
+  ;"                ARR(16032,1)=0
+  ;"                ARR(16032,2)=0
+  ;"                ARR(16033)="107^^"    <-- TMG LAB ITEM DATA (`16033 in #101.41)
+  ;"                ARR(16033,0)="Y"
+  ;"                ARR(16034)="124^^"    <-- TMG LAB TEXT FIELD (`16034 in #101.41)
+  ;"                ARR(16034,0)="F"
+  ;"                ARR(16035)="121^^"    <-- TMG LAB WP FIELD (`16035 in #101.41)
+  ;"                ARR(16035,0)="W"
+  ;"                ARR("ORTS")=0
   ;"         OUT -- OUTPUT OF FUNCTION.  e.g. 
   ;"           OUT("COMMENT",1,0)="This is an order comment"
   ;"           OUT("COMMENT",2,0)="Make sure to collect specimen!"
@@ -203,6 +269,13 @@ GETDLGINFO(ARR,OUT,IEN101D41) ;"Load info about order dialog
   QUIT
   ;
 TMGORTX(IEN100,IEN100D008,ARR,WIDTH) ;"Replacement function for ORTX^ORCSAVE1
+  ;"Q: How does this function get called? 
+  ;"A: ORDTEXT^ORCSAVE1 normally calls ORTX^ORCSAVE1.  But we have a wedge that calls WEDGE^TMGORWD1,
+  ;"   and this routine (located above), looks in field 22700/22701 for location of
+  ;"   a replacement function.  Currently in the TMG LAB ORDER DIALOG ELEMENTS record in 101.41,
+  ;"   we have a link here to this TMGORTX^TMGORWD1. 
+  ;"   ORDTEXT^ORCSAVE1 is called during the normal VistA order saving process, I believe.
+  ;"
   ;"Inputs:  IEN100 -- IEN in file 100   
   ;"         IEN100D008 -- IEN is subfile 100.008 (ORDER ACTIONS subfile)
   ;"         ARR -- Array.  Passed in.  format:  
@@ -343,3 +416,154 @@ TMGORTX(IEN100,IEN100D008,ARR,WIDTH) ;"Replacement function for ORTX^ORCSAVE1
 TODN ;  
 	QUIT RESULT
   ;
+INSTNUM(DA)  ;"Return computed field TMG INSTANCE # (22700) for subfile ITEMS in 101.41 (ORDER DIALOG)
+  NEW RESULT SET RESULT=""
+  NEW SELFIEN SET SELFIEN=+$GET(DA) IF SELFIEN'>0 GOTO INDN
+  NEW IEN101D41 SET IEN101D41=+$GET(DA(1)) IF IEN101D41'>0 GOTO INDN
+  NEW SEQARR
+  ;"CYCLE THROUGH "B" INDEX OF SUBFILE, COUNTING INSTANCES, UNTIL SELF FOUND
+  NEW DONE SET DONE=0
+  NEW ASEQ SET ASEQ=0
+  FOR  SET ASEQ=$ORDER(^ORD(101.41,IEN101D41,10,"B",ASEQ)) QUIT:(ASEQ'>0)!(DONE)  DO
+  . NEW SUBIEN SET SUBIEN=0
+  . FOR  SET SUBIEN=$ORDER(^ORD(101.41,IEN101D41,10,"B",ASEQ,SUBIEN)) QUIT:(SUBIEN'>0)!(DONE)  DO  ;"NOTE: Should only be 1 SUBIEN for 1 SEQ#, but I'll be safe
+  . . NEW ZN SET ZN=$GET(^ORD(101.41,IEN101D41,10,SUBIEN,0))
+  . . NEW ITEMPTR SET ITEMPTR=+$PIECE(ZN,"^",2) QUIT:ITEMPTR'>0
+  . . NEW INSTNUM SET INSTNUM=+$GET(SEQARR(ITEMPTR))+1
+  . . SET SEQARR(ITEMPTR)=INSTNUM
+  . . IF SUBIEN'=SELFIEN QUIT
+  . . SET RESULT=INSTNUM,DONE=1
+INDN ;  
+  QUIT RESULT
+  ;
+GET1INSTINFO(IEN101D41,ITEMIEN,INSTNUM,FLDS,FLAGS,OUTREF,MSGREF) ;"Get info for 1 type:instance element.
+  ;"Utility function for possible future use.  
+  ;"INPUT: IEN101D41 -- IEN IN 101.41 of dialog holding all the items making up the visible dialog
+  ;"       ITEMIEN   -- IEN in 101.41 of the 1 dialog element (e.g. Y/N box)
+  ;"       INSTNUM   -- NUMBER, indicating it's instance number the parent dialog's ITEMS subfile, by sequence
+  ;"       FLDS  -- The fields to return for desired subrecord to pass to GETS^DIQ, default is "*"
+  ;"       FLAGS -- Flags to pass to GETS^DIQ
+  ;"       OUTREF -- Name of array to receive output
+  ;"       MSGREF -- Namm of array to recieve messages from GETS^DIQ
+  ;"CYCLE THROUGH "B" INDEX OF SUBFILE, COUNTING INSTANCES
+  SET IEN101D41=+$GET(IEN101D41) IF IEN101D41'>0 GOTO G1IIDN
+  SET ITEMIEN=+$GET(ITEMIEN) IF ITEMIEN'>0 GOTO G1IIDN
+  SET INSTNUM=+$GET(INSTNUM) IF INSTNUM'>0 GOTO G1IIDN
+  SET FLDS=$GET(FLDS,"*")
+  NEW SEQARR
+  ;"CYCLE THROUGH "B" INDEX OF SUBFILE, COUNTING INSTANCES, UNTIL INSTNUM FOUND
+  NEW DONE SET DONE=0
+  NEW ASEQ SET ASEQ=0
+  FOR  SET ASEQ=$ORDER(^ORD(101.41,IEN101D41,10,"B",ASEQ)) QUIT:(ASEQ'>0)!(DONE)  DO
+  . NEW SUBIEN SET SUBIEN=0
+  . FOR  SET SUBIEN=$ORDER(^ORD(101.41,IEN101D41,10,"B",ASEQ,SUBIEN)) QUIT:(SUBIEN'>0)!(DONE)  DO  ;"NOTE: Should only be 1 SUBIEN for 1 SEQ#, but I'll be safe
+  . . NEW ZN SET ZN=$GET(^ORD(101.41,IEN101D41,10,SUBIEN,0))
+  . . NEW ITEMPTR SET ITEMPTR=+$PIECE(ZN,"^",2) QUIT:(ITEMPTR'>0)!(ITEMPTR'=ITEMIEN)
+  . . NEW CURINSTNUM SET CURINSTNUM=+$GET(SEQARR(ITEMPTR))+1
+  . . SET SEQARR(ITEMPTR)=CURINSTNUM
+  . . IF CURINSTNUM'=INSTNUM QUIT
+  . . NEW IENS SET IENS=SUBIEN_","_IEN101D41_","
+  . . DO GETS^DIQ(101.412,IENS,.FLDS,.FLAGS,OUTREF,MSGREF)
+  . . SET DONE=1
+G1IIDN ;  
+  QUIT
+  ;
+TESTG1II ;
+  NEW ARR,ERR
+  DO GET1INSTINFO(16021,16022,58,"*","EIN","ARR","ERR")
+  IF $DATA(ARR) ZWR ARR
+  IF $DATA(ERR) ZWR ERR
+  QUIT
+  ;
+CMPDTEXT(DA) ;"Return computed value for FIELD 22700 IN RESPONSES SUBFILE IN ORDER FILE (100)  RETURNS DISPLAY TEXT.
+  NEW RESULT SET RESULT=$$GETINFO(.DA,4)
+  QUIT RESULT
+  ;
+CMPHLPMG(DA)  ;"Return computed value for FIELD 22701 IN RESPONSES SUBFILE IN ORDER FILE (100)  RETURNS HELP MESSAGE
+  NEW RESULT SET RESULT=$$GETINFO(.DA,11)
+  QUIT RESULT
+  ;
+GETINFO(DA,FLD) ;"Return computed value for FIELD 22700 or 22701 IN RESPONSES SUBFILE IN ORDER FILE (100) 
+  ;"NOTE: Sometimes when this is called from Fileman, DA is not define properly,
+  ;"      So then uses D0, D1 in GLOBAL SCOP.  
+  NEW RESULT SET RESULT=""
+  IF +$GET(DA(1))'>0 DO
+  . SET DA(1)=$GET(D0)
+  . SET DA=D1
+  NEW SUBIEN SET SUBIEN=+$GET(DA) IF SUBIEN'>0 GOTO CFDN
+  NEW IEN100 SET IEN100=+$GET(DA(1)) IF IEN100'>0 GOTO CFDN
+  ;"GET IEN101.41  ensure dialog is actually 101.41
+  NEW ZN SET ZN=$GET(^OR(100,IEN100,0))
+  NEW IEN101D41 SET IEN101D41=$PIECE(ZN,"^",5)
+  IF $PIECE(IEN101D41,";",2)'="ORD(101.41," GOTO CFDN
+  SET IEN101D41=+IEN101D41  ;"stip to piece #1
+  SET ZN=$GET(^OR(100,IEN100,4.5,SUBIEN,0)) IF ZN="" GOTO CFDN
+  NEW ITEMPTR SET ITEMPTR=+$PIECE(ZN,"^",2) IF ITEMPTR'>0 GOTO CFDN
+  NEW INSTNUM SET INSTNUM=+$PIECE(ZN,"^",3) IF INSTNUM'>0 GOTO INSTNUM
+  NEW TMGARR,TMGERR  
+  DO GET1INSTINFO(IEN101D41,ITEMPTR,INSTNUM,FLD,"E","TMGARR","TMGERR") ;"Get info for 1 type:instance element.
+  NEW IENS SET IENS=$ORDER(TMGARR(101.412,"")) IF IENS="" GOTO CFDN
+  NEW VAL SET VAL=$GET(TMGARR(101.412,IENS,FLD,"E"))
+  SET RESULT=VAL
+CFDN ;  
+  QUIT RESULT
+  ;
+CHKPRINT(TMGRESULT,TMGDFN,ORDERIEN)  ;"  
+  ;"CHECK THE LAB ORDER BEFORE PRINTING TO SEE IF IT NEEDS TO WARN THE USER
+  ;"SET TMGRESULT(0)=""
+  NEW RESULTIDX SET RESULTIDX=0
+  NEW TMGTEST SET TMGTEST=0
+  IF TMGTEST=1 DO
+  . SET TMGDFN=$G(^TMG("CHKPRINT","TMGDFN"))
+  . SET ORDERIEN=$G(^TMG("CHKPRINT","ORDERIEN"))
+  ELSE  DO
+  . SET ^TMG("CHKPRINT","TMGDFN")=TMGDFN
+  . SET ^TMG("CHKPRINT","ORDERIEN")=ORDERIEN
+  ;"
+  ;"CHECK ORDER TEXT AND SET APPROPRIATE VARIABLES
+  ;"The variables here will be:
+  ;"   NEXTAPPTLABS - Will be 1 if the order is for the Next Appt
+  ;"   TODAYLABS - Will be 1 if the order is to be done today
+  ;"   ADDONLABS - Will be 1 if the order is to be added to existing blood work
+  NEW ORDERTEXT 
+  DO TEXT^ORQ12(.ORDERTEXT,$P(ORDERIEN,";",1))
+  NEW NEXTAPPTLABS SET NEXTAPPTLABS=0
+  NEW TODAYLABS SET TODAYLABS=0
+  NEW ADDONLABS SET ADDONLABS=0
+  NEW ORDIDX SET ORDIDX=0
+  FOR  SET ORDIDX=$O(ORDERTEXT(ORDIDX)) QUIT:ORDIDX'>0  DO
+  . NEW LINE SET LINE=$$UP^XLFSTR($G(ORDERTEXT(ORDIDX)))
+  . IF LINE["NEXT APPT" SET NEXTAPPTLABS=1
+  . IF LINE["TODAY" SET TODAYLABS=1
+  . IF LINE["USE LAB BLOOD" SET ADDONLABS=1
+  ;"
+  ;"CHECK THE PATIENT TO SEE WHEN THE NEXT APPT IS
+  ;"The variables here will be:
+  ;"   TODAYAPPT - Will be a date if the patient has an appt today or ""
+  ;"   APPTSOON - Will be a date if the patient has an appt in the next 14 days or ""
+  NEW TODAYAPPT,APPTSOON,NEXTAPPT
+  SET (TODAYAPPT,APPTSOON,NEXTAPPT)=0
+  NEW DATE,X,Y
+  DO NOW^%DTC SET DATE=X
+  NEW TODAY SET TODAY=DATE
+  NEW SOONDT SET SOONDT=$$ADDDAYS^TMGDATE(14)
+  FOR  SET DATE=$ORDER(^TMG(22723,TMGDFN,1,"B",DATE)) QUIT:DATE'>0  DO
+  . NEW THISDAY SET THISDAY=$P(DATE,".",1)
+  . NEW IDX SET IDX=$ORDER(^TMG(22723,TMGDFN,1,"B",DATE,0))
+  . IF $P($G(^TMG(22723,TMGDFN,1,IDX,0)),"^",7)="C" QUIT
+  . IF THISDAY=TODAY SET TODAYAPPT=1
+  . IF THISDAY<SOONDT SET APPTSOON=1
+  . IF THISDAY>TODAY SET NEXTAPPT=THISDAY
+  ;"
+  NEW MESSAGE SET MESSAGE=""
+  IF (APPTSOON=1)&(NEXTAPPTLABS=0) SET MESSAGE="Patient has appt in the next 14 days. Order isn't before next appt, though."
+  IF (NEXTAPPTLABS=1)&(APPTSOON=0) SET MESSAGE="This order is for next appt, but the next appt isn't until: "_$$EXTDATE^TMGDATE(NEXTAPPT,1)  	  
+  ;"
+  IF MESSAGE'="" DO
+  . SET TMGRESULT(RESULTIDX)=MESSAGE,RESULTIDX=RESULTIDX+1
+  . SET TMGRESULT(RESULTIDX)="",RESULTIDX=RESULTIDX+1
+  . SET TMGRESULT(RESULTIDX)="Do you still want to print this order?",RESULTIDX=RESULTIDX+1
+  . ;"SET TMGRESULT(RESULTIDX)="ARE YOU SURE YOU WANT TO PRINT THIS ORDER????",RESULTIDX=RESULTIDX+1
+  . ;"SET TMGRESULT(RESULTIDX)="JUST DON'T BE STUPID ABOUT IT.",RESULTIDX=RESULTIDX+1
+  QUIT
+  ;"

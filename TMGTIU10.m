@@ -15,7 +15,7 @@ TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14, 3/24/21
  ;"PUBLIC FUNCTIONS
  ;"=======================================================================
  ;"RPCCKDUE(TMGRESULT,TMGTMGDFN)-- RPC Entry point to check if patient is overdue for appt
- ;"$$SCAN4FU(TIUIEN,REFOUT) - To scan one note and get back info about followup
+ ;"$$SCAN4FU(TIUIEN,REFOUT,NOPRIOR) - To scan one note and get back info about followup
  ;"$$SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan one patient during specified date range, and compile followup info
  ;"SCANTIU  -- scan all TIU documents, to pre-parse them for faster access later 
  ;"$$SCANALL(REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan all patients during specified date range, and compile followup info
@@ -658,7 +658,7 @@ SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   . . IF $DATA(TITLEARR(TIUDOCIEN)) SET SKIP=0
   . . ELSE  SET SKIP=1
   . IF SKIP=1 QUIT  
-  . SET TMGRESULT=$$SCAN4FU(TIUIEN,REFOUT)   ;"//kt 8/27/24  SET TMGRESULT=$$SCAN4FU(TMGDFN,TIUIEN,REFOUT)
+  . SET TMGRESULT=$$SCAN4FU(TIUIEN,REFOUT)   
   . IF +TMGRESULT=0 SET TMGRESULT="1^OK"  ;"0 means nothing found.  That is not an error
   ;"SET TIUIEN=0
   ;"FOR  SET TIUIEN=$ORDER(^TIU(8925,"C",TMGDFN,TIUIEN)) QUIT:(TIUIEN'>0)!(+TMGRESULT'>0)  DO
@@ -709,7 +709,7 @@ SCANTIU  ;"SCAN ALL TIU DOCUMENTS
   . ;"NEW TIUDOCIEN SET TIUDOCIEN=$PIECE(ZN,"^",1)  ;"could screen by doc type  
   . IF $PIECE(ZN,"^",5)'=COMPIEN QUIT  ;"Skip any note without 'COMPLETED' status
   . KILL OUT 
-  . NEW TEMP SET TEMP=$$SCAN4FU(TMGDFN,TIUIEN,"OUT",1)   ;"//kt 8/27/24  NEW TEMP SET TEMP=$$SCAN4FU(TMGDFN,TIUIEN,"OUT",1) 
+  . NEW TEMP SET TEMP=$$SCAN4FU(TIUIEN,"OUT",1)   ;"//kt 8/27/24  NEW TEMP SET TEMP=$$SCAN4FU(TMGDFN,TIUIEN,"OUT",1) 
   . IF +TEMP=-1 WRITE !,$PIECE(TEMP,"^",2),!
 SCTDN ;  
   QUIT
@@ -747,14 +747,16 @@ SCANALL(REFOUT,SDT,EDT,SCREEN,TITLEARR) ;
   NEW TMGDFN,COUNTER,NAME 
   SET TMGDFN=0,COUNTER=-1
   NEW MAXDFN SET MAXDFN=$ORDER(^DPT("A"),-1)
-  ;"NOTE: will abort scan with any error
-  FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:(TMGDFN'>0)!(+TMGRESULT'>0)  DO   
+  ;"NOTE: will abort scan with any error  - 
+  ;"      1/7/25, I don't know why this was set to stop on an error. It shouldn't have been that way
+  FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:(TMGDFN'>0)  DO ;"!(+TMGRESULT'>0)  DO   
   . SET COUNTER=COUNTER+1
   . IF (SHOWPROG=1),COUNTER#10=0 DO
   . . SET NAME=$$LJ^XLFSTR($PIECE($GET(^DPT(TMGDFN,0)),"^",1),20," ")
   . . D PROGBAR^TMGUSRI2(TMGDFN,NAME,1,MAXDFN,60,STARTT)
   . IF (SHOWPROG=0) WRITE !,"TMGDFN= ",TMGDFN," " 
   . SET TMGRESULT=$$SCANPT(TMGDFN,REFOUT,.SDT,.EDT,.SCREEN,.TITLEARR)
+  . ;"IF +TMGRESULT'>0 WRITE TMGRESULT,!
   QUIT TMGRESULT
   ;"
 DISPINFO(TMGDFN,INFO) ;

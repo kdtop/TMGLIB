@@ -54,7 +54,7 @@ ZWRITE(NAME) ;
   ;
 ZWR2ARR(NAME,OUTREF,STARTIDX) ;"//kt added this function
   ;"Purpose: Output ZWR output into an array
-  ;"Input: NAME --   PASS BY NAME.  Should be a A closed reference.
+  ;"Input: NAME --   PASS BY NAME.  Should be a a closed reference.
   ;"       OUTREF -  PASS BY NAME.  Name of array to put output into.
   ;"       STARTIDX -- OPTIONAL.  Starting index #.  Default=1
   ;"Output:  @OUTREF@(1)=First line

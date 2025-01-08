@@ -180,6 +180,7 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         ;"   PV1.3 - Assigned Patient Location
         ;"   PV1.4 - Admission Type
         ;"   PV1.7 - Attending Doctor (Subpiece 3,Subpiece 2 = LName,FName)
+        ;"   PV1.45 - Discharge Date/Time
         ;"   PV2.12 - Visit Description 
         ;"
         NEW PRIMFACILITY SET PRIMFACILITY=$GET(TMGHL7MSG(PD1IDX,3,1),"")        ;"Patient Primary Facility
@@ -187,6 +188,7 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         NEW PREVLOC SET PREVLOC=$GET(TMGHL7MSG(+PV1IDX,4))                      ;"Admission Type (Points to Prev Location)
         NEW PV2VISITTYPE SET PV2VISITTYPE=$GET(TMGHL7MSG(+PV2IDX,12))           ;"Visit Description            
         NEW PATCLASS SET PATCLASS=$GET(TMGHL7MSG(+PV1IDX,2))                    ;"Patient Class
+        NEW DCDATE SET DCDATE=$GET(TMGHL7MSG(+PV1IDX,45))                        ;"Discharge Date/Time (Only used if A08 outpatient visit)
         NEW PHYSICIAN SET PHYSICIAN=$GET(TMGHL7MSG(+PV1IDX,7,2))_","_$GET(TMGHL7MSG(+PV1IDX,7,3)) ;"Physician Name
         ;"
      ;" Message Exclusions Below
@@ -234,12 +236,13 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         . . SET ERDCNOTE=1
         . ELSE  IF PATCLASS="HOSPITAL OUT" DO
         . . SET VISITTYPE="OUTPATIENT PROCEDURE"
-        . . SET NOTETITLE=PROCNOTETITLE
+        . . SET NOTETITLE=PROCNOTETITLE     
         . . SET EDDIEMSG=PATNAME_" HAD AN OUTPATIENT PROCEDURE ON "_ADTEDATE
         . ELSE  DO
         . . SET VISITTYPE="UNKNOWN/"_ASSIGNEDFACILITY
         . . SET NOTETITLE=DCNOTETITLE
         . . SET EDDIEMSG=PATNAME_" WAS DISCHARGED ON "_ADTEDATE
+        . . SET ERDCNOTE=1
         ;
      ;"  **EXTERNAL OUTPATIENT VISIT**
         IF ADTEVENT="A08" DO ;"CHECKOUT FOR OFFICE VISIT  --  ADDED ON 10/24/24
@@ -252,9 +255,13 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         . . SET PRIMFACILITY=ASSIGNEDFACILITY
         . . SET ADTEVENTNAME="END OF VISIT"
         . . SET EDDIEMSG=PATNAME_" WAS SEEN AT "_PRIMFACILITY_" ON "_ADTEDATE
+        . . IF DCDATE'="" SET DCDATE=$$HL72FMDT^TMGHL7U3(DCDATE)
+        . . SET DCDATE=$$EXTDATE^TMGDATE(DCDATE)
+        . . SET ADTEDATE=ADTEDATE_" ("_DCDATE_")"
         ;"
      ;"  Populate the data for the TIU Note
         NEW IDX SET IDX=1;
+        IF ASSIGNEDFACILITY'="" SET ASSIGNEDFACILITY=$$TRANSFACNAME(ASSIGNEDFACILITY)
         SET ARR(IDX)="PATIENT NAME^"_PATNAME       SET IDX=IDX+1
         SET ARR(IDX)="FACILITY^"_ASSIGNEDFACILITY  SET IDX=IDX+1
         SET ARR(IDX)="DATE^"_ADTEDATE              SET IDX=IDX+1
@@ -478,6 +485,15 @@ TYPES   ;"//----- ADT TYPES ----
         . SET ARR(CODE)=NAME
         QUIT        
         ;
+TRANSFACNAME(ASSIGNEDFACILITY)  ;"Check 22761 to see if name has different name
+        IF '$D(^TMG(22761,"B",ASSIGNEDFACILITY)) DO  GOTO TFNDN
+        . IF ASSIGNEDFACILITY["JCMC" SET ASSIGNEDFACILITY="Johnson City Med Center"
+        NEW NAMEIDX SET NAMEIDX=+$O(^TMG(22761,"B",ASSIGNEDFACILITY,0))
+        IF NAMEIDX'>0 GOTO TFNDN
+        SET ASSIGNEDFACILITY=$P($G(^TMG(22761,NAMEIDX,0)),"^",2)
+TFNDN        
+        QUIT ASSIGNEDFACILITY
+        ;"
 TESTADD
         NEW TMGDFN,DOS,NOTETITLE,TIUIEN,TMGDUZ,USERNAME
         ;"
@@ -490,3 +506,4 @@ TESTADD
         . DO BLANKTIU^TMGRPC1(.TIUIEN,TMGDFN,USERNAME,6,DOS,NOTETITLE)
       
         QUIT
+               

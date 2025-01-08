@@ -1,4 +1,4 @@
-TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/2/24
+TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;
@@ -56,10 +56,11 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/2/24
   ;"RMATCH(STR,SUBSTR,CASESPEC) - Does right part of STR match SUBSTR?  
   ;"$$SUBASCII(STR)  --TAKES INPUT OF AAC AND RETURNS AAB (useful for finding just before, to $ORDER to STR)
   ;"$$MIDSTRCOLOR(TEXT,START,LEN) -- similar to MidStr(), but skipping over {{color}} tags
-  ;"MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) --MARKUP-STR-MID().  Like MidStr() or $EXTRACT(), but for Markup strings
-  ;"MKSTRLEN(TEXT,TAGSTART,TAGEND) --Length of Markup string (excluding tags)
-  ;"MKSTRLTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-LTRIM().   
-  ;"MKSTRRTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-RTRIM().   
+  ;"$$MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) --MARKUP-STR-MID().  Like MidStr() or $EXTRACT(), but for Markup strings
+  ;"$$MKSTRLEN(TEXT,TAGSTART,TAGEND) --Length of Markup string (excluding tags)
+  ;"$$MKSTRLTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-LTRIM().   
+  ;"$$MKSTRRTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-RTRIM(). 
+  ;"$$UNICODEMIDSTR(TEXT,START,LEN)  -- Unicode aware $MID() function  
   ;"$$FINDDT(TEXT,SPOS,OUT,SPT,EPT) --Find date in TEXT, starting at option SPOS, return value found in DTOUT
   ;"=======================================================================
   ;" Private Functions.
@@ -740,6 +741,65 @@ SUBASCII(STR)  ;"TAKES INPUT OF 'AAC' AND RETURNS 'AAB'
   SET RESULT=RESULT_CH
   QUIT RESULT
   ;  
+TESTUCMID ;
+  NEW STR 
+  ;"                                      1       111
+  ;"       123    4        5678    9      0       123
+  SET STR="abc%UC%$2501%UC%defg%UC%$2501;$3405%UC%xyz"
+  WRITE $$UNICODEMIDSTR(STR,1,3),!   ;"Expect 'abc'
+  WRITE $$UNICODEMIDSTR(STR,2,5),!   ;"Expect 'bc%UC%$2501%UC%de'
+  WRITE $$UNICODEMIDSTR(STR,4,2),!   ;"Expect '%UC%$2501%UC%d'
+  WRITE $$UNICODEMIDSTR(STR,9,2),!   ;"Expect '%UC%$2501;$3405%UC%'
+  WRITE $$UNICODEMIDSTR(STR,10,4),!  ;"Expect '%UC%$3405%UC%xyz'
+  WRITE $$UNICODEMIDSTR(STR,11,5),!  ;"Expect 'xyz'
+  SET STR="$2501;$2502;$2503;$2504;$2505;$2506;"
+  WRITE $$UNICODEMIDSTR(STR,3,2),!   ;"Expect '$2503;$2504;'
+  QUIT  
+  ;
+UNICODEMIDSTR(TEXT,START,LEN)  ;"Unicode aware $MID() function
+  ;"Input: TEXT -- Text with optional included unicode chars.  Format: 'abcdefg%UC%$2501;$3405%UC%xyz'
+  ;"               '%UC% will delimit plain text vs UniCode.  
+  ;"               ALSO, if entire string is unicode, then %UC$ is not needed. 
+  ;"               Unicode chars will be hex, starting with $, and multiple chars are ';' delimited.
+  ;"       START -- Starting position. This will be unicode aware.  I.e. '$2501' is treated as length=1, 
+  ;"                and %UC% or ';' delimiters are not counted 
+  ;"       LEN -- Number of chars to return (again, not counting delimiters).  If LEN>actual length, no extra returned
+  ;"RESULT: returns desired portion of string, with delimiters maintained.  
+  NEW UCTAG SET UCTAG="%UC%"
+  NEW TAGFOUND SET TAGFOUND=(TEXT[UCTAG)
+  NEW RESULT SET RESULT=""
+  NEW RESULTMODE SET RESULTMODE="NORM"
+  NEW PARTIDX FOR PARTIDX=1:1:$LENGTH(TEXT,UCTAG) QUIT:(LEN<=0)  DO
+  . ;"NOTE if PARTIDX is ODD, then dealing with normal chars, if EVEN, then UNICODE -- even if string STARTS with %UC%
+  . ;"  But if TEXT didn't include %UC%, then entire string could be unicode.  
+  . NEW APART SET APART=$PIECE(TEXT,UCTAG,PARTIDX) QUIT:APART=""
+  . NEW PARTISUNICODE IF TAGFOUND,(APART["%UC%") SET PARTISUNICODE=(IDX#2=0)
+  . ELSE  SET PARTISUNICODE=$$ISUNICODE^TMGSTUTL(APART)
+  . IF PARTISUNICODE DO
+  . . IF $$ISUNICODE^TMGSTUTL(APART)=0 SET LEN=0 QUIT  ;"erroneous state, abort
+  . . NEW PARTLEN SET PARTLEN=$LENGTH(APART,";")
+  . . NEW JDX FOR JDX=1:1:PARTLEN QUIT:(LEN<1)  DO
+  . . . NEW ACHAR SET ACHAR=$PIECE(APART,";",JDX)
+  . . . IF START>1 SET START=START-1 QUIT
+  . . . IF RESULTMODE="NORM" DO
+  . . . . IF TAGFOUND SET RESULT=RESULT_UCTAG
+  . . . . SET RESULTMODE="UC"
+  . . . SET RESULT=RESULT_ACHAR_";"
+  . . . SET LEN=LEN-1
+  . . . SET START=0
+  . ELSE  DO   ;"APART is normal characters
+  . . NEW PARTLEN SET PARTLEN=$LENGTH(APART)
+  . . IF START<=PARTLEN DO     ;"APART='abcdefg',START=4  -> 'abc' discarded and 'defg' added to RESULT
+  . . . IF RESULTMODE="UC" DO
+  . . . . IF TAGFOUND,(RESULT]"") SET RESULT=RESULT_UCTAG
+  . . . . SET RESULTMODE="NORM"
+  . . . NEW EFFECTIVESTART SET EFFECTIVESTART=$SELECT(START>0:START,1:1) 
+  . . . NEW ENDPOS SET ENDPOS=EFFECTIVESTART+LEN-1 IF ENDPOS>PARTLEN SET ENDPOS=PARTLEN
+  . . . SET RESULT=RESULT_$EXTRACT(APART,EFFECTIVESTART,ENDPOS),LEN=LEN-(ENDPOS-EFFECTIVESTART+1),START=0
+  . . IF START>1 SET START=START-PARTLEN
+  IF TAGFOUND,(RESULTMODE="UC") SET RESULT=RESULT_UCTAG
+  QUIT RESULT
+  ;
   ;"DELETE LATER  //kt 11/2024
   ;"DEPRECIATED -- MIDSTRCOLOR(TEXT,START,LEN) ;"SIMILAR to MidStr(), but skipping over {{color}} tags
   ;"DEPRECIATED --   ;"Exmple: TEXT = 'hello {{red}} world {{blue}} and stars'
@@ -791,7 +851,9 @@ MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) ;"MARKUP-STR-MID().  Like MidStr
   ;"       OPTION -- Optional.  
   ;"         OPTION("STRIP TAGS")=1.  If found, tags are not return with result, and are stripped out.  
   ;"                              If NOT found, then tags are returned in output string, but not counted in length returned.
-  ;"         OPTION("KEEP TAGS")=1  If found, then ALL tags are returned, even those outside specified range.  
+  ;"         OPTION("KEEP TAGS")=1  If found, then ALL tags are returned, even those outside specified range.
+  ;"         OPTION("KEEP LEFT TAGS")=1  If found, then all tags to left of range and inside specified range returned
+  
   NEW RESULT SET RESULT=""
   SET TAGSTART=$GET(TAGSTART) IF TAGSTART="" GOTO MSMSDN 
   SET TAGEND=$GET(TAGEND) IF TAGEND="" GOTO MSMSDN
@@ -800,6 +862,7 @@ MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) ;"MARKUP-STR-MID().  Like MidStr
   NEW TEXTLEN SET TEXTLEN=$LENGTH(TEXT)
   NEW STRIP SET STRIP=($GET(OPTION("STRIP TAGS"))=1)
   NEW KEEPTAGS SET KEEPTAGS=($GET(OPTION("KEEP TAGS"))=1)
+  NEW KEEPLEFT SET KEEPLEFT=($GET(OPTION("KEEP LEFT TAGS"))=1)
   NEW OUTCT SET OUTCT=0
   NEW PLAINCT SET PLAINCT=0
   NEW STARTREACHED SET STARTREACHED=0
@@ -809,7 +872,7 @@ MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) ;"MARKUP-STR-MID().  Like MidStr
   . SET INTAG=$$INTAG(POS,.MAP)            
   . IF INTAG DO
   . . IF STRIP QUIT
-  . . IF (STARTREACHED!KEEPTAGS) SET RESULT=RESULT_$EXTRACT(TEXT,POS)
+  . . IF (KEEPLEFT!STARTREACHED!KEEPTAGS) SET RESULT=RESULT_$EXTRACT(TEXT,POS)
   . ELSE  DO  ;"INTAG=0
   . . SET PLAINCT=PLAINCT+1
   . . IF PLAINCT<START QUIT

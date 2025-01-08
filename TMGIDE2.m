@@ -78,16 +78,16 @@ STEPTRAP(tmgIDEPos,tmgMsg)
   ;"           -1=QUIT
   ;
   NEW tmgdbgTruth SET tmgdbgTruth=$TEST   ;"save initial value of $TEST
-  ;" DO  ;"debugging technique to see what this routine is doing...
-  ;" . NEW REF SET REF=$NAME(^TMP($J,"TMGIDE","DEBUGLOG"))
-  ;" . NEW IDX SET IDX=$ORDER(@REF@("LOG",""),-1)+1
-  ;" . SET @REF@("LOG",IDX)=$GET(tmgIDEPos)_" | tmgMsg="_$GET(tmgMsg)_" | tmgRunMode="_$GET(tmgRunMode)
+  IF 1=0 DO  ;"debugging technique to see what this routine is doing...
+  . NEW REF SET REF=$NAME(^TMP($J,"TMGIDE","DEBUGLOG"))
+  . NEW IDX SET IDX=$ORDER(@REF@("LOG",""),-1)+1
+  . SET @REF@("LOG",IDX)=$GET(tmgIDEPos)_" | tmgMsg="_$GET(tmgMsg)_" | tmgRunMode="_$GET(tmgRunMode)
   IF $DATA(tmgDbgJumpToBrkPos) DO  
   . DO RelBreakpoint^TMGIDE2C(tmgDbgJumpToBrkPos)
   . KILL tmgDbgJumpToBrkPos
   IF $ZTRAP'["^TMG" DO SETERRTRAP^TMGIDE  ;"ensure no redirecting of error trap
   NEW tmgDbgResult SET tmgDbgResult=1  ;"1=step into, 2=step over
-  NEW tmgDbgNakedRef SET tmgDbgNakedRef=$$LGR^%ZOSV ;"save naked reference
+  NEW tmgDbgNakedRef SET tmgDbgNakedRef=$R  ;"$$LGR^%ZOSV ;"save naked reference
   SET tmgDbgHangTime=+$GET(tmgDbgHangTime,0.25)
   ;
   IF $GET(tmgRunMode)="" DO  ;"Happens if code clears variable table, e.g. ^XUP
@@ -258,7 +258,7 @@ CMDPROMPT  ;
   . IF tmgAction="-" SET:(tmgScrWidth>10) tmgScrWidth=$GET(tmgScrWidth)-1 QUIT
   . IF tmgAction="=" DO HndlScrWH^TMGIDE2C QUIT
   . IF tmgAction="CLS" WRITE # QUIT
-  . IF tmgAction["TABLE" DO HndlTable^TMGIDE2C QUIT
+  . IF tmgAction["TABLE" DO HndlTable^TMGIDE2C(tmgOrigAction) QUIT
   . IF tmgAction["SHOW" DO HndlShow^TMGIDE2C QUIT
   . IF tmgAction["ZWR" DO HndlZWR^TMGIDE2C QUIT
   . IF tmgAction["BROWSE" DO HndlBrowse^TMGIDE2C QUIT
@@ -278,7 +278,7 @@ CMDPROMPT  ;
   . IF tmgAction["DBK" DO DelBreaks^TMGIDE6 QUIT
   . IF tmgAction["INITKB" DO INITKB^XGF() QUIT  ;"set up keyboard input escape code processing
   . IF tmgAction["RDW" DO HndlRunDW^TMGIDE2C SET tmgDone=1 QUIT
-  . IF tmgAction["VARS" DO HndlVars^TMGIDE2C(tmgOrigAction) SET tmgDone=1 QUIT
+  . IF tmgAction["VARS" DO HndlVars^TMGIDE2C(tmgOrigAction) QUIT
   . ELSE  DO HndlHelp^TMGIDE2C QUIT
   QUIT
   ;

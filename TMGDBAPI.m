@@ -306,7 +306,6 @@ HackWrite(GlobalP,FILENumber,IENS,FIELDNum,Data) ;
         . SET Text(12)="(This was caused by using Flags='H' in"
         . SET Text(13)="the XML script.)"
         . DO PUARRAY^TMGUSRI2(5,45,.Text)
-        ELSE  DO
         ;
 HWDone ;
         QUIT
@@ -897,7 +896,6 @@ AddRec(Data)  ;
         . . . NEW index
         . . . SET index=$ORDER(RecNum(""))
         . . . SET RESULT=$GET(RecNum(index))
-        . ELSE  DO
         . ;
         . IF $DATA(TMGMsg("DIERR")) DO  QUIT
         . . DO SHOWDIER^TMGDEBU2(.TMGMsg,.PriorErrorFound)
@@ -910,7 +908,7 @@ AddRec(Data)  ;
         . . SET FDAIndex=$ORDER(tmgFDA(FDAIndex))
         . . KILL tmgFDA(tI)
         ;
-        IF RESULT=cAbort DO  GOTO SkRDone
+        IF RESULT=cAbort GOTO SkRDone
         ;
         SET RESULT=$$HandleHacksArray(.MsgArray)
         ;

@@ -583,7 +583,7 @@ SCAN4MAM ;" Cycle through all mammogram consults
 MRPTDN  QUIT
         ;
 TESTORDER
-        NEW ORIFN SET ORIFN="358671;1"
+        NEW ORIFN SET ORIFN="359741;1"
         N Y S ORPDAD=$O(^OR(100,ORIFN,2,0)) 
         D TEXT^ORQ12(.Y,ORIFN_$S($G(OACTION):";"_OACTION,1:"")) 
         DO FIXORDER^TMGFIX3(.Y)
@@ -622,6 +622,7 @@ FIXORDER(ORDERARR)  ;"
         NEW TESTSORDERED SET TESTSORDERED=""  ;"Get all the tests
         FOR  SET IDX=$O(ORIGARR(IDX)) QUIT:IDX'>0  DO  ;"<-- cycle through each line of the order
         . NEW LINE SET LINE=$G(ORIGARR(IDX))
+        . IF LINE["FPG Thrombophilia Panel" SET LINE=$P(LINE,"FPG Thrombophilia Panel",1)_"FPG Thrombophilia Panel (Verified by nurse) ________"_$P(LINE,"FPG Thrombophilia Panel",2)
         . IF LINE["TESTS ORDERED:" SET FOUNDTEST=1
         . IF FOUNDTEST=1 DO  ;"Once we are inside the test section, keep adding each line until we have them all
         . . SET TESTSORDERED=TESTSORDERED_LINE

@@ -28,7 +28,7 @@ TMGMISC3 ;TMG/kst/Misc utility librar ;9/6/17, 7/24/22
  ;"DEPENDENCIES:          
  ;"=======================================================================
  ;
-ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
+ARRDUMP(REF,TMGIDX,INDENT,OUTREF)  ;"ARRAY DUMP
   ;"NOTE: similar to ArrayDump^TMGIDE (taken from there and modified)
   ;"      But this function is different enough that I will keep separate
   ;"PUBLIC FUNCTION
@@ -40,6 +40,7 @@ ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
   ;"            For example:
   ;"                INDENT=3
   ;"                INDENT(2)=0 --> show | for columns 1 & 3, but NOT 2
+  ;"        OUTREF -- OPTIONAL.  If provided, output is put into @OUTREF@(#)=<text>, @OUTREF=<last used line #>
   ;"Result: None
   NEW RESULT SET RESULT=0
   NEW $ETRAP SET $ETRAP="SET RESULT="""",$ETRAP="""",$ecode="""""
@@ -53,8 +54,9 @@ ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
   DO ^DIM ;"Fileman method to ensure REF doesn't have an invalid reference.
   IF $GET(X)="" GOTO ADDN
   ;  
-  NEW JDX FOR JDX=1:1:INDENT-1 WRITE $SELECT($GET(INDENT(JDX),-1)=0:" ",1:"| ")
-  IF INDENT>0 WRITE "}~"
+  NEW JDX FOR JDX=1:1:INDENT-1 DO
+  . DO ADWRITE($SELECT($GET(INDENT(JDX),-1)=0:" ",1:"| "),0,.OUTREF)
+  IF INDENT>0 DO ADWRITE("}~",0,.OUTREF)
   ;              
   SET TMGIDX=$GET(TMGIDX)
   IF TMGIDX'="" DO
@@ -64,14 +66,14 @@ ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
   . . IF $LENGTH(STR)'=$LENGTH($$TRIM^XLFSTR(STR)) SET STR=""""_STR_""""  ;"//kt 9/6/17
   . . NEW QT SET QT=""
   . . IF +TMGIDX'=TMGIDX SET QT=""""
-  . . WRITE QT_TMGIDX_QT_" = "_STR,!
+  . . DO ADWRITE(QT_TMGIDX_QT_" = "_STR,1,.OUTREF)
   . ELSE  DO
-  . . WRITE TMGIDX,!
+  . . DO ADWRITE(TMGIDX,1,.OUTREF)
   . SET REF=$NAME(@REF@(TMGIDX))
   ELSE  DO
-  . WRITE REF
-  . IF $DATA(@REF)#10=1 WRITE 0,"="_$GET(@REF)
-  . WRITE !
+  . DO ADWRITE(REF,0,.OUTREF)
+  . IF $DATA(@REF)#10=1 DO ADWRITE("="_$GET(@REF),0,.OUTREF)
+  . DO ADWRITE("",1,.OUTREF)
   ;
   SET TMGIDX=$ORDER(@REF@(""))
   IF TMGIDX="" GOTO ADDN                
@@ -80,11 +82,24 @@ ARRDUMP(REF,TMGIDX,INDENT)  ;"ARRAY DUMP
   . NEW IDX SET IDX=$ORDER(@REF@(TMGIDX))
   . IF IDX="" SET INDENT(INDENT)=0
   . NEW TEMPINDENT MERGE TEMPINDENT=INDENT
-  . DO ARRDUMP(REF,TMGIDX,.TEMPINDENT)  ;"Call self recursively
+  . DO ARRDUMP(REF,TMGIDX,.TEMPINDENT,.OUTREF)  ;"Call self recursively
   . SET TMGIDX=$ORDER(@REF@(TMGIDX))
 ADDN  ;
   QUIT
   ;   
+ADWRITE(STR,LINEFEED,OUTREF) ;
+  IF $GET(OUTREF)="" DO 
+  . WRITE STR
+  . IF +$GET(LINEFEED) WRITE !
+  ELSE  DO
+  . NEW IDX SET IDX=$GET(@OUTREF)
+  . IF IDX="" SET IDX=1
+  . NEW PRIOR SET PRIOR=$GET(@OUTREF@(IDX))
+  . SET @OUTREF@(IDX)=PRIOR_STR
+  . IF $GET(LINEFEED) SET IDX=IDX+1
+  . SET @OUTREF=IDX
+  QUIT
+  ;
 SHR(NUM,DIGITS)  ;"//BINARY SHIFT RIGHT
   NEW RESULT SET RESULT=NUM
   SET DIGITS=$GET(DIGITS,1)

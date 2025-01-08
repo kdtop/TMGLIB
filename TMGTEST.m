@@ -748,7 +748,7 @@ TESTPIPE2 ;
   . . USE STATPIPE WRITE $CHAR(3) USE TMGIO             ;" ^C  or end-of-text (EOT).  Should cause tail to quit
   . . IF SHOWDBLOG USE LOGPIPE WRITE $CHAR(3) USE TMGIO ;" ^C  or end-of-text (EOT).  Should cause tail to quit
   . . SET DONE=1
-  . . IF TRIES > 100 SET DONE=1  ;"added for debugging
+  . . IF TRIES>100 SET DONE=1  ;"added for debugging
   . CLOSE STATPIPE
   . IF SHOWDBLOG CLOSE LOGPIPE
   ;
@@ -756,7 +756,7 @@ TESTPIPE2 ;
 
 
 PRIME ; Calculate prime numbers up to 10,000
-    NEW N, I, J, IsPrime
+    NEW N,I,J,IsPrime
     SET N=10000
 
     ; Initialize an array to mark non-prime numbers
@@ -767,8 +767,18 @@ PRIME ; Calculate prime numbers up to 10,000
     . FOR J=I*2:1:N SET IsPrime(J)=0
 
     ; Collect and display the prime numbers
-    WRITE "Prime numbers up to ", N, ":", !
-    FOR I=2:1:N IF IsPrime(I) WRITE I, " "
+    WRITE "Prime numbers up to ",N,":",!
+    FOR I=2:1:N IF IsPrime(I) WRITE I," "
     WRITE !
     QUIT
+ ;
+TERM ;
+  USE $P:(NOCANONICAL) 
+  WRITE "[" 
+  HANG 5 
+  WRITE "].. Enter key:" 
+  READ *X:0.1 
+  W !,X,!
+  QUIT
+  ;
   

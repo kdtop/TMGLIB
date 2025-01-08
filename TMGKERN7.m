@@ -41,13 +41,19 @@ MAKEBC(Message,Option)
         ;"        folders, into a folder on the system path.  I chose /usr/bin/
         ;"      Also, to achieve compile of above, I had to install required libs.
         ;"      See notes included with source code.
+        KILL ^TMG("MAKEBC")
+        NEW TMGDEBUG SET TMGDEBUG=1
         NEW result SET result=""
         NEW msgFNAME SET msgFNAME=$$UNIQUE^%ZISUTL("/tmp/msg.txt")
         NEW imageFNAME SET imageFNAME=$$UNIQUE^%ZISUTL("/tmp/barcode.png")
         NEW imageType SET imageType=$$LOW^XLFSTR($GET(OPTION("IMAGE TYPE"),"png"))
+        IF TMGDEBUG=1 SET ^TMG("MAKEBC","msgFNAME")=msgFNAME
+        IF TMGDEBUG=1 SET ^TMG("MAKEBC","imageFNAME")=imageFNAME
+        IF TMGDEBUG=1 SET ^TMG("MAKEBC","imageType")=imageType
         ;"//kt removed 3/14/24  SET ^TMG("TMP","MAKEBC^TMGKERN7",$H)="START"     
 
         ;"Write Message to host file .txt file
+        IF TMGDEBUG=1 SET ^TMG("MAKEBC","STEP 1")="At message writing"
         NEW %ZIS,IOP,POP
         SET %ZIS("HFSNAME")=msgFNAME
         SET IOP="HFS"
@@ -56,11 +62,13 @@ MAKEBC(Message,Option)
         use IO
         WRITE Message
         DO ^%ZISC  ;"close device
+        IF TMGDEBUG=1 SET ^TMG("MAKEBC","STEP 2")="Finished message writing"
 
         ;"Setup and launch linux command to execute dmtxwrite
-        ;"Note: dmtxwrite only makes .png format images
+        ;"Note: dmtxwrite only makes .png format images"
         NEW CmdStr
         SET CmdStr="cat "_msgFNAME_" | dmtxwrite -o "_imageFNAME
+        IF TMGDEBUG=1 SET ^TMG("MAKEBC","STEP 3")="Calling "_CmdStr
         do
         . NEW $ETRAP,$ZTRAP
         . SET $ETRAP="S $ECODE="""""
@@ -104,13 +112,13 @@ READBC(FPathName)
         ;"        folders, into a folder on the system path.  I chose /usr/bin/
         ;"      Also, to achieve compile of above, I had to install required libs.
         ;"      See notes included with source code.
-
         NEW result SET result=""
 
         NEW msgFNAME SET msgFNAME=$$UNIQUE^%ZISUTL("/tmp/msg.txt")
         NEW FNAME,FPath,FileSpec
         DO SPLITFPN^TMGIOUTL(msgFNAME,.FPath,.FNAME,"/")
         SET FileSpec(FNAME)=""
+   
 
         ;"Setup and launch linux command to execute dmtxwrite
         NEW CmdStr

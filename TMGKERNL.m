@@ -147,6 +147,23 @@ FSTAT(OUT,FPNAME,PARAMS)  ;
   CLOSE P USE $P
   QUIT
   ;
+FILEMOD(FILE)  ;"Returns date of file modify (in Fileman Format)
+  NEW TMGRESULT SET TMGRESULT=0
+  NEW FILEDATA DO FSTAT^TMGKERNL(.FILEDATA,FILE)
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$O(FILEDATA(IDX)) QUIT:(IDX'>0)!(TMGRESULT'=0)  DO
+  . NEW LINE SET LINE=$$UP^XLFSTR($G(FILEDATA(IDX)))
+  . IF LINE["MODIFY" DO
+  . . SET LINE=$$TRIM^XLFSTR($P(LINE,"MODIFY:",2))
+  . . NEW DATE,TIME
+  . . SET DATE=$P(LINE," ",1)
+  . . SET TIME=$P(LINE," ",2)
+  . . NEW MM,DD,YYYY,HOUR,MINUTE,SECOND
+  . . SET MM=$P(DATE,"-",2),DD=$P(DATE,"-",3),YYYY=$P(DATE,"-",1)
+  . . SET HOUR=$P(TIME,":",1),MINUTE=$P(TIME,":",2),SECOND=$P(TIME,":",3)
+  . . SET TMGRESULT=YYYY-1700_MM_DD_"."_HOUR_MINUTE 
+  QUIT TMGRESULT
+  ;"
 FDIFF(OUT,FPNAME1,FPNAME2,PARAMS)  ;"FILEs diff command
   ;"Purpose: Provide generic access to linux diff command.
   ;"Input:  OUT: Returns result from reading command output.  Format

@@ -329,7 +329,8 @@ OverwriteRec(RecNum,Data)
         IF result=cAbort GOTO OWQuit
         SET FILENum=$GET(Data(0,cFILE),0) IF FILENum=0 SET result=cAbort GOTO OWQuit
 
-        IF $DATA(tmgFDA)=0 DO  GOTO OWPast  ;"This can happen with single records with NoOverWRITE flag
+        ;"//kt 1/5/25 original Why 'do'? --> IF $DATA(tmgFDA)=0 DO  GOTO OWPast  ;"This can happen with single records with NoOverWRITE flag
+        IF $DATA(tmgFDA)=0 GOTO OWPast  ;"This can happen with single records with NoOverWRITE flag
 
         SET FDAIndex=FILENum
         KILL TMGFDA

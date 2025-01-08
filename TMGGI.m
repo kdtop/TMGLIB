@@ -62,11 +62,11 @@ TMGGI ;TMG/kst/ GT.M GI ;7/14/15
     . IF $zparse(%ZD)="" WRITE "  no such device" SET %ZD="" QUIT
     . SET FSIZE=$$FileSize^TMGKERNL(%ZD)
     . WRITE "Opening file ",%ZD," (",FSIZE," bytes) ..."
-    . OPEN %ZD:(readonly:block=2048:record=2044:exception="GOTO EX"):0
+    . OPEN %ZD:(readonly:block=2048:record=2044:exception="GOTO EX0"):0
     . WRITE !
     . IF '$T  WRITE !,%ZD," is not available" SET %ZD="" QUIT
     . QUIT
-EX  . WRITE !,$P($ZS,",",2,999),! 
+EX0 . WRITE !,$P($ZS,",",2,999),! 
     . CLOSE %ZD SET %ZD=""
     QUIT:%ZD="^"
     WRITE !!

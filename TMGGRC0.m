@@ -49,7 +49,7 @@ INST1(LABL)	;
 	       . . SET DATA(FLD)=VAL
 	       . IF IEN=0 DO
 	       . . IF $DATA(DATA) DO
-	       . . SET IEN=$$ENSUREC(.DATA)
+	       . . . SET IEN=$$ENSUREC(.DATA)
 	       . SET SUBIEN=$$ENSSUBRC(IEN,S)
 	       . IF SUBIEN'>0 WRITE !,"ERROR ADDING: ",S,!
 	       QUIT

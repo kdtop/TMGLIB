@@ -91,8 +91,11 @@ TMGTERM  ;TMG/kst/Terminal interface (ANSI sequences) ;7/17/12, 4/24/15, 9/12/24
  ;"VPR(PN)     ;Vert Position Relative      Esc [ PN e
  ;"VCULOAD     ;Unsave Cursor               ESC [ u
  ;"VCUSAV2     ;Save Cursor & Attrs         ESC 7
+ ;"VCUSAV2R    ;Save Cursor & Attrs         ESC 7
  ;"VCULOAD2    ;Restore Cursor & Attrs      ESC 8
+ ;"VCULOAD2R   ;Restore Cursor & Attrs      ESC 8
  ;"ALTBUF(ON)  ;Toggle alternate buffer     ESC [ ? 1049h activates, ESC [ ? 1049l disables and returns to normal
+ ;"SCRLZONE(TOP,BOT) ;Set scrollable area   ESC [ TOP,BOT r  -- area between top and bottom will scroll.  Outside this will not scroll. 
  ;
  ;"VT100 specific calls
  ;"--------------------
@@ -363,9 +366,17 @@ VCUSAV2(OPTION)  ;"Save Cursor & Attrs                        ESC 7
   ;"DO SYSSTATUSDUMP^TMGDEBUG("VR")
   DO ESCCMD("7") QUIT
   ;
+VCUSAV2R(OPTIONREF)  ;"Save Cursor & Attrs                        ESC 7
+  DO VCUSAV2()
+  QUIT
+  ;
 VCULOAD2(OPTION)  ;"Restore Cursor & Attrs                    ESC 8
   ;"DO SYSSTATUSDUMP^TMGDEBUG("R")
   DO ESCCMD("8") QUIT
+  ;
+VCULOAD2R(OPTREF)  ;"Restore Cursor & Attrs                    ESC 8
+  DO VCULOAD2()
+  QUIT
   ;
 CSRSHOW(ON) ;"Turn cursor ON(1) or OFF(0)(hide)      ESC [ ? 25 l/h
   SET ON=+$GET(ON,1)
@@ -393,10 +404,26 @@ ALTBUF(ON)   ;"Toggle use of alternate buffer
   ;"When this is turned on, output goes to a new blank screen.  When the mode
   ;"  it turned back off, the former screen is restored, with all the prior output.  
   SET ON=+$GET(ON,1)
+  IF ON=1 DO
+  . SET tmgTERMx=$X
+  . SET tmgTERMy=$Y
   NEW CMD SET CMD=$SELECT(ON=1:"h",1:"l")
   DO ESCN("?1049",,CMD) 
+  IF ON'=1 DO
+  . IF $GET(tmgTERMx)>0 SET $X=tmgTERMx
+  . IF $GET(tmgTERMy)>0 SET $Y=tmgTERMy
+  . KILL tmgTERMx,tmgTERMy
   QUIT
   ;
+SCRLZONE(TOP,BOT) ;"Set scrollable area   
+  ;"ESC [ TOP,BOT r  -- Area between top line and bottom line will scroll.  
+  ;"  Outside this will not scroll.
+  ;"https://unix.stackexchange.com/questions/169509/how-to-use-esc-sequences-to-make-terminal-region-scrollable
+  SET TOP=+$GET(TOP,1)
+  SET BOT=+$GET(BOT,24)
+  DO ESCN(TOP_","_BOT,,"r")
+  QUIT
+  
   ;"--------------------------------------------------------------
   ;"VT100 specific calls
   ;"Terminal interface
@@ -445,23 +472,25 @@ VTATRIB(N)  ;"Set Text attributes    <ESC>[{attr1};...;{attrn}m
 VCOLORIDXFG(N)  ;"Set Text Foreground Color  <ESC>[{attr1};...;{attrn}m
   ;"See note about colors in VCOLORSIDX
   ;"NOTE: This is for indexed color (3 to 4 bit)
+  NEW TEMPN SET TEMPN=N
   DO VTATRIB(0)
-  IF N>7 DO
+  IF TEMPN>7 DO
   . DO VTATRIB(1)
-  . SET N=N-7
-  SET N=N+30
-  DO ESCN(N,,"m") 
+  . SET TEMPN=TEMPN-7
+  SET TEMPN=TEMPN+30
+  DO ESCN(TEMPN,,"m") 
   QUIT
   ;
 VCOLORIDXBG(N)  ;"Set Text Background Color  <ESC>[{attr1};...;{attrn}m
   ;"See note about colors in VCOLORSIDX
   ;"NOTE: This is for indexed color (3 to 4 bit)
+  NEW TEMPN SET TEMPN=N
   DO VTATRIB(0)
-  IF N>7 DO
+  IF TEMPN>7 DO
   . DO VTATRIB(1)
-  . SET N=N-7
-  SET N=N+40
-  DO ESCN(N,,"m") 
+  . SET TEMPN=TEMPN-7
+  SET TEMPN=TEMPN+40
+  DO ESCN(TEMPN,,"m") 
   QUIT
   ;
 VCOLORSIDX(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
@@ -469,17 +498,19 @@ VCOLORSIDX(FG,BG)  ;Set Text Colors   <ESC>[{attr1};...;{attrn}m
   ;"  correctly.  The best way to determine what the color should
   ;"  be is to run DemoColor^TMGUSRI8 and pick the numbers wanted for desired colors
   ;"NOTE: This is for indexed color (3 to 4 bit)
+  NEW TEMPFG SET TEMPFG=FG
+  NEW TEMPBG SET TEMPBG=BG
   DO VTATRIB(0)
-  IF FG>7 DO
+  IF TEMPFG>7 DO
   . DO VTATRIB(1)
-  . SET FG=FG-7
-  IF BG>7 DO
+  . SET TEMPFG=TEMPFG-7
+  IF TEMPBG>7 DO
   . DO VTATRIB(1)
-  . SET BG=BG-7
+  . SET TEMPBG=TEMPBG-7
   ;
-  SET FG=FG+30
-  SET BG=BG+40
-  DO ESCN(FG,BG,"m") 
+  SET TEMPFG=TEMPFG+30
+  SET TEMPBG=TEMPBG+40
+  DO ESCN(TEMPFG,TEMPBG,"m") 
   QUIT
   ;
 VFGCOLOR256(N)  ;"Set Text Foreground Color  <ESC>[38;5;<NUM>m
@@ -577,6 +608,7 @@ ISCLRVEC24(STR) ;"Returns if STR is in format of 24bit color vector triple, CLRV
   QUIT RESULT
   ;
 ISCOLOR24PAIR(PAIR) ;"Does PAIR have ClrVec24^ClrVec24 pattern?
+  ;"SEE ALSO $$ISCOLORPAIR^TMGUSRI8() which handles either indexed colors OR ClrVec24 colors
   NEW RESULT SET RESULT=0
   IF PAIR["^" DO
   . NEW FG,BG SET FG=$PIECE(PAIR,"^",1),BG=$PIECE(PAIR,"^",2)

@@ -314,7 +314,7 @@ ADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         SET INSARRAY(+$ORDER(^DIC(36,"B","AARP",0)))=""
         SET INSARRAY(+$ORDER(^DIC(36,"B","AARP / Secure Horizon",0)))=""
         SET INSARRAY(+$ORDER(^DIC(36,"B","UNITED HEALTHCARE - SECURE HORIZONS",0)))=""
-        ;"SET INSARRAY(+$ORDER(^DIC(36,"B","UHC-DSNP",0)))=""   ;"THIS MAY NEED TO BE ALTERED FOR TINCY CUTSHAW'S INSURANCE
+        SET INSARRAY(+$ORDER(^DIC(36,"B","UHC-DSNP",0)))=""   ;"THIS MAY NEED TO BE ALTERED FOR TINCY CUTSHAW'S INSURANCE
         ;"IF BCBSAIEN'>0 GOTO BCDN
         NEW INSIDX SET INSIDX=0
         FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
@@ -373,6 +373,8 @@ IGNMAMMO(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"Purpose: To detmine if the patient's MAMMO is turned off this year
         ;" 
         DO HFTHISYR(TMGDFN,.TEST,.DATE,"TMG MAMMOGRAM/IMAGING GYN MANAGING")
+        IF TEST=0 DO
+        . DO HFL14D(TMGDFN,.TEST,.DATE,"TMG MAMMOGRAM/IMAGING ORDERED")
         QUIT
         ;"        
 HFTHISYR(TMGDFN,TEST,DATE,HFNAME)  ;"
@@ -395,6 +397,27 @@ HFTHISYR(TMGDFN,TEST,DATE,HFNAME)  ;"
         . . . SET DATE=CURHFDATE
         QUIT
         ;"        
+HFL14D(TMGDFN,TEST,DATE,HFNAME)  ;"
+        ;"Purpose: To detmine if the patient has a HF assigned in the last 14 days
+        ;"      alerts TEST and DATE
+        SET TEST=0
+        SET DATE=0
+        ;"NEW FIRSTDT SET FIRSTDT=$$FIRSTYR^TMGDATE()
+        NEW BDT SET BDT=$$ADDDAYS^TMGDATE("-14")
+        NEW IGNOREIEN SET IGNOREIEN=+$ORDER(^AUTTHF("B",HFNAME,0))
+        IF IGNOREIEN'>0 QUIT
+        NEW HFIEN SET HFIEN=0    
+        FOR  SET HFIEN=$ORDER(^AUPNVHF("C",TMGDFN,HFIEN)) QUIT:(+HFIEN'>0)!(TEST=1)  DO
+        . NEW CURHFIEN SET CURHFIEN=$PIECE($GET(^AUPNVHF(HFIEN,0)),"^",1)
+        . IF CURHFIEN=IGNOREIEN DO
+        . . NEW VISITIEN SET VISITIEN=$PIECE($GET(^AUPNVHF(HFIEN,0)),"^",3)
+        . . NEW CURHFDATE
+        . . SET CURHFDATE=$P($G(^AUPNVSIT(VISITIEN,0)),"^",1)
+        . . IF CURHFDATE>BDT DO
+        . . . SET TEST=1
+        . . . SET DATE=CURHFDATE
+        QUIT
+        ;"         
 A1CISDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         ;"Purpose: To detmine if the patient is a DM range A1C
         ;"         Returns reason why now.
@@ -2693,6 +2716,8 @@ BDAPPLIC(TMGDFN,TEST,DATE,DATA,TEXT)   ;
         ;"Output.  Optional.
         ;"Results: WHY - returns why HTNMEDS is true 
         DO HFTHISYR(TMGDFN,.TEST,.DATE,"TMG BONE DENSITY NOT INDICATED THIS YEAR")
+        IF TEST=0 DO
+        . DO HFL14D(TMGDFN,.TEST,.DATE,"TMG BONE DENSITY ORDERED")
         QUIT
         ;"
 UMARDONE(TMGDFN,TEST,DATE,DATA,TEXT) ;"DETERMINE IF UMAR HAS BEEN DONE THIS CALENDAR YEAR

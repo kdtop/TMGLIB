@@ -65,7 +65,7 @@ READKY(TERMINATORS,TIMEOUT,NUM,INITVAL,ESCKEY,EOFF) ;
   ;"                      If Terminator includes "e", then ESCKEY will be filled
   ;"                      with a translated value for esc sequence, e.g. UP
   ;"                      (as found in ^XUTL("XGKB",*))
-  ;"       EOFF --      OPTIONAL -- If 1 then input is NOT output to screen.  
+  ;"       EOFF --      OPTIONAL -- If 1 then input is NOT output to screen.  //11/24 NOTE: Not apparently in use.  EOFF always used    
   ;"
   ;"NOTE: to do a single keystroke read, and get back cursor keys etc, do this:
   ;"      SET VAL=$$READKY^TMGUSRI5("e",,1,,.ESC) IF VAL="" SET VAL=ESC
@@ -107,8 +107,8 @@ RLOOP ;
   ;" --- DEBUGGING ---
   ;"w !,"TEMP=[",TEMP,"]",!  ;"debugging...
   ;"WRITE "$LENGTH(TMGZB)=",$LENGTH(TMGZB)," TMGZB="    ;"debugging...
-  ;"f IDX=1:1:$l(TMGZB) w $ASCII($E(TMGZB,IDX)),","        ;"debugging...
-  ;"WRITE !   ;"debugging...
+  ;"f IDX=1:1:$l(TMGZB) w $ASCII($E(TMGZB,IDX)),","     ;"debugging...
+  ;"WRITE !   ;"debugging...                            
   ;" -------------------
   IF TERMINATORS["e" USE $I:NOESCAPE
   XECUTE ^%ZOSF("EON")
@@ -302,7 +302,7 @@ T1 ;;$C(1))="^A"
    ;;$C(27)_"[17~")="F6"
    ;;$C(27)_"[18~")="F7"
    ;;$C(27)_"[19~")="F8"
-   ;;$C(27)_"[1~")="FIND"
+   ;;$C(27)_"[1~")="HOME"   ;"note: PuTTY retruns this after HOME key pressed.  Was 'FIND'.  Changed 11/21/24  
    ;;$C(27)_"[20~")="F9"
    ;;$C(27)_"[21~")="F10"
    ;;$C(27)_"[23~")="F11"
@@ -317,7 +317,7 @@ T1 ;;$C(1))="^A"
    ;;$C(27)_"[33~")="F19"
    ;;$C(27)_"[34~")="F20"
    ;;$C(27)_"[3~")="REMOVE"
-   ;;$C(27)_"[4~")="SELECT"
+   ;;$C(27)_"[4~")="END"      ;"note: PuTTY retruns this after END key pressed.  Was 'SELECT'.  Changed 11/21/24
    ;;$C(27)_"[5~")="PREV"
    ;;$C(27)_"[6~")="NEXT"
    ;;$C(27)_"[A")="UP"

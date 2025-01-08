@@ -19,7 +19,8 @@ TMGUSRI8 ;TMG/kst/USER INTERFACE -- Terminal Color Picker ;9/20/24
  ;"=======================================================================
  ;"MAPIDXTO24BIT(IDXCOLOR,ISBKGND) ;"
  ;"SPLITPOS(POS,X,Y) -- Split 'X^Y' into X and Y
- ;"SPLITCOLORPAIR(COLORPAIR,.FG,.BG)  ;"Split CLRVEC24 pair into FG and BG
+ ;"SPLITCOLORPAIR(COLORPAIR,.FG,.BG)  --Split CLRVEC24 pair into FG and BG
+ ;"ISCOLORPAIR(PAIR)  --Does PAIR have #^# format?
  ;
  ;"=======================================================================
  ;"24BIT COLOR FUNCTIONS
@@ -41,7 +42,6 @@ TMGUSRI8 ;TMG/kst/USER INTERFACE -- Terminal Color Picker ;9/20/24
  ;"=======================================================================
  ;"COLORBOX(SETBG,SETFG)  -- WRITE a grid on the screen, showing all the INDEXED color combos
  ;"COLORPAIR(FG,BG,ARR) --Return a 'FG^BG' based on names.  INDEXED COLOR MODE
- ;"ISCOLORPAIR(PAIR)  --Does PAIR have #^# format?
  ;"SETGBLCO   --Set Global Colors
  ;"PICK1COL(LABEL,INITVAL)   --prompt user to pick a color
  ;"PICKFGC(FG,BG)   -- prompt user to pick a foreground color
@@ -474,8 +474,16 @@ COLORPAIR(FG,BG,ARR,FGC,BGC) ;"Return a 'FG^BG' based on names.  INDEXED COLOR M
   SET RESULT=FGC_"^"_BGC
   QUIT RESULT
   ;   
-ISCOLORPAIR(PAIR)  ;"Does PAIR have #^# format?
+ISCOLORPAIR(PAIR)  ;"Does PAIR have #^# format or CLRVEC24^CLRVEC24 format?
+  ;"//kt NOTE: I changed from being a just INDEXED color function into EITHER
+  ;"See also ISCOLOR24PAIR^TMGTERM
   NEW RESULT SET RESULT=PAIR?1.3N1"^"1.3N
+  IF RESULT=1 GOTO ICPDN
+  NEW FG,BG SET FG=$PIECE(PAIR,"^",1),BG=$PIECE(PAIR,"^",2)
+  IF $$ISCLRVEC24^TMGTERM(FG)=0 GOTO ICPDN
+  IF $$ISCLRVEC24^TMGTERM(BG)=0 GOTO ICPDN
+  SET RESULT=1
+ICPDN ;  
   QUIT RESULT
   ;
 SETGBLCO   ;"Set Global Colors
@@ -651,10 +659,10 @@ PICKCOLOR24(OPTION,INITCOLOR) ;"Display colors and allow user to pick desired co
   ;"   DISPLAY coordinates (2D).  Origin of <1,1> is at the top left of Display area.  Display may be offset on screen
   ;"   SCREEN coordinates (2D).  This screen coordinates, with <1,1> beign top left corder of terminal window 
   ;" The WORLD gets mapped to the DISPLAY which gets mapped to the SCREEN
-  SET OPTION("WORLD->DISPLAY X OFFSET")=$GET(OPTION("WORLD->DISPLAY X OFFSET"),29)   ;"OFFSET of WORLD coordinates in DISPLAY space. This means <0,0,0> in WORLD space will be <40,15> in DISPLAY space
-  SET OPTION("WORLD->DISPLAY Y OFFSET")=$GET(OPTION("WORLD->DISPLAY Y OFFSET"),13)   ;"OFFSET of WORLD coordinates in DISPLAY space.
+  SET OPTION("WORLD->DISPLAY X OFFSET")=$GET(OPTION("WORLD->DISPLAY X OFFSET"),35)   ;"OFFSET of WORLD coordinates in DISPLAY space. This means <0,0,0> in WORLD space will be <40,15> in DISPLAY space
+  SET OPTION("WORLD->DISPLAY Y OFFSET")=$GET(OPTION("WORLD->DISPLAY Y OFFSET"),20)   ;"OFFSET of WORLD coordinates in DISPLAY space.
   SET OPTION("DISPLAY->SCREEN X OFFSET")=$GET(OPTION("DISPLAY->SCREEN X OFFSET"),8)  ;"OFFSET of DISPLAY coordinates in SCREEN space. This means that <0,0> in DISPLAY space will be <8,15> in SCREEN space
-  SET OPTION("DISPLAY->SCREEN Y OFFSET")=$GET(OPTION("DISPLAY->SCREEN Y OFFSET"),10) ;"OFFSET of DISPLAY coordinates in SCREEN space.
+  SET OPTION("DISPLAY->SCREEN Y OFFSET")=$GET(OPTION("DISPLAY->SCREEN Y OFFSET"),4) ;"OFFSET of DISPLAY coordinates in SCREEN space.
   NEW DISPORIGINX SET DISPORIGINX=OPTION("DISPLAY->SCREEN X OFFSET")
   NEW DISPORIGINY SET DISPORIGINY=OPTION("DISPLAY->SCREEN Y OFFSET")
   NEW DISPORIGINPOS DO XY2POS^TMGTERM4(DISPORIGINX,DISPORIGINY,.DISPORIGINPOS)
@@ -665,7 +673,7 @@ PICKCOLOR24(OPTION,INITCOLOR) ;"Display colors and allow user to pick desired co
   NEW HEIGHT SET HEIGHT=$GET(OPTION("HEIGHT"))  
   NEW DEPTH  SET DEPTH=$GET(OPTION("DEPTH"))       
   NEW DISPWIDTH SET DISPWIDTH=WIDTH+55
-  NEW DISPHEIGHT SET DISPHEIGHT=HEIGHT+19
+  NEW DISPHEIGHT SET DISPHEIGHT=HEIGHT+26
   SET OPTION("SHOW FRAME")=1
   SET OPTION("SHOW SELECTED")=1  
   SET OPTION("SHOW CUBE")=1
@@ -675,7 +683,7 @@ PICKCOLOR24(OPTION,INITCOLOR) ;"Display colors and allow user to pick desired co
   ;"NEW NULLDEV SET NULLDEV="/dev/null" OPEN NULLDEV  ;"<-- but not yet in 'USE'
   ;"SET OPTION("PREWRITE EXECUTE")="USE $P FOR  READ *%:0 QUIT:%=-1  "  ;"read and discard anything in typeahead buffer
   ;"SET OPTION("POSTWRITE EXECUTE")="" ;"USE NULLDEV"   ;"after writing, switch IO back to NULL, to prevent user keystrokes from being sent to output
-  DO INITBUF^TMGTERM4(DISPORIGINPOS,DISPWIDTH,DISPHEIGHT,"OPTION")  ;"Initialize buffered output system.
+  DO INITBUF^TMGTERM4(DISPORIGINPOS,DISPWIDTH,DISPHEIGHT,"OPTION",$NAME(OPTION("TMGSCRNBUF")))  ;"Initialize buffered output system.
   DO CLRBUF^TMGTERM4("OPTION"," ",-1,-1)         ;"Fill buff with character
   NEW USEBUF,USEWRAP SET USEBUF=$$BUFFERING^TMGTERM4("OPTION")  
   IF USEBUF DO
@@ -694,7 +702,7 @@ PICKCOLOR24(OPTION,INITCOLOR) ;"Display colors and allow user to pick desired co
   SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="  Page-Up/Dn: "_UPDNCHAR_" BLUE"
   SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="         A/Z: "_UPDNCHAR_" Light/Dark"       
   SET LINECT=LINECT+1,INSTRUCTIONS(LINECT)="           ?: Pick color by NAME"
-  NEW TEXTHOMEX,TEXTHOMEY SET TEXTHOMEX=0,TEXTHOMEY=DISPHEIGHT-LINECT; 
+  NEW TEXTHOMEX,TEXTHOMEY SET TEXTHOMEX=10,TEXTHOMEY=DISPHEIGHT-LINECT; 
   NEW Y                              
   NEW FRAMECT SET FRAMECT=0
   NEW KEYBUFEMPTY
@@ -713,7 +721,8 @@ CB24L1 ;
   IF USEBUF DO
   . SET FRAMECT=(FRAMECT+1)#5  ;"Repeat every 5 cycles.  
   . ;"Force FULL draw every 5 cycles in case something else overwrote background.  
-  . DO BUF2SCRN^TMGTERM4("OPTION",(FRAMECT=0))
+  . NEW BUFOPT SET BUFOPT("FULL")=(FRAMECT=0)
+  . DO BUF2SCRINDIRECT^TMGTERM4("OPTION",.BUFOPT)
 CB24L2 ;  
   IF AUTOCT>0 DO  SET INPUT=AUTOKEY GOTO CB24L3
   . SET AUTOCT=AUTOCT-1
@@ -765,7 +774,7 @@ CB24L3 ;
   . SET OPTION("SELECTED")=CLRVEC
   . SET OPTION("SELECTED","NAME")=$PIECE(TEMP,"^",1)
   . DO CLRBUF^TMGTERM4("OPTION"," ",-1,-1)         ;"Fill buff with character
-  . DO BUF2SCRN^TMGTERM4("OPTION")
+  . DO BUF2SCRINDIRECT^TMGTERM4("OPTION")
   IF CHANGED GOTO CB24L1
   IF INPUT="^" SET DONE=1 GOTO CB24DN
   GOTO CB24L2
@@ -804,7 +813,7 @@ DELTACOLOR(CLRVEC,SHADEPCT) ;"Return 24B color that is +/- % changed from ligher
   ;
 DELTA1CLR(V,PCT) ;"PCT SHOULD BE 0-1
   ;"INPUT: V -- 24bit color vector
-  ;"       PCT -- percentage, should be 0.0-1.0
+  ;"       PCT -- percentage, should be +/- 0.0-1.0
   IF PCT<0 DO
   . NEW DELTA SET DELTA=255*(-PCT)
   . IF DELTA<1 SET DELTA=1

@@ -562,7 +562,9 @@ LABREPRT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"lab report
         . . . . SET SETHEAD=1
         . . . ;"SET STR="LAB^"_ADT_"^"_NODE_"^"_$GET(LABS("DT",ADT,NODE))
         . . . NEW ROWHEAD 
-        . . . IF $P($GET(LABS("DT",ADT,NODE)),"^",4)'="" DO
+        . . . NEW FLAG SET FLAG=$$UP^XLFSTR($P($GET(LABS("DT",ADT,NODE)),"^",4))
+        . . . ;"IF $P($GET(LABS("DT",ADT,NODE)),"^",4)'="" DO
+        . . . IF (FLAG["H")!(FLAG["L")!(FLAG["A") DO
         . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
         . . . ELSE  DO
         . . . . SET ROWHEAD="<TR bgcolor=""#FCFCED"">"

@@ -279,7 +279,7 @@ RC1     NEW TSREF SET TSREF=$NAME(^TMG("TMP","TCP",$J,"TS"))
         . IF ($TEST=0)!(SRVREPLY="#BYE#") DO  QUIT
         . . SET TMGABORT=1
         . . DO DEBUGMSG("1: Got bad or #BYE# reply, so QUITting (Setting TMGABORT=1)")
-        . IF SRVREPLY="#ACK#" DO  QUIT
+        . IF SRVREPLY="#ACK#" QUIT
         . ;"Now process server reply to query.
         . IF SRVREPLY="#RESEND" QUIT  ;"Server replied with RESEND, so will ask query again
         . IF SRVREPLY="#GOTQUERY#" FOR  DO  QUIT:(SRVREPLY="#BYE#")!(SRVREPLY="#DONE#")!(TMGABORT=1)

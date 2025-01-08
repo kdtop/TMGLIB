@@ -41,6 +41,7 @@ HNDLFRGND(IEN8925,ONLYOV) ;"HANDLE TRIGGER EVENTS IN **FOREGROUND** PROCESS
   IF (PROVIEN=168)!(PROVIEN=83) DO        ;"<-- HARD CODED PROVIDER IEN'S
   . ;"COULD THIS BE DONE IN BACKGROUND?
   . NEW ARRAY
+  . DO ADDLSIGN(IEN8925)                  ;"Used for Death Notes and Path Report (Image) TIU titles. This can be kept and have both notes run through the normal Post-Signature code
   . DO SUMNOTE^TMGTIUP1(IEN8925,.ARRAY)    ;"SUMNOTE parses the note HPI and A&P into ARRAY  
   . DO FILE1(IEN8925,"ARRAY",.QUIET)       ;"Store ARRAY into file 22719   (TMG TIU DOCUMENT TOPICS)
   . DO FILE1B(IEN8925,.ARRAY,.QUIET)       ;"Store ARRAY into file 22719.2 (TMG TIU DOCUMENT THREADS)    
@@ -72,7 +73,7 @@ BKJOB(IEN8925)  ;
   DO HANDLTIU^TMGRX007(IEN8925)         ;"EXTRACT AND SAVE MEDICATION FILE LIST INFORMATION
   DO HNDLMAMMO(IEN8925)                 ;"Handle mammogram type documents (if appropriate type)
   DO CHK6CIT^TMGTIUT6(IEN8925)          ;"Check if note contains 6CIT. If so, add a HF and attach the score to it (STILL USED?)
-  DO ADDLSIGN(IEN8925)                  ;"Used for Death Notes and Path Report (Image) TIU titles. This can be kept and have both notes run through the normal Post-Signature code
+  ;"DO IN FOREGROUND -> DO ADDLSIGN(IEN8925)                  ;"Used for Death Notes and Path Report (Image) TIU titles. This can be kept and have both notes run through the normal Post-Signature code
   DO FILEIMM^TMGTIUT5(.IEN8925)         ;"DEPRECIATED -- REMOVE LATER  8/27/24
   ;"
   ;"If the note title is a CONSULT / PATIENT CONTINUITY SUMMARY, then do CHECKDT

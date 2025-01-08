@@ -65,7 +65,7 @@ TEST     ;"  Example code to show use.
          . SET TEST("FLD",5,"WORD WRAP MODE")="YES"
          . SET TEST("FLD",5,"IGNORE |")="NO"
          IF TYPE=7 DO  ;"pointer
-           SET TEST("FLD",7,"POINT TO WHAT FILE")=8925
+         . SET TEST("FLD",7,"POINT TO WHAT FILE")=8925
          IF TYPE=8 DO  ;"Variable pointer.
          . SET TEST("FLD",8,1,"POINT TO WHAT FILE")=8925
          . SET TEST("FLD",8,1,"MESSAGE")="Msg for 8925"
@@ -136,7 +136,7 @@ T2     ;
          . SET TEST("FLD",5,"WORD WRAP MODE")="YES"
          . SET TEST("FLD",5,"IGNORE |")="NO"
          IF TYPE=7 DO  ;"pointer
-           SET TEST("FLD",7,"POINT TO WHAT FILE")=8925
+         . SET TEST("FLD",7,"POINT TO WHAT FILE")=8925
          IF TYPE=8 DO  ;"Variable pointer.
          . SET TEST("FLD",8,1,"POINT TO WHAT FILE")=8925
          . SET TEST("FLD",8,1,"MESSAGE")="Msg for 8925"

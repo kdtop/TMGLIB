@@ -90,3 +90,104 @@ CPTACTV2(CPTCODE) ;"Is CPT code (pass by actual CPT code) active currently?
   IF IEN81'>0 QUIT 0
   QUIT $$CPTACTIVE(IEN81)
   ;
+TESTSRCHCPT ;
+  NEW TERMS
+TSC1 ;  
+  WRITE !,"Enter SEARCH TERMS: " READ TERMS WRITE !
+  IF (TERMS="")!(TERMS["^") QUIT
+  NEW ARR DO SEARCHCPT(.ARR,TERMS)
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(ARR(IEN)) QUIT:IEN'>0  DO
+  . NEW ZN SET ZN=$GET(^ICPT(IEN,0))
+  . WRITE $PIECE(ZN,"^",1)," - ",$PIECE(ZN,"^",2),!
+  GOTO TSC1  
+  QUIT
+  ;    
+TESTSRCHCPT2 ;
+  NEW TERMS SET TERMS="SKIN EXCI"
+  NEW ARR DO SEARCHCPT(.ARR,TERMS)
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(ARR(IEN)) QUIT:IEN'>0  DO
+  . NEW ZN SET ZN=$GET(^ICPT(IEN,0))
+  . WRITE $PIECE(ZN,"^",1)," - ",$PIECE(ZN,"^",2),!
+  QUIT
+  ;    
+SEARCHCPT(OUT,PHRASE,OPTION)  ;"Search CPT index based on PHRASE
+  ;"INPUT:  OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:
+  ;"           OUT(IEN)=""
+  ;"        PHRASE -- String of 1 or more parts to look up.  Words may be PARTIAL words
+  ;"        OPTION -- OPTIONAL.  PASS BY REFERENCE.  
+  ;"          OPTION("FLD") -- Field to search in.  Should be .01 (CPT CODE), or 2 (for SHORT NAME) or 50 (DESCRIPTION) or "*".  Default is "*"
+  ;"          OPTION("INCL INACTIVE")=1 if found, results will be return that are INACTIVE.  
+  ;"          OPTION("AS OF DT")=<FMDT>  Return if FMDT is >=ACTIVE DATE AND <INACTIVEDT
+  SET PHRASE=$GET(PHRASE)
+  NEW WORDS,SKIPWORDS
+  NEW IDX FOR IDX=1:1:$LENGTH(PHRASE," ") DO
+  . NEW AWORD SET AWORD=$PIECE(PHRASE," ",IDX) 
+  . SET AWORD=$$UP^XLFSTR(AWORD)
+  . IF $LENGTH(AWORD)<3 SET SKIPWORDS(AWORD)="" QUIT
+  . IF ($LENGTH(AWORD)<3)!(",THEN,FROM,OTHER,THAN,WITH,THEIR,SOME,THIS,"[(","_AWORD_",")) DO  QUIT
+  . . SET SKIPWORDS(AWORD)="" QUIT   ;"not included in KWIC index.  
+  . SET WORDS(AWORD)=""
+  NEW FLD SET FLD=$GET(OPTION("FLD"),"*") IF FLD="*" SET FLD=".01,2,50"
+  NEW ALL,AFLD,IDX FOR IDX=1:1:$LENGTH(FLD,",") SET AFLD=$PIECE(FLD,",",IDX) IF FLD>0 DO
+  . ;"NOTE: for field 50, I could use xref "C", which is ~same as TMGKDESC, except it has number entries trimmed out
+  . NEW XREF SET XREF=$SELECT(AFLD=.01:"B",AFLD=2:"TMGKSN",AFLD=50:"TMGKDESC",1:"") QUIT:XREF=""
+  . NEW TEMP DO SRCHXREF(.TEMP,.WORDS,XREF)
+  . MERGE ALL(AFLD)=TEMP
+  DO ORSUBLIST(.ALL)  ;"OR sublists. Example, DESCRIPTION (50) might contain 'FACE', but not found in NAME.  I want EITHER
+  ;"NOTE: if needed, could filter further by checking for inclusion of SKIPWORDS.
+  ;"FILTER FOR INACTIVE
+  NEW ASOF SET ASOF=$GET(OPTION("AS OF DT"))
+  NEW INCINACTIVE SET INCINACTIVE=($GET(OPTION("INCL INACTIVE"))=1)
+  NEW IEN SET IEN=0
+  FOR  SET IEN=$ORDER(ALL(IEN)) QUIT:IEN'>0  DO
+  . NEW ZN SET ZN=$GET(ICPT(IEN,0)) QUIT ZN=""
+  . IF ASOF>0  DO  QUIT
+  . . NEW ACTIVEDT SET ACTIVEDT=$PIECE(ZN,"^",8)
+  . . NEW INACTIVEDT SET INACTIVEDT=$PIECE(ZN,"^",8)
+  . . IF (ASOF<ACTIVEDT)!(ASOF>=INACTIVEDT) KILL ALL(IEN)  ;"ASOF not in[ACTIVE .. INACTIVE] range, so kill.  
+  . IF INCINACTIVE=1 QUIT  
+  . NEW INACTIVE SET INACTIVE=$PIECE(ZN,"^",4) QUIT:INACTIVE=0
+  . KILL ALL(IEN)  ;"entry is inactive, so kill    
+  KILL OUT MERGE OUT=ALL    
+  QUIT
+  ;
+SRCHXREF(OUT,WORDS,XREF)  ;
+  NEW AWORD SET AWORD=""
+  FOR  SET AWORD=$ORDER(WORDS(AWORD)) QUIT:AWORD=""  DO
+  . NEW ANENTRY SET ANENTRY=$$SUBASCII^TMGSTUT3(AWORD)
+  . NEW DONE SET DONE=0
+  . FOR  SET ANENTRY=$ORDER(^ICPT(XREF,ANENTRY)) QUIT:DONE  DO
+  . . IF $EXTRACT(ANENTRY,1,$LENGTH(AWORD))=AWORD DO  QUIT
+  . . . IF XREF="TMGKDESC" DO
+  . . . . NEW IEN SET IEN=0 FOR  SET IEN=$ORDER(^ICPT(XREF,ANENTRY,IEN)) QUIT:IEN'>0  DO
+  . . . . . SET OUT(AWORD,IEN)=""  ;"drop subien
+  . . . ELSE  DO
+  . . . . MERGE OUT(AWORD)=^ICPT(XREF,ANENTRY)   ;"<--- LIST OF IEN'S
+  . . IF (ANENTRY="")!(ANENTRY]AWORD)  SET DONE=1 QUIT
+  DO ANDSUBLIST(.OUT) ;"AND the various sublists into matching for ALL WORDS
+  QUIT  
+  ;
+ANDSUBLIST(ARR)  ;"AND sublists
+  ;"AND the various sub array lists into just those found in ALL sublists
+  ;"INPUT -- ARR  format:  ARR(<WORD>,IEN)=""
+  NEW RESULT
+  NEW CURARR,WORDA SET WORDA=""
+  FOR  SET WORDA=$ORDER(ARR(WORDA)) QUIT:WORDA=""  MERGE CURARR=ARR(WORDA)    
+  SET WORDA=""
+  FOR  SET WORDA=$ORDER(ARR(WORDA)) QUIT:WORDA=""  DO
+  . DO LISTAND^TMGMISC("CURARR",$NAME(ARR(WORDA)),"CURARR")
+  KILL ARR MERGE ARR=CURARR
+  QUIT  
+  ;
+ORSUBLIST(ARR)  ;"OR sublists
+  ;"AND the various sub array lists into just those found in ALL sublists
+  ;"INPUT -- ARR  format:  ARR(<WORD>,IEN)=""
+  NEW RESULT
+  NEW CURARR,WORDA SET WORDA=""
+  FOR  SET WORDA=$ORDER(ARR(WORDA)) QUIT:WORDA=""  MERGE CURARR=ARR(WORDA)    
+  KILL ARR MERGE ARR=CURARR
+  QUIT  
+  ;
+

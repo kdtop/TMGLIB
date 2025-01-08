@@ -63,7 +63,7 @@ TMGIDE2C ;TMG/kst/A debugger/tracer for YottaDB (Utility functions) ;3/21/24
   ;"RemoteXecute(MCode) -- Pass M Code to remote process for execution there.
   ;"ExpandLine(Pos) -- expand a line of code, found at position 'Pos', using ^XINDX8 functionality
   ;"DEBUGWRITE(INDENT,STR,ADDLF)
-  ;"DEBUGINDENT(INDENT)
+  ;"DEBUGINDENT(INDENT,FORCED,OUTREF)
   ;"$$ARRDUMP(ArrayP,TMGIDX,indent)
   ;
   ;"=======================================================================
@@ -77,6 +77,7 @@ HndlMCode ;
   ;"//kt 10/2024 -- DO CHA^TMGTERM(1) ;"move to x=1 on this line
   ;"//kt 10/2024 -- WRITE tmgBlankLine,!
   ;"//kt 10/2024 -- DO CUU^TMGTERM(1)
+  NEW TEMPX,TEMPY SET TEMPX=$X,TEMPY=$Y
   DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
   DO SETCOLORS("NORM")  ;"//kt 10/22/24
   DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
@@ -96,23 +97,24 @@ HndlShow ;
   DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    ;"DO Box
   DO SETCOLORS("NORM")
   DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-  NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
-  IF +$GET(tmgDbgRemoteJob) SET varName=$$GetRemoteVar^TMGIDE2(varName)
+  NEW tmgVarName SET tmgVarName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
+  IF +$GET(tmgDbgRemoteJob) SET tmgVarName=$$GetRemoteVar^TMGIDE2(tmgVarName)
   ;"WRITE !   ;"get below bottom line for output.
-  NEW zbTemp SET zbTemp=0
-  IF varName["$" DO
-  . NEW tempCode
-  . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
-  . WRITE varName,"='"
-  . SET tempCode="do DEBUGWRITE^TMGIDE2C(1,"_varName_")"
-  . xecute tempCode
-  . WRITE "'    "
-  ELSE  IF varName'="" DO
-  . SET varName=$$CREF^DILF(varName)  ;"convert open to closed format
-  . IF $$ARRDUMP(varName)  ;"//kt 3/23/24,  ignore result
-  IF zbTemp=0 DO
-  . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
-  . DO PRESS2GO^TMGUSRI2
+  DO SHOWVAR(tmgVarName)  ;"//kt 11/17/24
+  ;"//kt 11/17/24   NEW zbTemp SET zbTemp=0
+  ;"//kt 11/17/24   IF tmgVarName["$" DO
+  ;"//kt 11/17/24   . NEW tempCode
+  ;"//kt 11/17/24   . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
+  ;"//kt 11/17/24   . WRITE tmgVarName,"='"
+  ;"//kt 11/17/24   . SET tempCode="do DEBUGWRITE^TMGIDE2C(1,"_tmgVarName_")"
+  ;"//kt 11/17/24   . xecute tempCode
+  ;"//kt 11/17/24   . WRITE "'    "
+  ;"//kt 11/17/24   ELSE  IF tmgVarName'="" DO
+  ;"//kt 11/17/24   . SET tmgVarName=$$CREF^DILF(tmgVarName)  ;"convert open to closed format
+  ;"//kt 11/17/24   . IF $$ARRDUMP(tmgVarName)  ;"//kt 3/23/24,  ignore result
+  ;"//kt 11/17/24   IF zbTemp=0 DO
+  ;"//kt 11/17/24   . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
+  ;"//kt 11/17/24   . DO PRESS2GO^TMGUSRI2
   DO SETCOLORS("Reset")
   DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
   QUIT
@@ -122,24 +124,25 @@ HndlZWR  ;
   DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    ;"DO Box
   DO SETCOLORS("NORM")
   DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-  ;"NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
-  NEW varName SET varName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
-  IF +$GET(tmgDbgRemoteJob) SET varName=$$GetRemoteVar^TMGIDE2(varName)
-  WRITE !   ;"get below bottom line for output.
-  NEW zbTemp SET zbTemp=0
-  IF varName["$" DO
-  . NEW tempCode
-  . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
-  . WRITE varName,"='"
-  . SET tempCode="do DEBUGWRITE^TMGIDE2C(1,"_varName_")"
-  . XECUTE tempCode
-  . WRITE "'    "
-  ELSE  IF varName'="" DO
-  . SET varName=$$CREF^DILF(varName)  ;"convert open to closed format
-  . DO ZWRITE^TMGZWR(varName)  ;"ZWRITE @varName
-  IF zbTemp=0 DO
-  . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
-  . DO PRESS2GO^TMGUSRI2
+  ;"NEW tmgVarName SET tmgVarName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
+  NEW tmgVarName SET tmgVarName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
+  IF +$GET(tmgDbgRemoteJob) SET tmgVarName=$$GetRemoteVar^TMGIDE2(tmgVarName)
+  DO SHOWVAR(tmgVarName,"ZWR")  ;"//kt 11/17/24
+  ;"//kt 11/17/24   WRITE !   ;"get below bottom line for output.
+  ;"//kt 11/17/24   NEW zbTemp SET zbTemp=0
+  ;"//kt 11/17/24   IF tmgVarName["$" DO
+  ;"//kt 11/17/24   . NEW tempCode
+  ;"//kt 11/17/24   . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
+  ;"//kt 11/17/24   . WRITE tmgVarName,"='"
+  ;"//kt 11/17/24   . SET tempCode="do DEBUGWRITE^TMGIDE2C(1,"_tmgVarName_")"
+  ;"//kt 11/17/24   . XECUTE tempCode
+  ;"//kt 11/17/24   . WRITE "'    "
+  ;"//kt 11/17/24   ELSE  IF tmgVarName'="" DO
+  ;"//kt 11/17/24   . SET tmgVarName=$$CREF^DILF(tmgVarName)  ;"convert open to closed format
+  ;"//kt 11/17/24   . DO ZWRITE^TMGZWR(tmgVarName)  ;"ZWRITE @tmgVarName
+  ;"//kt 11/17/24   IF zbTemp=0 DO
+  ;"//kt 11/17/24   . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
+  ;"//kt 11/17/24   . DO PRESS2GO^TMGUSRI2
   DO SETCOLORS("Reset")
   DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
   QUIT
@@ -557,10 +560,14 @@ RelBreakpoint(pos)  ;
   IF +$GET(tmgDbgRemoteJob) SET tmgDbgJNum=+tmgDbgRemoteJob
   NEW I SET I=""
   NEW GTMPTS ZSHOW "B":GTMPTS
+  ;"//kt NOTE: after upgrade to r202 from r132, format of gtmBrkPts has changed
+  ;"           Now it is LABEL+OFFSET^ROUTINE>breakpoint m code.  
   FOR  SET I=$ORDER(GTMPTS("B",I)) QUIT:(I="")  DO
-  . NEW CODE SET CODE="ZBREAK -"_$GET(GTMPTS("B",I))
-  . IF $GET(GTMPTS("B",I))'=pos QUIT
-  . ;"WRITE "EXECUTING [",CODE,"]",!    
+  . SET zbS=$GET(GTMPTS("B",I)) QUIT:zbS=""
+  . SET zbS=$PIECE(zbS,">",1)  ;"//kt 1/7/24  remove execution code at zbreak
+  . ;"NEW CODE SET CODE="ZBREAK -"_$GET(GTMPTS("B",I))
+  . NEW CODE SET CODE="ZBREAK -"_zbS  ;"//kt 1/7/24
+  . IF zbS'=pos QUIT
   . XECUTE CODE
   KILL ^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",pos)
   QUIT
@@ -571,41 +578,42 @@ RelBreakpoint(pos)  ;
   . ZBREAK @brkLine
   ;"WRITE "released breakpoint at: ",pos,!
   QUIT
-  ;
-HndlTable ;
+  ;       
+HndlTable(tmgOrigAction) ;      
   ;"Purpose: Handle option for Table command
-  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
-  DO SETCOLORS("NORM")  ;"//kt 10/22/24
-  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
-  NEW tmgARGS SET tmgARGS=$PIECE(tmgOrigAction," ",2,99)
-  IF +$GET(tmgDbgRemoteJob) DO
-  . NEW MSG SET MSG="TABLE"
-  . IF tmgARGS'="" SET MSG=MSG_tmgARGS
-  . NEW temp SET temp=$$MessageOut(MSG)
-  . IF temp="" QUIT
-  . NEW IDX SET IDX=""
-  . FOR  SET IDX=$ORDER(@temp@(IDX)) QUIT:(IDX="")  DO
-  . . NEW JDX SET JDX=""
-  . . FOR  SET JDX=$ORDER(@temp@(IDX,JDX)) QUIT:(JDX="")  DO
-  . . . WRITE $GET(@temp@(IDX,JDX)),!
-  ELSE  DO
-  . WRITE !   ;"get below bottom line for output.
-  . NEW tmgTEMP,tmgIDX
-  . NEW tmgFilter SET tmgFilter=""
-  . ZSHOW "V":tmgTEMP
-  . IF (tmgARGS'="") DO
-  . . SET tmgFilter=$PIECE(tmgARGS," ",1)
-  . . SET tmgFilter=$PIECE(tmgFilter,"*",1)
-  . SET tmgIDX=0
-  . FOR  SET tmgIDX=$ORDER(tmgTEMP("V",tmgIDX)) QUIT:(+tmgIDX'>0)  DO
-  . . NEW STR SET STR=$GET(tmgTEMP("V",tmgIDX))      
-  . . IF STR["TMGCOL" QUIT
-  . . IF $EXTRACT(STR,1,3)="tmg" QUIT
-  . . IF (tmgFilter'=""),$EXTRACT(STR,1,$LENGTH(tmgFilter))'=tmgFilter QUIT
-  . . WRITE STR,!
-  ;"NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
-  DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
-  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
+  DO HndlVars(.tmgOrigAction) 
+  ;"//kt 11/17/24  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
+  ;"//kt 11/17/24  DO SETCOLORS("NORM")  ;"//kt 10/22/24
+  ;"//kt 11/17/24  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
+  ;"//kt 11/17/24  NEW tmgARGS SET tmgARGS=$PIECE(tmgOrigAction," ",2,99)
+  ;"//kt 11/17/24  IF +$GET(tmgDbgRemoteJob) DO
+  ;"//kt 11/17/24  . NEW MSG SET MSG="TABLE"
+  ;"//kt 11/17/24  . IF tmgARGS'="" SET MSG=MSG_tmgARGS
+  ;"//kt 11/17/24  . NEW temp SET temp=$$MessageOut(MSG)
+  ;"//kt 11/17/24  . IF temp="" QUIT
+  ;"//kt 11/17/24  . NEW IDX SET IDX=""
+  ;"//kt 11/17/24  . FOR  SET IDX=$ORDER(@temp@(IDX)) QUIT:(IDX="")  DO
+  ;"//kt 11/17/24  . . NEW JDX SET JDX=""
+  ;"//kt 11/17/24  . . FOR  SET JDX=$ORDER(@temp@(IDX,JDX)) QUIT:(JDX="")  DO
+  ;"//kt 11/17/24  . . . WRITE $GET(@temp@(IDX,JDX)),!
+  ;"//kt 11/17/24  ELSE  DO
+  ;"//kt 11/17/24  . WRITE !   ;"get below bottom line for output.
+  ;"//kt 11/17/24  . NEW tmgTEMP,tmgIDX
+  ;"//kt 11/17/24  . NEW tmgFilter SET tmgFilter=""
+  ;"//kt 11/17/24  . ZSHOW "V":tmgTEMP
+  ;"//kt 11/17/24  . IF (tmgARGS'="") DO
+  ;"//kt 11/17/24  . . SET tmgFilter=$PIECE(tmgARGS," ",1)
+  ;"//kt 11/17/24  . . SET tmgFilter=$PIECE(tmgFilter,"*",1)
+  ;"//kt 11/17/24  . SET tmgIDX=0
+  ;"//kt 11/17/24  . FOR  SET tmgIDX=$ORDER(tmgTEMP("V",tmgIDX)) QUIT:(+tmgIDX'>0)  DO
+  ;"//kt 11/17/24  . . NEW STR SET STR=$GET(tmgTEMP("V",tmgIDX))      
+  ;"//kt 11/17/24  . . IF STR["TMGCOL" QUIT
+  ;"//kt 11/17/24  . . IF $EXTRACT(STR,1,3)="tmg" QUIT
+  ;"//kt 11/17/24  . . IF (tmgFilter'=""),$EXTRACT(STR,1,$LENGTH(tmgFilter))'=tmgFilter QUIT
+  ;"//kt 11/17/24  . . WRITE STR,!
+  ;"//kt 11/17/24  ;"NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
+  ;"//kt 11/17/24  DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
+  ;"//kt 11/17/24  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
   ;
 HndlVars(tmgOrigAction) ;
@@ -616,32 +624,34 @@ HndlVars(tmgOrigAction) ;
   SET tmgOrigAction=$GET(tmgOrigAction)
   NEW tmgARGS SET tmgARGS=$PIECE(tmgOrigAction," ",2,99)
   SET tmgARGS=$PIECE(tmgARGS,"*",1)
-  IF +$GET(tmgDbgRemoteJob) DO
+  IF +$GET(tmgDbgRemoteJob) DO  GOTO HVL2
   . NEW MSG SET MSG="VARS"
   . IF tmgARGS'="" SET MSG=MSG_tmgARGS
   . NEW temp SET temp=$$MessageOut(MSG)
-  . IF temp="" QUIT
+  . IF temp="" QUIT                                                 
   . NEW i SET i=""
   . FOR  SET i=$ORDER(@temp@(i)) QUIT:(i="")  DO
   . . NEW j SET j=""
   . . FOR  SET j=$ORDER(@temp@(i,j)) QUIT:(j="")  DO
   . . . WRITE $GET(@temp@(i,j)),!
+  . DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
   ELSE  DO
-  . WRITE !   ;"get below bottom line for output.
-  . NEW TABLEALL,VARS
-  . ZSHOW "*":tmgDbgTABLEALL
-  . MERGE VARS=tmgDbgTABLEALL("V")
-  . NEW IDX1 SET IDX1=0
-  . FOR  SET IDX1=$ORDER(VARS(IDX1)) QUIT:(+IDX1'>0)  DO
-  . . NEW LINE SET LINE=$GET(VARS(IDX1)) QUIT:LINE=""
-  . . NEW VARNAME SET VARNAME=$PIECE(LINE,"=",1)
-  . . IF $EXTRACT(VARNAME,1,3)="tmg" QUIT
-  . . IF $EXTRACT(VARNAME,1,6)="TMGCOL" QUIT
-  . . IF tmgARGS'="" QUIT:($EXTRACT(VARNAME,1,$LENGTH(tmgARGS))'=tmgARGS)
-  . . NEW VARVAL SET VARVAL=$PIECE(LINE,"=",2,9999)
-  . . WRITE VARNAME," = ",VARVAL,!
-  ;"NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
-  DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
+  . DO SHOWVAR("VariableTable","TABLE^"_tmgARGS)
+  ;"//kt 11/17/24  . WRITE !   ;"get below bottom line for output.
+  ;"//kt 11/17/24  . NEW TABLEALL,VARS
+  ;"//kt 11/17/24  . ZSHOW "*":tmgDbgTABLEALL
+  ;"//kt 11/17/24  . MERGE VARS=tmgDbgTABLEALL("V")
+  ;"//kt 11/17/24  . NEW IDX1 SET IDX1=0
+  ;"//kt 11/17/24  . FOR  SET IDX1=$ORDER(VARS(IDX1)) QUIT:(+IDX1'>0)  DO
+  ;"//kt 11/17/24  . . NEW LINE SET LINE=$GET(VARS(IDX1)) QUIT:LINE=""
+  ;"//kt 11/17/24  . . NEW VARNAME SET VARNAME=$PIECE(LINE,"=",1)
+  ;"//kt 11/17/24  . . IF $EXTRACT(VARNAME,1,3)="tmg" QUIT
+  ;"//kt 11/17/24  . . IF $EXTRACT(VARNAME,1,6)="TMGCOL" QUIT
+  ;"//kt 11/17/24  . . IF tmgARGS'="" QUIT:($EXTRACT(VARNAME,1,$LENGTH(tmgARGS))'=tmgARGS)
+  ;"//kt 11/17/24  . . NEW VARVAL SET VARVAL=$PIECE(LINE,"=",2,9999)
+  ;"//kt 11/17/24  . . WRITE VARNAME," = ",VARVAL,!
+  ;"//kt 11/17/24  . DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
+HVL2 ;  
   DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
   ;
@@ -1066,31 +1076,96 @@ MAX(A,B) ;
   IF A>B QUIT A
   QUIT B
   ;
-DEBUGINDENT(INDENT,FORCED)  ;
+SHOWVAR(zzREF,MODE)  ;"Show variable, using SCROLLER
+  ;"MODE -- OPTIONAL.  if "ZWR' then use ZWR,
+  ;"                   if "TABLE^<optional filter>" then does variable table show
+  ;"                   otherwise uses ARDUMP
+  NEW RESULT  ;"some code below is leaving RESULT on table, so NEW it here.   
+  IF zzREF["$" DO  QUIT
+  . WRITE zzREF,"='"
+  . NEW CODE SET CODE="do DEBUGWRITE^TMGIDE2C(1,"_zzREF_")"
+  . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
+  . XECUTE CODE
+  . WRITE "'    "
+  ;
+  SET zzREF=$$CREF^DILF(zzREF)  ;"convert open to closed format
+  NEW zzTEMP
+  IF $GET(MODE)="ZWR" DO
+  . DO ZWR2ARR^TMGZWR(zzREF,"zzTEMP")  ;"ZWRITE @zzREF  
+  IF $GET(MODE)["TABLE" DO
+  . NEW tmgARGS set tmgARGS=$PIECE(MODE,"^",2)
+  . NEW TABLEALL,VARS
+  . ZSHOW "*":tmgDbgTABLEALL
+  . MERGE VARS=tmgDbgTABLEALL("V")
+  . NEW IDX1 SET IDX1=0
+  . FOR  SET IDX1=$ORDER(VARS(IDX1)) QUIT:(+IDX1'>0)  DO
+  . . NEW LINE SET LINE=$GET(VARS(IDX1)) QUIT:LINE=""
+  . . NEW VARNAME SET VARNAME=$PIECE(LINE,"=",1)
+  . . IF $EXTRACT(VARNAME,1,3)="tmg" KILL VARS(IDX1) QUIT
+  . . IF $EXTRACT(VARNAME,1,6)="TMGCOL" KILL VARS(IDX1) QUIT
+  . . IF tmgARGS'="",($EXTRACT(VARNAME,1,$LENGTH(tmgARGS))'=tmgARGS) KILL VARS(IDX1) QUIT
+  . KILL zzTEMP MERGE zzTEMP=VARS    
+  ELSE  DO    
+  . DO ARRDUMP(zzREF,,,"zzTEMP")
+  NEW tmgARRAY,IDX,JDX SET IDX=0,JDX=1
+  FOR  SET IDX=$ORDER(zzTEMP(IDX)) QUIT:IDX'>0  SET tmgARRAY(JDX,$GET(zzTEMP(IDX)))="",JDX=JDX+1
+  KILL zzTEMP
+  NEW tmgOPTION
+  SET tmgOPTION("HEADER",1)=" - Display of ["_zzREF_"] - "
+  SET tmgOPTION("FOOTER",1)="Enter ^ to exit"
+  SET tmgOPTION("ON SELECT")="HNDONSEL^TMGIDE2C"
+  DO ADDNICECOLORS^TMGUSRIF(.tmgOPTION,1) 
+  ;
+  ;"BELOW IS GOOD FOR DEBUGGING
+  NEW ZZDEBUG SET ZZDEBUG=0
+  IF ZZDEBUG=1 DO                    
+  . SET tmgOPTION("SCRN TOP OFFSET")=22
+  . SET tmgOPTION("SCRN HEIGHT")=20
+  . SET tmgOPTION("SCRN WIDTH")=130
+  ;
+  DO SCROLLER^TMGUSRIF("tmgARRAY",.tmgOPTION)
+  QUIT
+  ; 
+HNDONSEL(TMGPSCRLARR,OPTION,INFO)  ;"Part of SHOWVAR -- Handle ON SELECT event from SCROLLER
+  SET TMGSCLRMSG="^"
+  QUIT
+  ;  
+DEBUGINDENT(INDENT,FORCED,OUTREF)  ;
   ;"NOTE: Duplicate of function in TMGIDEDEBUG
   ;"PUBLIC FUNCTION
   ;"Purpose: to provide a unified indentation for debug messages
   ;"Input: INDENT = number of indentations
   ;"       FORCED = 1 if to indent regardless of DEBUG mode
+  ;"       OUTREF -- Optional.  PASS BY NAME.  If provided, output is put into @OUTREF@(#) AND @OUTREF@=<Last line # used>
   SET FORCED=$GET(FORCED,0)  
   IF ($GET(TMGIDEDEBUG,0)=0)&(FORCED=0) QUIT
   NEW IDX
   FOR IDX=1:1:INDENT DO
-  . IF FORCED DO DEBUGWRITE(INDENT,"  ")
+  . IF FORCED DO DEBUGWRITE(INDENT,"  ",0,.OUTREF)
   . ;"ELSE  DO DEBUGWRITE(INDENT,". ")
   QUIT
   ;
-DEBUGWRITE(INDENT,STR,ADDLF) ;
+DEBUGWRITE(INDENT,STR,ADDLF,OUTREF) ;
   ;"PUBLIC FUNCTION
   ;"Purpose: to WRITE debug output.  Having the proc separate will allow
   ;"        easier dump to file etc.
-  ;"Input:INDENT, the amount of indentation expected for output.
+  ;"Input:INDENT, the amount of indentation expected for output.  NOT IMPLEMENTED....
   ;"      STR -- the text to write
   ;"      ADDLF -- boolean, 1 IF ! (i.e. newline) should be written after STR
+  ;"      OUTREF -- Optional.  PASS BY NAME.  If provided, output is put into @OUTREF@(#) AND @OUTREF@=<Last line # used>
   ;"NOTE: TMGIDEDEBUG used in GLOBAL SCOPE
   ;"Note: If above values are not defined, then functionality will be ignored.
   ;"//kt 3/23/24  SET TMGIDEDEBUG=$GET(TMGIDEDEBUG,0)
-  ;"//kt 3/23/24  IF TMGIDEDEBUG=0 QUIT
+  ;"//kt 3/23/24  IF TMGIDEDEBUG=0 QUIT  
+  SET STR=$$NOHIDDENSTR($GET(STR))
+  IF $GET(OUTREF)'="" DO  GOTO DWDN   ;"kt added block 11/17/24
+  . NEW IDX SET IDX=$GET(@OUTREF)
+  . IF IDX="" SET IDX=1
+  . NEW PRIOR SET PRIOR=$GET(@OUTREF@(IDX))
+  . SET @OUTREF@(IDX)=PRIOR_STR
+  . IF $GET(ADDLF) SET IDX=IDX+1
+  . SET @OUTREF=IDX    
+  ;"-- older code below. 
   SET TMGIDEDEBUG=$GET(TMGIDEDEBUG)  ;"//kt 3/23/24
   IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3),$DATA(DebugFile) USE DebugFile
   WRITE $$NOHIDDENSTR(STR)
@@ -1100,6 +1175,7 @@ DEBUGWRITE(INDENT,STR,ADDLF) ;
   . NEW IDX FOR IDX=1:1:ENDSPACE WRITE " "        
   . WRITE !
   IF (TMGIDEDEBUG=2)!(TMGIDEDEBUG=3) USE $PRINCIPAL
+DWDN ;    
   QUIT
   ;
 NOHIDDENSTR(STR) ;"Convert any hidden characters to $C(#)
@@ -1122,76 +1198,81 @@ NOHIDDENSTR(STR) ;"Convert any hidden characters to $C(#)
   . SET RESULT=RESULT_")",INHIDDEN=0
   QUIT RESULT
   ;
-ARRDUMP(REF,TMGIDX,INDENT)  ;
+ARRDUMP(zzREF,TMGIDX,INDENT,zzrefOUT)  ;
   ;"NOTE: Similar to ARRDUMP^TMGMISC3. HOWEVER, this is fundamentally
   ;"      different because it uses DEBUGWRITE, instead of normal WRITE
   ;"PUBLIC FUNCTION
   ;"Purpose: to get a custom version of GTM's "zwr" command
   ;"Input: Uses global scope var tmgDbgIndent (if defined)
-  ;"        REF: NAME of global to display, i.e. "^VA(200)"
+  ;"        zzREF: NAME of global to display, i.e. "^VA(200)"
   ;"        TMGIDX: initial index (i.e. 5 IF wanting to start with ^VA(200,5)
   ;"        INDENT: spacing from left margin to begin with. (A number.  Each count is 2 spaces)
   ;"          OPTIONAL: INDENT may be an array, with information about columns
   ;"                to skip.  For example:
   ;"                INDENT=3
   ;"                INDENT(2)=0 --> show | for columns 1 & 3, but NOT 2
+  ;"        zzrefOUT -- Optional.  PASS BY NAME.  If provided, output is put into @zzrefOUT@(#) AND @zzrefOUT@=<Last line # used>  
   ;"Result: 0=OK to continue, 1=user aborted display
   NEW RESULT SET RESULT=0
   NEW $ETRAP SET $ETRAP="SET RESULT="""",$ETRAP="""",$ecode="""""
   SET INDENT=$GET(INDENT,0)
-  IF $DATA(REF)=0 GOTO ADDN
+  IF $DATA(zzREF)=0 GOTO ADDN
   NEW ABORT SET ABORT=0
-  IF (REF["@") DO  GOTO:(ABORT=1) ADDN
-  . NEW TEMP SET TEMP=$PIECE($EXTRACT(REF,2,99),"@",1)
+  IF (zzREF["@") DO  GOTO:(ABORT=1) ADDN
+  . NEW TEMP SET TEMP=$PIECE($EXTRACT(zzREF,2,99),"@",1)
   . IF $DATA(TEMP)#10=0 SET ABORT=1
-  ;"Note: I need to DO some validation to ensure REF doesn't have any null nodes.
-  NEW X SET X="SET TEMP=$GET("_$$UP^XLFSTR(REF)_")"
+  . SET zzREF=$GET(@TEMP)
+  ;"Note: I need to DO some validation to ensure zzREF doesn't have any null nodes.
+  NEW X SET X="SET TEMP=$GET("_$$UP^XLFSTR(zzREF)_")"
   SET X=$$UP^XLFSTR(X)
-  DO ^DIM ;"a method to ensure REF doesn't have an invalid reference.
+  DO ^DIM ;"a method to ensure zzREF doesn't have an invalid reference.
   IF $GET(X)="" GOTO ADDN
   ;
-  DO DEBUGINDENT(INDENT)
-  NEW JDX FOR JDX=1:1:INDENT-1 DO DEBUGWRITE(INDENT,$SELECT($GET(INDENT(JDX),-1)=0:" ",1:"| "))
-  IF INDENT>0 DO DEBUGWRITE(INDENT,"}~")
-  ;  
+  DO DEBUGINDENT(INDENT,0,.zzrefOUT)
+  NEW JDX FOR JDX=1:1:INDENT-1 DO DEBUGWRITE(INDENT,$SELECT($GET(INDENT(JDX),-1)=0:" ",1:"| "),0,.zzrefOUT)
+  IF INDENT>0 DO DEBUGWRITE(INDENT,"}~",,.zzrefOUT)
+  ;
   SET TMGIDX=$GET(TMGIDX,"")
   IF TMGIDX'="" DO
-  . IF $DATA(@REF@(TMGIDX))#10=1 DO
-  . . NEW STR SET STR=@REF@(TMGIDX)
+  . IF $DATA(@zzREF@(TMGIDX))#10=1 DO
+  . . NEW STR SET STR=@zzREF@(TMGIDX)
   . . IF STR="" SET STR=""""""
   . . IF $LENGTH(STR)'=$LENGTH($$TRIM^XLFSTR(STR)) SET STR=""""_STR_""""  ;"//kt 9/6/17
   . . NEW QT SET QT=""
   . . IF +TMGIDX'=TMGIDX SET qt=""""
-  . . DO DEBUGWRITE(INDENT,QT_TMGIDX_QT_" = "_STR,1)
+  . . DO DEBUGWRITE(INDENT,QT_TMGIDX_QT_" = "_STR,1,.zzrefOUT)
   . ELSE  DO
-  . . DO DEBUGWRITE(INDENT,TMGIDX,1)
-  . SET REF=$NAME(@REF@(TMGIDX))
+  . . DO DEBUGWRITE(INDENT,TMGIDX,1,.zzrefOUT)
+  . SET zzREF=$NAME(@zzREF@(TMGIDX))
   ELSE  DO
-  . DO DEBUGWRITE(INDENT,REF,0)
-  . IF $DATA(@REF)#10=1 DO
-  . . DO DEBUGWRITE(0,"="_$GET(@REF),0)
-  . DO DEBUGWRITE(0,"",1)
+  . DO DEBUGWRITE(INDENT,zzREF,0,.zzrefOUT)
+  . IF $DATA(@zzREF)#10=1 DO
+  . . DO DEBUGWRITE(0,"="_$GET(@zzREF),0,.zzrefOUT)
+  . DO DEBUGWRITE(0,"",1,.zzrefOUT)
   ;
-  SET TMGIDX=$ORDER(@REF@(""))
+  NEW COUNT SET COUNT=$GET(^TMP($J,"ARRDUMP^TMGIDE2C","COUNT"))
+  SET TMGIDX=$ORDER(@zzREF@(""))
   IF TMGIDX="" GOTO ADDN
   SET INDENT=INDENT+1
   FOR  DO  QUIT:TMGIDX=""  IF RESULT=1 GOTO ADDN
-  . NEW IDX SET IDX=$ORDER(@REF@(TMGIDX))
+  . NEW IDX SET IDX=$ORDER(@zzREF@(TMGIDX))
   . IF IDX="" SET INDENT(INDENT)=0
   . NEW TEMPINDENT MERGE TEMPINDENT=INDENT
-  . SET RESULT=$$ARRDUMP(REF,TMGIDX,.TEMPINDENT)  ;"Call self recursively
-  . SET TMGIDX=$ORDER(@REF@(TMGIDX))
+  . SET COUNT=COUNT+1 IF COUNT#100=0 DO PROGBAR^TMGUSRI2(COUNT,"Loading "_COUNT,-1,-1)
+  . SET RESULT=$$ARRDUMP(zzREF,TMGIDX,.TEMPINDENT,.zzrefOUT)  ;"Call self recursively
+  . SET TMGIDX=$ORDER(@zzREF@(TMGIDX))
+  SET ^TMP($J,"ARRDUMP^TMGIDE2C","COUNT")=COUNT
   ;
   ;"Put in a blank space at end of subbranch
-  DO DEBUGINDENT(INDENT)
+  DO DEBUGINDENT(INDENT,0,zzrefOUT)
   IF 1=0,INDENT>0 DO
   . NEW TMGi
   . FOR TMGi=1:1:INDENT-1 DO
   . . NEW STR SET STR=""
   . . IF $GET(INDENT(TMGi),-1)=0 SET STR="  "
   . . ELSE  SET STR="| "
-  . . DO DEBUGWRITE(INDENT,STR)
-  . DO DEBUGWRITE(INDENT," ",1)
+  . . DO DEBUGWRITE(INDENT,STR,,.zzrefOUT)
+  . DO DEBUGWRITE(INDENT," ",1,.zzrefOUT)
 ADDN  ;
   QUIT RESULT
   ;

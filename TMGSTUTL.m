@@ -1236,11 +1236,52 @@ UTF8WRITE(CODEPT) ;"Output Unicode character.
   ;"               NOTE: May be multiple chars, if each is ';' delimted.  
   ;"Output: character is written to current device ($IO)
   ;"Result: none.  
-  NEW UNIBYTES,IDX,ABYTE,XPOS,JDX SET XPOS=$X
+  NEW UNIBYTES,IDX,ABYTE,XPOS,JDX 
   FOR JDX=1:1:$LENGTH(CODEPT,";") DO
   . NEW ACODEPT SET ACODEPT=$PIECE(CODEPT,";",JDX) QUIT:ACODEPT=""
   . SET UNIBYTES=$$GETUTF8^TMGMISC(ACODEPT) 
+  . SET XPOS=$X SET $X=0  ;"prevent wrapping if at right margin and multi-bytes would cause wrap
   . FOR IDX=1:1:$LENGTH(UNIBYTES,",") SET ABYTE=$PIECE(UNIBYTES,",",IDX) IF ABYTE>0 WRITE *ABYTE
   . SET $X=XPOS+1
   QUIT
+  ;
+UTF8DEMO ;
+  NEW HSTART,HEND SET HSTART="$2500",HEND="$27C0"
+  NEW DSTART,DEND SET DSTART=$$HEX2DEC^TMGMISC(HSTART),DEND=$$HEX2DEC^TMGMISC(HEND) 
+  NEW I,J
+  FOR I=DSTART:16:DEND DO
+  . WRITE "$"_$$HEXCHR2^TMGMISC(I,4),": "
+  . FOR J=0:1:15 DO
+  . . NEW HEX SET HEX="$"_$$HEXCHR2^TMGMISC(I+J)
+  . . DO UTF8WRITE(HEX) WRITE " "
+  . WRITE !
+  QUIT
+  ;
+ISUNICODE(ST) ;"Test if ST is string of $<unicode>; ... chars.
+  NEW RESULT SET RESULT=1 ;"default TRUE
+  IF $GET(ST)="" SET RESULT=0 GOTO IUCDN
+  NEW LEN SET LEN=$LENGTH(ST,";") 
+  NEW IDX FOR IDX=1:1:LEN DO  QUIT:RESULT=0
+  . NEW SUBSTR SET SUBSTR=$PIECE(ST,";",IDX)
+  . IF SUBSTR="",IDX=LEN QUIT
+  . SET RESULT=(SUBSTR?1"$"1.6NU)
+IUCDN ;  
+  QUIT RESULT
+  ;
+STRLEN(STR)  ;"Unicode aware string length
+  ;"INPUT: STR -- May be ALL plain chars or 
+  ;"                     ALL unicode chars, with ';' delimiter
+  ;"                  or mixed, e.g.  'abcde%UC%$2500;$2500;%UC%fghijklmnop'  -- using %UC% as delimiter
+  NEW RESULT SET RESULT=0
+  NEW IDX FOR IDX=1:1:$LENGTH(STR,"%UC%") DO  ;"NOTE: %UC% not required to be present in string
+  . NEW SUBSTR SET SUBSTR=$PIECE(STR,"%UC%",IDX)  
+  . ;"NOTE if IDX is ODD, then dealing with normal chars, if EVEN, then UNICODE -- even if string STARTS with %UC%
+  . NEW ISUNICODE IF STR["%UC%" SET ISUNICODE=(IDX#2=0)
+  . ELSE  SET ISUNICODE=$$ISUNICODE^TMGSTUTL(SUBSTR)
+  . IF ISUNICODE DO
+  . . NEW ALEN SET ALEN=$LENGTH(SUBSTR,";") IF SUBSTR="" SET ALEN=0
+  . . SET RESULT=RESULT+ALEN
+  . ELSE  DO
+  . . SET RESULT=RESULT+$LENGTH(SUBSTR)
+  QUIT RESULT
   ;

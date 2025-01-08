@@ -17,14 +17,23 @@ TMGUSRI9 ;TMG/kst/USER INTERFACE -- Table Drawing ;11/3/24
  ;"=======================================================================
  ;"GENERAL FUNCTIONS
  ;"=======================================================================
- ;
+ ;"QUERYTABLE(DATA,WIDTH) -- get dimensions for table, after it is wrapped etc.   
+ ;"DRAWTABLE(LEFT,TOP,WIDTH,DATA,OPTION,CHARS) -- Draw table, with surrounding line drawing
+ ;"GETLOREM(WORDCT,STARTWORD,LORSTR)  ;  
  ;"=======================================================================
  ;"Demo Functions
  ;"=======================================================================
+ ;"DEMOTABLES(COUNT) ;
+ ;"DEMOTABLE ;
+ ;"TESTTABLE() ;
  ;
  ;"=======================================================================
  ;"Private Functions
  ;"=======================================================================
+ ;"DRAWROWLINE(MODE,SPCABVREF,SPCBLWREF,LEFT,TOP,WIDTH,FGCOLOR,BGCOLOR,CHARS,OPTION)
+ ;"NEXTCNCTR(TABLEXPOS,SPCABVREF,SPCBLWREF) --Get next connection position as progressing from left to right on line.
+ ;"PREPDATA(DATA,WIDTH,FIRSTROW,LASTROW) 
+ ;"SETCOLSPACING(ROWREF,TOTALWIDTH) 
  ;
  ;"=======================================================================
  ;"=======================================================================
@@ -64,33 +73,40 @@ DEMOTABLE ;
   DO DRAWTABLE(X,Y,WIDTH,.TABLE,.OPTION)
   QUIT
  ;
-TESTTABLE ;
+TESTTABLE() ;
   NEW DATA,AROW,ROWNUM
-  SET DATA("TABLE","COLOR")=$$COLOR24PAIR^TMGUSRI8("WHITE","RED")
   SET ROWNUM=1
-  SET AROW(1)="TITLE"
-  ;"SET AROW(1,"COLOR")=$$COLOR24PAIR^TMGUSRI8("WHITE","RED")
-  MERGE DATA(ROWNUM)=AROW SET ROWNUM=ROWNUM+1 KILL AROW
-  SET AROW(1)="Cell 2,1"
-  SET AROW(2)="Cell 2,2 can have more text than others."
-  SET AROW(3)="Cell 2,3"
-  MERGE DATA(ROWNUM)=AROW SET ROWNUM=ROWNUM+1 KILL AROW
-  SET AROW(1)="Cell 3,1"
-  SET AROW(2)="Cell 3,2"
-  SET AROW(3)="Cell 3,3"
-  SET AROW(4)="Cell 3,4"
-  MERGE DATA(ROWNUM)=AROW SET ROWNUM=ROWNUM+1 KILL AROW
-  SET AROW(1)="Footer"
-  MERGE DATA(ROWNUM)=AROW SET ROWNUM=ROWNUM+1 KILL AROW
-  WRITE #
-  ;"DO CUP^TMGTERM(5,18)
-  ;"WRITE "0000000001111111111222222222233333333334"
-  ;"DO CUP^TMGTERM(5,19)
-  ;"WRITE "1234567890123456789012345678901234567890"
-  DO DRAWTABLE(5,20,40,.DATA)
-  QUIT
+  SET DATA(ROWNUM,1)="TITLE"    
+  SET ROWNUM=ROWNUM+1 
+  SET DATA(ROWNUM,1)="Cell 2,1"
+  SET DATA(ROWNUM,2)="Cell 2,2 can have more text than others."
+  SET DATA(ROWNUM,3)="Cell 2,3"
+  SET ROWNUM=ROWNUM+1 
+  SET DATA(ROWNUM,1)="Cell 3,1"
+  SET DATA(ROWNUM,2)="Cell 3,2"
+  SET DATA(ROWNUM,3)="Cell 3,3"
+  SET DATA(ROWNUM,4)="Cell 3,4"
+  SET ROWNUM=ROWNUM+1 
+  SET DATA(ROWNUM,1)="Cell 4,1"
+  SET DATA(ROWNUM,1,"WIDTH")=10
+  SET DATA(ROWNUM,2)="Cell 4,2"
+  SET DATA(ROWNUM,2,"WIDTH")=30
+  SET ROWNUM=ROWNUM+1 
+  SET DATA(ROWNUM,1)="Footer"
   ;
-DRAWTABLE(LEFT,TOP,WIDTH,DATA,OPTION) ;"Draw table, with surrounding boxes
+  NEW OPTION SET OPTION("ASCII")=2
+  WRITE #
+  NEW RESULT SET RESULT=$$DRAWTABLE(5,20,40,.DATA,.OPTION)
+  QUIT RESULT
+  ;
+QUERYTABLE(DATA,WIDTH) ;"get dimensions for table, after it is wrapped etc  
+  ;"Input:  DATA -- PASS BY REFERENCE.  see DRAWTABLE for documentation
+  ;"        OPTION -- PASS BY REFERENCE.  see DRAWTABLE for documentation
+  ;"RESULT:  HEIGHT^WIDTH  <--- NOTICE this is really Y^X, backwards positioning from normal.  
+  NEW RESULT SET RESULT=$$PREPDATA(.DATA,.WIDTH)
+  QUIT RESULT
+  ;
+DRAWTABLE(LEFT,TOP,WIDTH,DATA,OPTION,CHARS) ;"Draw table, with surrounding boxes
   ;"Input:  LEFT - Screen coordinates of position of TOP 
   ;"        TOP  - Screen coordinates of position of TOP
   ;"        WIDTH -- Width of line
@@ -118,7 +134,9 @@ DRAWTABLE(LEFT,TOP,WIDTH,DATA,OPTION) ;"Draw table, with surrounding boxes
   ;"                  BG -- background color.  Format same as accepted by COLORS^TMGTERM
   ;"                        If -1, then terminal color is RESET to default.  If FGCOLOR=-1, BGCOLOR is overridden  
   ;"                        This is background color of borders of table.  And default background for cell by specified cell colors
+  ;"           DATA("TABLE","PREPPED")=1  Automatically added during processing.  If found, then processing not repeated.  
   ;"        OPTION -- Optional.  Format:
+  ;"            OPTION("ASCII")=1 -- If found then all lines drawn with '-', '|', '+'
   ;"            OPTION("THICK") -- 1 means Light  (default)
   ;"                               2 means Heavy
   ;"                               3 means Double
@@ -129,7 +147,9 @@ DRAWTABLE(LEFT,TOP,WIDTH,DATA,OPTION) ;"Draw table, with surrounding boxes
   ;"            OPTION("BUFFERED")=<Buffer name>.  If defined, output into buffer instead of to screen.
   ;"                            See TMGTERM4 for more info   
   ;"            OPTION("NO TERM SAVE")=1 -- optional. If found, then prior terminal state is NOT saved and restored
-  NEW CHARS DO GET4BOXARR^TMGTERM2(.CHARS,.OPTION)
+  ;"        CHARS -- OPTIONAL -- PASS BY REFERENCE.  Can be used to save time with repeat calls.  
+  ;"RESULT: Returns final total height of table.    
+  IF $DATA(CHARS)=0 DO GET4BOXARR^TMGTERM2(.CHARS,.OPTION)
   NEW FIRSTROW,LASTROW 
   NEW FGCOLOR,BGCOLOR SET (FGCOLOR,BGCOLOR)=-1
   IF $DATA(DATA("TABLE","COLOR")) DO SPLITCOLORPAIR^TMGUSRI8(DATA("TABLE","COLOR"),.FGCOLOR,.BGCOLOR)
@@ -178,7 +198,7 @@ DRAWTABLE(LEFT,TOP,WIDTH,DATA,OPTION) ;"Draw table, with surrounding boxes
   . . ;"DRAW BOTTOM LINE, WITH Up T's for each divider
   . . DO DRAWROWLINE("B",$NAME(DATA(AROW,"SPACING")),"",XPOS,YPOS,WIDTH,.FGCOLOR,.BGCOLOR,.CHARS,.OPTION)
   DO COLORS^TMGTERM(-1,-1,.OPTION)
-  QUIT
+  QUIT (YPOS-TOP+1)
   ;
 DRAWROWLINE(MODE,SPCABVREF,SPCBLWREF,LEFT,TOP,WIDTH,FGCOLOR,BGCOLOR,CHARS,OPTION)
   ;"MODE="T","M","B" for TOP, MIDDLE, BOTTOM lines
@@ -251,14 +271,24 @@ PREPDATA(DATA,WIDTH,FIRSTROW,LASTROW) ;
   ;"                   NOTE: When drawing, this start position will be draw with "|" cell divider.  
   ;"           DATA(<ROW#>,"HEIGHT")=# <-- will be automatically added during processing.
   ;"           DATA("TABLE","COLOR")=FG^BG <-- will be automatically added during processing, from FGCOLOR,BGCOLOR params
+  ;"           DATA("TABLE","PREPPED")=1  Automatically added during processing.  If found, then processing not repeated.  
   ;"        WIDTH -- Width of line
   ;"        FIRSTROW,LASTROW -- OUT parameters
+  ;"RESULTS: <HEIGHT>^<WIDTH>  Returns total height and width of table (including dividing lines)
+  IF $GET(DATA("TABLE","PREPPED"))=1 DO  GOTO PDDN  ;"Don't reprocess if done already.
+  . ;"Since skipping reprocessing below, just set up FIRSTROW and LASTROW.  
+  . SET (FIRSTROW,LASTROW)=0
+  . NEW AROW SET AROW=0
+  . FOR  SET AROW=$ORDER(DATA(AROW)) QUIT:AROW'>0  DO
+  . . IF FIRSTROW=0 SET FIRSTROW=AROW
+  . . SET LASTROW=AROW  ;"only last value will be saved  
   NEW AROW SET AROW=0
   ;"Setup column spacing for each row.  
   FOR  SET AROW=$ORDER(DATA(AROW)) QUIT:AROW'>0  DO
   . DO SETCOLSPACING($NAME(DATA(AROW)),WIDTH)
   ;"Wrap text for each cell if needed, and determine height of row.
   SET (FIRSTROW,LASTROW)=0
+  NEW TOTALHT SET TOTALHT=0
   SET AROW=0
   FOR  SET AROW=$ORDER(DATA(AROW)) QUIT:AROW'>0  DO
   . IF FIRSTROW=0 SET FIRSTROW=AROW
@@ -277,7 +307,11 @@ PREPDATA(DATA,WIDTH,FIRSTROW,LASTROW) ;
   . . . SET DATA(AROW,ACOL,"TEXT",1)=TEXT
   . . SET DATA(AROW,ACOL)=""  ;"REMOVE original text (if any)
   . SET DATA(AROW,"HEIGHT")=MAXHT
-  QUIT
+  . SET TOTALHT=TOTALHT+MAXHT+1  ;"+1 for the line drawn ABOVE this row
+  SET DATA("TABLE","DIMENSIONS")=(TOTALHT+1)_"^"_WIDTH  ;"+1 for the bottom row
+  SET DATA("TABLE","PREPPED")=1
+PDDN ;  
+  QUIT $GET(DATA("TABLE","DIMENSIONS"))
   ;
 SETCOLSPACING(ROWREF,TOTALWIDTH) ;
   ;"NOTE: A cell width should START with 1ST '|' character, and extend to its last SPACE (not counting next '|' or right side wall)
@@ -292,12 +326,15 @@ SETCOLSPACING(ROWREF,TOTALWIDTH) ;
   . SET NUMCOLS=NUMCOLS+1
   . NEW AWIDTH SET AWIDTH=+$GET(@ROWREF@(ACOL,"WIDTH"))
   . IF AWIDTH'>0 QUIT
+  . IF CLAIMEDWIDTH+AWIDTH>(TOTALWIDTH-1) DO
+  . . SET AWIDTH=(TOTALWIDTH-1)-CLAIMEDWIDTH
+  . . SET @ROWREF@(ACOL,"WIDTH")=AWIDTH
   . SET CLAIMEDWIDTH=CLAIMEDWIDTH+AWIDTH
   . SET NUMCELLSWITHWIDTH=NUMCELLSWITHWIDTH+1
   ;"Calculate widths for non-specified cells
   NEW WORKINGWIDTH SET WORKINGWIDTH=TOTALWIDTH-CLAIMEDWIDTH-1  ;"Subtract 1 for (R) side wall
   NEW NUMVARWCOLS SET NUMVARWCOLS=NUMCOLS-NUMCELLSWITHWIDTH
-  NEW AUTOWT SET AUTOWT=WORKINGWIDTH\NUMVARWCOLS
+  NEW AUTOWT SET AUTOWT=$SELECT(NUMVARWCOLS>0:WORKINGWIDTH\NUMVARWCOLS,1:0)
   ;"Specify every cell width, if not already set
   NEW POSITION SET POSITION=1
   NEW CALCWT SET CALCWT=0
@@ -331,7 +368,7 @@ GETLOREM(WORDCT,STARTWORD,LORSTR)  ;
   NEW LOREMWORDS SET LOREMWORDS=$LENGTH(LORSTR," ")
   NEW ENDPCE SET ENDPCE=STARTWORD+WORDCT-1
   NEW RESULT
-  IF (ENDPCE)>LOREMWORDS DO  ;"NEEDS WRAPPING
+  IF ENDPCE>LOREMWORDS DO  ;"NEEDS WRAPPING
   . NEW ENDPCE1 SET ENDPCE1=LOREMWORDS-STARTWORD
   . NEW ENDPCE2 SET ENDPCE2=WORDCT-ENDPCE1
   . SET RESULT=$PIECE(LORSTR," ",STARTWORD,ENDPCE1)
@@ -341,6 +378,14 @@ GETLOREM(WORDCT,STARTWORD,LORSTR)  ;
   . SET RESULT=$PIECE(LORSTR," ",STARTWORD,ENDPCE)
   . SET STARTWORD=ENDPCE+1
   QUIT RESULT
+  ;
+GETLOREMARR(OUT,WORDCT,STARTWORD,LORSTR)  ;  
+  ;"INPUT:  WORDCT -- number of words to return
+  ;"        STARTWORD -- OPTIONAL.  Default is 1.  Can pass by reference
+  ;"        LORSTR -- OPTIONAL.  String with Lorem text.  If empty, then filled from LOREMTEXT
+  NEW STR SET STR=$$GETLOREM(.WORDCT,.STARTWORD,.LORSTR)
+  DO STR2WP^TMGSTUT2(STR,"OUT",80)
+  QUIT
   ;
 LOREMTEXT ;
  ;;"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt 

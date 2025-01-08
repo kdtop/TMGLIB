@@ -320,6 +320,7 @@ GTQUESTS(ARRAY)
      SET ARRAY(14,3,3)="2537^0^^Sometimes"
      SET ARRAY(14,3,4)="2538^0^^Rarely"
      SET ARRAY(14,3,5)="2539^0^^Never"
+     SET ARRAY(14,3,6)="5777^0^^Yes, but benefitting from CPAP"
      
  SET ARRAY(15,0)="Fall Risk"
    SET ARRAY(15,1,0)="Any falls in the past year?"

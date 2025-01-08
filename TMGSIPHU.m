@@ -172,6 +172,7 @@ STOREDATA(ARRAY)
         . . SET TMGMAX=$ORDER(ARRAY(""),-1)
         . IF (SHOWPROG=1),(TMGCT>500) DO
         . . IF (SHOWREF=0),($$HDIFF^XLFDT($H,STIME,2)>120) DO  ;"Turn on showing referecences after 2 min.
+        . . . ;"should there be code here???  //kt 1/5/25
         . . NEW SREF SET SREF=""
         . . IF SHOWREF DO
         . . . SET SREF=REF QUIT:($LENGTH(REF)'>20)
@@ -340,6 +341,7 @@ SDA2    NEW TMGI SET TMGI=0
         . SET TMGCT=TMGCT+1
         . IF (SHOWPROG=1),(TMGCT>500) DO
         . . IF (SHOWREF=0),($$HDIFF^XLFDT($H,STIME,2)>120) DO  ;"Turn on showing referecences after 2 min.
+        . . . ;"should there be code here??? 1/5/25 //kt
         . . NEW SREF SET SREF=""
         . . IF SHOWREF DO
         . . . SET SREF=REF QUIT:($LENGTH(REF)'>20)

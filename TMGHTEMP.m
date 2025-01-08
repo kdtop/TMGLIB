@@ -17,7 +17,7 @@ PULLTIU()    ;
         set %ZIS("B")="HOME"
         ;SET IOP="S121-LAUGHLIN-LASER"
         DO ^%ZIS
-        IF POP DO  GOTO PTIUDN
+        IF POP GOTO PTIUDN
         USE IO
         NEW TMGDFN SET TMGDFN=1
         NEW DFNARRAY
@@ -55,7 +55,7 @@ PULLPED()     ;
         set %ZIS("B")="HOME"
         ;SET IOP="S121-LAUGHLIN-LASER"
         DO ^%ZIS
-        IF POP DO  GOTO PPDN
+        IF POP GOTO PPDN
         USE IO
         NEW TMGDFN SET TMGDFN=1
         NEW DFNARRAY

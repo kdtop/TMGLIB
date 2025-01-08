@@ -67,6 +67,19 @@ LaunchIntr(JobNum)  ;
   SET ^XUTL("XUSYS","TMG COMMAND")=""
   QUIT
   ;
+JOBEXAM(%ZPOS)  ;"Called from JOBEXAM^ZU as part of yottadb zinterrup. 
+  NEW TMGCMD SET TMGCMD=$P($G(^XUTL("XUSYS","TMG COMMAND"))," ",1)
+  KILL ^XUTL("XUSYS","TMG COMMAND")
+  ;"SET $ZTRAP="",TMGDEBUG=1 ;"temp
+  IF TMGCMD="XECUTE" DO
+  . NEW $ETRAP SET $ETRAP="SET $ETRAP="""",$ECODE="""""
+  . NEW TMGMCODE SET TMGMCODE=$P($G(^XUTL("XUSYS","TMG COMMAND"))," ",2,999)
+  . XECUTE TMGMCODE
+  ELSE  IF TMGCMD="INTRPT" DO INTERUPT^TMGIDE5 GOTO JEDN
+  SET ^XUTL("XUSYS",$J,"STATUS")="DONE"  ;"//message to sender of interrupt that we are done.  //kt added 3/8/24
+JEDN ;
+  QUIT
+  ;
 INTERUPT  ;
   ;"Purpose: To respond to mupip interrupt for a process, turning control
   ;"         over to a remote control process

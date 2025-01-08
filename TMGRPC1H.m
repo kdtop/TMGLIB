@@ -593,7 +593,7 @@ OLDTOCPARSE(TMGOUT,OUTIDX,TMGIN)
   . . . SET TMGOUT(OUTIDX)="<ul>",OUTIDX=OUTIDX+1
   . . . SET SUBITEMS=1
   . . IF SECTION="ZTABLES" DO
-  . . . SET TMGOUT(OUTIDX)="<li><a href=""["_TITLE_"]"">"_TITLE_" table</a></li>")="",OUTIDX=OUTIDX+1
+  . . . SET TMGOUT(OUTIDX)="<li><a href=""["_TITLE_"]"">"_TITLE_" table</a></li>",OUTIDX=OUTIDX+1
   . . ELSE  DO
   . . . SET TMGOUT(OUTIDX)="<li><a href="""_TITLE_":"">"_TITLE_"</a></li>",OUTIDX=OUTIDX+1
   . IF SUBITEMS=1 SET TMGOUT(OUTIDX)="</ul>",OUTIDX=OUTIDX+1

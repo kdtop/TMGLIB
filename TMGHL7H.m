@@ -146,7 +146,6 @@ M2      ;
         IF LEVEL>0 DO
         . SET TMGMNU(TMGMNUI)="TMGSEG -- name of SEGMENT being processed"_$CHAR(9)_"TMGSEG",TMGMNUI=TMGMNUI+1
         IF LEVEL>0 DO
-        IF LEVEL>0 DO
         . SET TMGMNU(TMGMNUI)="TMGVALUE -- value of particular "_$PIECE(LEVELNAME," ",2,3)_" being processed"_$CHAR(9)_"TMGVALUE",TMGMNUI=TMGMNUI+1
         IF (LEVEL>0)&(LEVEL<4) DO
         . SET TMGMNU(TMGMNUI)="TMGHASSUBS -- If has sub-pieces"_$CHAR(9)_"TMGHASSUBS",TMGMNUI=TMGMNUI+1

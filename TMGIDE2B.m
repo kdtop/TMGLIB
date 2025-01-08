@@ -174,9 +174,12 @@ SHOWCODE(ShowPos,tmgScrWidth,tmgScrHeight,Wipe,tmgViewOffset,tmgLROffset,tmgCsrO
   . SET zBreakIdx(zbOffset)=1
   ;"-----Also get breakpoints stored in GT.M --------------
   NEW gtmBrkPts zshow "B":gtmBrkPts
+  ;"//kt NOTE: after upgrade to r202 from r132, format of gtmBrkPts has changed
+  ;"           Now it is LABEL+OFFSET^ROUTINE>breakpoint m code.  
   NEW zbI SET zbI=0
   FOR  SET zbI=$ORDER(gtmBrkPts("B",zbI)) QUIT:(zbI="")  DO
   . SET zbS=$GET(gtmBrkPts("B",zbI)) QUIT:zbS=""
+  . SET zbS=$PIECE(zbS,">",1)  ;"//kt 1/7/24  remove execution code at zbreak
   . NEW zbRoutine,zbLabel,zbOffset
   . NEW tmgTempPos SET tmgTempPos=$$ConvertPos^TMGMISC(zbS,tmgZArrayName)
   . DO ParsePos^TMGMISC(tmgTempPos,.zbLabel,.zbOffset,.zbRoutine)
