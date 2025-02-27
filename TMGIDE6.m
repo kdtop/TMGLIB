@@ -674,7 +674,7 @@ M1 ;
   IF $DATA(@CURREF@(UsrSlct))=0 DO COLORSBOOTSTRAP(CURREF) ;
   IF $DATA(@CURREF@(UsrSlct)) DO  GOTO M1B      
   . SET fg=$get(CURCOLORS(UsrSlct,"fg"))
-  . IF "MENUTEXT,MENUALTKEY,MENUBORDER"[UsrSlct DO
+  . IF "MENUTEXT,MENUALTKEY,MENUBORDER,MENUALTKEY"[UsrSlct DO
   . . SET bg="$"  ;"Signal to use menu background
   . ELSE  DO
   . . SET bg="@"  ;"Signal to use normal background.  
@@ -714,7 +714,7 @@ GETCOLORDESCR(ARR) ;
   SET CT=CT+1,ARR(CT)="Post-conditional Foreground Color"_$CHAR(9)_"PC"
   SET CT=CT+1,ARR(CT)="Comments Foreground Color"_$CHAR(9)_"#"
   SET CT=CT+1,ARR(CT)="Menu Text Foreground Color"_$CHAR(9)_"MENUTEXT"
-  SET CT=CT+1,ARR(CT)="Menu Alt Key Foreground Color"_$CHAR(9)_"MENUALTKEY"
+  SET CT=CT+1,ARR(CT)="Menu Alt Key Color"_$CHAR(9)_"MENUALTKEY"
   SET CT=CT+1,ARR(CT)="Menu Border Foreground Color"_$CHAR(9)_"MENUBORDER"
   ;"--------------------------
   SET CT=CT+1,ARR(CT)="Menu Selection Background Color"_$CHAR(9)_"MENUSELBKGROUND"

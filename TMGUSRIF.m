@@ -192,7 +192,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"                  INFO("DATA","SELECTED",<COL#>,"TEXT")=<Text of selected line>
   ;"                          NOTE: <COL#> will be 1..<CUR_COL>-1  I.e. columns to the LEFT of current column.  
   ;"                  INFO("DATA","CUR COLUMN")=<COL#> for which data is being needed
-  ;"                  INFO("DATA","CUR COLUMN","START INDEX")=<LINE#> for beginning of lines of data whicg is needed
+  ;"                  INFO("DATA","CUR COLUMN","START INDEX")=<LINE#> for beginning of lines of data which is needed
   ;"                  INFO("DATA","CUR COLUMN","END INDEX")=<LINE#> for end of lines of data which is needed
   ;"                  INFO("DATA","HANDLED")=1 if event handler has returned data.  If 0 then data will be obtained from legacy methods
   ;"                  INFO("DATA","TEXT",<LINE#>)=<DISPLAY TEXT>  <--- event handler returns data for display here.    ;"
@@ -770,7 +770,7 @@ INITHFTABLE(ATABLE,VIEWSTATE,OPTION)  ;"Initialize header or footer table
   ;"      OPTION("HEADER","COL",<COL#>)=Header for specified column #.  IGNORED unless OPTION("COLUMNS","NUM") > 1
   ;"                  NOTE: Any entry > then number of columns is ignored.
   ;"
-  ;"      OPTION("FOOTER",1)=Footer line TEXT  <--- OPTION 1
+  ;"      OPTION("FOOTER",1)=Footer line TEXT  <--- OPTION 1  <-- NOTE: If found, will be moved to OPTION("FOOTER",1,1)
   ;"      OPTION("FOOTER",1,1)=linePart <--- OPTION 2  (these will be all strung together to make one footer line.
   ;"      OPTION("FOOTER",1,2)=linePart                (can be used to display switches etc)
   ;"      OPTION("FOOTER",2)=More footer line TEXT (any number of lines) 
@@ -785,9 +785,9 @@ INITHFTABLE(ATABLE,VIEWSTATE,OPTION)  ;"Initialize header or footer table
   . SET TABLE(AROW,1,"COLOR")=HEADERCOLOR
   . IF ATABLE="FOOTER" DO
   . . NEW COLNUM SET COLNUM=0
-  . . IF $ORDER(OPTION("FOOTER",AROW,COLNUM))'>0 DO    ;"Stuff e.g. OPTION("FOOTER",1)=<sometext> into OPTION("FOOTER",1,1)=<sometext>
-  . . . IF $GET(OPTION("FOOTER",AROW))="" QUIT
-  . . . SET OPTION("FOOTER",AROW,COLNUM)=OPTION("FOOTER",AROW) SET OPTION("FOOTER",AROW)=""
+  . . IF $ORDER(OPTION("FOOTER",AROW,COLNUM))="" DO    ;"Stuff e.g. OPTION("FOOTER",#)=<sometext> into OPTION("FOOTER",#,1)=<sometext>
+  . . . NEW TEXT SET TEXT=$GET(OPTION("FOOTER",AROW)) QUIT:TEXT=""
+  . . . KILL OPTION("FOOTER",AROW) SET OPTION("FOOTER",AROW,1)=TEXT
   . . FOR  SET COLNUM=$ORDER(OPTION("FOOTER",AROW,COLNUM)) QUIT:COLNUM'>0  DO
   . . . NEW COLTEXT SET COLTEXT=$GET(OPTION("FOOTER",AROW,COLNUM))
   . . . SET TABLE(AROW,COLNUM)=COLTEXT

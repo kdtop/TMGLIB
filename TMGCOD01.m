@@ -11,6 +11,7 @@ TMGCOD01 ;TMG/kst-Code parsing  ;2/17/15
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
+ ;"NOTE: This routine has been copied and modified for different purposes in TMGCODS1.m
  ;
  ;"NOTE: Output from this routine can be reassembled via code in ^TMGCOD02
  ;"=======================================================================
@@ -76,7 +77,7 @@ PARSBLK(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE BLOCK
   ;"Input : TMGBLK -- PASS BY REFERENCE.  Array with code lines.
   ;"        OFFSET -- used for recursive calls.  Leave blank/null when first calling
   ;"            E.g. "3"
-  ;"        REFOUT -- PASS BY NAME.  AN OUT PARAMETER.  See PARSPOS for details.
+  ;"        REFOUT -- PASS BY NAME.  AN OUT PARAMETER.  See PARSLINE for details.
   ;"        REFROOT-- PASS BY NAME.  AN OUT PARAMETER.  On first call, this should
   ;"            be either NULL ("") or same as REFOUT.  Used in recursive calls.
   ;"Results : none.  See OUT above.
@@ -85,7 +86,6 @@ PARSBLK(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE BLOCK
   SET OFFSET=$GET(OFFSET)
   SET REFROOT=$GET(REFROOT,REFOUT)
   FOR  SET OFFSET=$ORDER(TMGBLK(OFFSET)) QUIT:+OFFSET'=OFFSET  DO
-  . ;"NEW LINE SET LINE=TMGBLK(OFFSET)
   . DO PARSLINE(.TMGBLK,.OFFSET,REFOUT,REFROOT)
   QUIT
   ;
@@ -131,6 +131,7 @@ PARSLINE(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE A LINE, including any DO block a
   ;"Results: none
   NEW LINE SET LINE=$GET(TMGBLK(OFFSET))  ;"should never contain LABEL / TAG
   SET REFROOT=$GET(REFROOT,REFOUT)
+  SET @REFOUT@(OFFSET)="OFFSET"  ;"kt
   SET @REFOUT@(OFFSET,"@ORIG")=LINE
   NEW INITLINE SET INITLINE=LINE
   NEW TOKEN,ARG,POS,CH
@@ -148,9 +149,7 @@ PARSLINE(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE A LINE, including any DO block a
   . SET CH=$EXTRACT(LINE,IDX)
   . IF (CH'=$CHAR(9))&(CH'=" ") SET DONE=1 QUIT
   . SET TRAILING=CH_TRAILING
-  ;"SET @REFOUT@(OFFSET,"COMMENT")=TRAILING_$GET(@REFOUT@(OFFSET,"COMMENT"))
   SET @REFOUT@(OFFSET,"TRAILING")=TRAILING
-  ;"SET LINE=$$TRIM^XLFSTR(LINE,"R")
   SET LINE=$EXTRACT(LINE,1,$LENGTH(LINE)-$LENGTH(TRAILING))
   ;"
   ;"Temporarily remove strings which can confuse parsing, replacing with ;<#>;
@@ -222,9 +221,10 @@ PARSLINE(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE A LINE, including any DO block a
   . . IF $DATA(@TEMPREF)>0 SET @REFOUT@(OFFSETSAVE,CMDCT,"POST COND")=NIDX 
   . NEW SCMD,TMGLCMD,UCMD SET UCMD=$$UP^XLFSTR(CMD)
   . DO TABLCNVT(CMD,"CMD",.SCMD,.TMGLCMD)  
+  . SET @REFOUT@(OFFSETSAVE,CMDCT)="CMD #"  ;"//kt
   . SET @REFOUT@(OFFSETSAVE,CMDCT,"CMD")=CMD
-  . SET @REFOUT@(OFFSETSAVE,CMDCT,"CMD","ABVR")=SCMD
-  . SET @REFOUT@(OFFSETSAVE,CMDCT,"CMD","XPND")=TMGLCMD
+  . SET @REFOUT@(OFFSETSAVE,CMDCT,"CMD","ABVR")=SCMD     ;"short cmd name
+  . SET @REFOUT@(OFFSETSAVE,CMDCT,"CMD","XPND")=TMGLCMD  ;"long cmd name
   . ;"restore later --> SET @REFOUT@("IX CMD",CMD,OFFSETSAVE)=""
   . ;"restore later --> SET @REFOUT@("IX CMD S",SCMD,OFFSETSAVE)=""
   . ;"restore later --> SET @REFOUT@("IX CMD L",TMGLCMD,OFFSETSAVE)=""
@@ -236,6 +236,8 @@ PARSLINE(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE A LINE, including any DO block a
   . . SET LINE=$PIECE(LINE," ",2,9999)
   . NEW NIDX SET NIDX=$$NXTARGI(REFROOT,OFFSETSAVE)
   . NEW TEMPREF SET TEMPREF=$NAME(@REFROOT@("ARGS",OFFSETSAVE,NIDX))
+  . SET @REFROOT@("ARGS",OFFSETSAVE)="OFFSET"      ;"//kt
+  . SET @REFROOT@("ARGS",OFFSETSAVE,NIDX)="REF #"  ;"//kt
   . DO PARSARGS(ARGS,TEMPREF,REFROOT,OFFSETSAVE)
   . IF $DATA(@TEMPREF)>0 SET @REFOUT@(OFFSETSAVE,CMDCT,"CMD ARGS")=NIDX 
   . IF (TMGLCMD="DO"),$$TRIM^XLFSTR(ARGS)="" DO
@@ -246,6 +248,7 @@ PARSLINE(TMGBLK,OFFSET,REFOUT,REFROOT)  ;"PARSE A LINE, including any DO block a
   . SET CMDCT=CMDCT+1
   ;
   IF $DATA(@REFOUT@(OFFSET,1))=0,($GET(@REFOUT@(OFFSET,"INDENT"))=""),($GET(@REFOUT@(OFFSET,"TRAILING"))'="") DO
+  . ;"IF LINE="" QUIT  ;  prevent ndenting lines with just label. e.g. LOOPTEST  ;
   . ;"If not indent, but has trailing, and no command, then use trailing as indent. 
   . SET @REFOUT@(OFFSET,"INDENT")=$GET(@REFOUT@(OFFSET,"TRAILING"))
   . SET @REFOUT@(OFFSET,"TRAILING")=""
@@ -338,6 +341,8 @@ PARSARGS(ARGS,REFOUT,REFROOT,OFFSET) ;"PARSE A COMMAND'S ARGUMENTS
   NEW DONE SET DONE=0
   FOR  SET LEN=$LENGTH(ARGS) QUIT:(DONE=1)!(LEN=0)  DO
   . SET IDX=IDX+1,JDX=JDX+1
+  . SET @REFOUT@(COMMANUM)="COMMA #"  ;"//kt
+  . SET @REFOUT@(COMMANUM,JDX)="SEQ #"  ;"//kt
   . SET PRIORTOKEN=TOKEN
   . SET TOKEN=$$NEXTTOKN^TMGSTUT3(.ARGS)
   . IF TOKEN="" DO
@@ -495,10 +500,8 @@ HNDFPARG(COMMANUM,JDX,TYPE,ARGS,OFFSET,REFOUT,REFROOT) ;"HANDLE FUNCTION ($ OR $
   IF SUBARGS'="" DO PARSARGS(SUBARGS,TEMPREF,REFROOT,OFFSET)
   ELSE  SET @TEMPREF@(1,1,"VAR","VALUE")="<NULL>"
   IF $DATA(@TEMPREF) SET @REFOUT@(COMMANUM,JDX,TYPE,"ARGS")=NIDX    
-
   QUIT
-
-
+  ;
 ISGLOBAL(ARR,IDXA,MAX)  ;"DOES ARRAY SEQUENCE INDICATE GLOBAL REFERANCE?
   ;"Look for patterns:  ^TMP  <- global
   ;"                    +^TMP <-- global
@@ -542,8 +545,10 @@ GETBLK(TAG,OFFSET,ROUTINE,OUT,MODE)  ;"GET BLOCK from source code, into array
   ;"             2 -- parse up to next named tag.  Requires:
   ;"                  MODE("NAME")=<named tag>  <-- if not found, reverts to mode 3
   ;"             3 -- parse to end of file.
+  ;"             MODE("LINE#")=1 If found, then index#'s in @OUT will be same as line numbers in file.  
   ;"Result: none.  See OUT
   SET MODE=+$GET(MODE)
+  NEW HFSLINENUM SET HFSLINENUM=+$GET(MODE("LINE#"))
   NEW BLANKCT SET BLANKCT=0
   SET TAG=$GET(TAG)
   SET ROUTINE=$GET(ROUTINE) IF ROUTINE="" GOTO GBKDN
@@ -554,14 +559,13 @@ GETBLK(TAG,OFFSET,ROUTINE,OUT,MODE)  ;"GET BLOCK from source code, into array
   FOR  DO  QUIT:DONE=1
   . NEW POS SET POS=TAG
   . IF OFFSET>0 SET POS=POS_"+"_OFFSET
-  . ;"SET POS=POS_"^"_MODULE
-  . SET POS=POS_"^"_ROUTINE 
-  . ;"NEW LINE SET LINE=$TEXT(@POS)
-  . NEW LINE SET LINE=$$TEXT^TMGCOD00(TAG,OFFSET,ROUTINE)
+  . SET POS=POS_"^"_ROUTINE
+  . NEW LINENUM 
+  . NEW LINE SET LINE=$$TEXT^TMGCOD00(TAG,OFFSET,ROUTINE,.LINENUM)
   . IF LINE="" DO  QUIT:DONE
   . . SET BLANKCT=BLANKCT+1
   . . IF BLANKCT'<25 SET DONE=1
-  . ELSE  IF $EXTRACT(LINE,1)'=" " DO  QUIT:DONE  ;"LABEL FOUND
+  . ELSE  IF (" "_$C(9))'[$EXTRACT(LINE,1) DO  QUIT:DONE  ;"LABEL FOUND
   . . IF FIRST=1 SET FIRST=0 QUIT   
   . . SET BLANKCT=0
   . . NEW TEMP SET TEMP=LINE
@@ -570,7 +574,10 @@ GETBLK(TAG,OFFSET,ROUTINE,OUT,MODE)  ;"GET BLOCK from source code, into array
   . . IF MODE=2 SET DONE=(LABEL=$GET(MODE("NAME"))) QUIT
   . . IF MODE=3 QUIT  ;"ignore labels and go to end of file.
   . . SET DONE=1 QUIT
-  . SET OUT(OFFSET)=LINE
+  . IF HFSLINENUM DO
+  . . SET OUT(LINENUM)=LINE
+  . ELSE  DO
+  . . SET OUT(OFFSET)=LINE
   . SET OFFSET=OFFSET+1
   . SET FIRST=0
   ;"trim trailling empty lines
@@ -585,6 +592,7 @@ GBKDN ;
   QUIT  
   ;
 TABLCNVT(LOOKUP,NODE,SHORT,LONG) ;
+  ;"NOTE: uses TMGCMDABVR in global scope.  If variable is empty, then will be filled here
   IF $DATA(TMGCMDABVR)=0 DO SETUPTBL(.TMGCMDABVR)
   SET (SHORT,LONG)=LOOKUP
   NEW UPLKUP SET UPLKUP=$$UP^XLFSTR(LOOKUP)

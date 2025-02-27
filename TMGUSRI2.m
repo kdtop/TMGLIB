@@ -24,8 +24,8 @@ TMGUSRI2 ;TMG/kst/SACC-compliant USER INTERFACE API FUNCTIONS ;5/6/18, 12/29/22
   ;"USRABORT(ABORTLABEL) -- Checks IF user pressed ESC key.  If so, verify
   ;"YNA(INIT) -- YNA = YES/NO/ALWAYS  ... similar to YN^DICN
   ;"PROGBAR(VALUE,LABEL,MIN,MAX,WIDTH,STARTTIME)  -- Animate a progress bar
-  ;"MENU(OPTIONS,DEFCHOICE,USERRAW) -- provide a simple menuing system
-  ;"FINDMTCH(INPUT,OPTIONS)  ;Search OPTIONS for matching input
+  ;"MENU(MENUARR,DEFCHOICE,USERRAW) -- provide a simple menuing system
+  ;"FINDMTCH(INPUT,ARR)  ;Search ARR for matching input
   ;
   ;"=======================================================================
   ;"Private Functions
@@ -222,6 +222,7 @@ PRESS2GO ;"PRESS TO CONTINUE / PRESSTOCONT
    ;"Purpose: to provide a 'press key to continue' action
    ;"RESULT: none
    ;"Output: will SET TMGPTCABORT=1 IF user entered ^
+   NEW INITIALSTATE,DEVINFO DO DEV2ARR^TMGKERN1($IO,.INITIALSTATE,"",.DEVINFO) 
    NEW STR SET STR="----- Press Key To Continue -----"
    NEW LENSTR SET LENSTR=$LENGTH(STR)
    WRITE STR
@@ -234,6 +235,7 @@ PRESS2GO ;"PRESS TO CONTINUE / PRESSTOCONT
    DO CUB^TMGTERM(LENSTR)
    SET $X=$X-LENSTR
    ;"WRITE !
+   DO RESTORDEV^TMGKERN1(.INITIALSTATE,.DEVINFO)
    QUIT
    ;
 KEYPRESD(WANTCH,WAITTIME)  ;
@@ -500,64 +502,75 @@ PBDONE  DO  ;"Turn cursor display back on.
    ;
    QUIT
    ;
-MENU(OPTIONS,DEFCHOICE,USERRAW)  ;
+MENU(MENUARR,DEFCHOICE,USERRAW,OPTION)  ;
    ;"Purpose: to provide a simple menuing system
-   ;"Input:  OPTIONS -- PASS BY REFERENCE
+   ;"Input:  MENUARR -- PASS BY REFERENCE
    ;"        Format:
-   ;"          OPTIONS(0)=Header Text   <--- optional, default is MENU
-   ;"          OPTIONS(0,n)=Additional lines of header Text   <--- optional
-   ;"          OPTIONS(DispNumber)=MenuText_$C(9)_ReturnValue <-- _$C(9)_ReturnValue OPTIONAL, default is DispNumber
-   ;"          OPTIONS(DispNumber,#)=<text> --additional display lines, not separately selectable. No return value
-   ;"          OPTIONS(DispNumber)=MenuText_$C(9)_ReturnValue
-   ;"          OPTIONS(-1,"COLOR","FG")=foreground color  (optional)
-   ;"          OPTIONS(-1,"COLOR","BG")=foreground color  (optional)
-   ;"          OPTIONS(-1,"COLOR","MODE")="INDEXED" (default), or "256", or "24bit"
-   ;"          OPTIONS(-1,"INDENT")=# of spaces to add to beginning of each line. 
+   ;"          MENUARR(0)=Header Text   <--- optional, default is MENU
+   ;"          MENUARR(0,n)=Additional lines of header Text   <--- optional
+   ;"          MENUARR(DispNumber)=MenuText_$C(9)_ReturnValue <-- _$C(9)_ReturnValue OPTIONAL, default is DispNumber
+   ;"          MENUARR(DispNumber,#)=<text> --additional display lines, not separately selectable. No return value
+   ;"          MENUARR(DispNumber)=MenuText_$C(9)_ReturnValue
+   ;"          MENUARR(-1,"COLOR","FG")=foreground color  (optional)
+   ;"          MENUARR(-1,"COLOR","BG")=foreground color  (optional)
+   ;"          MENUARR(-1,"COLOR","MODE")="INDEXED" (default), or "256", or "24bit"
+   ;"          MENUARR(-1,"INDENT")=# of spaces to add to beginning of each line. 
    ;"        DEFCHOICE: OPTIONAL, the default menu value
    ;"        USERRAW : OPTIONAL, PASS BY REFERENCE, an OUT PARAMETER.  Returns users raw input
+   ;"        OPTION : OPTIONAL
+   ;"              OPTION("NO IO CHANGE")=1  If found then IO device parameters will not be changed.  
+   ;"              OPTION("IO CHANGE VERBOSE")=1  If found then will report IO device parameters changes
+   ;"              OPTION("DEBUG VERBOSE")=1 If found then will report debugging messages.  
    ;"Results: The selected ReturnValue (or DispNumber if no ReturnValue provided), or ^ for abort
    NEW RESULT SET RESULT="^"
+   NEW DEBUGVERBOSE SET DEBUGVERBOSE=+$GET(OPTION("DEBUG VERBOSE"))
+   IF DEBUGVERBOSE WRITE "Starting MENU^TMGUSRI2",!
    NEW S,FG,BG,HDREXTRA
    NEW WIDTH SET WIDTH=50
-   NEW INDENTN SET INDENTN=+$GET(OPTIONS(-1,"INDENT"))
+   NEW INDENTN SET INDENTN=+$GET(MENUARR(-1,"INDENT"))
    NEW INDENT SET INDENT="" IF INDENTN>0 SET INDENT=$JUSTIFY(" ",INDENTN)
    NEW LINE SET $PIECE(LINE,"=",WIDTH+1)=""
    NEW COLOROPT SET COLOROPT("MODE")="INDEXED" ;"default
-   NEW DEVSAVE,DEVINFO DO DEV2ARR^TMGKERN1($IO,.DEVSAVE,,.DEVINFO)
-   USE $IO:(ECHO:NOCANONICAL:NOESCAPE)
+   NEW NOIOCHANGE SET NOIOCHANGE=+$GET(OPTION("NO IO CHANGE"))
+   NEW IOCHANGEVERBOSE SET IOCHANGEVERBOSE=+$GET(OPTION("IO CHANGE VERBOSE"))
+   NEW DEVSAVE,DEVINFO
+   IF NOIOCHANGE'=1 DO
+   . DO DEV2ARR^TMGKERN1($IO,.DEVSAVE,,.DEVINFO)
+   . USE $IO:(ECHO:NOCANONICAL:NOESCAPE)
+   . IF IOCHANGEVERBOSE WRITE !,"Command executed in MENU^TMGUSRI2:  USE $IO:(ECHO:NOCANONICAL:NOESCAPE)",!
 MNU1 ;
-   IF $DATA(OPTIONS(-1,"COLOR")) DO
-   . SET FG=$GET(OPTIONS(-1,"COLOR","FG"),0)
-   . SET BG=$GET(OPTIONS(-1,"COLOR","BG"),1)
-   . NEW MODE SET MODE=$GET(OPTIONS(-1,"COLOR","MODE"),"INDEXED")
+   IF $DATA(MENUARR(-1,"COLOR")) DO
+   . SET FG=$GET(MENUARR(-1,"COLOR","FG"),0)
+   . SET BG=$GET(MENUARR(-1,"COLOR","BG"),1)
+   . NEW MODE SET MODE=$GET(MENUARR(-1,"COLOR","MODE"),"INDEXED")
    . SET COLOROPT("MODE")=MODE
    . DO COLORS^TMGTERM(FG,BG,.COLOROPT)
    WRITE INDENT,LINE,!
-   WRITE INDENT,$GET(OPTIONS(0),"MENU"),$$PAD2POS^TMGSTUT2(WIDTH),!
+   WRITE INDENT,$GET(MENUARR(0),"MENU"),$$PAD2POS^TMGSTUT2(WIDTH),!
    SET HDREXTRA=0
-   FOR  SET HDREXTRA=$ORDER(OPTIONS(0,HDREXTRA)) QUIT:HDREXTRA=""  DO
-   . WRITE INDENT,OPTIONS(0,HDREXTRA),$$PAD2POS^TMGSTUT2(WIDTH),!
+   FOR  SET HDREXTRA=$ORDER(MENUARR(0,HDREXTRA)) QUIT:HDREXTRA=""  DO
+   . WRITE INDENT,MENUARR(0,HDREXTRA),$$PAD2POS^TMGSTUT2(WIDTH),!
    WRITE INDENT,LINE,!
    WRITE INDENT,"OPTIONS:",$$PAD2POS^TMGSTUT2(WIDTH),!
    ;
-   NEW DISPNUMBER SET DISPNUMBER=$ORDER(OPTIONS(0))
+   NEW DISPNUMBER SET DISPNUMBER=$ORDER(MENUARR(0))
    IF DISPNUMBER'="" FOR  DO  QUIT:(DISPNUMBER="")
-   . SET S=$GET(OPTIONS(DISPNUMBER))
+   . SET S=$GET(MENUARR(DISPNUMBER))
    . WRITE INDENT,$$RJ^XLFSTR(DISPNUMBER,4),".",$$PAD2POS^TMGSTUT2(6)
-   . IF $DATA(OPTIONS(DISPNUMBER,"COLOR")) DO
-   . . IF $DATA(OPTIONS(DISPNUMBER,"COLOR","fg")) SET OPTIONS(DISPNUMBER,"COLOR","FG")=$GET(OPTIONS(DISPNUMBER,"COLOR","fg"))
-   . . IF $DATA(OPTIONS(DISPNUMBER,"COLOR","bg")) SET OPTIONS(DISPNUMBER,"COLOR","BG")=$GET(OPTIONS(DISPNUMBER,"COLOR","bg"))
-   . . SET FG=$GET(OPTIONS(DISPNUMBER,"COLOR","FG"),0)
-   . . SET BG=$GET(OPTIONS(DISPNUMBER,"COLOR","BG"),1)
+   . IF $DATA(MENUARR(DISPNUMBER,"COLOR")) DO
+   . . IF $DATA(MENUARR(DISPNUMBER,"COLOR","fg")) SET MENUARR(DISPNUMBER,"COLOR","FG")=$GET(MENUARR(DISPNUMBER,"COLOR","fg"))
+   . . IF $DATA(MENUARR(DISPNUMBER,"COLOR","bg")) SET MENUARR(DISPNUMBER,"COLOR","BG")=$GET(MENUARR(DISPNUMBER,"COLOR","bg"))
+   . . SET FG=$GET(MENUARR(DISPNUMBER,"COLOR","FG"),0)
+   . . SET BG=$GET(MENUARR(DISPNUMBER,"COLOR","BG"),1)
    . . DO COLORS^TMGTERM(FG,BG,.COLOROPT)
    . WRITE " ",$PIECE(S,$CHAR(9),1),$$PAD2POS^TMGSTUT2(WIDTH-1)
    . NEW SUBI SET SUBI=""
-   . FOR  SET SUBI=$ORDER(OPTIONS(DISPNUMBER,SUBI)) QUIT:SUBI'>0  DO
-   . . WRITE !,$$PAD2POS^TMGSTUT2(8),$GET(OPTIONS(DISPNUMBER,SUBI))
-   . IF $DATA(OPTIONS(DISPNUMBER,"COLOR")) DO
+   . FOR  SET SUBI=$ORDER(MENUARR(DISPNUMBER,SUBI)) QUIT:SUBI'>0  DO
+   . . WRITE !,$$PAD2POS^TMGSTUT2(8),$GET(MENUARR(DISPNUMBER,SUBI))
+   . IF $DATA(MENUARR(DISPNUMBER,"COLOR")) DO
    . . DO VTATRIB^TMGTERM(0) ;"Reset colors
    . WRITE " ",!
-   . SET DISPNUMBER=$ORDER(OPTIONS(DISPNUMBER))
+   . SET DISPNUMBER=$ORDER(MENUARR(DISPNUMBER))
    ;
    WRITE INDENT,LINE,!
    ;
@@ -570,30 +583,31 @@ MNU1 ;
    SET USERRAW=INPUT
    IF INPUT="^" GOTO MNUDONE
    ;
-   IF +INPUT'=INPUT SET INPUT=$$FINDMTCH(INPUT,.OPTIONS)
-   SET S=$GET(OPTIONS(INPUT))
-   IF S="" SET S=$GET(OPTIONS($$UP^XLFSTR(INPUT)))
+   IF +INPUT'=INPUT SET INPUT=$$FINDMTCH(INPUT,.MENUARR)
+   SET S=$GET(MENUARR(INPUT))
+   IF S="" SET S=$GET(MENUARR($$UP^XLFSTR(INPUT)))
    ;"IF S="" WRITE "??",!! GOTO MNU1
    SET RESULT=$PIECE(S,$CHAR(9),2)
    IF RESULT="" SET RESULT=INPUT
    ;
 MNUDONE ;
-   IF $DATA(OPTIONS(-1,"COLOR")) DO VTATRIB^TMGTERM(0) ;"Reset colors
+   IF $DATA(MENUARR(-1,"COLOR")) DO VTATRIB^TMGTERM(0) ;"Reset colors
    IF $DATA(DEVSAVE) DO   ;"turn IO back to what it was when coming into this function.
-   . DO RESTORDEV^TMGKERN1(.DEVSAVE,.DEVINFO)   
+   . NEW OPTION SET OPTION("VERBOSE")=IOCHANGEVERBOSE
+   . DO RESTORDEV^TMGKERN1(.DEVSAVE,.DEVINFO,.OPTION)   
    QUIT RESULT
    ;
-FINDMTCH(INPUT,OPTIONS)  ;"Search OPTIONS for matching input
+FINDMTCH(INPUT,ARR)  ;"Search ARR for matching input
   ;"Input: INPUT -- user response
-  ;"       OPTIONS -- by reference.  This is the array that defines the menu
+  ;"       ARR -- by reference.  This is the array that defines the menu
   ;"Result: Number of found match, or "?" IF no match
   NEW TMGRESULT SET TMGRESULT="?"
   NEW IDX SET IDX=0
   NEW OPTTEXT,INPUTLEN
   SET INPUTLEN=$LENGTH(INPUT)
   SET INPUT=$$UP^XLFSTR(INPUT)
-  FOR  SET IDX=$ORDER(OPTIONS(IDX)) QUIT:(IDX'>0)!(TMGRESULT'="?")  DO
-  . SET OPTTEXT=$GET(OPTIONS(IDX))
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:(IDX'>0)!(TMGRESULT'="?")  DO
+  . SET OPTTEXT=$GET(ARR(IDX))
   . SET OPTTEXT=$EXTRACT(OPTTEXT,0,INPUTLEN)
   . SET OPTTEXT=$$UP^XLFSTR(OPTTEXT)
   . IF OPTTEXT=INPUT SET TMGRESULT=IDX

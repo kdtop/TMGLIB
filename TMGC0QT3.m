@@ -56,7 +56,7 @@ MEDLIST(OUTARRAY,BDATE,EDATE,TEXT)  ;"Function for med list documented CPT codes
   ;"             Initially, it is the text that is specified in the TMG
   ;BILLABLE ITEMS file
   ;"             it can be used or replaced as needed.  This should specify
-  ;what
+  ;what  
   ;"             to show on report.  E.g. 'Influenza (90656)'
   ;"RESULT: integer result is also expected, that represents number of
   ;records returned.
@@ -91,6 +91,9 @@ STRSRCH(OUTARRAY,BDATE,EDATE,TEXT,STRING,CPT)  ;"
   FOR  SET TIUDT=$ORDER(^TIU(8925,"D",TIUDT)) QUIT:(TIUDT>EDATE)!(TIUDT'>0)  DO
   . SET TIUIEN=0
   . FOR  SET TIUIEN=$ORDER(^TIU(8925,"D",TIUDT,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . NEW TITLE SET TITLE=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
+  . . SET TITLE=$P($G(^TIU(8925.1,TITLE,0)),"^",1)
+  . . IF TITLE["IMAGE" QUIT   ;"DON'T BOTHER SEARCHING IMAGE TITLES FOR TEXT  1/17/25
   . . SET FOUND=$$SRCHTIU^TMGRPT2(TIUIEN,STRING)
   . . IF FOUND=1 DO
   . . . NEW TMGDFN SET TMGDFN=$PIECE($GET(^TIU(8925,TIUIEN,0)),"^",2)
@@ -265,7 +268,8 @@ HTN(OUTARRAY,SDT,EDT,TEXT)  ;"Function for HTN CPT codes.
   . . ;"  
   . . NEW CODE1 SET CODE1=$PIECE(CURGROUP,"^",2)
   . . NEW CODE2 SET CODE2=$PIECE(CURGROUP,"^",3)
-  . . IF CODE1="",CODE2="" QUIT
+  . . ;"  1/16/25 DO NOT SEND IF EITHER CODE IS BLANK. WE MUST HAVE BOTH TO SATISFY MEASURE IF CODE1="",CODE2="" QUIT
+  . . IF (CODE1="")!(CODE2="") QUIT  ;"1/16/25
   . . NEW TEMPSTR SET TEMPSTR=CODE1 
   . . IF TEMPSTR'="",CODE2'="" SET TEMPSTR=TEMPSTR_","
   . . NEW ATEXT SET ATEXT=TEXT_TEMPSTR_CODE2

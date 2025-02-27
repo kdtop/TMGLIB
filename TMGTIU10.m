@@ -1,4 +1,4 @@
-TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14, 3/24/21
+TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14, 3/24/21, 1/10/25
          ;;1.0;TMG-LIB;**1,17**;10/21/14
  ;
  ;"Kevin Toppenberg MD
@@ -16,33 +16,40 @@ TMGTIU10 ;TMG/kst-Scanning notes for followups ; 11/12/14, 3/24/21
  ;"=======================================================================
  ;"RPCCKDUE(TMGRESULT,TMGTMGDFN)-- RPC Entry point to check if patient is overdue for appt
  ;"$$SCAN4FU(TIUIEN,REFOUT,NOPRIOR) - To scan one note and get back info about followup
+ ;"GETINFO(TIUIEN,FUDATE,LINETEXT,TIUDATE) -- scan one note and get back info about followup
+ ;"READINFO(TMGDFN,IEN8925,FUDT,FUTEXT,TIUDATE) --Gather stored information from prior scan
  ;"$$SCANPT(TMGDFN,REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan one patient during specified date range, and compile followup info
  ;"SCANTIU  -- scan all TIU documents, to pre-parse them for faster access later 
  ;"$$SCANALL(REFOUT,SDT,EDT,SCREEN,TITLEARR) -- Scan all patients during specified date range, and compile followup info
  ;"SELSHOW  -- scan all patients, and then allow inspection of details.
  ;"LISTDUE -- scan all patients, and then list due status.  Output to printer
+ ;"OVERDUE() -- REPORT FOR OVERDUE PATIENTS
+ ;"IGNOREPT(TMGDFN,DAYS)  -- CHECK TO SEE IF THE PATIENT SHOULD BE IGNORED DUE TO RECENT ACTIVITY
+ ;"RPCCKDUE(TMGRESULT,TMGDFN,MODE) --RPC Entry point to check if patient is overdue for appt
  ;"
  ;"=======================================================================
  ;"PRIVATE FUNCTIONS
  ;"======================================================================= 
- ;"TST1NOTE ;
+ ;"GTARINFO(TEXTREF,TIUDATE,FUDATE,LINETEXT,WPZN) -- scan one note and get back info about followup
+ ;"SAVEINFO(TMGDFN,IEN8925,FUDT,FUTEXT,TIUDATE) -- Store gathered information for faster access in future
+ ;"TST1NOTE -- Test function, ask for 1 tiu note and show scan results 
  ;"HASFUTXT(REF,IDX,TAG,LINETEXT,WPZN)  
  ;"RESOLVDT(TIUDATE,S)  -- Read S, determine date, and add to TIUDATE
- ;"DELIDX(WORDARR,IDX,IDX2)  ;"Delete Index, or index range from WORDARR, and renumber entries
- ;"DATEIDX(WORDARR)  ;"Return index in WORDARR of entry with ##/##/##(##) format, or ##/##(##) format 
- ;"MONTHIDX(WORDARR)  ;"Return index in WORDARR of any month
- ;"WORDIDX(WORDARR,AWORD,LOOSE) ;"Return index in WORDARR of AWORD, or -1 if not found
- ;"INRANGE(NUM,LO,HI)  ;"Check if Num is in between LO and HI (inclusive) 
- ;"ISPREV(S) ;"Check for 'previously' and all it's misspellings
- ;"ISSCHED(S)  ;"Check for 'scheduled' and all it's misspellings
- ;"ISWKDAY(S) ; "Is string a week day name?  Assumes S is upper case
- ;"MONTHNUM(S) ; "Is string a month name?  Assumes S is upper case
- ;"GETMNDT(BASEDATE,MONTHNUM) ;"Return date for month number after basedate
+ ;"DELIDX(WORDARR,IDX,IDX2)  --Delete Index, or index range from WORDARR, and renumber entries
+ ;"DATEIDX(WORDARR)  --Return index in WORDARR of entry with ##/##/##(##) format, or ##/##(##) format 
+ ;"MONTHIDX(WORDARR)  --Return index in WORDARR of any month
+ ;"WORDIDX(WORDARR,AWORD,LOOSE) --Return index in WORDARR of AWORD, or -1 if not found
+ ;"INRANGE(NUM,LO,HI)  --Check if Num is in between LO and HI (inclusive) 
+ ;"ISPREV(S) --Check for 'previously' and all it's misspellings
+ ;"ISSCHED(S) --Check for 'scheduled' and all it's misspellings
+ ;"ISWKDAY(S) --Is string a week day name?  Assumes S is upper case
+ ;"MONTHNUM(S) -- Is string a month name?  Assumes S is upper case
+ ;"GETMNDT(BASEDATE,MONTHNUM) --Return date for month number after basedate
  ;"GETFMDT(S) ;TURN S INTO FILEMAN DATE IF POSSIBLE
- ;"ASMBLEDT(YR,MONTH,DAY) ;"ASSEMBLE DATE.  Input YR must be 4 digits.
+ ;"ASMBLEDT(YR,MONTH,DAY) --ASSEMBLE DATE.  Input YR must be 4 digits.
  ;"GETDT(BASEDT,NUM,TYPE) -- Return a date, based on basedate + offset 
  ;"DISPINFO(TMGDFN,INFO) -- display info from scanned array
- ;"PTCOLOR(STATUS,MONTHS) ;"Get color for patient status
+ ;"PTCOLOR(STATUS,MONTHS) -- Get color for patient status
  ;"=======================================================================
  ;"Dependancies : TMGHTM1, XLFSTR, TMGSTUTL, XLFDT, TMGPXR03
  ;"=======================================================================
@@ -128,31 +135,30 @@ GETINFO(TIUIEN,FUDATE,LINETEXT,TIUDATE) ;
   SET TIUDATE=$PIECE(ZN,"^",7)
   NEW TMGNEW SET TMGNEW=1  ;"<--- set to 0 to use old method.  
   IF TMGNEW=1 DO  GOTO GTINFODN
-  . ;"//KT 5/22/18  SET TMGRESULT=$$GTARINFO($NAME(^TIU(8925,TIUIEN,"TEXT")),TIUDATE,FUDATE,.LINETEXT,1) 
   . SET TMGRESULT=$$GTARINFO($NAME(^TIU(8925,TIUIEN,"TEXT")),.TIUDATE,.FUDATE,.LINETEXT,1) 
   ;" --- DELETE BELOW LATER IF LINE ABOVE DOESN'T CAUSE PROBLEMS....
-  NEW DOCIEN SET DOCIEN=$PIECE(ZN,"^",1)
-  NEW FOUND SET FOUND=0
-  NEW FUTEXT SET FUTEXT="FOLLOW UP APPT:"
-  NEW ISHTML SET ISHTML=$$ISHTML^TMGHTM1(TIUIEN)  ;"//kt 5/1/18
-  NEW TEXTIEN SET TEXTIEN=0
-  FOR  SET TEXTIEN=$ORDER(^TIU(8925,TIUIEN,"TEXT",TEXTIEN)) QUIT:(TEXTIEN'>0)!(FOUND>0)  DO
-  . SET LINETEXT=$GET(^TIU(8925,TIUIEN,"TEXT",TEXTIEN,0))
-  . IF $$HASFUTXT($NAME(^TIU(8925,TIUIEN,"TEXT")),TEXTIEN,FUTEXT,.LINETEXT)=1 DO
-  . . ;"//kt original --> IF $$ISHTML^TMGHTM1(TIUIEN) DO
-  . . IF ISHTML DO
-  . . . SET LINETEXT=LINETEXT_$GET(^TIU(8925,TIUIEN,"TEXT",TEXTIEN+1,0)) ;"Sometimes line wraps
-  . . . SET LINETEXT=$PIECE(LINETEXT,"<BR>",1)
-  . . . SET LINETEXT=$$HTML2TXS^TMGHTM1(LINETEXT)
-  . . IF LINETEXT["NON-FASTING" SET LINETEXT=$PIECE(LINETEXT,"NON-FASTING",1)
-  . . IF LINETEXT["FASTING LABS" SET LINETEXT=$PIECE(LINETEXT,"FASTING LABS",1)
-  . . SET LINETEXT=$$TRIM^XLFSTR($PIECE(LINETEXT,FUTEXT,2))
-  . . IF LINETEXT="" QUIT
-  . . SET FUDATE=$$RESOLVDT(TIUDATE,LINETEXT)
-  . . SET FOUND=1
-  SET LINETEXT=$$TRIM^XLFSTR($EXTRACT(LINETEXT,1,128)) 
-  IF FOUND=0 SET LINETEXT=""
-  IF FOUND>0 SET TMGRESULT="1^OK"
+  ;"NEW DOCIEN SET DOCIEN=$PIECE(ZN,"^",1)
+  ;"NEW FOUND SET FOUND=0
+  ;"NEW FUTEXT SET FUTEXT="FOLLOW UP APPT:"
+  ;"NEW ISHTML SET ISHTML=$$ISHTML^TMGHTM1(TIUIEN)  ;"//kt 5/1/18
+  ;"NEW TEXTIEN SET TEXTIEN=0
+  ;"FOR  SET TEXTIEN=$ORDER(^TIU(8925,TIUIEN,"TEXT",TEXTIEN)) QUIT:(TEXTIEN'>0)!(FOUND>0)  DO
+  ;". SET LINETEXT=$GET(^TIU(8925,TIUIEN,"TEXT",TEXTIEN,0))
+  ;". IF $$HASFUTXT($NAME(^TIU(8925,TIUIEN,"TEXT")),TEXTIEN,FUTEXT,.LINETEXT)=1 DO
+  ;". . ;"//kt original --> IF $$ISHTML^TMGHTM1(TIUIEN) DO
+  ;". . IF ISHTML DO
+  ;". . . SET LINETEXT=LINETEXT_$GET(^TIU(8925,TIUIEN,"TEXT",TEXTIEN+1,0)) ;"Sometimes line wraps
+  ;". . . SET LINETEXT=$PIECE(LINETEXT,"<BR>",1)
+  ;". . . SET LINETEXT=$$HTML2TXS^TMGHTM1(LINETEXT)
+  ;". . IF LINETEXT["NON-FASTING" SET LINETEXT=$PIECE(LINETEXT,"NON-FASTING",1)
+  ;". . IF LINETEXT["FASTING LABS" SET LINETEXT=$PIECE(LINETEXT,"FASTING LABS",1)
+  ;". . SET LINETEXT=$$TRIM^XLFSTR($PIECE(LINETEXT,FUTEXT,2))
+  ;". . IF LINETEXT="" QUIT
+  ;". . SET FUDATE=$$RESOLVDT(TIUDATE,LINETEXT)
+  ;". . SET FOUND=1
+  ;"SET LINETEXT=$$TRIM^XLFSTR($EXTRACT(LINETEXT,1,128)) 
+  ;"IF FOUND=0 SET LINETEXT=""
+  ;"IF FOUND>0 SET TMGRESULT="1^OK"
 GTINFODN ;  
   QUIT TMGRESULT
   ;"
@@ -199,84 +205,6 @@ GTARINFO(TEXTREF,TIUDATE,FUDATE,LINETEXT,WPZN) ;
   IF FOUND>0 SET TMGRESULT="1^OK"
   QUIT TMGRESULT
   ;"
-  ;"-----------------------------------------------------  
-  ;"DOSCAN(TIUIEN,REFOUT,NOPRIOR) ;
-  ;"  ;"Purpose: To scan one note and get back info about followup
-  ;"  ;"Input: TIUIEN-- IEN in 8925
-  ;"  ;"       REFOUT -- PASS BY NAME.  An OUT PARAMETER  (prior contents not deleted)
-  ;"  ;"       NOPRIOR -- OPTIONAL.  If 1 then prior stored results will be ignored. 
-  ;"  ;"Result: 1^OK, or 0^None or -1^Message
-  ;"  ;"Output:  @REFOUT@ is filled as follows
-  ;"  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_TEXT)=""
-  ;"  ;"         @REFOUT@(TMGDFN,TIUIEN,F/U_FMDATE)=""  <-- e.g. if 3 month followup on 7/4/14, will return 10/4/14 in FM format
-  ;"  ;"         @REFOUT@("A",TMGDFN,NOTE_TITLE_IEN,MOST_RECENT_REQUESTED_FOLLOWUP_FM_DATE)=""
-  ;"  ;"         @REFOUT@("B",TMGDFN,GREATEST_FOLLOWUP_DATE)=NOTE_DATE
-  ;"  ;"         @REFOUT@("C",TMGDFN,NOTE_DATE)=FOLLOWUP_DATE
-  ;"  ;"         @REFOUT@("D",TMGDFN)=GREATEST_FOLLOWUP_DATE
-  ;"  ;"         @REFOUT@("E",TMGDFN,NOTE_FM_DATE,FU_DATE)=F/U_TEXT
-  ;"  ;"     ALSO, fields 22712,22713 in file 8925 may be filled with findings 
-  ;"  NEW TMGRESULT SET TMGRESULT="0^None"
-  ;"  NEW LINETEXT SET LINETEXT=""
-  ;"  NEW FUDATE SET FUDATE=-1
-  ;"  NEW ZN SET ZN=$GET(^TIU(8925,TIUIEN,0))
-  ;"  NEW TMGDFN SET TMGDFN=+$PIECE(ZN,"^",2)
-  ;"  NEW TIUDATE SET TIUDATE=$PIECE(ZN,"^",7)
-  ;"  NEW DOCIEN SET DOCIEN=$PIECE(ZN,"^",1)
-  ;"  SET NOPRIOR=$GET(NOPRIOR)   
-  ;"  NEW TMG SET TMG=$GET(^TIU(8925,TIUIEN,"TMG"))
-  ;"  NEW FOUND SET FOUND=0
-  ;"  IF ($PIECE(TMG,"^",3)'="")&(NOPRIOR'=1) DO  GOTO SNDN
-  ;"  . SET FUDATE=$PIECE(TMG,"^",3)
-  ;"  . IF FUDATE>4000000 SET FUDATE=-1  ;"IF YEAR IS GREATER THAN 2100 ASSUME ERROR
-  ;"  . SET LINETEXT=$PIECE(TMG,"^",4)
-  ;"  . SET FOUND=2
-  ;"  NEW FUTEXT SET FUTEXT="FOLLOW UP APPT:"
-  ;"  NEW TEXTIEN SET TEXTIEN=0
-  ;"  FOR  SET TEXTIEN=$ORDER(^TIU(8925,TIUIEN,"TEXT",TEXTIEN)) QUIT:(TEXTIEN'>0)!(FOUND>0)  DO
-  ;"  . SET LINETEXT=$GET(^TIU(8925,TIUIEN,"TEXT",TEXTIEN,0))
-  ;"  . IF $$HASFUTXT($NAME(^TIU(8925,TIUIEN,"TEXT")),TEXTIEN,FUTEXT,.LINETEXT)=1 DO
-  ;"  . . IF $$ISHTML^TMGHTM1(TIUIEN) DO
-  ;"  . . . SET LINETEXT=LINETEXT_$GET(^TIU(8925,TIUIEN,"TEXT",TEXTIEN+1,0)) ;"Sometimes line wraps
-  ;"  . . . SET LINETEXT=$PIECE(LINETEXT,"<BR>",1)
-  ;"  . . . SET LINETEXT=$$HTML2TXS^TMGHTM1(LINETEXT)
-  ;"  . . IF LINETEXT["NON-FASTING" SET LINETEXT=$PIECE(LINETEXT,"NON-FASTING",1)
-  ;"  . . IF LINETEXT["FASTING LABS" SET LINETEXT=$PIECE(LINETEXT,"FASTING LABS",1)
-  ;"  . . SET LINETEXT=$$TRIM^XLFSTR($PIECE(LINETEXT,FUTEXT,2))
-  ;"  . . IF LINETEXT="" QUIT
-  ;"  . . SET FUDATE=$$RESOLVDT(TIUDATE,LINETEXT)
-  ;"  . . SET FOUND=1
-  ;"SNDN ;  
-  ;"  SET LINETEXT=$$TRIM^XLFSTR($EXTRACT(LINETEXT,1,128)) 
-  ;"  IF FOUND=0 SET LINETEXT=""
-  ;"  ;"IF LINETEXT="" SET LINETEXT="?"
-  ;"  IF FOUND>0 DO
-  ;"  . SET TMGRESULT="1^OK"
-  ;"  . SET @REFOUT@(TMGDFN,TIUIEN)=TIUDATE_"^"_FUDATE
-  ;"  . SET @REFOUT@("A",TMGDFN,DOCIEN,FUDATE)=""
-  ;"  . SET @REFOUT@("C",TMGDFN,TIUDATE)=FUDATE
-  ;"  . NEW PRIORFU SET PRIORFU=+$GET(@REFOUT@("D",TMGDFN))
-  ;"  . IF FUDATE>PRIORFU DO
-  ;"  . . SET @REFOUT@("D",TMGDFN)=FUDATE
-  ;"  . . KILL @REFOUT@("B",TMGDFN) SET @REFOUT@("B",TMGDFN,FUDATE)=TIUDATE  
-  ;"  . IF LINETEXT'="" SET @REFOUT@(TMGDFN,TIUIEN,LINETEXT)=""
-  ;"  . IF FUDATE'=-1 SET @REFOUT@("E",TMGDFN,TIUDATE,FUDATE)=LINETEXT
-  ;"  IF FOUND'=2 DO    ;"STORE VALUES IN FIELD 22712,22713   
-  ;"  . NEW TMGFDA,TMGMSG,IENS SET IENS=TIUIEN_","
-  ;"  . SET TMGFDA(8925,IENS,22712)=FUDATE
-  ;"  . NEW STR SET STR=LINETEXT IF STR="?" SET STR=""
-  ;"  . SET TMGFDA(8925,IENS,22713)=STR
-  ;"  . DO FILE^DIE("","TMGFDA","TMGMSG")
-  ;"  . IF $DATA(TMGMSG("DIERR")) SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)  
-  ;"  IF 1=0,(FOUND'=0),(FUDATE=-1),(LINETEXT'="") DO  ;"DEBUG BLOCK, DISABLED...
-  ;"  . IF LINETEXT="in  months for a recheck, sooner if any problems." QUIT
-  ;"  . WRITE !,TMGDFN," ",TIUIEN," NOTE: ",$$FMTE^XLFDT(TIUDATE,"5D")," --> "
-  ;"  . ;"IF FOUND=0 WRITE "(no ",FUTEXT," tag found)",! QUIT
-  ;"  . IF FUDATE=-1 WRITE "??/??/????"
-  ;"  . ELSE  WRITE $$FMTE^XLFDT(FUDATE,"5D")
-  ;"  . WRITE " <-- ",LINETEXT,".",!
-  ;"  QUIT TMGRESULT
-  ;"  ;"
-  ;"-----------------------------------------------------  
 SAVEINFO(TMGDFN,IEN8925,FUDT,FUTEXT,TIUDATE) ;
   ;"Purpose: Store gathered information for faster access in future
   ;"Input: TMGDFN -- patient IEN 
@@ -996,8 +924,7 @@ PTCOLOR(STATUS,MONTHS) ;"Get color for patient status
   ;"      Result := RGB( StrToInt('$'+Copy(sColor, 1, 2)),
   ;"                     StrToInt('$'+Copy(sColor, 3, 2)),
   ;"                     StrToInt('$'+Copy(sColor, 5, 2))  ) ;
-  ;"   end;  
-    
+  ;"   end;      
   NEW TMGRESULT SET TMGRESULT="000000"
   SET STATUS=$GET(STATUS)
   SET MONTHS=+MONTHS

@@ -15,7 +15,7 @@ TMGTEST ;TMG/kst/Scratch fns for programming tests ;03/25/06, 2/2/14
  . DO
  . . WRITE "PEACE!",!!
  NEW array
- SET array="Fruits:"
+ SET array="Fruits:"                         
  SET array(1)="apple"                                        
  SET array(2)="pear"
  SET array(3)="peach"
@@ -23,14 +23,42 @@ TMGTEST ;TMG/kst/Scratch fns for programming tests ;03/25/06, 2/2/14
  NEW i,JDX,k
  for i=1:1:10 do  write "+" 
  .for JDX=1:1:10 do  write "^"
- ..WRITE !,JDX,!
+ ..WRITE !,JDX,!                  
  ..for k=1:1:10 do  write "%"
  ...write "*"
  ...write "^"
  ...write "%"
- ...write "$" 
+ ...write "$"           
  QUIT
- ;                                                                
+ ;   
+LOOPTEST  ;
+ WRITE "HI THERE",!
+ NEW I
+ FOR I=1:1:100 DO    
+ . DO T3("HELLO")
+ . NEW J FOR J=1:1:100 DO
+ . . SET TMGZZ=1 ;"in global scope
+ . . NEW K FOR K=1:1:100 DO
+ . . . NEW L FOR L=1:1:100 DO
+ . . . . NEW Y   
+ . . . . SET Y=I
+ . . . . WRITE Y,!
+ . SET K=1  ;"in global scope
+ QUIT
+ ;"  
+T2 ;
+     WRITE "HELLO",!
+T2B  NEW KT SET KT=$$T3("WORLD")
+T2C  QUIT
+     ;
+T3(A) ;
+  WRITE $GET(A),!
+  QUIT 1
+  ;
+T4 ;
+  SET A=1/0
+  QUIT
+  ;
 TESTORN ;
   SET ORN=0
   FOR  SET ORN=$ORDER(^ORD(100.9,ORN)) QUIT:+ORN'>0  DO
@@ -756,15 +784,16 @@ TESTPIPE2 ;
 
 
 PRIME ; Calculate prime numbers up to 10,000
-    NEW N,I,J,IsPrime
+    NEW N,I,J,K,IsPrime
     SET N=10000
-
+    ;
     ; Initialize an array to mark non-prime numbers
     FOR I=2:1:N SET IsPrime(I)=1
-
+    ;
     ; Sieve of Eratosthenes
     FOR I=2:1:N IF IsPrime(I) DO
-    . FOR J=I*2:1:N SET IsPrime(J)=0
+    . FOR J=2:1:N SET K=I*J QUIT:K>N  DO
+    . . SET IsPrime(K)=0
 
     ; Collect and display the prime numbers
     WRITE "Prime numbers up to ",N,":",!
@@ -781,4 +810,21 @@ TERM ;
   W !,X,!
   QUIT
   ;
+ACCEPT(TO)      ;Read A/V and echo '*' char. (p702 Modified to accept IAM STS token)
+        ;Have the Read write to flush the buffer on some systems
+        N A,B,C,E K DUOUT S A="",TO=$G(TO,60),E=0
+        W "//kt 1",!
+        F  D  Q:E
+        . w "starting loop. About to READ *C:TO  TO=",TO," sec  //kt",!
+        . R "",*C:TO S:('$T) DUOUT=1 S:('$T)!(C=94) A="^"
+        . w "past READ *C  //kt",!
+        . I (A="^")!(C=13)!($L(A)>60) S E=1 Q
+        . I C=127 Q:'$L(A)  S A=$E(A,1,$L(A)-1) W $C(8,32,8) Q
+        . write "GOT: C=",C,"  //kt",!
+        . S A=A_$C(C) W *42
+        . write "Ready to start loop again",!
+        . Q
+        . w "done with loop  //kt",!
+        Q A
+        ;
   

@@ -70,13 +70,14 @@ SMSSEND(ARRAY,STORE,LIVE) ;"SEND SMS MESSAGES via FTP BATCH
   . SET RESULT="-1^Unable to store message file to HFS file '"_FNAME_"'"  
   NEW P SET P="temp"
   ;"NEW HOOKCMD SET HOOKCMD="sms_upload_msg -f="_FNAME   7/20/21
-  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_upload_msg.py -f="_FNAME
+  ;"  CHANGED DUE TO 2024 UBUNTU  1/9/25  ->  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_upload_msg.py -f="_FNAME
+  NEW HOOKCMD SET HOOKCMD="python3 /opt/worldvista/EHR/bin/sms_upload_msg.py -f="_FNAME
   IF LIVE=0 DO
   . SET HOOKCMD=HOOKCMD_" --test"
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P
   NEW LINEIN,ID,%
-  NEW DELFILE SET DELFILE=1
+  NEW DELFILE SET DELFILE=0
   FOR  DO  QUIT:($ZEOF)
   . READ LINEIN
   . IF LINEIN["ERR" DO
@@ -136,7 +137,8 @@ SMSSEND1(NUMBER,MSG,TMGDFN) ;"SEND SMS MESSAGE VIA HTTP REQUEST
   NEW P SET P="temp"
   NEW HOOKCMD
   ;"SET HOOKCMD="sms_send_msg -n="_NUMBER_" -m='"_MSG_"'"   7/20/21
-  SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_send_msg.py -n="_NUMBER_" -m='"_MSG_"'"   
+  ;"  CHANGED DUE TO 2024 UBUNTU  1/9/25  ->  SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_send_msg.py -n="_NUMBER_" -m='"_MSG_"'"
+  SET HOOKCMD="python3 /opt/worldvista/EHR/bin/sms_send_msg.py -n="_NUMBER_" -m='"_MSG_"'"   
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P
   NEW LINEIN,ID,%,ERROR
@@ -178,7 +180,8 @@ SMSGET(DELFILE) ;
   NEW ID,DATE,TIME,MOBILENUM,TEXT SET (ID,DATE,TIME,MOBILENUM,TEXT)="?"
   NEW P SET P="temp"
   ;"NEW HOOKCMD SET HOOKCMD="sms_download_msg"  7/20/21
-  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_download_msg.py"
+  ;"  CHANGED DUE TO 2024 UBUNTU  1/9/25  ->  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_download_msg.py"
+  NEW HOOKCMD SET HOOKCMD="python3 /opt/worldvista/EHR/bin/sms_download_msg.py"
   IF +$GET(DELFILE)=1 SET HOOKCMD=HOOKCMD_" -d"
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P
@@ -216,7 +219,8 @@ GETSMSID(DELFILE) ;"GET SMS MESSAGE ID OF MESSAGES BY FTP BATCH
   NEW ID,MOBILENUM SET (ID,MOBILNUM)=""
   NEW P SET P="temp"
   ;"NEW HOOKCMD SET HOOKCMD="sms_batch_id -f='"_$$COMFILE()_"'"  7/20/21
-  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_batch_id.py -f='"_$$COMFILE()_"'"
+  ;"  CHANGED DUE TO 2024 UBUNTU  1/9/25  ->  NEW HOOKCMD SET HOOKCMD="python /opt/worldvista/EHR/bin/sms_batch_id.py -f='"_$$COMFILE()_"'"
+  NEW HOOKCMD SET HOOKCMD="python3 /opt/worldvista/EHR/bin/sms_batch_id.py -f='"_$$COMFILE()_"'"
   IF +$GET(DELFILE)=1 SET HOOKCMD=HOOKCMD_" -d"
   OPEN P:(COMMAND=HOOKCMD:readonly)::"pipe"
   USE P

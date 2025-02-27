@@ -30,11 +30,14 @@ TMGCOD00 ;TMG/kst-Code retrieval  ;6/26/15
  ;"  
  ;"=======================================================================
  ;
-TEXT(TAG,OFFSET,ROUTINE)  ;"Replacement for $TEXT()
+TEXT(TAG,OFFSET,ROUTINE,LINENUM)  ;"Replacement for $TEXT()
   ;"Purpose: This is a replacement for $TEXT().  The reason for this is that
   ;"        $TEXT() converts TAB's to SPACES, according to the mumps language
-  ;"       standard.  This routine will get the file from the HFS and use that
-  ;"      instead.
+  ;"       standard.  This routine will get the file from the HFS and use that instead.
+  ;"    TAG -
+  ;"    OFFSET
+  ;"    ROUTINE
+  ;"    LINENUM - PASS BY REFERENCE.  OPTIONAL.  Will convert relative position into line number in file, and return that. 
   ;"Result: line of text, or "" if problem.
   SET TAG=$GET(TAG)
   SET OFFSET=+$GET(OFFSET)
@@ -48,7 +51,8 @@ TEXT(TAG,OFFSET,ROUTINE)  ;"Replacement for $TEXT()
   . DO XREFTAGS(REF,XREF)  ;"CREATE XREFS OF TAGS  
   IF TMP'>0 GOTO TXDN
   NEW TAGIDX SET TAGIDX=0 IF TAG'="" SET TAGIDX=+$GET(@XREF@(TAG))
-  SET RESULT=$GET(@REF@(TAGIDX+OFFSET))
+  SET LINENUM=TAGIDX+OFFSET
+  SET RESULT=$GET(@REF@(LINENUM))
 TXDN ;  
   QUIT RESULT
   ;

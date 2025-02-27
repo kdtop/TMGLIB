@@ -96,8 +96,7 @@ TMGSTUTL ;TMG/kst/String Utilities and Library ;7/17/12, 2/2/14, 11/2024
  ;"        s=input string, spec=array passed by reference
  ;"        spec format:
  ;"        spec("Any_Search_String")="Replacement_String"
- ;"  compare to$$REPLSTR^TMGSTUT3(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
-
+ ;"  //kt NOTE see also $$REPLSTR^TMGSTUT3(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
  ;"$$STRIP^XLFSTR(s,Char) -- returns string striped of all instances of Char
 
  ;"=======================================================================

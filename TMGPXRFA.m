@@ -89,7 +89,10 @@ MAMMO(LIST,FIEVAL,RESULT) ;"SET FOLLOWUP FREQUENCY FOR MAMMOGRAM
         NEW YR,MO,DAY DO INTRVLST^TMGPXRF1(NAME,4,.YR,.MO,.DAY) ;"FU interval from string
         NEW FREQ SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
         SET $PIECE(DEFARR(25,FFN,0),"^",2)=40  ;"MIN age of 40 for routine mammograms
-        SET $PIECE(DEFARR(25,FFN,0),"^",3)=99  ;"MAX age of 99 for routine mammograms
+        IF PXRMITEM=330 DO
+        . SET $PIECE(DEFARR(25,FFN,0),"^",3)=75  ;"MAX age of 75 for POPHEALTH routine mammograms    2/11/25
+        ELSE  DO
+        . SET $PIECE(DEFARR(25,FFN,0),"^",3)=99  ;"MAX age of 99 for routine mammograms
         SET $PIECE(DEFARR(25,FFN,0),"^",4)=FREQ
         SET DEFARR(25,FFN,1,1,0)="Patient marked for follow up "_FREQ_" after last mammogram"
         SET RESULT=1 ;"Enables this finding to SET the reminder frequency. 

@@ -154,7 +154,8 @@ REMOVEQTS(TMGTEXT,ARR)  ;"Remove all parts of TMGTEXT that are in quotes, replac
   ;"       ARR -- PASS BY REFERENCE, AN OUT PARAMETER.  
   ;"RESULT: Returns encoded string.  
   ;
-  QUIT $$REMOVENCAP(.TMGTEXT,.ARR,"""") 
+  NEW RESULT SET RESULT=$$REMOVENCAP(.TMGTEXT,.ARR,"""")
+  QUIT RESULT
   ;"DELETE BELOW LATER...  6/2/24
   ;"NEW MAP DO MAPMATCH^TMGSTUT3(TMGTEXT,.MAP,"""")
   ;"NEW OPENTAG SET OPENTAG="%@"

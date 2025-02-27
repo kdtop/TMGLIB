@@ -126,20 +126,6 @@ MD5ALL(OUT) ;"GET / SHOW MD5SUM VALUES FOR ALL ENTRIES IN 'ROUTINE' FILE.
   IF $DATA(ARRAY) DO ZWRITE^TMGZWR("ARRAY")
   QUIT
   ;
-MD5ARR0(ARR)  ;"RUN A MD5 CHECKSUM ON AN ARRAY ... DEPRECIATED, USE ONE BELOW, MORE ROBUST.  DELETE THIS LATER
-  ;"Input: ARR -- PASS BY REFERENCE.  Expected format:  ARR(#)=<text>
-  ;"Result: the md5 checksum, as calculated by host linux md5sum command
-  ;"        or -1^message
-  NEW FNAME SET FNAME=$$UNIQUE^%ZISUTL("md5sum_arr_calc.tmp")
-  NEW PATH SET PATH="/tmp/"
-  NEW TMGRESULT SET TMGRESULT=$$ARR2HFS^TMGIOUT3("ARR",PATH,FNAME) ;"Array to HFS
-  IF TMGRESULT=0 DO  GOTO MD5ADN
-  . SET TMGRESULT="-1^Error saving temp file. Path='"_PATH_"', Filename='"_FNAME_"'"
-  NEW FILE SET FILE=PATH_FNAME
-  SET TMGRESULT=$$MD5FILE(FILE)
-MD5ADN  ;
-  QUIT TMGRESULT
-  ;  
 MD5ARR(REF)  ;"CALCULATE MD5SUM OF ARRAY
   ;"Input: REF -- Pass by NAME.  The NAME of the reference to calculate. 
   ;"NOTE: This does include sub nodes.  E.g. 
@@ -231,9 +217,10 @@ KLJ2 ;
   QUIT  
   ;  
  ;"================================================================
-DEV2ARR(DEVICE,OUT,FILTER,INFO)  ;"Store off a device, with all it's parameters
+DEV2ARR(DEVICE,OUT,FILTER,INFO,OPTION)  ;"Store off a device, with all it's parameters
   ;"NOTE: This depends on YottaDB ZSHOW "D" command, which does NOT show all 
-  ;"      device parameters (unfortunately).  Known to be missing are: CONVERT, HOSTSYNC, TTSYNC
+  ;"      device parameters (unfortunately).  
+  ;"      Older versions of ydb had missing: CONVERT, HOSTSYNC, TTSYNC  --> now fixed
   ;"INPUT:  DEVICE -- the name of the device to query.  Can call with $P or $IO etc. 
   ;"        OUT -- PASS BY REFERENCE.  AN OUT PARAMETER.  Format:
   ;"           OUT("GENERAL","NAME")="/dev/pts/0"
@@ -276,10 +263,19 @@ DEV2ARR(DEVICE,OUT,FILTER,INFO)  ;"Store off a device, with all it's parameters
   ;"                If FILTER["R" -- return RAW PARAMS info
   ;"                If FILTER["S" -- return STATE info
   ;"        INFO -- OPTIONAL.  PASS BY FREFERENCE.  An array that has setup information from prior run (for faster execution)
+  ;"        OPTION -- OPTIONAL
+  ;"           OPTION("VERBOSE")=1  If found the output verbose debugging comments.  
   ;"RESULT: none
+  NEW VERBOSE SET VERBOSE=+$GET(OPTION("VERBOSE"))
+  IF VERBOSE WRITE "Starting DEV2ARR^TMGKERN1",!
+  SET DEVICE=$GET(DEVICE)
+  NEW UPDEV SET UPDEV=$$UP^XLFSTR(DEVICE)
+  IF (UPDEV="$IO")!(UPDEV="$P") DO  QUIT
+  . WRITE !,"ERROR: DEV2ARR^TMGKERN1() called with device """,DEVICE,""". Should NOT be enclosed in quotes.  Aborting.",!,!
   NEW TEMP ZSHOW "D":TEMP
   NEW DONE SET DONE=0
-  SET FILTER=$GET(FILTER,"GNRS")
+  SET FILTER=$GET(FILTER) IF FILTER="" SET FILTER="GNRS"
+  IF VERBOSE WRITE "FILTER=[",FILTER,"]",!
   NEW APARAM
   KILL OUT
   NEW ARR,TOKEN,ADEVICE,MATCHDEV SET MATCHDEV=0
@@ -294,6 +290,7 @@ DEV2ARR(DEVICE,OUT,FILTER,INFO)  ;"Store off a device, with all it's parameters
   . . SET ENTRY=PARTA_"FIL=("_PARTB_")"_PARTC
   . KILL ARR SET ADEVICE=""
   . NEW SPLITARR DO SPLIT2AR^TMGSTUT2(ENTRY," ",.SPLITARR,,.OPTION)  ;"<-- can handle spaces inside strings
+  . IF VERBOSE WRITE "Entry = [",ENTRY,"]",! 
   . KILL SPLITARR("MAXNODE")
   . SET JDX=0 FOR  SET JDX=$ORDER(SPLITARR(JDX)) QUIT:JDX'>0  DO
   . . SET TOKEN=$GET(SPLITARR(JDX)) QUIT:TOKEN=""
@@ -302,7 +299,7 @@ DEV2ARR(DEVICE,OUT,FILTER,INFO)  ;"Store off a device, with all it's parameters
   . . IF JDX=3 SET OUT("GENERAL","TYPE")=TOKEN QUIT
   . . SET ARR(KDX)=TOKEN,KDX=KDX+1
   . SET MATCHDEV=(ADEVICE=DEVICE)
-  . IF MATCHDEV=0 KILL ARR QUIT 
+  . IF MATCHDEV=0 KILL ARR QUIT
   IF (MATCHDEV=0)!(IDX'>0) GOTO D2ADN
   MERGE OUT("RAW PARAMS")=ARR
   ;"SETUP A 'B' INDEX
@@ -422,14 +419,19 @@ DEVDELTA(DEVICE,PRIORARR,OUT,INFO)  ;"Get difference between current device and 
 DDDN ;
   QUIT RESULT
   ;
-RESTORDEV(PRIORARR,INFO) ;"Use device specified in PRIORARR, setting parameters to saved values
+RESTORDEV(PRIORARR,INFO,OPTION) ;"Use device specified in PRIORARR, setting parameters to saved values
   ;"NOTICE!! This function is designed for use with YottaDB TERMINAL devices only
   ;"INPUT:  PRIORARR -- PASS BY REFERENCE. This should be output from DEV2ARR^TMGKERN1
   ;"           Must have GENERAL and STATE nodes (i.e. these should not be filtered out)
   ;"        INFO -- OPTIONAL.  PASS BY FREFERENCE.  An array that has setup information from prior run (for faster execution)
+  ;"        OPTION -- OPTIONAL. 
+  ;"             OPTION("VERBOSE")=1  If found then changes made will be written out.  
   ;"RESULT: 1^OK, or -1^ERROR MESSAGE
   NEW RESULT SET RESULT="1^OK"  ;"default
+  NEW VERBOSE SET VERBOSE=+$GET(OPTION("VERBOSE"))
   NEW DEVICE SET DEVICE=$GET(PRIORARR("GENERAL","NAME"))
+  IF VERBOSE DO
+  . WRITE !,"Starting RESTOREDEV^TMGKERN1 for device: ",DEVICE,!
   IF DEVICE="" DO  GOTO RDDN
   . SET RESULT="-1^Unable to get device name from PRIORARR. Aborting"
   NEW DELTA
@@ -438,6 +440,7 @@ RESTORDEV(PRIORARR,INFO) ;"Use device specified in PRIORARR, setting parameters 
   NEW PARAMSTR SET PARAMSTR=""
   NEW LABEL SET LABEL=""
   FOR  SET LABEL=$ORDER(DELTA("STATE",LABEL)) QUIT:(LABEL="")!(+RESULT'>0)  DO  ;"DELTA only contains entries for values that have CHANGED
+  . ;"IF VERBOSE WRITE "Checking parameter: ",LABEL,!    
   . NEW DATA SET DATA=$GET(INFO("ENTRY",LABEL)) QUIT:DATA=""   ;"e.g. $Y not in INFO
   . NEW TURNONCMD SET TURNONCMD=$PIECE(DATA,"^",1)  ;"piece 1 is the TURN ON command.
   . NEW TURNOFFCMD SET TURNOFFCMD=$PIECE(DATA,"^",3)  ;"piece 1 is the TURN OFF command.  
@@ -481,19 +484,27 @@ RESTORDEV(PRIORARR,INFO) ;"Use device specified in PRIORARR, setting parameters 
   . . ;"HANDLE THESE -> WRAP_LINE  / WRAP         / NOWRAP       /  0
   . . ;"HANDLE THESE -> ECHO_INPUT / ECHO         / NOECHO       /  0
   . . ;"HANDLE THESE -> CANONICAL  / CANONICAL    / NOCANONICAL  /  0
+  . . IF VERBOSE DO
+  . . . WRITE "For param: ",LABEL," prior value was: ",PRIORVAL,!
+  . . . WRITE "For param: ",LABEL," current value is: ",CURVAL,!
+  . . . WRITE "Turn ON command=",TURNONCMD,!
+  . . . WRITE "Turn OFF command=",TURNOFFCMD,!
   . . IF PRIORVAL="OFF" DO                                              
   . . . SET OUTPARAM=TURNOFFCMD
   . . ELSE  IF PRIORVAL="ON" DO
   . . . SET OUTPARAM=TURNONCMD
   . . ELSE  IF PRIORVAL="?" DO
+  . . . WRITE !,"TO DO.  Implement restoration to of param ",LABEL," to ",PRIORVAL," in RESTORDEV^TMGKERN1",!
   . . . ;"Nothing to do here since we don't have these working right now. 
   . IF PARAMSTR'="" SET PARAMSTR=PARAMSTR_":"
   . SET PARAMSTR=PARAMSTR_OUTPARAM
   IF PARAMSTR'="" SET PARAMSTR="("_PARAMSTR_")"
   IF PARAMSTR'="" DO
   . USE DEVICE:@PARAMSTR
+  . IF VERBOSE WRITE !,"Command executed by RESTORDEV^TMGKERN1: USE ",DEVICE,":@",PARAMSTR,!
   ELSE  DO   ;"Note If past device and current device are same, no changes are needed, and PARAMSTR will be ""
   . USE DEVICE
+  . IF VERBOSE WRITE !,"Command executed by RESTORDEV^TMGKERN1: USE ",DEVICE,!
 RDDN ;  
   QUIT RESULT
   ;  
@@ -508,7 +519,7 @@ SETUPSAV(ARR)  ;"Get information about TERMINAL device parameters
   NEW DONE SET DONE=0
   NEW IDX FOR IDX=1:1 DO  QUIT:DONE
   . NEW LINE,LABEL,TURNON,ONDISP,TURNOFF,OFFDISP,DEFAULT   
-  . SET LINE=$TEXT(ZZ+IDX^TMGKERN1)
+  . SET LINE=$TEXT(PARAMTABLE+IDX^TMGKERN1)
   . IF LINE["<DONE>" SET DONE=1 QUIT
   . SET LINE=$PIECE(LINE,";;""",2,99)
   . SET LABEL=$$TRIM^XLFSTR($PIECE(LINE,"/",1))
@@ -525,27 +536,31 @@ SETUPSAV(ARR)  ;"Get information about TERMINAL device parameters
   . IF OFFDISP="",ONDISP'="" SET ARR("NULLWHENOFF",LABEL)=""
   . IF OFFDISP="",ONDISP="" SET ARR("UNKNOWN",LABEL)=""
   QUIT
-   ;"format: 
-   ;"   Label       Turn_on       On_disp     Turn_off        Off_disp  / Default    KEY:VALUE
-ZZ ;                                                
-   ;;"EXCEPTION  / EXCE=@       / EXCE=     / EXCEPTION=""  /           / OFF      /  1
-   ;;"CTRLC_BRK  / CENABLE      /           / NOCENABLE     / NOCENE    / ON       /  0
-   ;;"CTRL_TRAP  / CTRAP=@      / CTRA=     / CTRAP=""      /           / OFF      /  1
-   ;;"EDIT_MODE  / EDITING      / EDIT      / NOEDITING     /           / OFF      /  0
-   ;;"EMPTERM    / EMPTERM      / EMPTERM   / NOEMPTERM     /           / OFF      /  0
-   ;;"ESC_PROS   / ESCAPE       /           / NOESCAPE      / NOESCA    / OFF      /  0
-   ;;"INSERT     / INSERT       /           / NOINSERT      / NOINSE    / ON       /  0
-   ;;"PASSTHRU   / PASTHRU      / PAST      / NOPASTHRU     / NOPAST    / OFF      /  0
-   ;;"TERMINATOR / TERMINATOR=@ / TERM=     / NOTERMINATOR  / TERM=$C() / $C(13)   /  1
-   ;;"UPPERCASE  / CONVERT      /           / NOCONVERT     /           / ?        /  0
-   ;;"FILTERXY   / FILTER=@     / FIL=      / NOFILTER      /           / OFF      /  1
-   ;;"HOSTSYNC   / HOSTSYNC     /           / NOHOSTSYNC    /           / ?        /  0
-   ;;"READSYNC   / READSYNC     / READS     / NOREADSYNC    / NOREADS   / OFF      /  0
-   ;;"TTSYNC     / TTSYNC       /           / NOTTSYNC      /           / ?        /  0
-   ;;"TYPEAHEAD  / TYPEAHEAD    / TYPE      / NOTYPEAHEAD   / NOTYPE    / ON       /  0
-   ;;"PAGE_LEN   / LENGTH=@     / LENG=     / LENGTH=0      / LENG=0    / #        /  1
-   ;;"PAGE_WIDTH / WIDTH=@      / WIDTH=    / WIDTH=0       / WIDTH=0   / #        /  1
-   ;;"WRAP_LINE  / WRAP         /           / NOWRAP        / NOWRAP    / ON       /  0
-   ;;"ECHO_INPUT / ECHO         /           / NOECHO        / NOECHO    / ON       /  0
-   ;;"CANONICAL  / CANONICAL    / CANONICAL / NOCANONICAL   /           / OFF      /  0
+   ;"------------------------------------------------------------------------------------------
+   ;"Devide Parameters Table format: 
+   ;"------------------------------------------------------------------------------------------
+   ;"               Cmd to        Display     Cmd to          Display      Default
+   ;"   Label       Turn_on       if ON       Turn_off        if OFF       Value      KEY:VALUE
+   ;"------------------------------------------------------------------------------------------
+PARAMTABLE ;                                                
+   ;;"EXCEPTION  / EXCE=@       / EXCE=     / EXCEPTION=""  /            / OFF      /  1
+   ;;"CTRLC_BRK  / CENABLE      /           / NOCENABLE     / NOCENE     / ON       /  0
+   ;;"CTRL_TRAP  / CTRAP=@      / CTRA=     / CTRAP=""      /            / OFF      /  1
+   ;;"EDIT_MODE  / EDITING      / EDIT      / NOEDITING     /            / OFF      /  0
+   ;;"EMPTERM    / EMPTERM      / EMPTERM   / NOEMPTERM     /            / OFF      /  0
+   ;;"ESC_PROS   / ESCAPE       /           / NOESCAPE      / NOESCA     / OFF      /  0
+   ;;"INSERT     / INSERT       /           / NOINSERT      / NOINSE     / ON       /  0
+   ;;"PASSTHRU   / PASTHRU      / PAST      / NOPASTHRU     / NOPAST     / OFF      /  0
+   ;;"TERMINATOR / TERMINATOR=@ / TERM=     / NOTERMINATOR  / TERM=$C()  / $C(13)   /  1
+   ;;"UPPERCASE  / CONVERT      / CONVERT   / NOCONVERT     /            / OFF      /  0
+   ;;"FILTERXY   / FILTER=@     / FIL=      / NOFILTER      /            / OFF      /  1
+   ;;"HOSTSYNC   / HOSTSYNC     / HOSTSYNC  / NOHOSTSYNC    / NOHOSTSYNC / OFF      /  0
+   ;;"READSYNC   / READSYNC     / READS     / NOREADSYNC    / NOREADS    / OFF      /  0
+   ;;"TTSYNC     / TTSYNC       / TTYSNC    / NOTTSYNC      / NOTTSYNC   / ON       /  0
+   ;;"TYPEAHEAD  / TYPEAHEAD    / TYPE      / NOTYPEAHEAD   /            / ON       /  0
+   ;;"PAGE_LEN   / LENGTH=@     / LENG=     / LENGTH=0      / LENG=0     / #        /  1
+   ;;"PAGE_WIDTH / WIDTH=@      / WIDTH=    / WIDTH=0       / WIDTH=0    / #        /  1
+   ;;"WRAP_LINE  / WRAP         /           / NOWRAP        / NOWRAP     / ON       /  0
+   ;;"ECHO_INPUT / ECHO         /           / NOECHO        / NOECHO     / ON       /  0
+   ;;"CANONICAL  / CANONICAL    / CANONICAL / NOCANONICAL   /            / OFF      /  0
    ;;"<DONE>

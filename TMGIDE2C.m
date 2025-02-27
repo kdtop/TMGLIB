@@ -90,7 +90,7 @@ HndlMCode ;
   . XECUTE tmgTpLine
   DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
   DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
-  QUIT
+  QUIT          
   ;
 HndlShow ;
   ;"Purpose: Handle option to show a variable.
@@ -99,22 +99,7 @@ HndlShow ;
   DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
   NEW tmgVarName SET tmgVarName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
   IF +$GET(tmgDbgRemoteJob) SET tmgVarName=$$GetRemoteVar^TMGIDE2(tmgVarName)
-  ;"WRITE !   ;"get below bottom line for output.
   DO SHOWVAR(tmgVarName)  ;"//kt 11/17/24
-  ;"//kt 11/17/24   NEW zbTemp SET zbTemp=0
-  ;"//kt 11/17/24   IF tmgVarName["$" DO
-  ;"//kt 11/17/24   . NEW tempCode
-  ;"//kt 11/17/24   . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
-  ;"//kt 11/17/24   . WRITE tmgVarName,"='"
-  ;"//kt 11/17/24   . SET tempCode="do DEBUGWRITE^TMGIDE2C(1,"_tmgVarName_")"
-  ;"//kt 11/17/24   . xecute tempCode
-  ;"//kt 11/17/24   . WRITE "'    "
-  ;"//kt 11/17/24   ELSE  IF tmgVarName'="" DO
-  ;"//kt 11/17/24   . SET tmgVarName=$$CREF^DILF(tmgVarName)  ;"convert open to closed format
-  ;"//kt 11/17/24   . IF $$ARRDUMP(tmgVarName)  ;"//kt 3/23/24,  ignore result
-  ;"//kt 11/17/24   IF zbTemp=0 DO
-  ;"//kt 11/17/24   . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
-  ;"//kt 11/17/24   . DO PRESS2GO^TMGUSRI2
   DO SETCOLORS("Reset")
   DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
   QUIT
@@ -124,25 +109,9 @@ HndlZWR  ;
   DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    ;"DO Box
   DO SETCOLORS("NORM")
   DO CUP^TMGTERM(1,2) ;"Cursor to line (1,2)
-  ;"NEW tmgVarName SET tmgVarName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
   NEW tmgVarName SET tmgVarName=$$Trim^TMGSTUTL($EXTRACT(tmgOrigAction,5,999))
   IF +$GET(tmgDbgRemoteJob) SET tmgVarName=$$GetRemoteVar^TMGIDE2(tmgVarName)
   DO SHOWVAR(tmgVarName,"ZWR")  ;"//kt 11/17/24
-  ;"//kt 11/17/24   WRITE !   ;"get below bottom line for output.
-  ;"//kt 11/17/24   NEW zbTemp SET zbTemp=0
-  ;"//kt 11/17/24   IF tmgVarName["$" DO
-  ;"//kt 11/17/24   . NEW tempCode
-  ;"//kt 11/17/24   . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ecode="""""
-  ;"//kt 11/17/24   . WRITE tmgVarName,"='"
-  ;"//kt 11/17/24   . SET tempCode="do DEBUGWRITE^TMGIDE2C(1,"_tmgVarName_")"
-  ;"//kt 11/17/24   . XECUTE tempCode
-  ;"//kt 11/17/24   . WRITE "'    "
-  ;"//kt 11/17/24   ELSE  IF tmgVarName'="" DO
-  ;"//kt 11/17/24   . SET tmgVarName=$$CREF^DILF(tmgVarName)  ;"convert open to closed format
-  ;"//kt 11/17/24   . DO ZWRITE^TMGZWR(tmgVarName)  ;"ZWRITE @tmgVarName
-  ;"//kt 11/17/24   IF zbTemp=0 DO
-  ;"//kt 11/17/24   . ;"//kt 10/22/24  DO SETCOLORS("Highlight")
-  ;"//kt 11/17/24   . DO PRESS2GO^TMGUSRI2
   DO SETCOLORS("Reset")
   DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
   QUIT
@@ -211,24 +180,36 @@ HndlWatch(tmgAction) ;
   QUIT
   ;
 HndlHop  ;"Handle Hopping mode
-  DO SETRUNMODE^TMGIDE2(4) 
+  DO SETRUNMODE^TMGIDE2A(4) 
   Do HndlDone
   DO PRESS2GO^TMGUSRI2
   Quit
   ;
+HndlRestart  ;
+  ;"Purpose: Restart debugger back to beginning.  
+  SET tmgUserRestarting=1  ;"will be used by PROMPTLAUNCH^TMGIDE
+  ZGOTO tmgINITZLEVEL  ;"<---- will return code and stack level to PROMPTLAUNCH^TMGIDE
+  QUIT                
+  ;                  
 HndlQuit  ;
-  ;"Purpose: To create a crash, so can QUIT debugger, OR IF in Remote
-  ;"    mode, then DO same thing as 'X' command
+  ;"Purpose: Quit out of debugger
   IF +$GET(tmgDbgRemoteJob) GOTO HndlDone ;"QUIT will occur from there
-  KILL @tmgArrayName
+  KILL @tmgArrayName                           
+  SET tmgUserAborting=1  ;"will be used by PROMPTLAUNCH^TMGIDE
+  IF $GET(tmgINITZLEVEL)>0 DO  ;"NOTE: tmgINITZLEVEL is set in PROMPTLAUNCH^TMGIDE
+  . NEW IDX FOR IDX=1:1:30 WRITE !
+  . ZGOTO tmgINITZLEVEL  ;"<---- will return code and stack level to PROMPTLAUNCH^TMGIDE
+  ;
+  ;"-- Below is old way, if tmgINITZLEVEL is missing for some reason.   
   SET $ETRAP=""  ;"remove error trap
   WRITE !!!!!!!!!!!
   WRITE "CREATING AN ARTIFICIAL ERROR TO STOP EXECUTION.",!
   WRITE "--->Enter 'ZGOTO' from the GTM> prompt to clear error.",!!
+  SET $ETRAP=""  ;"remove error trap
   SET $ZSTEP=""  ;"turn off step capture
   XECUTE "WRITE CrashNonVariable"
-  QUIT
-  ;
+  QUIT                
+  ;                  
 HndlDone ;
   ;"Purpose: To turn off the debugger, allowing program to continue full speed.
   ;"Globally-scoped vars uses: tmgDbgResult, tmgStepMode
@@ -266,51 +247,7 @@ HndlExpand ;
   NEW tempKey READ "        --- Press Enter To Continue--",tempKey:$GET(DTIME,3600)
   QUIT
   ;
-HndlStack(ShowPos,tmgViewOffset) ;
-  ;"Purpose: Handle option to show and interact with stack.
-  ;"Input: ShowPos -- OPTIONAL.  PASS BY REFERENCE.  Will be changed to user selected value.
-  ;"  tmgViewOffset -- OPTIONAL.  PASS BY REFERENCE.  Will be changed to 0 IF user selects NEW Pos.
-  ;"Globally scoped vars used: tmgOrigIDEPos
-  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    
-  ;"//kt 10/22/24 WRITE !   ;"get below bottom line for output.
-  NEW Stack DO GetStackInfo(.Stack,tmgOrigIDEPos)
-  NEW Menu SET Menu(0)="Pick Stack Entry to BROWSE TO"
-  NEW menuI SET menuI=1
-  NEW TMGi FOR TMGi=1:1 QUIT:($GET(Stack(TMGi))="")  DO
-  . NEW $ETRAP SET $ETRAP="SET $ETRAP="""",$ecode="""""
-  . NEW addr SET addr=$PIECE($$TRIM^XLFSTR(Stack(TMGi))," ",2)
-  . NEW txt SET txt=$$TRIM^XLFSTR($text(@addr))
-  . SET txt=$$TRIM^XLFSTR(txt,$CHAR(9))
-  . NEW line SET line=addr_"   Code: "_txt
-  . IF $LENGTH(line)>tmgScrWidth SET line=$EXTRACT(line,1,tmgScrWidth-10)_"..."
-  . SET Menu(menuI)=line_$CHAR(9)_addr
-  . SET menuI=menuI+1
-  NEW UsrSlct SET UsrSlct=$$MENU^TMGUSRI2(.Menu)
-  WRITE "User selection: [",UsrSlct,"]",!
-  IF (UsrSlct["^")&($LENGTH(UsrSlct)>1) DO
-  . SET ShowPos=UsrSlct
-  . SET tmgViewOffset=0
-  ;"//kt 10/22/24  WRITE # ;"clr screen.
-  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
-  QUIT
-  ;
-GetStackInfo(Stack,ExecPos)   ;
-  ;"Purpose:  to query GTM and get back filtered Stack information
-  ;"Input: Stack  -- PASS BY REFERENCE.  An array to received back info.  Old info is killed
-  ;"       ExecPos -- OPTIONAL. Current execution position
-  KILL Stack
-  NEW i,count SET count=1
-  IF $STACK<3 QUIT  ;"0-2 are steps getting into debugger
-  FOR i=0:1:$STACK DO  ;"was 3:1:
-  . NEW s SET s=$STACK(i,"PLACE")
-  . IF s["TMGIDE" QUIT
-  . IF s["GTM$DMOD" QUIT
-  . IF s="@" SET s=s_""""_$STACK(i,"MCODE")_""""
-  . IF s=$GET(ExecPos) SET s=s_" <--Current execution point" ;",i=$STACK+1
-  . SET Stack(count)=$STACK(i)_" "_s
-  . SET count=count+1
-  QUIT
-  ;  
+
 HndlNodes ;
   ;"Purpse: Handle option to browse a variable by nodes.
   DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
@@ -329,8 +266,16 @@ HndlBrowse ;
   WRITE !   ;"get below bottom line for output.
   DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
   DO SETCOLORS("NORM")  ;"//kt 10/22/24
-  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24
+  DO CUP^TMGTERM(1,2)   ;"//kt 10/22/24  
+  NEW ABORT,$ETRAP SET ABORT=0,$ETRAP="SET RESULT="""",$ETRAP="""",$ecode="""",ABORT=1"
+  NEW varName0 set varName0=varName
+  IF (varName["@") DO          
+  . SET varName=$NAME(@varName) ;"if zzREF holds invalid reference $ETRAP should effect quit out gracefully
+  IF ABORT DO  GOTO HBDN
+  . WRITE !,"Invalid variable name: [",varName0,"]",!
+  . DO PRESS2GO^TMGUSRI2
   DO BRWSNOD2^TMGMISC(varName)
+HBDN ;  
   DO ALTBUF^TMGTERM(0)
   QUIT
   ;
@@ -435,7 +380,7 @@ EvalBkPtCode(zzCode) ;"Evaluate Breakpoint code
   NEW zzBkPtTest SET zzBkPtTest=0 
   NEW ZZTEST SET ZZTEST=$TEST
   DO
-  . NEW $ETRAP set $ETRAP="write ""(Invalid M Code!.  Error Trapped.)"",! set $ETRAP="""",$ECODE="""""
+  . NEW $ETRAP set $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",! set $ETRAP="""",$ECODE="""""
   . XECUTE zzCode
   . SET zzBkPtTest=$TEST
   IF ZZTEST  ;"Restore $TEST
@@ -467,19 +412,19 @@ IsBreakpoint(pos)  ;
   ;"      longer than 8 chars.
   ;"      BUT, IF I just cut name off at 8 chars, it might not work well
   ;"      with GTM v5
-  NEW result SET result=0
+  NEW RESULT SET RESULT=0
   NEW tmgDbgJNum SET tmgDbgJNum=$J
   IF +$GET(tmgDbgRemoteJob) SET tmgDbgJNum=+tmgDbgRemoteJob
   NEW aPos SET aPos=""
-  FOR  SET aPos=$order(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",aPos)) quit:(aPos="")!(result=1)  DO
-  . SET result=$$EquivalentBreakpoint(pos,aPos)
-  QUIT (result'=0)
+  FOR  SET aPos=$order(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",aPos)) quit:(aPos="")!(RESULT=1)  DO
+  . SET RESULT=$$EquivalentBreakpoint(pos,aPos)
+  QUIT (RESULT'=0)
   ;
 EquivalentBreakpoint(pos1,pos2)   ;
    ;"PURPOSE: see if two positions are equivalent.  E.g. +35^TMGRPC1H and PROCESS+10^TMGRPC1H are really equivalent
    ;"//to do... finish
-   NEW result set result=(pos1=pos2)   ;<-- implement later
-   QUIT result
+   NEW RESULT set RESULT=(pos1=pos2)   ;<-- implement later
+   QUIT RESULT
    ;    
 EnsureBreakpoints()  ;
    ;"Purpose: When an module is recompiled, GT.M drops the breakpoints for
@@ -515,7 +460,7 @@ SETBKPT(pos,condition)  ;
   . NEW temp SET temp=$$MessageOut^TMGIDE2C("BKPOS "_pos_" "_$GET(condition))
   . WRITE "Results from remote process=",temp,!
   ELSE  DO
-  . NEW brkLine SET brkLine=pos_":""n tmg do SETRUNMODE^TMGIDE2(1,1) s tmg=$$STEPTRAP^TMGIDE2($ZPOS,1)"""
+  . NEW brkLine SET brkLine=pos_":""n tmg do SETRUNMODE^TMGIDE2A(1,1) s tmg=$$STEPTRAP^TMGIDE2($ZPOS,1)"""
   . NEW $ETRAP
   . SET $ETRAP="K ^TMG(""TMGIDE"",$J,""ZBREAK"",pos) S $ETRAP="""",$ECODE="""""
   . ZBREAK @brkLine
@@ -548,11 +493,11 @@ GetBrkCondFlex() ;
 GetBrkCond(pos) ;
   ;"Purpose: A standardized GET for condition.
   ;"Results: returns condition code, or ""
-  NEW result SET result=""
+  NEW RESULT SET RESULT=""
   NEW tmgDbgJNum SET tmgDbgJNum=$J
   IF +$GET(tmgDbgRemoteJob) SET tmgDbgJNum=+tmgDbgRemoteJob
-  SET:(pos'="") result=$GET(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",pos,"IF"))
-  QUIT result
+  SET:(pos'="") RESULT=$GET(^TMG("TMGIDE",tmgDbgJNum,"ZBREAK",pos,"IF"))
+  QUIT RESULT
   ;    
 RelBreakpoint(pos)  ;
   ;"Purpose: to release a  GT.M breakpoint at position
@@ -616,6 +561,105 @@ HndlTable(tmgOrigAction) ;
   ;"//kt 11/17/24  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
   ;
+HndlStack(ShowPos,tmgViewOffset) ;
+  ;"Purpose: Handle option to show and interact with stack.
+  ;"Input: ShowPos -- OPTIONAL.  PASS BY REFERENCE.  Will be changed to user selected value.
+  ;"  tmgViewOffset -- OPTIONAL.  PASS BY REFERENCE.  Will be changed to 0 IF user selects NEW Pos.
+  ;"Globally scoped vars used: tmgOrigIDEPos
+  DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24    
+  NEW ALLMODE SET ALLMODE=0
+  NEW Stack 
+  NEW Menu
+HS1 ;
+  KILL Menu,Stack
+  DO GetStackInfo(.Stack,tmgOrigIDEPos,ALLMODE)
+  SET Menu(0)="Pick Stack Entry to BROWSE TO"
+  SET Menu(0,1)="NOTE: starting code is at TOP, latest at BOTTOM"
+  NEW menuI SET menuI=1
+  NEW IDX FOR IDX=1:1 QUIT:($GET(Stack(IDX))="")  DO
+  . NEW $ETRAP SET $ETRAP="SET $ETRAP="""",$ecode="""""
+  . NEW POS SET POS=$GET(Stack("POS",IDX)) QUIT:POS=""
+  . NEW ENTRY SET ENTRY=$GET(Stack(IDX)) QUIT:ENTRY=""
+  . IF $LENGTH(ENTRY)>tmgScrWidth SET ENTRY=$EXTRACT(ENTRY,1,tmgScrWidth-10)_"..."
+  . SET Menu(menuI)=ENTRY_$CHAR(9)_POS
+  . SET menuI=menuI+1
+  SET Menu(menuI)="----------"_$CHAR(9)_"line",menuI=menuI+1
+  SET Menu(menuI)="SHOW raw stack via ZSHOW ""S"" "_$CHAR(9)_"ZSHOW",menuI=menuI+1
+  IF ALLMODE=0 DO
+  . SET Menu(menuI)="Show all stack entries (including TMGIDE)"_$CHAR(9)_"FULL",menuI=menuI+1
+  ELSE  DO
+  . SET Menu(menuI)="HIDE TMGIDE stack entries"_$CHAR(9)_"HIDETMGIDE",menuI=menuI+1    
+  SET Menu(menuI)="Loop through $STACK"_$CHAR(9)_"MANUAL",menuI=menuI+1    
+  NEW UsrSlct SET UsrSlct=$$MENU^TMGUSRI2(.Menu)
+  WRITE "User selection: [",UsrSlct,"]",!
+  IF UsrSlct="ZSHOW" DO  GOTO HS1
+  . NEW ZZ,IDX,CT SET IDX="",CT=1
+  . WRITE !
+  . ZSHOW "S":ZZ
+  . FOR  SET IDX=$ORDER(ZZ("S",IDX),-1) QUIT:IDX=""  DO 
+  . . WRITE CT,". ",$GET(ZZ("S",IDX)),! SET CT=CT+1 
+  . DO PRESS2GO^TMGUSRI2
+  IF UsrSlct="FULL" DO  GOTO HS1
+  . SET ALLMODE=1
+  IF UsrSlct="HIDETMGIDE" DO  GOTO HS1
+  . SET ALLMODE=0
+  IF UsrSlct="MANUAL" DO  GOTO HS1
+  . WRITE !
+  . NEW % FOR %=0:1:$STACK DO
+  . . W (%+1),".  ",$STACK(%)," -- ",$STACK(%,"PLACE"),": ",$STACK(%,"MCODE"),"  ",$STACK(%,"ECODE"),!
+  . DO PRESS2GO^TMGUSRI2
+  IF (UsrSlct["^")&($LENGTH(UsrSlct)>1) DO
+  . SET ShowPos=UsrSlct
+  . SET tmgViewOffset=0
+  DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24
+  QUIT
+  ;
+GetStackInfo(OUT,ExecPos,ALL)   ;
+  ;"Purpose:  to query GTM and get back filtered Stack information
+  ;"Input: OUT  -- PASS BY REFERENCE.  An array to received back info.  Old info is killed
+  ;"       ExecPos -- OPTIONAL. Current execution position
+  ;"       ALL -- OPTIONAL.  If 1, then all enteries, including TMGIDE entries shown.  
+  KILL OUT
+  SET ALL=+$GET(ALL)
+  NEW IDX,CT SET CT=1
+  NEW STACKSZ SET STACKSZ=$STACK
+  NEW ESTACKSZ SET ESTACKSZ=$ESTACK  ;"<-- this was NEW'ED to 0 at beginning of STEPTRAP^TMGIDE, so all subsequent stack entries shouldn't be shown
+  NEW MAXSTACK SET MAXSTACK=STACKSZ-ESTACKSZ-1
+  IF ALL SET MAXSTACK=$STACK
+  IF 1=0 DO
+  . WRITE !,"$STACK=",STACKSZ,!
+  . WRITE "$ESTACK=",ESTACKSZ,!
+  . WRITE "USING MAXSTACK=",MAXSTACK,!
+  . FOR IDX=0:1:STACKSZ DO
+  . . NEW ENTRY SET ENTRY=$STACK(IDX)
+  . . NEW POS SET POS=$STACK(IDX,"PLACE")
+  . . NEW CODE SET CODE=$STACK(IDX,"MCODE")
+  . . WRITE IDX,") ",ENTRY," -- ",POS,":  ",CODE,!
+  . WRITE !,"$ESTACK=",$ESTACK,!
+  . DO PRESS2GO^TMGUSRI2
+  FOR IDX=0:1:MAXSTACK DO  
+  . NEW POS SET POS=$STACK(IDX,"PLACE")
+  . IF IDX<3,ALL=0,POS["TMGIDE" QUIT
+  . IF IDX<3,ALL=0,POS["GTM$DMOD" QUIT
+  . NEW ENTRY SET ENTRY=$STACK(IDX)
+  . NEW CODE SET CODE=$STACK(IDX,"MCODE")
+  . IF (ENTRY="")&(CODE="")&(POS="") DO  QUIT
+  . . ;"WRITE "Nothing found for #",IDX,! 
+  . SET OUT("POS",CT)=POS
+  . SET OUT("CODE",CT)=CODE
+  . NEW STR 
+  . IF POS="@" SET STR="@"""_CODE_""""
+  . ELSE  DO
+  . . IF (POS="")&(CODE-"") SET STR=ENTRY
+  . . ELSE  SET STR=POS_": "_CODE
+  . IF POS=$GET(ExecPos) SET STR=">>"_STR
+  . SET OUT(CT)=STR
+  . SET CT=CT+1
+  IF 1=0 DO
+  . ZWR OUT
+  . DO PRESS2GO^TMGUSRI2  
+  QUIT
+  ;    
 HndlVars(tmgOrigAction) ;
   ;"Purpose: Handle option for VARS command
   DO ALTBUF^TMGTERM(1)  ;"//kt 10/22/24   
@@ -637,20 +681,6 @@ HndlVars(tmgOrigAction) ;
   . DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
   ELSE  DO
   . DO SHOWVAR("VariableTable","TABLE^"_tmgARGS)
-  ;"//kt 11/17/24  . WRITE !   ;"get below bottom line for output.
-  ;"//kt 11/17/24  . NEW TABLEALL,VARS
-  ;"//kt 11/17/24  . ZSHOW "*":tmgDbgTABLEALL
-  ;"//kt 11/17/24  . MERGE VARS=tmgDbgTABLEALL("V")
-  ;"//kt 11/17/24  . NEW IDX1 SET IDX1=0
-  ;"//kt 11/17/24  . FOR  SET IDX1=$ORDER(VARS(IDX1)) QUIT:(+IDX1'>0)  DO
-  ;"//kt 11/17/24  . . NEW LINE SET LINE=$GET(VARS(IDX1)) QUIT:LINE=""
-  ;"//kt 11/17/24  . . NEW VARNAME SET VARNAME=$PIECE(LINE,"=",1)
-  ;"//kt 11/17/24  . . IF $EXTRACT(VARNAME,1,3)="tmg" QUIT
-  ;"//kt 11/17/24  . . IF $EXTRACT(VARNAME,1,6)="TMGCOL" QUIT
-  ;"//kt 11/17/24  . . IF tmgARGS'="" QUIT:($EXTRACT(VARNAME,1,$LENGTH(tmgARGS))'=tmgARGS)
-  ;"//kt 11/17/24  . . NEW VARVAL SET VARVAL=$PIECE(LINE,"=",2,9999)
-  ;"//kt 11/17/24  . . WRITE VARNAME," = ",VARVAL,!
-  ;"//kt 11/17/24  . DO PRESS2GO^TMGUSRI2  ;"//kt 10/22/24
 HVL2 ;  
   DO ALTBUF^TMGTERM(0)  ;"//kt 10/22/24   
   QUIT
@@ -678,7 +708,7 @@ HndlRunDW ;
    ;"         with tests being checked between each line of code.
   NEW WatchMode SET WatchMode=0
   DO EditWatch^TMGIDE7(.WatchMode)
-  IF WatchMode=1 DO SETRUNMODE^TMGIDE2(5) ;"data watch mode
+  IF WatchMode=1 DO SETRUNMODE^TMGIDE2A(5) ;"data watch mode
   QUIT
   ;
 HndlHelp ;
@@ -835,13 +865,13 @@ MENUDATA ;"FORMAT:  Menu#^DisplayName^ReturnValue^SubMenu
   ;;
   ;;"#---RunMode menu -------------
   ;;"RM^Jump to &Cursor^J  
-  ;;"RM^Run Continuous^^ARM
+  ;;"RM^&Run Continuous^^ARM
   ;;"RM^Step &Into^I
   ;;"RM^Step O&ver^O
   ;;"RM^Step Ou&tOf^T
   ;;"RM^Turn O&ff Debug^X
-  ;;"RM^Abort^Q
-  ;;"RM^Stack^STACK
+  ;;"RM^&Abort^Q
+  ;;"RM^&Stack^STACK
   ;;
   ;;"#---Continous running mode menu ---
   ;;"ARM^Continuous &Fast mode^R
@@ -877,11 +907,11 @@ MENUDATA ;"FORMAT:  Menu#^DisplayName^ReturnValue^SubMenu
   ;;"VARS^&Browse Var^BROWSE ? #Enter Name of Variable\nTo Browse
   ;;"VARS^&Node View Var^NODES ? #Enter Name of Variable\nFor Nodes
   ;;"VARS^&ZWRITE Var^ZWR ? #Enter Name of Variable\nTo ZWRITE
-  ;;"VARS^Show Var &Table^VARS ? #OPTIONAL\nEnter Mask\nE.g. TMG* for Vars Starting with 'TMG'
-  ;;"VARS^Show Var Changes^VDIFF
-  ;;"VARS^Toggle Var Tracing^TVDIFF
+  ;;"VARS^Show Var T&able^VARS ? #OPTIONAL\nEnter Mask\nE.g. TMG* for Vars Starting with 'TMG'
+  ;;"VARS^Show Var Chan&ges^VDIFF
+  ;;"VARS^&Toggle Var Tr&acing^TVDIFF
   ;;"VARS^Show T&race
-  ;;"VARS^Execute M code^M ? #Enter Valid M/Mumps Code to Execute
+  ;;"VARS^E&xecute M code^M ? #Enter Valid M/Mumps Code to Execute
   ;;
   ;;"#--- Watch menu --------------
   ;;"WM^Enter Watch &M Code^W ? #Enter Valid M/Mumps Code to Execute\nFor Variable Watch\nE.g. 'WRITE "[",MYVAR,"]"'
@@ -893,13 +923,13 @@ MENUDATA ;"FORMAT:  Menu#^DisplayName^ReturnValue^SubMenu
   ;;"WM^&Run Data Watch^RDW
   ;;
   ;;"# --- Utility -----
-  ;;"UM^Edit Display Colors^COLORS
-  ;;"UM^Resync Display^RESYNC
-  ;;"UM^Expand Current Line^E
-  ;;"UM^Manually Set Display Size^=
-  ;;"UM^Manage/Hide modules^HIDE
-  ;;"UM^Restore Keyboard Functionality^INITKB
-  ;;"UM^Remove Terminal Scroll Areas^FULL
+  ;;"UM^&Edit Display Colors^COLORS
+  ;;"UM^&Resync Display^RESYNC
+  ;;"UM^&Expand Current Line^E
+  ;;"UM^Manually Set &Display Size^=
+  ;;"UM^Manage/&Hide modules^HIDE
+  ;;"UM^Restore &Keyboard Functionality^INITKB
+  ;;"UM^Remove Terminal &Scroll Areas^FULL
   ;;"<DONE>
   ;  
 HNDLPREDRAW(MENU) ;
@@ -964,19 +994,18 @@ Box    ;
   ;
 ShouldSkip(module) ;
   ;"Purpose: to see IF module is in hidden list
-  NEW result SET result=0
+  NEW RESULT SET RESULT=0
   IF $GET(tmgDbgHideList)="" SET tmgDbgHideList=$name(^TMG("TMGIDE",$J,"HIDE LIST"))  ;"//kt 3/25/11
-  IF $DATA(@tmgDbgHideList)=0 DO SETHIDELIST^TMGIDE
-  ;"if $GET(tmgDbgHideList)="" GOTO SSKDone
+  IF $DATA(@tmgDbgHideList)=0 DO SETHIDELIST^TMGIDE1
   NEW HideMod SET HideMod=""
-  FOR  SET HideMod=$ORDER(@tmgDbgHideList@(HideMod)) QUIT:(HideMod="")!(result=1)  DO
-  . IF (module=HideMod) SET result=1 QUIT
+  FOR  SET HideMod=$ORDER(@tmgDbgHideList@(HideMod)) QUIT:(HideMod="")!(RESULT=1)  DO
+  . IF (module=HideMod) SET RESULT=1 QUIT
   . IF HideMod'["*" QUIT
   . NEW tempMod SET tempMod=$EXTRACT(HideMod,1,$find(HideMod,"*")-2)
   . NEW trimModule SET trimModule=$EXTRACT(module,1,$LENGTH(tempMod))
-  . SET result=(trimModule=tempMod)
+  . SET RESULT=(trimModule=tempMod)
 SSKDone ;
-  QUIT result
+  QUIT RESULT
   ;    
 SetupSkips  ;
   ;"Purpose: to manage modules that are to be skipped over.
@@ -1074,10 +1103,10 @@ GETSEC()  ;"GET SYSTEM SECONDS
   ;
 MAX(A,B) ;
   IF A>B QUIT A
-  QUIT B
-  ;
-SHOWVAR(zzREF,MODE)  ;"Show variable, using SCROLLER
-  ;"MODE -- OPTIONAL.  if "ZWR' then use ZWR,
+  QUIT B                                  
+  ;           
+SHOWVAR(zzREF,zzMODE)  ;"Show variable, using SCROLLER
+  ;"zzMODE -- OPTIONAL.  if "ZWR' then use ZWR,
   ;"                   if "TABLE^<optional filter>" then does variable table show
   ;"                   otherwise uses ARDUMP
   NEW RESULT  ;"some code below is leaving RESULT on table, so NEW it here.   
@@ -1088,12 +1117,20 @@ SHOWVAR(zzREF,MODE)  ;"Show variable, using SCROLLER
   . XECUTE CODE
   . WRITE "'    "
   ;
+  NEW zzREF0 SET zzREF0=$GET(zzREF)
   SET zzREF=$$CREF^DILF(zzREF)  ;"convert open to closed format
+  NEW ABORT,$ETRAP SET ABORT=0,$ETRAP="SET RESULT="""",$ETRAP="""",$ecode="""",ABORT=1"
+  IF (zzREF["@") DO          
+  . SET zzREF=$NAME(@zzREF) ;"if zzREF holds invalid reference $ETRAP should effect quit out gracefully
+  . IF zzREF'=zzREF0 WRITE !,"CONVERTED [",zzREF0,"] to [",zzREF,"]",!
+  IF ABORT DO  GOTO SVRDN
+  . WRITE !,"Invalid variable name: [",zzREF0,"]",!
+  . DO PRESS2GO^TMGUSRI2
   NEW zzTEMP
-  IF $GET(MODE)="ZWR" DO
+  IF $GET(zzMODE)="ZWR" DO
   . DO ZWR2ARR^TMGZWR(zzREF,"zzTEMP")  ;"ZWRITE @zzREF  
-  IF $GET(MODE)["TABLE" DO
-  . NEW tmgARGS set tmgARGS=$PIECE(MODE,"^",2)
+  ELSE  IF $GET(zzMODE)["TABLE" DO
+  . NEW tmgARGS set tmgARGS=$PIECE(zzMODE,"^",2)
   . NEW TABLEALL,VARS
   . ZSHOW "*":tmgDbgTABLEALL
   . MERGE VARS=tmgDbgTABLEALL("V")
@@ -1124,6 +1161,7 @@ SHOWVAR(zzREF,MODE)  ;"Show variable, using SCROLLER
   . SET tmgOPTION("SCRN WIDTH")=130
   ;
   DO SCROLLER^TMGUSRIF("tmgARRAY",.tmgOPTION)
+SVRDN ;  
   QUIT
   ; 
 HNDONSEL(TMGPSCRLARR,OPTION,INFO)  ;"Part of SHOWVAR -- Handle ON SELECT event from SCROLLER
@@ -1218,13 +1256,9 @@ ARRDUMP(zzREF,TMGIDX,INDENT,zzrefOUT)  ;
   SET INDENT=$GET(INDENT,0)
   IF $DATA(zzREF)=0 GOTO ADDN
   NEW ABORT SET ABORT=0
-  IF (zzREF["@") DO  GOTO:(ABORT=1) ADDN
-  . NEW TEMP SET TEMP=$PIECE($EXTRACT(zzREF,2,99),"@",1)
-  . IF $DATA(TEMP)#10=0 SET ABORT=1
-  . SET zzREF=$GET(@TEMP)
-  ;"Note: I need to DO some validation to ensure zzREF doesn't have any null nodes.
-  NEW X SET X="SET TEMP=$GET("_$$UP^XLFSTR(zzREF)_")"
-  SET X=$$UP^XLFSTR(X)
+  IF (zzREF["@") DO  GOTO:(ABORT=1) ADDN      
+  . SET zzREF=$NAME(@zzREF) ;"if zzREF holds invalid reference $ETRAP should effect quit out gracefully
+  NEW X SET X="SET TEMP=$GET("_$$UP^XLFSTR(zzREF)_")"  ;"SET X=$$UP^XLFSTR(X)
   DO ^DIM ;"a method to ensure zzREF doesn't have an invalid reference.
   IF $GET(X)="" GOTO ADDN
   ;
@@ -1266,10 +1300,10 @@ ARRDUMP(zzREF,TMGIDX,INDENT,zzrefOUT)  ;
   ;"Put in a blank space at end of subbranch
   DO DEBUGINDENT(INDENT,0,zzrefOUT)
   IF 1=0,INDENT>0 DO
-  . NEW TMGi
-  . FOR TMGi=1:1:INDENT-1 DO
+  . NEW IDX
+  . FOR IDX=1:1:INDENT-1 DO
   . . NEW STR SET STR=""
-  . . IF $GET(INDENT(TMGi),-1)=0 SET STR="  "
+  . . IF $GET(INDENT(IDX),-1)=0 SET STR="  "
   . . ELSE  SET STR="| "
   . . DO DEBUGWRITE(INDENT,STR,,.zzrefOUT)
   . DO DEBUGWRITE(INDENT," ",1,.zzrefOUT)
@@ -1291,24 +1325,24 @@ MessageOut(Msg,timeOutTime,ignoreReply)  ;
 
   SET timeOutTime=$GET(timeOutTime,2)
   SET ignoreReply=$GET(ignoreReply,0)
-  NEW result SET result=""
+  NEW RESULT SET RESULT=""
   SET Msg="[CMD] "_$GET(Msg)
   SET ^TMG("TMGIDE","CONTROLLER","MSG-OUT")=Msg
   SET ^TMG("TMGIDE","CONTROLLER","MSG-IN")=""
-  IF (ignoreReply=0) FOR  DO  QUIT:(result'="")!(timeOutTime<0)
-  . SET result=$GET(^TMG("TMGIDE","CONTROLLER","MSG-IN"))
-  . IF (result'="") QUIT
+  IF (ignoreReply=0) FOR  DO  QUIT:(RESULT'="")!(timeOutTime<0)
+  . SET RESULT=$GET(^TMG("TMGIDE","CONTROLLER","MSG-IN"))
+  . IF (RESULT'="") QUIT
   . SET timeOutTime=timeOutTime-0.1
   . SET ^TMG("TMGIDE","CONTROLLER","MSG-OUT")=Msg
   . HANG 0.1
-  IF $PIECE(result," ",1)="[RSLT]" DO
-  . SET result=$PIECE(result," ",2,999)
+  IF $PIECE(RESULT," ",1)="[RSLT]" DO
+  . SET RESULT=$PIECE(RESULT," ",2,999)
   ELSE  DO
-  . WRITE !,"Unexpected reply: ",result,!
+  . WRITE !,"Unexpected reply: ",RESULT,!
   . DO PRESS2GO^TMGUSRI2
-  . SET result=""
+  . SET RESULT=""
   ;
-  QUIT result
+  QUIT RESULT
   ;
 GetRemoteVar(varName)  ;
   ;"Purpose: Pass varName to remote process, have it evaluated there, and

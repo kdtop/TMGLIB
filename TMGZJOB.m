@@ -85,9 +85,11 @@ DOIT(ACTION)  ; Action Prompt
 KILLPID(JN)  ;Send message to MUPIP to KILL Job  //kt added
   S JN=+$G(JN) Q:JN'>0
   W !,"Are you sure you want to KILL process #",JN,"? No// "
+  SET DTIME=+$GET(DTIME,30)
   N % R %:DTIME WRITE !
-  I "YES"'[$TR(%,"yes","YES") Q
-  ZSYSTEM "mupip stop "_JN  ;"Launch command in linux OS
+  IF %="" SET %="NO"
+  I "YES"[$TR(%,"yes","YES") DO
+  . ZSYSTEM "mupip stop "_JN  ;"Launch command in linux OS
   Q
   ;  
 RDJNUM()  ;

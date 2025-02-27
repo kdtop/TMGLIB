@@ -19,13 +19,16 @@ GTCHNGLG(TMGRESULT,TMGDUZ,CPRSVERSION) ;"
  ;"         changes (if the user hasn't seen them yet). If ALL, it will 
  ;"         return all the changes
  SET TMGRESULT(0)="-1^NONE"
+ ;"  untested   NEW ISLOCKED SET ISLOCKED=$$CheckFileLock(22760)
+ ;"IF ISLOCKED QUIT
+ ;"
  NEW RESULTARR
  SET TMGRESULT(1)="<html><body><table border=1>"
  NEW OUTIDX SET OUTIDX=2
  NEW VERSION,DATE,DESC,FOUND 
  SET VERSION="ZZZZ",FOUND=0
  FOR  SET VERSION=$O(^TMG(22760,"B",VERSION),-1) QUIT:VERSION=""  DO
- . ;"IF (VERSION'=CPRSVERSION)&(CPRSVERSION'="ALL") QUIT
+ . IF (VERSION'=CPRSVERSION)&(CPRSVERSION'="ALL") QUIT
  . ;"IF CPRSVERSION'="ALL" QUIT  ;"only do all for now
  . ;"TO FINISH: if getting version changes, check to see if user has already seen. If so quit. If not return the changes and add to the seen field.
  . NEW VERSIDX SET VERSIDX=$O(^TMG(22760,"B",VERSION,0))
@@ -63,3 +66,15 @@ SEEN(TMGDUZ,VERSIDX)  ;"HAS THE USER SEEN THIS? IF NOT RETURN 0 (AND SET TO SHOW
  . IF $DATA(TMGMSG) DO  QUIT TMGRESULT
  . . ;"IGNORE SET RESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
  QUIT TMGRESULT
+ ;"
+CheckFileLock(fileNumber)  ;"This example came from BastionGPT
+    new lockRef,isLocked
+    set lockRef="^DIC("_fileNumber_")"
+    set isLocked=0
+    lock +@lockRef:1  ; Attempt to lock the file's global node with a 1-second timeout
+    if '$test do
+    . set isLocked=1  ; Lock failed, so it is locked by another process
+    else  do
+    . lock -@lockRef  ; Lock succeeded, release it immediately
+    quit isLocked
+    ;"

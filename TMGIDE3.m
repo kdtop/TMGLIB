@@ -198,7 +198,7 @@ Ppt2  ;
   IF tmgHxShowNum=0 WRITE "^// "
   ELSE  WRITE "// ",HxLine
   ;
-  SET tmgDbgLine=$$READ^TMGIDE()  ;"$$READ^XGF  ;"returns line terminator in tmgXGRT
+  SET tmgDbgLine=$$READ^TMGIDE1()  ;"$$READ^XGF  ;"returns line terminator in tmgXGRT
   SET tmgXGRT=$GET(tmgXGRT) ;"ensure existence
   IF tmgDbgLine="?" DO  GOTO Ppt2
   . WRITE !,"Here you should enter any valid M command, as would normally",!

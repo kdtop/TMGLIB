@@ -1234,7 +1234,7 @@ FLUREM(TMGDFN,TEST,DATE,DATA,TEXT) ;"Return whether flu reminder should be activ
         SET TEST=0
         NEW YEAR,MONTH,DAY,TIME
         DO PARSEDT(DATE,.YEAR,.MONTH,.DAY,.TIME)
-        IF MONTH<3 SET TEST=1
+        IF MONTH<2 SET TEST=1
         IF MONTH>8 SET TEST=1
         QUIT
         ;"

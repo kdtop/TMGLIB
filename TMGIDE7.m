@@ -163,7 +163,7 @@ EVALDW(tmgRunMode) ;Eval Data Watches
   . SET tmgTempResult='($TEST)
   ;"SET ^TMG("TMP","ZZ","tmgTempResult")=tmgTempResult  ;"<-- temp, remove later
   IF tmgTempResult=0 DO
-  . DO SETRUNMODE^TMGIDE2(1)
+  . DO SETRUNMODE^TMGIDE2A(1)
   . SET tmgTempResult=0
   . ;"write !,"Test evaluated TRUE, turrning tmgRunMode to 1",!  ;//delete later...
   . ;"DO PRESS2GO^TMGUSRI2         ;//delete later...

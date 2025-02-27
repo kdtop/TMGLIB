@@ -22,8 +22,8 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
   ;"=======================================================================                                   
   ;"NICESPLT(S,LEN,S1,S2,S2MIN,DIVCH) -- Split string to length, at spaces
   ;"NEEDEDWS(S,SPECIALINDENT,INDENT) --NEEDED WHITE SPACE
-  ;"NUMLWS(S)  -- NUM LEFT WHITE SPACE
-  ;"$$MAKEWS(N)  -- Return a whitespace string that is n characters long
+  ;"NUMLWS(S) -- NUM LEFT WHITE SPACE
+  ;"$$MAKEWS(N) -- Return a whitespace string that is n characters long
   ;"$$REPLSTR(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
   ;"STRIPARR(REF,STR) --Strip STR from each line of @REF array
   ;"REPLARR(REF,SRCHSTR,REPLSTR) -- Replace each instance of SRCHSTR with REPLSTR from each line of @REF array
