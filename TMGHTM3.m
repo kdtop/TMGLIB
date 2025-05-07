@@ -75,3 +75,73 @@ HTMLMODE(TMGRESULT,MODE) ;"
   SET TMGCPRSHTMLMODE=MODE
   QUIT
   ;"
+  ;"----------------------------------------------------------------
+  ;"----------------------------------------------------------------
+  ;
+GETCODE(OUTREF,TAG,ROUTINE) ;
+  ZLINK ROUTINE
+  NEW OFFSET
+  NEW IDX SET IDX=1
+  NEW DONE SET DONE=0
+  FOR OFFSET=1:1 DO  QUIT:DONE
+  . NEW LINE SET LINE=$TEXT(@TAG+OFFSET^@ROUTINE)
+  . SET LINE=$PIECE(LINE,";;",2)
+  . IF LINE["DONE_WITH_HTML" SET DONE=1 QUIT
+  . SET @OUTREF@($I(IDX))=LINE
+  QUIT
+  ;  
+HTMT2DOC(OUTREF,TAG,RTN,INFO) ;"HTML Template 2 HTML DOCument, using source info
+  ;"INPUT: OUTREF -- PASS BY NAME.  E.g. "MYARR".  SEE HTMTA2DOC
+  ;"       TAG -- TAG name where template can be obtained, via $TEXT() read
+  ;"       RTN -- ROUTINE name where template can be obtained, via $TEXT() read
+  ;"       INFO -- SEE HTMTA2DOC
+  ;"OUTPUT: composite HTML is put into OUT array.  Format: OUT(#)=<line of HTML>
+  ;"Result: none
+  ;"NOTE: Template should be stored in mumps file with following format:
+  ;"      -- HTML code should begin on line immediately following TAG
+  ;"      -- each line should begin with ';;', which will be stripped.  
+  ;"      -- at end of HTML code, there should be separate terminating line containing: DONE_WITH_HTML
+  ;"     The routine will be ZLINKED prior to reading, so any possible edits will be immediatedly effected
+  NEW TEMPLATE
+  DO GETCODE("TEMPLATE",TAG,RTN)
+  DO HTMTA2DOC(OUTREF,.TEMPLATE,.INFO)
+  QUIT
+  ;
+HTMTA2DOC(OUTREF,TEMPLATE,INFO) ;"HTML Template ARRAY 2 HTML DOCument, using source info
+  ;"INPUT: OUTREF -- PASS BY NAME.  E.g. "MYARR".  Format: @OUTREF@(#)=<line of HTML>
+  ;"       TEMPLATE -- PASS BY REFERENCE.  Format: TEMPLATE(#)=<line of HTML template>
+  ;"              NOTE: Template is expected to contain tagged-text blocks that will be replaced with 
+  ;"                    test stored in INFO array
+  ;"                   Tag format: {@@@[<block_name>]@@@}  e.g. {@@@[TOC]@@@} <--- replaced with 'TOC' content
+  ;"                      If any tags are found without corresponding block in INFO, they will be deleted. 
+  ;"                      block_name is NOT case-sensitive in TEMPLATE.  Should be UPPERCASE in INFO array
+  ;"       INFO -- PASS BY REFERENCE.  Format:
+  ;"                   INFO("DATA",<block_name,#)=line of HTML-valid text to put into template
+  ;"OUTPUT: composite HTML is put into OUT array.  Format: @OUTREF@(#)=<line of HTML>
+  ;"Result: none
+  ;"NOTE: The limit of string length in yottadb is 1 mb.  Web pages can exceed this.  So
+  ;"      this function will anticipate that it will be broken up into multiple lines,
+  ;"      as user might generate during editing.  The key point being that the 
+  ;"      tag names must all be on one line.  No attempt will be made to consider
+  ;"      line wrapping.  
+  ;
+  NEW TIDX SET TIDX=0  ;"TEMPLATE IDX
+  NEW OIDX SET OIDX=0  ;"OUTPUT IDX
+  NEW OTAG SET OTAG="{@@@["  ;"OPEN TAG
+  NEW CTAG SET CTAG="]@@@}"  ;"CLOSE TAG
+  FOR  SET TIDX=$ORDER(TEMPLATE(TIDX)) QUIT:TIDX'>0  DO
+  . NEW LINE SET LINE=$GET(TEMPLATE(TIDX)) QUIT:LINE=""
+  . IF LINE[OTAG DO
+  . . NEW PARTA SET PARTA=$PIECE(LINE,OTAG,1)
+  . . NEW TAGNAME SET TAGNAME=$PIECE($PIECE(LINE,OTAG,2),CTAG,1)
+  . . SET TAGNAME=$$UP^XLFSTR(TAGNAME)
+  . . NEW PARTB SET PARTB=$PIECE(LINE,CTAG,2)
+  . . NEW DIDX SET DIDX=0  ;"DATA IDX
+  . . SET @OUTREF@($INCR(OIDX))=PARTA  ;"This will be on it's own line. 
+  . . FOR  SET DIDX=$ORDER(INFO("DATA",TAGNAME,DIDX)) DO  QUIT:DIDX'>0
+  . . . NEW DATALINE SET DATALINE=$GET(INFO("DATA",TAGNAME,DIDX))
+  . . . SET @OUTREF@($INCR(OIDX))=DATALINE
+  . . SET @OUTREF@($INCR(OIDX))=PARTB  ;"This will be on it's own line.
+  . SET @OUTREF@($INCR(OIDX))=LINE
+  QUIT
+  ;

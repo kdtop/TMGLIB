@@ -1265,6 +1265,13 @@ SUMNOTE(IEN8925,ARRAY) ;"Get back summary data from prior parsing and storage.
   ;"       ARRAY -- PASS BY REFERENCE, AN OUT PARAMETER.  Format: 
   ;"            ARRAY(<IEN8925>,"THREAD",#)=<TOPIC NAME>^<THREAD TEXT>
   ;"            ARRAY(<IEN8925>,"HPI",#)=<TOPIC NAME>^<SUMMARY TEXT>    
+  ;"
+  ;"NOTE(3/28/25): This function first looks for Threads in file 22719.5, these will be topics actively discussed in the note
+  ;"      It then looks for Topics in file 22719. Later routines will determine topics discussed today from ones
+  ;"      not discussed in comparing Threads to the Topics. If both of these Arrays are empty then it calls
+  ;"      SUMNOTE to get all Topics and Threads.
+  ;"   POINT TO REMEMBER: Threads and Topics should be blank unless the note has already been signed. These are only
+  ;"      populated in the post signature code. 
   SET IEN8925=+$GET(IEN8925)
   NEW ADFN SET ADFN=0
   FOR  SET ADFN=$ORDER(^TMG(22719.2,"ATIU",IEN8925,ADFN)) QUIT:ADFN'>0  DO
@@ -2078,7 +2085,7 @@ CHGAWV(CPTARR,TMGDFN,MESSAGE,LF)  ;
   ;"
 ADDON(CPTARR,TMGDFN,MESSAGE,LF)  ;
   NEW INS SET INS="^"_$$GETPINS(TMGDFN)_"^"
-  NEW TESTINS SET TESTINS="^AARP / Secure Horizon^BC/BS ADVANTAGE^HUMANA GOLD^MEDICARE^"
+  NEW TESTINS SET TESTINS="^AARP / Secure Horizon^BC/BS ADVANTAGE^HUMANA GOLD^MEDICARE^UHC-LIFE1^"
   ;"if need be we can remove an insurance from above, and uncomment below
   ;"IF TESTINS'[INS QUIT
   ;"NEW TESTINS SET TESTINS="^MEDICARE^"  ;"only medicare for now

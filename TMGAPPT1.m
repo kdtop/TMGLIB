@@ -220,7 +220,7 @@ NOPATSEL(OUT,TMGDUZ)  ;"Called from RPC "TMG CPRS NO PATIENT SELECTED"
   . NEW PTABBR SET PTABBR=LAST_","_FIRST
   . NEW NOTESTATUS SET NOTESTATUS=$PIECE(ENTRY,"^",3)                 ;"* --> signed note,  + --> unsigned note, or ''
   . NEW PROV SET PROV=$PIECE(ENTRY,"^",4)                             ;"IEN of provider.  
-  . NEW APPTDT SET APPTDT=$PIECE(ENTRY,"^",5)                         ;"FMDT for appt    
+  . NEW APPTDT SET APPTDT=$PIECE(ENTRY,"^",5)                         ;"FMDT for appt
   . NEW APPTDTSTR SET APPTDTSTR=$PIECE($$FMTE^XLFDT(APPTDT,"2PMZ")," ",2,3)           ;"MM/DD/YY@HH:MM am/pm
   . IF (LASTTIME["am")&(APPTDTSTR["pm") DO
   . . SET I=I+1,OUT(I)="<tr bgcolor=""$000000"" height=""5""><td colspan=""8""></td><tr>"
@@ -366,6 +366,7 @@ GETAPPT(OUT,PROVIDER,SDT,EDT,OPTION)     ;" RETURN LIST OF APPOINTMENTS
   ;"Ensure SDT, EDT in FM Date/Time:
   DO DT^DILF("T",SDT,.SDT,"","")
   DO DT^DILF("T",EDT,.EDT,"","")
+  SET SDT=SDT+".0001"
   IF (SDT=-1)!(EDT=-1) SET TMGRESULT="-1^Error in date range." GOTO GADN  
   IF $PIECE(EDT,".",2)'>0 SET EDT=$PIECE(EDT,".",1)_.9999
   ;

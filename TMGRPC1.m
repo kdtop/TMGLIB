@@ -778,6 +778,7 @@ GETURLS(RESULT,TMGDFN) ;
 
         ;"SET RESULT(2)="Lab Test^http://{{ws}}:{{wp}}/filesystem/lab/index.html?DFN=9182"
         SET RESULT(IDX)=$$MAKEURL^TMGRST03(TMGDFN),IDX=IDX+1
+        SET RESULT(IDX)="MyBrowser^https://www.whatismybrowser.com/",IDX=IDX+1        
         ;"SET RESULT(IDX)="yahoo^http://www.yahoo.com",IDX=IDX+1
         ;"SET RESULT(IDX)="Google^http://www.google.com",IDX=IDX+1
         ;"BELOW 1 LINE IS TEMP... REMOVE LATER

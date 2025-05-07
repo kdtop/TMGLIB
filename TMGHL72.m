@@ -452,7 +452,7 @@ NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
         . DO APPNDNTE(.SPLITARR,.TMGHL7MSG,.TMGU,TMGSEGN)
         IF TMGVALUE="" SET TMGVALUE="  "
         NEW TMGCODE SET TMGCODE=$PIECE($GET(^DD(63.041,.01,0)),"^",5,999)
-        NEW X SET X=TMGVALUE
+NTE3B   NEW X SET X=TMGVALUE
         IF '$DATA(X) GOTO NTE3DN
         DO 
         . NEW DA,LRX 
@@ -464,6 +464,16 @@ NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
         . NEW $ETRAP SET $ETRAP="WRITE ""(Invalid M Code!.  Error Trapped.)"",$ECODE,! SET $ETRAP="""",$ECODE="""""
         . XECUTE TMGCODE
         IF $DATA(X) GOTO NTE3DN
+        ;"At this point, failed input transform.  Will try some fixes
+        NEW TRYAGAIN SET TRYAGAIN=0
+        ;"Below removes any characters failing ".ANP" test, i.e. unicode chars
+        IF (TMGVALUE?.ANP)=0 DO  IF TRYAGAIN GOTO NTE3B
+        . NEW NEWVAL SET NEWVAL=""
+        . NEW CH,IDX FOR IDX=1:1:$LENGTH(TMGVALUE) DO
+        . . SET CH=$EXTRACT(TMGVALUE,IDX)
+        . . IF (CH?.ANP)=0 SET CH="?",TRYAGAIN=1
+        . . SET NEWVAL=NEWVAL_CH
+        . IF TRYAGAIN SET TMGVALUE=NEWVAL
         SET TMGXERR="Comment line fails input transform: ["_TMGVALUE_"]"
         SET TMGRESULT="-1^"_TMGXERR
 NTE3DN  QUIT

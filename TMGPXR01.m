@@ -314,6 +314,7 @@ ADVPT(TMGDFN,TEST,DATE,DATA,TEXT)  ;"
         SET INSARRAY(+$ORDER(^DIC(36,"B","AARP",0)))=""
         SET INSARRAY(+$ORDER(^DIC(36,"B","AARP / Secure Horizon",0)))=""
         SET INSARRAY(+$ORDER(^DIC(36,"B","UNITED HEALTHCARE - SECURE HORIZONS",0)))=""
+        SET INSARRAY(+$ORDER(^DIC(36,"B","UHC-LIFE1",0)))=""
         SET INSARRAY(+$ORDER(^DIC(36,"B","UHC-DSNP",0)))=""   ;"THIS MAY NEED TO BE ALTERED FOR TINCY CUTSHAW'S INSURANCE
         ;"IF BCBSAIEN'>0 GOTO BCDN
         NEW INSIDX SET INSIDX=0
@@ -960,6 +961,37 @@ PTHASDM(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         . . . SET WHY="[WHY] This reminder was turned off by health factor"
         QUIT WHY
         ;"
+PTHASHTN(TMGDFN,TEST,DATE,DATA,TEXT)  ;
+        ;"Purpose: Return whether patient is HYPERTENSIVE (Copied from DM above)
+        ;"         Will search the TMG TIU 
+        ;"Input: TMGDFN -- the patient IEN
+        ;"       TEST -- AN OUT PARAMETER.  The logical value of the test:
+        ;"               1=true, 0=false
+        ;"               Also an IN PARAMETER.  Any value for COMPUTED
+        ;" FINDING PARAMETER will be passed in here.
+        ;"       DATE -- AN OUT PARAMETER.  Date of finding.
+        ;"       DATA -- AN OUT PARAMETER.  PASSED BY REFERENCE.
+        ;"       TEXT -- Text to be display in the Clinical Maintenance
+        ;"Output.  WHY
+        ;"Results: none
+        SET TEST=0,DATE=0
+        NEW WHY SET WHY="[WHY] Unknown reason. No note topics found."
+        NEW IEN22719 SET IEN22719=0
+        FOR  SET IEN22719=$ORDER(^TMG(22719,"DFN",TMGDFN,IEN22719)) QUIT:IEN22719'>0  DO
+        . NEW TOPICTEXT SET TOPICTEXT=""
+        . FOR  SET TOPICTEXT=$ORDER(^TMG(22719,IEN22719,2,"B",TOPICTEXT)) QUIT:TOPICTEXT=""  DO
+        . . NEW UPTOPIC SET UPTOPIC=$$UP^XLFSTR(TOPICTEXT)
+        . . IF (UPTOPIC["HTN")!(UPTOPIC["HYPERTENSION") DO
+        . . . IF UPTOPIC["FH" QUIT  ;"to keep family history from giving false positive
+        . . . IF UPTOPIC["SCREEN" QUIT ;"to keep screenings from giving false positives
+        . . . IF UPTOPIC["PRE" QUIT ;"to keep pre-HTN from giving false positives
+        . . . IF UPTOPIC["POSSIBLE" QUIT ;"elh added 3/5/21
+        . . . NEW TOPICDATE SET TOPICDATE=$PIECE($GET(^TMG(22719,IEN22719,0)),"^",2)
+        . . . IF TOPICDATE>DATE SET DATE=TOPICDATE
+        . . . SET TEST=1
+        . . . SET WHY=$C(13,10)_"[WHY] Topic "_UPTOPIC_" was used last on "_$$EXTDATE^TMGDATE(DATE)
+        QUIT WHY
+        ;"       
 PTHSCOPD(TMGDFN,TEST,DATE,DATA,TEXT)  ;
         ;"Purpose: Return whether patient has COPD
         ;"         Will search the TMG TIU
@@ -1902,6 +1934,22 @@ GETLLAB(TMGDFN,LABIEN,DATE,VALUE)  ;"
        IF DATE>0 SET VALUE=$GET(RESULTS(LABNAME,DATE))
        QUIT
        ;"
+VLDLCAL(TMGDFN)  ;"CALCULATE VLDL (IF UNDER 400, IT IS TRIGLYCERIDES/5
+       NEW TMGRESULT SET TMGRESULT=""
+       NEW TRIDT,TRIVAL,CALC
+       NEW NUM
+       FOR NUM=1:1:3  DO
+       . DO GETNLAB(TMGDFN,205,.TRIDT,.TRIVAL,NUM)       
+       . SET TRIDT=$P(TRIDT,".",1)
+       . IF TRIVAL>0 DO
+       . . IF TMGRESULT'="" SET TMGRESULT=TMGRESULT_" <-- "
+       . . SET CALC=TRIVAL/5
+       . . ;"SET CALC=$FN(CALC,",")_" ("_$$EXTDATE^TMGDATE(TRIDT,1)_")"
+       . . SET CALC=$FN(CALC,",")_" on "_$$EXTDATE^TMGDATE(TRIDT,1)
+       . . SET TMGRESULT=TMGRESULT_CALC
+       SET TMGRESULT="VLDL (CALC) = "_TMGRESULT      
+       QUIT TMGRESULT
+       ;"              
 GETNLAB(TMGDFN,LABIEN,DATE,VALUE,NUMBACK)  ;"
        ;"GET THE N# (FROM LAST) DATE AND VALUE OF PROVIDED LAB
        ;"DATE AND VALUE ARE PASSED BY REF
