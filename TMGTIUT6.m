@@ -219,3 +219,36 @@ TEST1  ;"Ask for TIU IEN and SUMM that one document.
   ZWR ARRAY
   QUIT
   ;  
+LONGLIST(Y,CLASS,FROM,DIR,IDNOTE)       ; long list of IMAGES titles for a class
+        ; .Y=returned list, CLASS=ptr to class in 8925.1, FROM=text to $O from,
+        ; DIR=$O direction, IDNOTE=flag to indicate selection for ID Entry
+        ;"//kt **NOTE**: This function modified 7/1/24.  Original is LONGLIST0 below.
+        N I,DA,CNT S I=0,CNT=44,DIR=$G(DIR,1)
+        NEW TEMP,UFROM,UPUP,LOCT,UPCASE,LOCASE SET (UPCT,LOCT)=0
+        NEW INITFROM SET INITFROM=FROM
+        ;"Get the list starting at FROM, but extending all the way to the end,
+        ;"  because lowercase follows uppercase, but should be mixed together.
+        FOR  SET FROM=$O(^TIU(8925.1,"ACL",CLASS,FROM),DIR) Q:FROM=""  DO
+        . SET UFROM=$$UP^XLFSTR(FROM)  ;"//kt
+        . IF UFROM'["IMAGE" QUIT
+        . SET UPCASE=(UFROM=FROM),LOCASE='UPCASE
+        . IF LOCASE,UFROM']INITFROM QUIT  ;"e.g. looking for N~ and after, so exlude "clst"
+        . S DA=0
+        . FOR  SET DA=$O(^TIU(8925.1,"ACL",CLASS,FROM,DA)) Q:+DA'>0  DO
+        . . I $S(+$$CANENTR^TIULP(DA)'>0:1,+$$CANPICK^TIULP(DA)'>0:1,1:0) Q
+        . . I +$L($T(CANLINK^TIULP)),+$G(IDNOTE),(+$$CANLINK^TIULP(DA)'>0) Q
+        . . IF UPCASE SET UPCT=UPCT+1 QUIT:UPCT>CNT
+        . . IF LOCASE SET LOCT=LOCT+1 QUIT:LOCT>CNT
+        . . SET TEMP(UFROM_"^"_DA)=DA_"^"_UFROM   ;" lowercase results can trap user.  e.g. clst  <RECORDS SENT>
+        ;"//kt Alphbetize result list.  Before, we had Uppercase, followed by lowercase.
+        SET I=1,UFROM=""
+        FOR  QUIT:I'<CNT  SET UFROM=$ORDER(TEMP(UFROM)) QUIT:UFROM=""  DO
+        . SET Y(I)=TEMP(UFROM),I=I+1
+  QUIT
+  ;"NEW RESULTS
+  ;"DO LONGLIST^TIUSRVD(.RESULTS,.CLASS,.FROM,.DIR,.IDNOTE)
+  ;"NEW I SET I=0
+  ;"FOR  SET I=$O(RESULTS(I))
+  ;"MERGE Y=RESULTS  ;" CHANGE NOTES HERE  
+  ;"QUIT
+  ;"

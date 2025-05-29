@@ -21,17 +21,18 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
   ;" API -- Public Functions.
   ;"=======================================================================                                   
   ;"NICESPLT(S,LEN,S1,S2,S2MIN,DIVCH) -- Split string to length, at spaces
-  ;"NEEDEDWS(S,SPECIALINDENT,INDENT) --NEEDED WHITE SPACE
-  ;"NUMLWS(S) -- NUM LEFT WHITE SPACE
+  ;"$$NEEDEDWS(S,SPECIALINDENT,INDENT) --NEEDED WHITE SPACE
+  ;"$$NUMLWS(S) -- NUM LEFT WHITE SPACE
   ;"$$MAKEWS(N) -- Return a whitespace string that is n characters long
   ;"$$REPLSTR(STR,MATCH,NEWVAL) --REPLACE STRING: look for all instances of MATCH in STR, and replace with NEWVAL
-  ;"STRIPARR(REF,STR) --Strip STR from each line of @REF array
-  ;"REPLARR(REF,SRCHSTR,REPLSTR) -- Replace each instance of SRCHSTR with REPLSTR from each line of @REF array
+  ;"$$STRIPARR(REF,STR) --Strip STR from each line of @REF array
+  ;"$$REPLARR(REF,SRCHSTR,REPLSTR) -- Replace each instance of SRCHSTR with REPLSTR from each line of @REF array
   ;"$$MATCHXTR(STR,DIVCH,GROUP,MAP) -- Extract a string bounded by DIVCH, honoring matching encapsulators
-  ;"$$LMATCH(STR,SUBSTR) -- Does left part of STR match SUBSTR?
-  ;"$$RMATCH(STR,SUBSTR) -- Does right part of STR match SUBSTR?   
   ;"MAPMATCH(STR,MAP) -- map a string with nested braces, parentheses etc (encapsulators)
   ;"MAPMATCH2(STR,MAP,ENCAPS) -- MAP MATCHING ENCAPSULATORS, allowing multi-char, arbitarily-paired encapsulators
+  ;"$$EXTRACTMATCHED(STR,POS,ENCAPS,ENDPOS)  --Extract substring, bound by encapsulators, starting at POS
+  ;"$$STRPOSMATCH(STR,SUBSTR,POS)  --Does STR match SUBSTR, starting at POS?
+  ;"MAPMATCH3(STR,MAPREF,ENCAPS) --MAP MATCHING ENCAPSULATORS, allowing multi-char, arbitarily-paired encapsulators, honoring nesting and ignoring encapsulators in strings.    
   ;"$$QTPROTCT(STR)-- Protects quotes by converting all quotes to double quotes
   ;"$$UNQTPROT(STR) --Reversed quotes protection by converting all double quotes to single quotes
   ;"$$ISALPHNUM(CH) -- is character alphanumeric?
@@ -41,10 +42,10 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
   ;"$$RANDSTR(LEN,FLAGS,EXCLUDE) --Output a random string of given length, with options
   ;"$$TRIM2NUM(STR) --Trim of anything in string up to, but not including, a number
   ;"$$NUMAFTERLABEL(STR,LABEL) -- Return number following label. 
-  ;"STRIPCMD(STR)  -- Strip command characters
+  ;"$$STRIPCMD(STR)  -- Strip command characters
   ;"$$POS(SUBSTR,S,COUNT)  ;return the beginning position of SUBSTR in S
   ;"$$POSSET(STR,SUBSTRSET,STARTPOS) --POSITION OF CHARACTER FROM SET -- different from $$POS()
-  ;"INQT(STR,POS)  -- In Quote?
+  ;"$$INQT(STR,POS)  -- In Quote?
   ;"$$ENDQTPOS(STR,P1) -- return position of closing quotes 
   ;"$$GETWORD(STR,POS,OPENDIV,CLOSEDIV) -- Extract a word from a sentance, bounded by OPENDIV,CLOSEDIV 
   ;"$$NEXTTOKN(STR) --GET NEXT TOKEN
@@ -52,22 +53,42 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
   ;"$$PIECE2(STR,DIVCHS,IDX,IDX2,DIVUSED) Get indexed word, based on first found divisor character       
   ;"$$NEXTFRAG(STR,STARTPOS,FRAGS) --Get first next character (or string fragment), matching from array of possible inputs.
   ;"$$NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G) --Get first next char (or string fragment), matching from 7 possible inputs.
-  ;"LMATCH(STR,SUBSTR,CASESPEC) - Does left part of STR match SUBSTR?
-  ;"RMATCH(STR,SUBSTR,CASESPEC) - Does right part of STR match SUBSTR?  
+  ;"$$LMATCH(STR,SUBSTR,CASESPEC) - Does left part of STR match SUBSTR?
+  ;"$$RMATCH(STR,SUBSTR,CASESPEC) - Does right part of STR match SUBSTR?  
   ;"$$SUBASCII(STR)  --TAKES INPUT OF AAC AND RETURNS AAB (useful for finding just before, to $ORDER to STR)
-  ;"$$MIDSTRCOLOR(TEXT,START,LEN) -- similar to MidStr(), but skipping over {{color}} tags
+  ;"$$UNICODEMIDSTR(TEXT,START,LEN)  --Unicode aware $MID() function  
+  ;"depreciated --> $$MIDSTRCOLOR(TEXT,START,LEN) -- similar to MidStr(), but skipping over {{color}} tags
   ;"$$MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) --MARKUP-STR-MID().  Like MidStr() or $EXTRACT(), but for Markup strings
   ;"$$MKSTRLEN(TEXT,TAGSTART,TAGEND) --Length of Markup string (excluding tags)
   ;"$$MKSTRLTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-LTRIM().   
   ;"$$MKSTRRTRIM(TEXT,NUM,TAGSTART,TAGEND) --MARKUP-STR-RTRIM(). 
-  ;"$$UNICODEMIDSTR(TEXT,START,LEN)  -- Unicode aware $MID() function  
+  ;"FOREACHTAG(TEXT,TAGSTART,TAGEND,HNDTAG) -- Cycle through each tag, calling callback Fn HNDTAG  
   ;"$$FINDDT(TEXT,SPOS,OUT,SPT,EPT) --Find date in TEXT, starting at option SPOS, return value found in DTOUT
+  ;"SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR) -- Get match info of substring in string, return results in MATCH
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
   ;"$$NEEDEDWS(S,SPECIALINDENT,INDENT) -- create white space need for wrapped lines
   ;"GETMATCHENCAP(OUT,ENCAP) ;  
   ;"INTAG(POS,MAP) --Based on MAP from MAPMATCH2, is POS inside a non-nested encapsulator?  
+  ;"$$WIDECAPS(ENCAPS) --Returns 1 if any of the encapsulators is 'wide', i.e. multi-char (e.g. '{{')
+  ;"$$CHISENCAP(CH,ENCAPS,OPEN,CLOSE) --Does CH map (or partly match) an encapsulator 
+  ;"PARSESTR(STR,ARR) -- PARSE STRING -- for use in SUBSTRMATCH()
+  ;"=======================================================================
+  ;" Test Functions
+  ;"=======================================================================
+  ;"TESTMM2 ;
+  ;"TESTEXTRACTMATCHED ;
+  ;"TESTMM3 ;  
+  ;"TESTISNUM ;"   
+  ;"TESTNUMSTR ;" 
+  ;"TESTUCMID ;  
+  ;"TESTMKSM ;  
+  ;"TESTMKLTRIM ;  
+  ;"TESTMKRTRIM ;  
+  ;"TESTFE ;  
+  ;"TESTCALLBACK(TEXT,ATAG,POS) --CALLBACK FOR TESTFE
+  ;"TESTSS  -- TEST SUBSTRMATCH()
   ;"=======================================================================
   ;"Dependancies: XLFSTR
   ;
@@ -190,10 +211,11 @@ REPLARR(REF,SRCHSTR,REPLSTR) ;"REPLACE each instance of SRCHSTR with REPLSTR fro
   . SET @REF@(LINENUM)=LT2,RESULT=1
   QUIT RESULT
   ;    
-MATCHXTR(STR,DIVCH,GROUP,MAP,RESTRICT) ;"MATCH EXTRACT
+MATCHXTR(STR,DIVCH,GROUP,MAP,ALLOWEDENCAPS) ;"MATCH EXTRACT
+  ;"NOTE: see also EXTRACTMATCHED(STR,POS,ENCAPS,ENDPOS) <-- this make be a remake of same function
   ;"Purpose to extract a string bounded by DIVCH, honoring matching encapsulators
   ;"Note: the following markers are honored as paired encapsulators:
-  ;"      ( ),  { },  | |,  < >,  # #, [ ], " "
+  ;"      ( ),  { },  | |,  < >,  # #, [ ], " ", ' '
   ;"      To specify which SET to use, DIVCH should specify only OPENING character
   ;"E.g. DIVCH="{"
   ;"       s="Hello {There}" --> return "There"
@@ -207,10 +229,13 @@ MATCHXTR(STR,DIVCH,GROUP,MAP,RESTRICT) ;"MATCH EXTRACT
   ;"       GROUP -- OPTIONAL.  Default is 1.  If line has more than one SET of encapsulated entries, which group to get from
   ;"       MAP -- OPTIONAL.  PASS BY REFERENCE.  If function is to be called multiple times,
   ;"              then a prior MAP variable can be passed to speed processing.
-  ;"       RESTRICT -- OPTIONAL.  A string of allowed opening encapsulators (allows others to be ignored)
+  ;"       ALLOWEDENCAPS -- OPTIONAL.  A string of allowed opening encapsulators (allows others to be ignored)
   ;"                  e.g. "{(|"  <-- will cause "<>#[]" to be ignored
   ;"Results: Returns extracted string.
-  IF $DATA(MAP)=0 DO MAPMATCH(STR,.MAP,.RESTRICT)
+  ;"NOTE: If ALLOWEDENCAPS are not provided, and defaults to multiple encapsulators, and if
+  ;"      multiple instances of encapsulators are found in string, can cause problems.  
+  ;"      It is best to specify just one encapsulator.  
+  IF $DATA(MAP)=0 DO MAPMATCH(STR,.MAP,.ALLOWEDENCAPS)
   SET GROUP=$GET(GROUP,1)
   SET DIVCH=$GET(DIVCH)
   NEW RESULT SET RESULT=""
@@ -222,16 +247,16 @@ MATCHXTR(STR,DIVCH,GROUP,MAP,RESTRICT) ;"MATCH EXTRACT
   . SET RESULT=$EXTRACT(STR,P(1)+1,P(2)-1)
   QUIT RESULT
   ;
-MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS.  NOTE: See also MAPMATCH2() for extra functionality
+MAPMATCH(STR,MAP,ALLOWEDENCAPS)  ;"MAP MATCHING ENCAPSULATORS.  NOTE: See also MAPMATCH2() for extra functionality
   ;"Purpose to map a string with nested braces, parentheses etc (encapsulators)
   ;"Note: the following markers are honored as paired encapsulators:
-  ;"      ( ),  { },  | |,  < >,  # #,  " "
+  ;"      ( ),  { },  | |,  < >,  # #,  " ", ' ', [ ]
   ;"Input: STR -- string to evaluate
   ;"       MAP -- PASS BY REFERENCE.  An OUT PARAMETER.  Prior values are killed.  Format:
   ;"           MAP(GROUP,Depth)=OpeningSymbol
   ;"           MAP(GROUP,Depth,"Pos",1)=index of opening symbol
   ;"           MAP(GROUP,Depth,"Pos",2)=index of paired closing symbol
-  ;"       RESTRICT -- OPTIONAL.  A string of allowed opening encapsulators (allows others to be ignored)
+  ;"       ALLOWEDENCAPS -- OPTIONAL.  A string of allowed opening encapsulators (allows others to be ignored)
   ;"                  e.g. "{(|"  <-- will cause "<>#[]" to be ignored
   ;"E.g.  STR="Hello there (friend)"
   ;"           MAP(1,1)="("         <-- encapsulator found
@@ -284,9 +309,9 @@ MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS.  NOTE: See also MAPMAT
   ;"           MAP(1,3,"Closer")="|" 
   ;"           MAP(1,3,"Pos",1)=27   <-- Interpreted as another opener, and no matching closer found                     
   ;"Results: none
-  SET RESTRICT=$GET(RESTRICT,"({|<#""")
+  SET ALLOWEDENCAPS=$GET(ALLOWEDENCAPS,"({|<""#'[")
   NEW MATCH,DEPTH,IDX,GROUP
-  DO GETMATCHENCAP(.MATCH,RESTRICT) 
+  DO GETMATCHENCAP(.MATCH,ALLOWEDENCAPS) 
   KILL MAP
   SET DEPTH=0,GROUP=1
   FOR IDX=1:1:$LENGTH(STR) DO
@@ -303,15 +328,63 @@ MAPMATCH(STR,MAP,RESTRICT)  ;"MAP MATCHING ENCAPSULATORS.  NOTE: See also MAPMAT
   . SET MAP(GROUP,DEPTH,"Pos",1)=IDX
   QUIT
   ;
-GETMATCHENCAP(OUT,ENCAP) ;  
-  IF ENCAP["(" SET OUT("(")=")"
-  IF ENCAP["{" SET OUT("{")="}"
-  IF ENCAP["|" SET OUT("|")="|"
-  IF ENCAP["<" SET OUT("<")=">"
-  IF ENCAP["#" SET OUT("#")="#"
-  IF ENCAP["""" SET OUT("""")=""""
+GETMATCHENCAP(OUT,ALLOWED) ;  
+  IF ALLOWED["(" SET OUT("(")=")"
+  IF ALLOWED["{" SET OUT("{")="}"
+  IF ALLOWED["|" SET OUT("|")="|"
+  IF ALLOWED["<" SET OUT("<")=">"
+  IF ALLOWED["#" SET OUT("#")="#"
+  IF ALLOWED["""" SET OUT("""")=""""
+  IF ALLOWED["'" SET OUT("'")="'"
+  IF ALLOWED["[" SET OUT("[")="]"
   QUIT
   ;  
+WIDECAPS(ENCAPS) ;"Returns 1 if any of the encapsulators is 'wide', i.e. multi-char (e.g. '{{')
+  ;"INPUT:  ENCAPS -- array with encapsulators
+  ;"           e.g. ENCAPS("{{")="}}"
+  ;"           e.g. ENCAPS("<")=">"
+  ;"           e.g. ENCAPS("ABC")="XYZ"
+  NEW RESULT SET RESULT=0
+  NEW CAP SET CAP=""
+  FOR  SET CAP=$ORDER(ENCAPS(CAP)) QUIT:(CAP="")!(RESULT=1)  DO
+  . IF $LENGTH(CAP)>1 SET RESULT=1 QUIT
+  . IF $LENGTH(ENCAPS(CAP))>1 SET RESULT=1 QUIT
+  QUIT RESULT
+  ;
+CHISENCAP(CH,ENCAPS,OPEN,CLOSE) ;"Does CH map (or partly match) an encapsulator
+  ;"INPUT: CH -- CHAR TO TEST
+  ;"       ENCAPS -- array with encapsulators
+  ;"           e.g. ENCAPS("{{")="}}"
+  ;"           e.g. ENCAPS("<")=">"
+  ;"           e.g. ENCAPS("ABC")="XYZ"
+  ;"       OPEN - OPTIONAL.  If passed by reference, filled with matched open encapsulator (if any)
+  ;"       CLOSE- OPTIONAL.  If passed by reference, filled with matched close encapsulator (if any)
+  ;"Result:  1  - matches against a single char opening encapsulator
+  ;"        -1  - matches against a single char closing encapsulator
+  ;"         2  - matching aginst the first character of multi-char opening encapsualtor
+  ;"        -2  - matching aginst the first character of multi-char closing encapsualtor
+  ;"         0  - no match
+  ;
+  NEW RESULT SET RESULT=0
+  NEW CAP SET CAP=""
+  FOR  SET CAP=$ORDER(ENCAPS(CAP)) QUIT:(CAP="")!(RESULT'=0)  DO
+  . SET OPEN=CAP
+  . SET CLOSE=$GET(ENCAPS(CAP))
+  . IF $LENGTH(OPEN)=1 DO  QUIT:RESULT'=0
+  . . IF CH'=OPEN QUIT
+  . . SET RESULT=1
+  . ELSE  DO  QUIT:RESULT'=0
+  . . IF $EXTRACT(OPEN,1)'=CH QUIT
+  . . SET RESULT=2
+  . IF $LENGTH(CLOSE)=1 DO  QUIT:RESULT'=0
+  . . IF CH'=CLOSE QUIT
+  . . SET RESULT=-1
+  . ELSE  DO  QUIT:RESULT'=0
+  . . IF $EXTRACT(CLOSE,1)'=CH QUIT
+  . . SET RESULT=-2
+  IF RESULT=0 SET (OPEN,CLOSE)=""
+  QUIT RESULT
+  ;      
 TESTMM2 ;
   ;"SET X="Hello there (Friend) and (Neighbor)"
   SET X="Hello |There{|friend|}|"
@@ -320,6 +393,7 @@ TESTMM2 ;
   QUIT
   ;
 MAPMATCH2(STR,MAP,ENCAPS)  ;" MAP MATCHING ENCAPSULATORS, allowing multi-char, arbitarily-paired encapsulators
+  ;"NOTE: See also MAPMATCH3 for a different type of matching.  
   ;"Purpose to map a string with nested braces, parentheses etc (encapsulators)
   ;"Note: the following markers are honored as paired encapsulators:
   ;"      ( ),  { },  | |,  < >,  # #,  " "
@@ -333,9 +407,10 @@ MAPMATCH2(STR,MAP,ENCAPS)  ;" MAP MATCHING ENCAPSULATORS, allowing multi-char, a
   ;"           e.g. ENCAPS("{{")="}}"
   ;"           e.g. ENCAPS("<")=">"
   ;"           e.g. ENCAPS("ABC")="XYZ"
-  ;"           If not provided, then default is ( ),  { },  | |,  < >,  # #,  " "
+  ;"           If not provided, then default is ( ),  { },  | |,  < >,  # #,  " ", ' ', [ ]
+  ;"NOTE: Seems to fail at properly mapping this string: {"0":0,"1":{"%%node_value%%":1,"2":{"3":0}},"2":2}
   NEW TEMPSTR SET TEMPSTR=STR
-  IF $DATA(ENCAPS)=0 DO GETMATCHENCAP(.ENCAPS,"({|<#""")
+  IF $DATA(ENCAPS)=0 DO GETMATCHENCAP(.ENCAPS,"({|<""#'[")
   NEW GROUP,DEPTH SET GROUP=1,DEPTH=0
   NEW IDX,CLSRS,ACLSR SET IDX="" 
   FOR  SET IDX=$ORDER(ENCAPS(IDX)) QUIT:IDX=""  DO
@@ -348,7 +423,6 @@ MAPMATCH2(STR,MAP,ENCAPS)  ;" MAP MATCHING ENCAPSULATORS, allowing multi-char, a
   NEW POS SET POS=1
   NEW DONE SET DONE=0
   FOR  DO  QUIT:DONE  
-  . ;"SET TAG=$$NEXTFRAG(TEMPSTR,POS,.TAGS,.TAGPOS)
   . SET OPENTAG=$$NEXTFRAG(TEMPSTR,POS,.ENCAPS,.OPENPOS)
   . SET CLOSETAG=$$NEXTFRAG(TEMPSTR,POS,.CLSRS,.CLOSEPOS)
   . IF OPENPOS>0,(OPENPOS<CLOSEPOS)!(CLOSEPOS=0) DO
@@ -373,7 +447,212 @@ MAPMATCH2(STR,MAP,ENCAPS)  ;" MAP MATCHING ENCAPSULATORS, allowing multi-char, a
   . SET MAP(GROUP,DEPTH,"Closer")=MATCHCLOSER
   . SET MAP(GROUP,DEPTH,"Pos",1)=TAGPOS
   QUIT
+  ;  
+EXTRACTMATCHED(STR,POS,ENCAPS,ENDPOS)  ;"Extract substring, bound by encapsulators, starting at POS
+  ;"NOTE: see also MATCHXTR(STR,DIVCH,GROUP,MAP,ALLOWEDENCAPS) <-- may be duplicate function.  
+  ;"               MATCHXTR first maps out the entire string.  This function goes left to right.  
+  ;"Input: STR -- string to evaluate
+  ;"       POS -- starting position in STR.  Must be position of opening encapsulator, or starting position of multichar encapsulator.  
+  ;"       ENCAPS -- OPTIONAL.  ARRAY of opening and closing encapsulators.  Format:
+  ;"           ENCAPS(<OpenEncapsulator>)=<CloseEncapsulator>
+  ;"           e.g. ENCAPS("{{")="}}"
+  ;"           e.g. ENCAPS("<")=">"
+  ;"           e.g. ENCAPS("ABC")="XYZ"
+  ;"           If not provided, then default is ( ),  { },  | |,  < >,  # #,  " ", ' ', [ ]
+  ;"       ENDPOS -- OPTIONAL.  If passed by reference, then will be filled with pos, from STR, immediately following closing encapsulator
+  ;"Result: returns string, or ""
+  NEW RESULT SET RESULT=""
+  NEW ABORT SET ABORT=0
+  NEW QT1 SET QT1="'"
+  NEW QT2 SET QT2=""""
+  NEW QTS SET QTS=QT1_QT2
+  NEW INQT SET INQT=0 NEW CLOSEQT SET CLOSEQT="" 
+  NEW STARTPOS SET STARTPOS=+$GET(POS) IF STARTPOS'>0 SET STARTPOS=1
+  SET ENDPOS=0
+  IF $DATA(ENCAPS)=0 DO GETMATCHENCAP^TMGSTUT3(.ENCAPS,"({|<""#'[")
+  NEW WIDE SET WIDE=$$WIDECAPS^TMGSTUT3(.ENCAPS) ;"Returns 1 if any of the encapsulators is 'wide', i.e. multi-char (e.g. '{{')
+  NEW CH SET CH=$EXTRACT(STR,POS)
+  NEW OPEN,CLOSE
+  NEW TEST SET TEST=$$CHISENCAP^TMGSTUT3(CH,.ENCAPS,.OPEN,.CLOSE)  ;"Does CH map (or partly match) an encapsulator
+  IF TEST'>0 GOTO EMDN     ;"starting position must be on an encapsulator
+  IF TEST=2 DO  GOTO:ABORT EMDN
+  . SET ABORT=($$STRPOSMATCH(STR,OPEN,POS)=0)
+  NEW OPENISQT SET OPENISQT=(QTS[OPEN)  ;"Is the encapsulator itself a quote char?
+  IF OPENISQT DO   ;"Remove the active encapsulator from QTS string.
+  . SET QTS=""
+  . ;"IF OPEN=QT1 SET QTS=QT2
+  . ;"ELSE  IF OPEN=QT2 SET QTS=QT1
+  SET POS=POS+$LENGTH(OPEN)  ;"should be positioned directly AFTER opening. 
+  ;"Loop through all chars until close encountered, ignoring if inside quotes (single or double), and counting depth
+  NEW DEPTH SET DEPTH=1
+  NEW DONE SET DONE=0
+  ;"Example:  He said, "You must 'love' one another." OK?
+  FOR POS=POS:1:$LENGTH(STR) QUIT:DONE  DO
+  . NEW CH SET CH=$EXTRACT(STR,POS)
+  . NEW HANDLED SET HANDLED=0
+  . IF QTS[CH DO  QUIT:HANDLED
+  . . IF INQT DO
+  . . . IF CH=CLOSEQT DO
+  . . . . SET INQT=0,CLOSEQT="",HANDLED=1
+  . . ELSE  DO
+  . . . IF CH=CLOSE QUIT   ;"e.g. abc'123'def  If started at pos=3, then ' at 7 is closer. Handle below
+  . . . SET INQT=1,CLOSEQT=CH,HANDLED=1
+  . IF INQT QUIT  ;"ignore everything until done with quotes
+  . NEW MATCH SET MATCH=$$STRPOSMATCH(.STR,CLOSE,POS)
+  . IF MATCH=1 DO  QUIT
+  . . SET DEPTH=DEPTH-1
+  . . IF DEPTH=0 SET ENDPOS=POS,DONE=1
+  . SET MATCH=$$STRPOSMATCH(.STR,OPEN,POS)  ;"are we starting a new nested opening match?
+  . IF MATCH=1 DO
+  . . SET DEPTH=DEPTH+1
+  . . SET POS=POS+$LENGTH(OPEN)-1
+  IF ENDPOS>STARTPOS DO
+  . SET RESULT=$EXTRACT(STR,STARTPOS,ENDPOS)
+  . SET ENDPOS=ENDPOS+1  ;"position cursor to be after match.  
+EMDN ;  
+  QUIT RESULT
   ;
+TESTEXTRACTMATCHED ;
+  ;"NEW STR SET STR="{""0"":0,""1"":{""%%node_value%%"":1,""2"":{""3"":0}},""2"":2}"
+  NEW STR SET STR=">""That's all folks"" is the best."
+  NEW POS SET POS=2
+  NEW TEST SET TEST=$$EXTRACTMATCHED(STR,POS)
+  WRITE TEST,!
+  QUIT
+  ;
+TESTMATCHXTR ;
+  NEW STR SET STR="{""@"":0,""1"":{""%%node_value%%"":1,""2"":{""3"":0}},""2"":2}"
+  ;"NEW STR SET STR="{There {nested braces} friend}"
+  ;"NEW STR SET STR="""There {nested braces} friend"""
+  NEW POS SET POS=2
+  NEW TEST SET TEST=$$MATCHXTR(STR,$E(STR,POS),,,"""")  ;"<--- doesn't work correctly unless encapsulator specified
+  WRITE TEST,!
+  QUIT
+  ;
+STRPOSMATCH(STR,SUBSTR,POS)  ;"Does STR match SUBSTR, starting at POS?
+  NEW LEN SET LEN=$LENGTH(SUBSTR)
+  NEW TEST SET TEST=$EXTRACT(STR,POS,POS+LEN-1)
+  NEW RESULT SET RESULT=(TEST=SUBSTR)
+  QUIT RESULT
+  ;
+MAPMATCH3(STR,MAPREF,ENCAPS)  ;" MAP MATCHING ENCAPSULATORS, allowing multi-char, arbitarily-paired encapsulators, 
+  ;"                          honoring nesting and ignoring encapsulators in strings.  
+  ;"Purpose to map a string with nested braces, parentheses etc (encapsulators)
+  ;"Note: the following markers are honored as paired encapsulators:
+  ;"      ( ),  { },  | |,  < >,  # #,  " ",  ' ', [ ]
+  ;"Input: STR -- string to evaluate
+  ;"       MAP -- PASS BY NAME.  An OUT PARAMETER.  Prior values are killed.  Format:
+  ;"          MAP(1)=<PRE TEXT WITHOUT ANY ENCAPSULATORS>
+  ;"          MAP(2)=<OPEN TAG>
+  ;"          MAP(2,1)=<PRE TEXT WITHOUT ANY ENCAPSULATORS>
+  ;'          MAP(2,2)=<OPEN_TAG>
+  ;"          MAP(2,2,1)=<INTERVAL TEXT WITHOUT ANY ENCAPSULATORS>
+  ;'          MAP(2,3)=<CLOSE_TAG>
+  ;"          MAP(2,4)=<INTERVAL TEXT WITHOUT ANY ENCAPSULATORS>
+  ;"          MAP(2,"XREF",#)=<STRING POSITION IN SUBSTRING>
+  ;"          MAP(2,"STR")=<FRAGMENT SUBSTRING>
+  ;'          MAP(3)=<CLOSE_TAG>
+  ;"          MAP(4)=<INTERVAL TEXT WITHOUT ANY ENCAPSULATORS>
+  ;"          MAP(5)=<OPEN TAG>
+  ;"          MAP(5,1)=<INTERVAL TEXT WITHOUT ANY ENCAPSULATORS>
+  ;"          MAP(5,"XREF",#)=<STRING POSITION IN SUBSTRING>
+  ;"          MAP(5,"STR")=<FRAGMENT SUBSTRING>
+  ;"          MAP(6)=<CLOSE TAG>
+  ;"          MAP(7)=<POST TEXT WITHOUT ANY ENCAPSULATORS>
+  ;"          MAP("XREF",#)=<STRING POSITION IN STRING>
+  ;"          MAP("STR")=<STRING>
+  ;"       ENCAPS -- OPTIONAL.  ARRAY of opening and closing encapsulators.  Format:
+  ;"           ENCAPS(<OpenEncapsulator>)=<CloseEncapsulator>
+  ;"           e.g. ENCAPS("{{")="}}"
+  ;"           e.g. ENCAPS("<")=">"
+  ;"           e.g. ENCAPS("ABC")="XYZ"
+  ;"           If not provided, then default is ( ),  { },  | |,  < >,  # #,  " ", ' '
+  ;"NOTE: test string: {"0":0,"1":{"%%node_value%%":1,"2":{"3":0}},"2":2}
+  ;"Result: none
+  NEW ALLOWEDENCAPS SET ALLOWEDENCAPS="({|<""#'["
+  IF $DATA(ENCAPS)=0 DO GETMATCHENCAP^TMGSTUT3(.ENCAPS,"({|<""#'[")
+  NEW OPENTAG,CLOSETAG,OPENPOS,CLOSEPOS
+  NEW PARTA,PARTB,PARTC
+  NEW LEN SET LEN=$LENGTH(STR)
+  SET @MAPREF@("STR")=STR
+  NEW IDX SET IDX=0
+  NEW POS SET POS=1
+  NEW DONE SET DONE=0  
+  FOR  DO  QUIT:DONE  
+  . SET OPENTAG=$$NEXTFRAG(STR,POS,.ENCAPS,.OPENPOS)
+  . IF OPENTAG'="" DO
+  . . NEW PARTA SET PARTA=$EXTRACT(STR,POS,OPENPOS-1)
+  . . NEW PARTB,ENDPOS SET PARTB=$$EXTRACTMATCHED(STR,OPENPOS,.ENCAPS,.ENDPOS)
+  . . IF PARTB="" SET DONE=1 QUIT  ;"error state
+  . . NEW CLOSETAG SET CLOSETAG=$GET(ENCAPS(OPENTAG)) 
+  . . IF CLOSETAG="" SET DONE=1 QUIT  ;"error state
+  . . SET PARTB=$EXTRACT(PARTB,$LENGTH(OPENTAG)+1,$LENGTH(PARTB)-$LENGTH(CLOSETAG))
+  . . NEW PARTC SET PARTC=$EXTRACT(STR,ENDPOS,$LENGTH(STR))
+  . . IF PARTA'="" SET @MAPREF@($I(IDX))=PARTA
+  . . IF PARTB'=""  DO  
+  . . . SET @MAPREF@($I(IDX))=OPENTAG
+  . . . NEW SUBREF SET SUBREF=$NAME(@MAPREF@(IDX))
+  . . . NEW SUBENCAPS MERGE SUBENCAPS=ENCAPS
+  . . . IF OPENTAG="""" KILL SUBENCAPS("'")
+  . . . IF OPENTAG="'" KILL SUBENCAPS("""")
+  . . . DO MAPMATCH3(PARTB,SUBREF,.SUBENCAPS)
+  . . . SET PARTB=""
+  . . SET @MAPREF@($I(IDX))=CLOSETAG
+  . . SET STR=PARTC,POS=1,LEN=$LENGTH(STR),PARTC=""
+  . . ;
+  . ELSE  DO
+  . . SET @MAPREF@($I(IDX))=STR
+  . . SET DONE=1
+  . IF POS>LEN SET DONE=1  
+  QUIT
+  ;  
+TESTMM3 ;
+  NEW STR SET STR="{""0"":0,""1"":{""%%node_value%%"":1,""2"":{""3"":0}},""2"":2}"
+  NEW MAP DO MAPMATCH3(STR,"MAP")
+  ZWR MAP
+  ;"MAP(1)="{"
+  ;"MAP(1,1)=""""
+  ;"MAP(1,1,1)=0
+  ;"MAP(1,1,"STR")=0
+  ;"MAP(1,2)=""""
+  ;"MAP(1,3)=":0,"
+  ;"MAP(1,4)=""""
+  ;"MAP(1,4,1)=1
+  ;"MAP(1,4,"STR")=1
+  ;"MAP(1,5)=""""
+  ;"MAP(1,6)=":"
+  ;"MAP(1,7)="{"
+  ;"MAP(1,7,1)=""""
+  ;"MAP(1,7,1,1)="%%node_value%%"
+  ;"MAP(1,7,1,"STR")="%%node_value%%"
+  ;"MAP(1,7,2)=""""
+  ;"MAP(1,7,3)=":1,"
+  ;"MAP(1,7,4)=""""
+  ;"MAP(1,7,4,1)=2
+  ;"MAP(1,7,4,"STR")=2
+  ;"MAP(1,7,5)=""""
+  ;"MAP(1,7,6)=":"
+  ;"MAP(1,7,7)="{"
+  ;"MAP(1,7,7,1)=""""
+  ;"MAP(1,7,7,1,1)=3
+  ;"MAP(1,7,7,1,"STR")=3
+  ;"MAP(1,7,7,2)=""""
+  ;"MAP(1,7,7,3)=":0"
+  ;"MAP(1,7,7,"STR")="""3"":0"
+  ;"MAP(1,7,8)="}"
+  ;"MAP(1,7,"STR")="""%%node_value%%"":1,""2"":{""3"":0}"
+  ;"MAP(1,8)="}"
+  ;"MAP(1,9)=","
+  ;"MAP(1,10)=""""
+  ;"MAP(1,10,1)=2
+  ;"MAP(1,10,"STR")=2
+  ;"MAP(1,11)=""""
+  ;"MAP(1,12)=":2"
+  ;"MAP(1,"STR")="""0"":0,""1"":{""%%node_value%%"":1,""2"":{""3"":0}},""2"":2"
+  ;"MAP(2)="}"
+  ;"MAP("STR")="{""0"":0,""1"":{""%%node_value%%"":1,""2"":{""3"":0}},""2"":2}"    
+  QUIT
+  ;    
 QTPROTCT(STR) ;QUOTE PROTECT
   ;"Purpose: Protects quotes by converting all quotes to double quotes (" --> "")
   ;"Input : s -- The string to be modified.  Original string is unchanged.
@@ -426,7 +705,6 @@ ISNUM(STR) ;" Return if STR is numeric (and a VALID numerical string.)
   IF S2["," DO  GOTO:(RESULT=0) ISNMDN
   . NEW STRA,S3 SET S3=$PIECE(S2,".",1)  ;"ALL COMMA GROUPINGS MUST =3 EXCEPT LEFT-MOST
   . FOR IDX=$LENGTH(S3,","):-1:2 SET RESULT=($LENGTH($PIECE(S3,",",IDX))=3) QUIT:RESULT=0
-  QUIT RESULT
 ISNMDN  ;
   QUIT RESULT
   ;     
@@ -852,8 +1130,7 @@ MKSTRMID(TEXT,START,LEN,TAGSTART,TAGEND,OPTION) ;"MARKUP-STR-MID().  Like MidStr
   ;"         OPTION("STRIP TAGS")=1.  If found, tags are not return with result, and are stripped out.  
   ;"                              If NOT found, then tags are returned in output string, but not counted in length returned.
   ;"         OPTION("KEEP TAGS")=1  If found, then ALL tags are returned, even those outside specified range.
-  ;"         OPTION("KEEP LEFT TAGS")=1  If found, then all tags to left of range and inside specified range returned
-  
+  ;"         OPTION("KEEP LEFT TAGS")=1  If found, then all tags to left of range and inside specified range returned  
   NEW RESULT SET RESULT=""
   SET TAGSTART=$GET(TAGSTART) IF TAGSTART="" GOTO MSMSDN 
   SET TAGEND=$GET(TAGEND) IF TAGEND="" GOTO MSMSDN
@@ -1065,3 +1342,293 @@ FINDDT(TEXT,SPOS,OUT,SPT,EPT) ;"Find date in TEXT, starting at option SPOS, retu
   SET RESULT=EPT+1
 FDTDN ;
   QUIT RESULT
+  ;
+PARSESTR(STR,ARR) ;"PARSE STRING -- for use in SUBSTRMATCH()
+  ;"INPUT: STR -- STRING TO PARSE
+  ;"       ARR -- PASS BY REFERENCE, AN OUT PARAMETER.  SEE SUBSTRMATCH() BELOW
+  ;"OUTPUT: ARR filled as follows
+  ;"         ARR(#)=<WORD>^<trailing divisors>
+  ;"         ARR("IDX",<UPPERCASE OF WORD>,#)=""
+  NEW DIVS SET DIVS=" ,;:.!?"
+  NEW CURWORD SET CURWORD=""
+  NEW WORDSTARTPOS SET WORDSTARTPOS=0
+  NEW CURDIV SET CURDIV=""
+  NEW OUTIDX SET OUTIDX=0
+  NEW INDIV SET INDIV=0  ;"Is parsing position in a divisor character
+  NEW P FOR P=1:1:$LENGTH(STR) DO
+  . NEW CH SET CH=$EXTRACT(STR,P) QUIT:CH=""
+  . ;"IF CH?.P DO  QUIT  ;"If ch is a punctuation character
+  . IF DIVS[CH DO  QUIT  ;"If ch is a punctuation character
+  . . SET INDIV=1
+  . . SET CURDIV=CURDIV_CH
+  . ;"IF CH?.AN DO  QUIT  ;"If ch is an upper or lower case alphabetic character or number
+  . ELSE  DO  QUIT  
+  . . IF INDIV DO
+  . . . ;"last char was a divisor, so we must be starting a new word
+  . . . SET ARR($I(OUTIDX))=CURWORD_"^"_CURDIV_"^"_WORDSTARTPOS
+  . . . SET ARR("IDX",$$UP^XLFSTR(CURWORD),OUTIDX)=""
+  . . . SET CURWORD=CH,WORDSTARTPOS=P,CURDIV="",INDIV=0
+  . . ELSE  DO
+  . . . IF WORDSTARTPOS=0 SET WORDSTARTPOS=P
+  . . . SET CURWORD=CURWORD_CH
+  IF CURWORD'="" DO
+  . SET ARR($I(OUTIDX))=CURWORD_"^"_CURDIV_"^"_WORDSTARTPOS
+  . SET ARR("IDX",CURWORD,OUTIDX)=""
+  QUIT
+  ;
+SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR)  ;"Get match info of substring in string, return results in MATCH
+  ;"Input: SUBSTR -- String input.  We will search for matches or partial matches of this inside STR
+  ;"       STR -- String input.  This will be string that is searched for parts of SUBSTR
+  ;"       MATCH -- PASS BY REFERENCE.  An OUT PARAMETER.  Format:
+  ;"         MATCH(#)=<start position in STRING (not SUBSTRING)>^<match character length)^<number of words in match>
+  ;"         MATCH(#,"STR")=<upper case matched string>
+  ;"         MATCH("LENIDX",<char length>,#)=""
+  ;"       SUBSTRARR -- OPTIONAL.  PASS BY REFERENCE.  If this contains data, it will be used instead of SUBSTR
+  ;"                         If initially empty, then SUBSTR will be parsed into this, and results passed back.  
+  ;"                    Format: Array of parsed substring, as created by PARSESTR
+  ;"                    SUBSTRARR(#)=<WORD>^<trailing divisors>
+  ;"                    SUBSTRARR("IDX",<UPPERCASE OF WORD>,#)=""   
+  ;"                    Example: 
+  ;"                      SUBSTRARR(1)="I^ ^1"
+  ;"                      SUBSTRARR(2)="remember^ ^3"
+  ;"                      SUBSTRARR(3)="that^ ^12"
+  ;"                      SUBSTRARR(4)="Bill^ ^17"
+  ;"                      SUBSTRARR(5)="and^ ^22"
+  ;"                      SUBSTRARR(6)="Ted^, ^26"
+  ;"                      SUBSTRARR(7)="dressed^ ^31"
+  ;"                      SUBSTRARR(8)="in^ ^39"
+  ;"                      SUBSTRARR(9)="costumes^, ^42"
+  ;"                      SUBSTRARR(10)="went^ ^52"
+  ;"                      SUBSTRARR(11)="on^ ^57"
+  ;"                      SUBSTRARR(12)="an^ ^60"
+  ;"                      SUBSTRARR(13)="adventure^ ^63"
+  ;"                      SUBSTRARR(14)="to^ ^73"
+  ;"                      SUBSTRARR(15)="France^.^76"
+  ;"                      SUBSTRARR("IDX","ADVENTURE",13)=""
+  ;"                      SUBSTRARR("IDX","AN",12)=""
+  ;"                      SUBSTRARR("IDX","AND",5)=""
+  ;"                      SUBSTRARR("IDX","BILL",4)=""
+  ;"                      SUBSTRARR("IDX","COSTUMES",9)=""
+  ;"                      SUBSTRARR("IDX","DRESSED",7)=""
+  ;"                      SUBSTRARR("IDX","France",15)=""
+  ;"                      SUBSTRARR("IDX","I",1)=""
+  ;"                      SUBSTRARR("IDX","IN",8)=""
+  ;"                      SUBSTRARR("IDX","ON",11)=""
+  ;"                      SUBSTRARR("IDX","REMEMBER",2)=""
+  ;"                      SUBSTRARR("IDX","TED",6)=""
+  ;"                      SUBSTRARR("IDX","THAT",3)=""
+  ;"                      SUBSTRARR("IDX","TO",14)=""
+  ;"                      SUBSTRARR("IDX","WENT",10)=""  
+  ;"       STRARR --    OPTIONAL.  PASS BY REFERENCE.  If this contains data, it will be used instead of STR
+  ;"                         If initially empty, then STR will be parsed into this, and results passed back.  
+  ;"                    Format: Array of parsed substring, as created by PARSESTR
+  ;"                    STRARR(#)=<WORD>^<trailing divisors>
+  ;"                    STRARR("IDX",<UPPERCASE OF WORD>,#)=""
+  ;"                    Example:
+  ;"                      STRARR(1)="Remember^, ^1"
+  ;"                      STRARR(2)="Bill^ ^11"
+  ;"                      STRARR(3)="and^ ^16"
+  ;"                      STRARR(4)="Ted^, ^20"
+  ;"                      STRARR(5)="dressed^ ^25"
+  ;"                      STRARR(6)="in^ ^33"
+  ;"                      STRARR(7)="costumes^, ^36"
+  ;"                      STRARR(8)="went^ ^46"
+  ;"                      STRARR(9)="on^ ^51"
+  ;"                      STRARR(10)="an^ ^54"
+  ;"                      STRARR(11)="adventure^ ^57"
+  ;"                      STRARR(12)="to^ ^67"
+  ;"                      STRARR(13)="France^. ^70"
+  ;"                      STRARR(14)="Bill^ ^78"
+  ;"                      STRARR(15)="got^ ^83"
+  ;"                      STRARR(16)="lost^.^87"
+  ;"                      STRARR("IDX","ADVENTURE",11)=""
+  ;"                      STRARR("IDX","AN",10)=""
+  ;"                      STRARR("IDX","AND",3)=""
+  ;"                      STRARR("IDX","BILL",2)=""
+  ;"                      STRARR("IDX","BILL",14)=""
+  ;"                      STRARR("IDX","COSTUMES",7)=""
+  ;"                      STRARR("IDX","DRESSED",5)=""
+  ;"                      STRARR("IDX","FRANCE",13)=""
+  ;"                      STRARR("IDX","GOT",15)=""
+  ;"                      STRARR("IDX","IN",6)=""
+  ;"                      STRARR("IDX","ON",9)=""
+  ;"                      STRARR("IDX","REMEMBER",1)=""
+  ;"                      STRARR("IDX","TED",4)=""
+  ;"                      STRARR("IDX","TO",12)=""
+  ;"                      STRARR("IDX","WENT",8)=""
+  ;"                      STRARR("IDX","lost",16)=""                      
+  ;"Discussion about how matching process will be done.  We will be looking for
+  ;" all elements of a 'substring' that can be found in a 'string'.  For example,
+  ;" if substring is 'Jack and Jill are friends', and the string is 
+  ;" 'Jack and Jill went up a hill, then Jack and Jill are tired', then the fragment
+  ;" 'Jack and Jill' would match twice in the string.  
+  ;" 
+  ;"Methology: 
+  ;"   1) start a matching train of words from the substring.  First 'Jack', then
+  ;"     'Jack and' and then 'Jack and Jill', etc...  The train will grow by one
+  ;"     word each cycle, until there are no further matches found in the string.
+  ;"   2) With each cycle, the matches between the current substring train and 
+  ;"      the parts from the string will comprise one or more string trains.  As
+  ;"      long as the growing substring train matches the growing string train, all
+  ;"      will be OK.  But whenever a string train no longer matches, it will be 
+  ;"      marked as 'closed' and not allowed to grow further.  And as soon as all
+  ;"      string trains are closed, then the substring train will be reset to null
+  ;"      and the process repeats.  
+  ;"      
+  ;"Example.  '[ ]' will be used to demonstrate the current matching trains
+  ;"Cycle:
+  ;"1) substring: [Jack] and Jill are friends 
+  ;"      string: [Jack] and Jill went up a hill, then [Jack] and Jill are tired
+  ;"       match train 1: [Jack]
+  ;"       match train 2: [Jack]
+  ;" 
+  ;"2) substring: [Jack and] Jill are friends 
+  ;"      string: [Jack and] Jill went up a hill, then [Jack and] Jill are tired
+  ;"       match train 1: [Jack and]
+  ;"       match train 2: [Jack and]
+  ;"
+  ;"3) substring: [Jack and Jill] are friends 
+  ;"      string: [Jack and Jill] went up a hill, then [Jack and Jill] are tired
+  ;"       match train 1: [Jack and Jill]
+  ;"       match train 2: [Jack and Jill]
+  ;"
+  ;"4) substring: [Jack and Jill are] friends 
+  ;"      string: [Jack and Jill] went up a hill, then [Jack and Jill are] tired
+  ;"       match train 1: [Jack and Jill]  <-- closed
+  ;"       match train 2: [Jack and Jill are]
+  ;"      
+  ;"5) substring: [Jack and Jill are friends] <-- no maches, so train will be reset
+  ;"      string: [Jack and Jill] went up a hill, then [Jack and Jill] are tired
+  ;"       match train 1: [Jack and Jill]  <-- closed
+  ;"       match train 2: [Jack and Jill are] <-- closed    
+  ;
+  IF $DATA(SUBSTRARR)=0 DO PARSESTR(SUBSTR,.SUBSTRARR)
+  IF $DATA(STRARR)=0 DO PARSESTR(STR,.STRARR)
+  ;  
+  NEW SUBSTRWORDSEQ SET SUBSTRWORDSEQ=0
+  NEW ZZ
+  SET ZZ("SUBSTR","TRAIN")=""
+  SET ZZ("SUBSTR","TRAIN","RETURN")=""
+  SET ZZ("SUBSTR","TRAIN","LEN")=0
+  ;"Cycle through each word in substring
+  FOR  SET SUBSTRWORDSEQ=$ORDER(SUBSTRARR(SUBSTRWORDSEQ)) QUIT:SUBSTRWORDSEQ'>0  DO
+  . NEW TMP SET TMP=$GET(SUBSTRARR(SUBSTRWORDSEQ)) QUIT:TMP=""
+  . NEW WORD,UWORD,DIV SET WORD=$PIECE(TMP,"^",1),DIV=$PIECE(TMP,"^",2),UWORD=$$UP^XLFSTR(WORD)
+  . ;"Grow the substring train
+  . SET ZZ("SUBSTR","TRAIN")=$GET(ZZ("SUBSTR","TRAIN"))_SUBSTRWORDSEQ_"-"_UWORD_"^"
+  . SET ZZ("SUBSTR","TRAIN","RETURN")=$GET(ZZ("SUBSTR","TRAIN","RETURN"))_UWORD_DIV
+  . SET ZZ("SUBSTR","TRAIN","LEN")=$GET(ZZ("SUBSTR","TRAIN","LEN"))+1
+  . ;"Cycle through all existing string trains to see if they can match UWORD and grow
+  . NEW TRAINFOUND SET TRAINFOUND=0
+  . NEW TRAINIDX SET TRAINIDX=0
+  . FOR  SET TRAINIDX=$ORDER(ZZ("STR","TRAIN",TRAINIDX)) QUIT:TRAINIDX'>0  DO
+  . . IF $GET(ZZ("STR","TRAIN",TRAINIDX,"STATUS"))="CLOSED" QUIT
+  . . IF $GET(ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","EXT"))'=UWORD DO  QUIT
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"STATUS")="CLOSED" 
+  . . . KILL ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD")
+  . . ELSE  DO
+  . . . SET TRAINFOUND=1
+  . . . NEW CURNEXTINT SET CURNEXTINT=ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","INT")
+  . . . NEW CURNEXTEXT SET CURNEXTEXT=ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","EXT")
+  . . . NEW CURLEN SET CURLEN=+$GET(ZZ("STR","TRAIN",TRAINIDX,"LEN"))
+  . . . NEW CURSEQ SET CURSEQ=+CURNEXTINT
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"VALUE","INT")=ZZ("STR","TRAIN",TRAINIDX,"VALUE","INT")_CURNEXTINT_"^"
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"VALUE","EXT")=ZZ("STR","TRAIN",TRAINIDX,"VALUE","EXT")_CURNEXTEXT_DIV
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"SEQ","LAST")=CURSEQ
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"LEN")=CURLEN+1
+  . . . ;"Get the new next word, for matching against next round
+  . . . KILL ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD")
+  . . . NEW NEWSEQ SET NEWSEQ=CURSEQ+1
+  . . . NEW NEWNEXT SET NEWNEXT=$$UP^XLFSTR($PIECE($GET(STRARR(NEWSEQ)),"^",1))
+  . . . IF NEWNEXT="" DO  QUIT
+  . . . . SET ZZ("STR","TRAIN",TRAINIDX,"STATUS")="CLOSED"
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","INT")=NEWSEQ_"-"_NEWNEXT
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","EXT")=NEWNEXT
+  . IF TRAINFOUND QUIT  ;"ready to start new cycle
+  . ;"OTHERWISE .... No existing train found to grow.  Can new train be started?
+  . NEW WORDFOUND SET WORDFOUND=0
+  . NEW STRWORDSEQ SET STRWORDSEQ=0
+  . ;"look for all matches of UWORD (from substring) in string
+  . FOR  SET STRWORDSEQ=$ORDER(STRARR("IDX",UWORD,STRWORDSEQ)) QUIT:STRWORDSEQ'>0  DO   
+  . . SET WORDFOUND=1
+  . . NEW TMP,CURUWORD,CURDIV SET TMP=$GET(STRARR(STRWORDSEQ)),CURUWORD=$$UP^XLFSTR($PIECE(TMP,"^",1)),CURDIV=$PIECE(TMP,"^",2)
+  . . ;"Is this word already matched into a prior train (open or closed).  If so, quit
+  . . NEW SKIP SET SKIP=0
+  . . NEW TRAINIDX SET TRAINIDX=0
+  . . FOR  SET TRAINIDX=$ORDER(ZZ("STR","TRAIN",TRAINIDX)) QUIT:TRAINIDX'>0  DO
+  . . . NEW FIRSTSEQ SET FIRSTSEQ=+$GET(ZZ("STR","TRAIN",TRAINIDX,"SEQ","FIRST"))
+  . . . NEW LASTSEQ SET LASTSEQ=+$GET(ZZ("STR","TRAIN",TRAINIDX,"SEQ","LAST"))
+  . . . IF (STRWORDSEQ>=FIRSTSEQ)&(STRWORDSEQ<=LASTSEQ) DO  QUIT
+  . . . . SET SKIP=1
+  . . IF SKIP QUIT
+  . . ;"We have a match in string, that was not part of prior train, so start new train.  
+  . . SET TRAINIDX=$ORDER(ZZ("STR","TRAIN",""),-1)+1
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"VALUE","INT")=STRWORDSEQ_"-"_CURUWORD_"^"
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"VALUE","EXT")=CURUWORD_CURDIV
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"SEQ","FIRST")=STRWORDSEQ
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"SEQ","LAST")=STRWORDSEQ
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"STATUS")="ACTIVE"
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"LEN")=1
+  . . ;"Get the new next word, for matching against next round
+  . . NEW NEWSEQ SET NEWSEQ=STRWORDSEQ+1
+  . . NEW NEWNEXT SET NEWNEXT=$$UP^XLFSTR($PIECE($GET(STRARR(NEWSEQ)),"^",1))
+  . . IF NEWNEXT="" DO  QUIT
+  . . . SET ZZ("STR","TRAIN",TRAINIDX,"STATUS")="CLOSED"
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","INT")=NEWSEQ_"-"_NEWNEXT
+  . . SET ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","EXT")=NEWNEXT
+  . IF WORDFOUND=1 QUIT  ;"read to start new cycle
+  . ;"Reset substring train
+  . KILL ZZ("SUBSTR","TRAIN")
+  . SET ZZ("SUBSTR","TRAIN")=""
+  . SET ZZ("SUBSTR","TRAIN","RETURN")=""
+  . SET ZZ("SUBSTR","TRAIN","LEN")=0
+  ;"compile output
+  NEW OUTIDX SET OUTIDX=0
+  NEW TRAINIDX SET TRAINIDX=0
+  FOR  SET TRAINIDX=$ORDER(ZZ("STR","TRAIN",TRAINIDX)) QUIT:TRAINIDX'>0  DO
+  . NEW TRAINLEN SET TRAINLEN=$GET(ZZ("STR","TRAIN",TRAINIDX,"LEN"))
+  . IF TRAINLEN<2 KILL ZZ("STR","TRAIN",TRAINIDX) QUIT
+  . NEW RETURN SET RETURN=ZZ("STR","TRAIN",TRAINIDX,"VALUE","EXT")
+  . SET MATCH($I(OUTIDX),"STR")=RETURN
+  . NEW ATRAIN SET ATRAIN=$GET(ZZ("STR","TRAIN",TRAINIDX,"VALUE","INT"))
+  . NEW FIRSTWORD,FIRSTIDX SET FIRSTWORD=$PIECE(ATRAIN,"^",1),FIRSTIDX=+FIRSTWORD
+  . NEW FIRSTENTRY SET FIRSTENTRY=$GET(STRARR(FIRSTIDX))
+  . NEW STARTPOS SET STARTPOS=+$PIECE(FIRSTENTRY,"^",3)
+  . NEW MATCHLEN SET MATCHLEN=$LENGTH(RETURN)
+  . SET MATCH(OUTIDX)=STARTPOS_"^"_MATCHLEN_"^"_TRAINLEN
+  . SET MATCH("LENIDX",MATCHLEN,OUTIDX)=""  
+  QUIT
+  ;
+TESTSS  ;"TEST SUBSTRMATCH()
+  NEW IDX SET IDX=0
+  NEW TOPICS
+  SET TOPICS($I(IDX))="Bill and Ted went on an adventure."
+  SET TOPICS($I(IDX))="I remember that Bill and Ted, dressed in costumes, went on an adventure to France."
+  SET TOPICS($I(IDX))="Remember, Bill and Ted, dressed in costumes, went on an adventure to France. Bill got lost."
+  ;"
+  SET IDX=""
+  FOR  SET IDX=$ORDER(TOPICS(IDX),-1) QUIT:IDX'>0  DO
+  . NEW CURARR,CURTEXT SET CURTEXT=$GET(TOPICS(IDX)) QUIT:CURTEXT=""
+  . NEW JDX SET JDX=IDX
+  . FOR  SET JDX=$ORDER(TOPICS(JDX),-1) QUIT:(JDX'>0)  DO
+  . . NEW PRIORARR,PRIORTEXT SET PRIORTEXT=$GET(TOPICS(JDX)) QUIT:PRIORTEXT=""
+  . . NEW MATCHES DO SUBSTRMATCH^TMGSTUT3(PRIORTEXT,CURTEXT,.MATCHES,.PRIORARR,.CURARR)
+  . . NEW HASMATCH FOR  DO  QUIT:HASMATCH=0
+  . . . SET HASMATCH=0
+  . . . NEW ALEN SET ALEN=+$ORDER(MATCHES("LENIDX",""),-1) QUIT:ALEN'>0  
+  . . . NEW MATCHIDX SET MATCHIDX=$ORDER(MATCHES("LENIDX",ALEN,0)) QUIT:MATCHIDX'>0
+  . . . NEW AMATCH SET AMATCH=$GET(MATCHES(MATCHIDX)) QUIT:AMATCH=""
+  . . . SET HASMATCH=1
+  . . . NEW STARTPOS SET STARTPOS=+AMATCH
+  . . . NEW LEN SET LEN=+$PIECE(AMATCH,"^",2)
+  . . . NEW PARTA SET PARTA=""
+  . . . IF STARTPOS>0 SET PARTA=$EXTRACT(CURTEXT,1,STARTPOS-1)
+  . . . NEW PARTB SET PARTB=$EXTRACT(CURTEXT,STARTPOS,STARTPOS+LEN-1)
+  . . . NEW PARTC SET PARTC=""
+  . . . IF LEN>0 SET PARTC=$EXTRACT(CURTEXT,STARTPOS+LEN-1,$LENGTH(CURTEXT))
+  . . . SET CURTEXT=PARTA_"..."_PARTC
+  . . . SET TOPICS(IDX)=CURTEXT
+  . . . KILL CURARR,MATCHES 
+  . . . DO SUBSTRMATCH^TMGSTUT3(PRIORTEXT,CURTEXT,.MATCHES,.PRIORARR,.CURARR)
+  QUIT
+  ;

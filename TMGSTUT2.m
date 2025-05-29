@@ -45,6 +45,8 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19,10/28/24
   ;"PREFIXARR(ARR,HEADERARR) -- PREFIX HEADER ARRAY ONTO ARR
   ;"APPENDARR(ARR,TAILARR) -- APPEND TAIL ARRAY ONTO ARR
   ;"MAXWIDTH(ARR)  -- Return length of longest line in ARR
+  ;"LTRIM(S,TRIMCH) -- LEFT TRIM. 
+  ;"RTRIM(S,TRIMCH) -- RIGHT TRIM. 
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
@@ -725,4 +727,20 @@ MAXWIDTH(ARR)  ;"Return length of longest line in ARR
   . NEW LEN SET LEN=$LENGTH(ARR(IDX))
   . IF LEN>RESULT SET RESULT=LEN
   QUIT RESULT
+  ;
+LTRIM(S,TRIMCH) ;"LEFT TRIM. 
+  ;"Purpose: To a trip a string of leading and trailing white space
+  ;"        i.e. convert "    hello   " into "hello"
+  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"      TRIMCH -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"Results: returns modified string
+  QUIT $$TRIM^XLFSTR(S,"L",.TRIMCH)
+  ;
+RTRIM(S,TRIMCH) ;"RIGHT TRIM. 
+  ;"Purpose: To a trip a string of trailing white space
+  ;"         i.e. convert "hello   " into "hello"
+  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"      TRIMCH -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"Results: returns modified string
+  QUIT $$TRIM^XLFSTR(S,"R",.TRIMCH)
   ;

@@ -233,7 +233,7 @@ PATSUSMC(TMGDFN)
    IF '$D(ARRAY) GOTO PSMCDN
    FOR  SET IDX=$O(ARRAY(IDX)) QUIT:IDX'>0  DO
    . IF HEADING=0 DO
-   . . SET TMGRESULT="<table><caption><b>OPEN SUSPECT MEDICAL CONDITIONS</b></caption>"
+   . . SET TMGRESULT="<table class=""inline-style""><caption><b>OPEN SUSPECT MEDICAL CONDITIONS</b></caption>"
    . . SET HEADING=1
    . NEW ICD,DESC,ZN,CONDITION
    . SET ZN=$G(ARRAY(IDX))
@@ -250,9 +250,24 @@ PATSUSMC(TMGDFN)
    ELSE  DO  
    . SET FOOTMSG="Resolve this via paper form."
    NEW FOOTER SET FOOTER="<tfoot align=""center""><tr><th colspan=""3""><b>"_FOOTMSG_"</b></th></tr></tfoot>"
-   IF TMGRESULT'="" SET TMGRESULT="{HTML:<FONT style=""BACKGROUND-COLOR:#ff0000"">}"_TMGRESULT_FOOTER_"</table>{HTML:</FONT>}"
+   ;"IF TMGRESULT'="" SET TMGRESULT="{HTML:<FONT style=""BACKGROUND-COLOR:#ff0000"">}"_TMGRESULT_FOOTER_"</table>{HTML:</FONT>}"
+   IF TMGRESULT'="" SET TMGRESULT=$$TBLHEAD()_TMGRESULT_FOOTER_"</table>{HTML:</div>}" 
 PSMCDN
    QUIT TMGRESULT
+   ;"
+TBLHEAD()
+   NEW HEAD
+   SET HEAD="<div><style>table.inline-style {"
+   SET HEAD=HEAD_"width: 700px;"
+   SET HEAD=HEAD_"border-collapse: collapse; }"
+   SET HEAD=HEAD_" table.inline-style th,"
+   SET HEAD=HEAD_" table.inline-style td {"
+   SET HEAD=HEAD_"   border: 0.5px solid gray;"
+   SET HEAD=HEAD_"   background-color:#ff0000; "
+   SET HEAD=HEAD_"   padding: 6px;"
+   SET HEAD=HEAD_" }"
+   SET HEAD=HEAD_"  </style>"
+   QUIT HEAD
    ;"
 GET1PAT(RESULTARR,TMGDFN,YEAR,RETURNALL)  ;"  RETURN ARRAY WITH OPEN SUSPECT MEDICAL CONDITIONS (OR ALL IF RETURNALL=1)
    SET RETURNALL=+$G(RETURNALL)

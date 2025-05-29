@@ -259,59 +259,57 @@ RE3     I $E(%7,%2)=" " S %8=%8_$E(IN,%2) Q
         Q
         ;
 TrimL(S,TrimCh)  ;
-  ;"Purpose: To a trip a string of leading white space
-  ;"        i.e. convert "  hello" into "hello"
-  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
-  ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
-  ;"Results: returns modified string
-  ;"Note: processing limitation is string length=1024
-  SET TrimCh=$GET(TrimCh," ")
-  NEW RESULT SET RESULT=$GET(S)
-  NEW Ch SET Ch=""
-  FOR  DO  QUIT:(Ch'=TrimCh)
-  . SET Ch=$EXTRACT(RESULT,1,1)
-  . IF Ch=TrimCh SET RESULT=$EXTRACT(RESULT,2,1024)
-  QUIT RESULT
+  QUIT $$LTRIM^TMGSTUT2(S,.TrimCh)  
+  ;"DELETE LATER... ;"Purpose: To a trip a string of leading white space
+  ;"DELETE LATER... ;"        i.e. convert "  hello" into "hello"
+  ;"DELETE LATER... ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"DELETE LATER... ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"DELETE LATER... ;"Results: returns modified string
+  ;"DELETE LATER... SET TrimCh=$GET(TrimCh," ")
+  ;"DELETE LATER... NEW RESULT SET RESULT=$GET(S)
+  ;"DELETE LATER... NEW Ch SET Ch=""
+  ;"DELETE LATER... FOR  DO  QUIT:(Ch'=TrimCh)
+  ;"DELETE LATER... . SET Ch=$EXTRACT(RESULT,1,1)
+  ;"DELETE LATER... . IF Ch=TrimCh SET RESULT=$EXTRACT(RESULT,2,$LENGTH(S))
+  ;"DELETE LATER... QUIT RESULT
   ;
 TrimR(S,TrimCh)  ;
-  ;"Purpose: To a trip a string of trailing white space
-  ;"        i.e. convert "hello   " into "hello"
-  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
-  ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
-  ;"Results: returns modified string
-  ;"Note: processing limitation is string length=1024
-  ;
-  ;"SET DEBUG=$GET(DEBUG,0)
-  ;"SET cOKToCont=$GET(cOKToCont,1)
-  ;"SET cAbort=$GET(cAbort,0)
-  SET TrimCh=$GET(TrimCh," ")
-  NEW RESULT SET RESULT=$GET(S)
-  NEW Ch SET Ch=""
-  NEW L       
-  FOR  DO  QUIT:(Ch'=TrimCh)
-  . SET L=$LENGTH(RESULT)
-  . SET Ch=$EXTRACT(RESULT,L,L)
-  . IF Ch=TrimCh DO
-  . . SET RESULT=$EXTRACT(RESULT,1,L-1)
-  QUIT RESULT          
-  ;
+  QUIT $$RTRIM^TMGSTUT2(S,.TrimCh)  
+  ;"DELETE LATER... ;"Purpose: To a trip a string of trailing white space
+  ;"DELETE LATER... ;"        i.e. convert "hello   " into "hello"
+  ;"DELETE LATER... ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"DELETE LATER... ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"DELETE LATER... ;"Results: returns modified string
+  ;"DELETE LATER... ;
+  ;"DELETE LATER... SET TrimCh=$GET(TrimCh," ")
+  ;"DELETE LATER... NEW RESULT SET RESULT=$GET(S)
+  ;"DELETE LATER... NEW Ch SET Ch=""
+  ;"DELETE LATER... NEW L       
+  ;"DELETE LATER... FOR  DO  QUIT:(Ch'=TrimCh)
+  ;"DELETE LATER... . SET L=$LENGTH(RESULT)
+  ;"DELETE LATER... . SET Ch=$EXTRACT(RESULT,L,L)
+  ;"DELETE LATER... . IF Ch=TrimCh DO
+  ;"DELETE LATER... . . SET RESULT=$EXTRACT(RESULT,1,L-1)
+  ;"DELETE LATER... QUIT RESULT          
+  ;                               
 Trim(S,TrimCh) ;
-  ;"Purpose: To a trip a string of leading and trailing white space
-  ;"        i.e. convert "    hello   " into "hello"
-  ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
-  ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
-  ;"Results: returns modified string
-  ;"Note: processing limitation is string length=1024
-  ;"NOTE: this function could be replaced with $$TRIM^XLFSTR
-  ;
-  ;"SET DEBUG=$GET(DEBUG,0)
-  ;"SET cOKToCont=$GET(cOKToCont,1)
-  ;"SET cAbort=$GET(cAbort,0)
-  SET TrimCh=$GET(TrimCh," ")                  
-  NEW RESULT SET RESULT=$GET(S)
-  SET RESULT=$$TrimL(.RESULT,TrimCh)
-  SET RESULT=$$TrimR(.RESULT,TrimCh)
-  QUIT RESULT
+  QUIT $$TRIM^XLFSTR(S,"LR",.TrimCh)
+  ;"DELETE LATER... ;"Purpose: To a trip a string of leading and trailing white space
+  ;"DELETE LATER... ;"        i.e. convert "    hello   " into "hello"
+  ;"DELETE LATER... ;"Input: S -- the string to convert.  Won't be changed IF passed by reference
+  ;"DELETE LATER... ;"      TrimCh -- OPTIONAL: Charachter to trim.  Default is " "
+  ;"DELETE LATER... ;"Results: returns modified string
+  ;"DELETE LATER... ;"Note: processing limitation is string length=1024
+  ;"DELETE LATER... ;"NOTE: this function could be replaced with $$TRIM^XLFSTR
+  ;"DELETE LATER... ;
+  ;"DELETE LATER... ;"SET DEBUG=$GET(DEBUG,0)
+  ;"DELETE LATER... ;"SET cOKToCont=$GET(cOKToCont,1)
+  ;"DELETE LATER... ;"SET cAbort=$GET(cAbort,0)
+  ;"DELETE LATER... SET TrimCh=$GET(TrimCh," ")                  
+  ;"DELETE LATER... NEW RESULT SET RESULT=$GET(S)
+  ;"DELETE LATER... SET RESULT=$$TrimL(.RESULT,TrimCh)
+  ;"DELETE LATER... SET RESULT=$$TrimR(.RESULT,TrimCh)
+  ;"DELETE LATER... QUIT RESULT
   ;
 TrimRType(S,type)
   ;"Scope: PUBLIC FUNCTION

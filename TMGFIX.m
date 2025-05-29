@@ -1,4 +1,4 @@
-;(Scratch code to fix various specific problems over time.), 2/2/14, 3/24/21
+ ;(Scratch code to fix various specific problems over time.), 2/2/14, 3/24/21
  ;
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
@@ -419,15 +419,6 @@ CKREC1F(FILENUM,ARRAY)
         WRITE !
         QUIT $$LISTCT^TMGMISC2($NAME(ARRAY(FILENUM)))
 
-
-SUMM
-        NEW FILENUM SET FILENUM=0
-        FOR  SET FILENUM=$ORDER(^TMG("TMGSIPH","OVERLAP",FILENUM)) QUIT:FILENUM=""  DO
-        . NEW FNAME SET FNAME=$PIECE($GET(^DIC(FILENUM,0)),"^",1)
-        . NEW REF SET REF=$NAME(^TMG("TMGSIPH","OVERLAP",FILENUM))
-        . WRITE "FILE [",FNAME,"] has ",$$LISTCT^TMGMISC2(REF)," overlapping records",!
-        QUIT
-
 HASFACTOR(SOURCEREF,FACTOR) ;"RETURN IF PATIENT HAS FACTOR
         ;"Purpose: Ensure patients have health factor etc stored for given dates
         ;"Input: REF -- format: @REF@(DFN,FMDT)=""        
@@ -493,257 +484,7 @@ HASFACTOR(SOURCEREF,FACTOR) ;"RETURN IF PATIENT HAS FACTOR
 NSHDN   QUIT TMGRESULT
         
  ;---------------------
-
-TESTMCV ;  
-   NEW FNAME,OUT,STATS,HILO
-   ;SET FNAME=$$GETFNAME^TMGIOUTL("PICK FILE","/tmp/")
-   SET FNAME="/tmp/hfs2.dat"
-   IF FNAME="" QUIT
-   NEW ARR
-   NEW %DT SET %DT="PT"
-   IF $$HFS2ARFP^TMGIOUT3(FNAME,"ARR")
-   ;DO OPEN^%ZISH("OFILE","/tmp/","hfs3.csv","W")
-   ;IF POP W "ERROR",! QUIT
-   ;USE IO
-   NEW LRDFN SET LRDFN=""
-   NEW IDX SET IDX=""
-   FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:+IDX'>0  DO
-   . NEW LINE SET LINE=$GET(ARR(IDX)) QUIT:LINE=""
-   . NEW PARTA,PARTB SET PARTA=$$TRIM^XLFSTR($EXTRACT(LINE,1,14))
-   . IF PARTA'="" SET LRDFN=PARTA
-   . IF LRDFN="" QUIT
-   . SET PARTB=$$TRIM^XLFSTR($EXTRACT(LINE,15,999))
-   . NEW DATE SET DATE=$PIECE(PARTB," ",1,2)
-   . SET DATE=$PIECE(DATE,":",1,2)
-   . NEW X,Y,FMDT SET X=DATE DO ^%DT SET FMDT=Y
-   . IF FMDT'>0 QUIT
-   . NEW RDT SET RDT=9999999-FMDT
-   . NEW MCV SET MCV=$$TRIM^XLFSTR($PIECE(PARTB," ",3,999))
-   . IF MCV="" QUIT
-   . NEW DATA SET DATA=$GET(^LR(+LRDFN,"CH",RDT,388))
-   . WRITE DATA,!
-   . NEW LOC SET LOC=$P(DATA,"^",11)
-   . IF LOC="" SET LOC="?"
-   . ;WRITE "LOC=",LOC,!
-   . NEW RANGE SET RANGE=$P(DATA,"^",5)
-   . NEW LN SET LN=$PIECE(RANGE,"!",2)
-   . NEW HN SET HN=$PIECE(RANGE,"!",3)
-   . WRITE LRDFN,",",FMDT\1,",",MCV,",",LN,",",HN,",",LOC,!
-   . SET OUT(LOC,MCV,LRDFN_"-"_FMDT)=""
-   . SET STATS(LOC,MCV\1)=+$GET(STATS(LOC,MCV\1))+1
-   . NEW YR SET YR=20_$EXTRACT(FMDT,2,3)
-   . SET HILO(LOC,YR_":"_LN_"^"_HN)=""
-   NEW LOC SET LOC=""
-   FOR  SET LOC=$ORDER(STATS(LOC)) QUIT:LOC=""  DO
-   . NEW MIN SET MIN=+$ORDER(STATS(LOC,""))
-   . NEW MAX SET MAX=+$ORDER(STATS(LOC,""),-1)
-   . NEW AMCV FOR AMCV=MIN:1:MAX DO
-   . . ;WRITE LOC,",",AMCV,",",+$GET(STATS(LOC,AMCV)),!
-   ;DO CLOSE^%ZISH("OFILE")
-   ;ZWR STATS
-   ;ZWR OUT
-   ZWR HILO
-   WRITE "goodbye.",!
-   QUIT
-  
-
-TEST1  ;
-   NEW T,H,E,Y,A,R,V,S,M
-   NEW VAR
-   FOR T=0:1:9 DO
-   . SET VAR("T")=T
-   . SET VAR("USED",T)=1
-   . FOR H=0:1:9 DO
-   . . SET VAR("H")=H
-   . . IF $GET(VAR("USED",H))=1 QUIT
-   . . SET VAR("USED",H)=1
-   . . FOR E=0:1:9 DO
-   . . . SET VAR("E")=E
-   . . . IF $GET(VAR("USED",E))=1 QUIT
-   . . . SET VAR("USED",E)=1
-   . . . FOR Y=0:1:9 DO
-   . . . . SET VAR("Y")=Y
-   . . . . IF $GET(VAR("USED",Y))=1 QUIT
-   . . . . SET VAR("USED",Y)=1
-   . . . . FOR A=0:1:9 DO
-   . . . . . SET VAR("A")=A
-   . . . . . IF $GET(VAR("USED",A))=1 QUIT
-   . . . . . SET VAR("USED",A)=1
-   . . . . . FOR R=0:1:9 DO
-   . . . . . . SET VAR("R")=R
-   . . . . . . IF $GET(VAR("USED",R))=1 QUIT
-   . . . . . . SET VAR("USED",R)=1
-   . . . . . . FOR V=0:1:9 DO
-   . . . . . . . SET VAR("V")=V
-   . . . . . . . IF $GET(VAR("USED",V))=1 QUIT
-   . . . . . . . SET VAR("USED",V)=1
-   . . . . . . . FOR S=0:1:9 DO
-   . . . . . . . . SET VAR("S")=S
-   . . . . . . . . IF $GET(VAR("USED",S))=1 QUIT
-   . . . . . . . . SET VAR("USED",S)=1
-   . . . . . . . . FOR M=0:1:9 DO
-   . . . . . . . . . SET VAR("M")=M
-   . . . . . . . . . IF $GET(VAR("USED",M))=1 QUIT
-   . . . . . . . . . SET VAR("USED",M)=1
-   . . . . . . . . . IF $$TESTCOMBO(.VAR)=1 DO
-   . . . . . . . . . . NEW V2 MERGE V2=VAR KILL V2("USED")
-   . . . . . . . . . . ;"ZWR V2(*)
-   . . . . . . . . . . NEW IDX,STR SET (IDX,STR)="" 
-   . . . . . . . . . . FOR  SET IDX=$ORDER(V2(IDX)) QUIT:IDX=""  DO
-   . . . . . . . . . . . IF STR'="" SET STR=STR_", "
-   . . . . . . . . . . . SET STR=STR_IDX_"="_$GET(V2(IDX))
-   . . . . . . . . . . WRITE STR,!
-   . . . . . . . . . . ;"WRITE "---------------",!
-   . . . . . . . . . SET VAR("USED",M)=0
-   . . . . . . . . SET VAR("USED",S)=0
-   . . . . . . . SET VAR("USED",V)=0
-   . . . . . . SET VAR("USED",R)=0
-   . . . . . SET VAR("USED",A)=0
-   . . . . SET VAR("USED",Y)=0
-   . . . SET VAR("USED",E)=0
-   . . SET VAR("USED",H)=0
-   . SET VAR("USED",T)=0
-   QUIT
-   ;
-TESTCOMBO(V)  ;
-    ;"  T H E Y
-    ;"    A R E
-    ;"  V E R Y
-    ;"---------
-    ;"S M A R T
-    ;
-    NEW RESULT SET RESULT=0
-    NEW COL,COLIDX,TEMP,CARRY
-CL1 SET TEMP=V("Y")+V("E")+V("Y")
-    SET CARRY=TEMP\10 SET TEMP=TEMP#10
-    IF TEMP'=V("T") GOTO TESTDN
-CL2 SET TEMP=CARRY+V("E")+V("R")+V("R")   
-    SET CARRY=TEMP\10 SET TEMP=TEMP#10
-    IF TEMP'=V("R") GOTO TESTDN
-CL3 SET TEMP=CARRY+V("H")+V("A")+V("E")    
-    SET CARRY=TEMP\10 SET TEMP=TEMP#10
-    IF TEMP'=V("A") GOTO TESTDN
-CL4 SET TEMP=CARRY+V("T")+V("V")    
-    SET CARRY=TEMP\10 SET TEMP=TEMP#10
-    IF TEMP'=V("M") GOTO TESTDN
-CL5 SET TEMP=CARRY  
-    IF TEMP'=V("S") GOTO TESTDN
-    SET RESULT=1
-TESTDN ;
-   QUIT RESULT
-   
-   
-Show(solution,expression) ;
- new arr,ch,digit
- for j=1:1:$length(expression) do
- . set ch=$extract(expression,j),digit=$extract(solution,j)
- . if ch'?1a quit
- . set arr(ch)=digit
- set ch="" for  set ch=$order(arr(ch)) quit:ch=""  write ch,"=",$get(arr(ch)),", "
- write !
- quit
  ;
-PuzzleCall(digits) ;
- New try Set try=$Translate(expression,callletter,digits)
- If @try do
- . Set solution(try)=$Get(solution(try))+1
- . do Show(try,expression)
- ;"else  write "FAIL: ",try,!
- Quit
- ;
-Permut(in,lead) ;
- New ii,letter,next
- SET lead=$get(lead)
- If in="" Do  Quit
- . Quit:lead=""
- . do PuzzleCall(lead) quit
- . Set Permut(lead)=$Get(Permut(lead))+1
- . Quit
- For ii=1:1:$Length(in) Do
- . Set letter=$Extract(in,ii)
- . set next=in
- . set $Extract(next,ii)=""
- . Do Permut(next,lead_letter)
- . Quit
- Quit
- ; 
-Puzzle(expression)  ;" E.g.: Do Puzzle("SEND+MORE=MONEY") 
- New callletter,ii,letter,solution,ch set callletter=""
- For ii=1:1:$Length(expression) do
- . set ch=$extract(expression,ii) 
- . if ch?1a,callletter'[ch set callletter=callletter_ch
- Do Permut(1234567890,"")
- Quit
- ;
-ITR
-  NEW LEN SET LEN=3
-  NEW CH,CARRY,TRY SET CARRY=0,TRY=""
-  NEW DONE SET DONE=0
-  FOR  DO  QUIT:DONE=1
-  . NEW TEMP SET TEMP=""
-  . NEW IDX FOR IDX=LEN:-1:1 DO 
-  . . SET CH=$EXTRACT(TRY,IDX) IF CH="" SET CH=-1
-  . . SET CH=CH+CARRY,CARRY=0
-  . . FOR  DO  QUIT:TEMP'[CH
-  . . . SET CH=CH+1 IF CH=10 SET CH=0,CARRY=1
-  . . . IF CARRY=1,IDX=1 SET DONE=1
-  . . SET TEMP=CH_TEMP
-  . SET TRY=TEMP
-  . WRITE TRY,!
-  QUIT
-  ;"
-SEC2STR(SEC) ;
-  NEW SPM SET SPM=60 ;"sec/min
-  NEW MPH SET MPH=60 ;"min/hr
-  NEW HPD SET HPD=24 ;"hrs/day
-  NEW DPY SET DPY=365 ;"days/yr
-  NEW SPY SET SPY=SPM*MPH*HPD*DPY  ;" 31536000 seconds per year
-  NEW SPD SET SPD=SPM*MPH*HPD      ;" 86400 seconds per day
-  NEW SPH SET SPH=SPM*MPH          ;" 3600 seconds per hr
-  NEW YR SET YR=SEC\SPY
-  NEW REMAINDER SET REMAINDER=SEC#SPY
-  NEW DAY SET DAY=REMAINDER\SPD
-  SET REMAINDER=REMAINDER#SPD
-  NEW HR SET HR=REMAINDER\SPH
-  SET REMAINDER=REMAINDER#SPH
-  NEW MIN SET MIN=REMAINDER\SPM
-  SET REMAINDER=REMAINDER#SPM
-  NEW SEC2 SET SEC2=REMAINDER
-  NEW STR SET STR=""
-  IF YR>0 SET STR=STR_YR_" yrs"
-  IF DAY>0 DO
-  . IF STR'="" SET STR=STR_", "
-  . SET STR=STR_DAY_" days"  
-  IF (HR>0) DO
-  . IF STR'="" SET STR=STR_", "
-  . SET STR=STR_HR_" hrs"
-  IF (MIN>0) DO
-  . IF STR'="" SET STR=STR_", "
-  . SET STR=STR_MIN_" mins"
-  IF (SEC2>0) DO
-  . IF STR'="" SET STR=STR_", "
-  . SET STR=STR_SEC2_" sec"
-  QUIT STR
-  ;
-PARSEC(SEC) ;"Parse seconds
-  NEW SPY,SPD,SPH,YR,DAY,HR,MIN,SEC2,RM,STR
-  SET SPH=3600,SPD=SPH*24,SPY=SPD*365
-  SET YR=SEC\SPY,RM=SEC#SPY,DAY=RM\SPD,RM=RM#SPD,HR=RM\SPH
-  SET RM=RM#SPH,MIN=RM\60,RM=RM#60,SEC2=RM
-  SET STR=YR_"^"_DAY_"^"_HR_"^"_MIN_"^"_SEC2
-  QUIT STR
-  ;  
-S2STR(SEC) ;"Seconds to string
-  NEW STR,PS,IDX,TAG,NM
-  SET STR="",PS=$$PARSEC(SEC),IDX=1,TAG="yrs^days^hrs^mins^secs" 
-  FOR IDX=1:1:5 SET NM=$P(PS,"^",IDX) SET:NM>0 STR=STR_$S(STR]"":", ",1:"")_NM_" "_$P(TAG,"^",IDX)
-  QUIT STR
- ;
-TSTS2ST  ;"TEST S2STR
-  NEW SEC,IDX
-  FOR SEC=1:41:32000000 WRITE SEC,"= ",$$S2STR(SEC),!
-  QUIT
-  ;
 FIXSUM ;
   NEW IEN SET IEN=0
   FOR  SET IEN=$ORDER(^TMG(22733.1,IEN)) QUIT:IEN'>0  DO
@@ -764,100 +505,6 @@ TESTPARSE ;
   ZWR ATTR
   QUIT
   ;
-TESTHFTABLE
-  NEW TMGDFN,ARR,STR,OUIT SET TMGDFN=36735  ;"W.K.JEN."
-  NEW TABLIEN SET TABLIEN=2
-  NEW LNIEN SET LNIEN=17
-  ;"WRITE $$GETTABLX^TMGTIUO6(TMGDFN,"HEALTH FACTORS",.ARR)
-  WRITE $$GETITEM^TMGPXR02(TMGDFN,TABLIEN,LNIEN,9999,.OUT),!
-  WRITE $$GETITEM^TMGTIUO8(TMGDFN,TABLIEN,LNIEN,9999,.OUT),!  
-  QUIT
-  
-;"CHECK FOR DUPLICATE LAB TESTS BEING STORED IN SAME STORAGE FIELD
-TESTDUPLABSTOR ;
-  NEW DUPARR
-  NEW IDX SET IDX=""
-  FOR  SET IDX=$ORDER(^LAB(60,"C",IDX)) QUIT:IDX=""  DO
-  . NEW LASTIDX SET LASTIDX=""
-  . NEW JDX SET JDX=""
-  . FOR  SET JDX=$ORDER(^LAB(60,"C",IDX,JDX))  QUIT:JDX'>0  DO
-  . . IF LASTIDX'="" DO
-  . . . MERGE DUPARR(IDX)=^LAB(60,"C",IDX)
-  . . SET LASTIDX=JDX
-  SET IDX=""
-  FOR  SET IDX=$ORDER(DUPARR(IDX)) QUIT:IDX=""  DO
-  . NEW JDX SET JDX=""
-  . FOR  SET JDX=$ORDER(DUPARR(IDX,JDX)) QUIT:JDX=""  DO
-  . . SET DUPARR(IDX,JDX)=$GET(^LAB(60,JDX,0))
-  IF $DATA(DUPARR) ZWR DUPARR
-  ELSE  WRITE !,"NONE",!
-  ;
-
-TESTNULL0(TONULL)
-  WRITE "Text before trying to output to NULL",!
-  WRITE "----------------------------------------",!
-  IF TONULL DO
-  . SET TONULL("HANDLE")="TMGHNDL1"
-  . DO OPEN^%ZISUTL(TONULL("HANDLE"),"NULL")
-  . IF POP>0 SET TONULL=0 QUIT  ;"Unable to open NULL device
-  . USE IO
-  FOR X=1:1:10 WRITE "X=",X,!
-  IF TONULL DO CLOSE^%ZISUTL(TONULL("HANDLE"))  ;"Close NULL device if opened above. 
-  WRITE "----------------------------------------",!
-  WRITE "Text after trying to output to NULL",!
-  QUIT
-  ;
-
-TESTNULL(TONULL)
-  WRITE "Text before trying to output to NULL",!
-  WRITE "----------------------------------------",!
-  IF TONULL DO
-  . SET TONULL("HANDLE")="TMGHNDL1"
-  . SET IOP="NULL",%ZIS=""
-  . DO ^%ZIS
-  . ;"DO OPEN^%ZISUTL(TONULL("HANDLE"),"NULL")
-  . IF POP>0 SET TONULL=0 QUIT  ;"Unable to open NULL device
-  FOR X=1:1:10 WRITE "X=",X,!
-  IF TONULL DO
-  . DO CLOSE^%ZISUTL(TONULL("HANDLE"))  ;"Close NULL device if opened above. 
-  WRITE "----------------------------------------",!
-  WRITE "Text after trying to output to NULL",!
-  QUIT
-  ;
-
-STRIP(STR) ;
- N I
- F I=1:1:$L(STR) D       
- . S X=$E(STR,I)         
- . I X="*" S STR=$P(STR,X,1)_$P(STR,X,2,99)
- Q STR                                     
- ;
-  
-STRIP2(STR) ;
- N I SET I=1
- F  Q:I>$L(STR)  DO
- . S X=$E(STR,I)         
- . I X'="*" S I=I+1 QUIT
- . S STR=$E(STR,1,I-1)_$E(STR,I+1,$L(STR))
- Q STR                                     
- ;
-
-SHRDTESTPTS
- NEW PATNAME
- SET PATNAME="ZZ"
- FOR  SET PATNAME=$O(^DPT("B",PATNAME)) QUIT:PATNAME=""  DO
- . NEW TMGDFN SET TMGDFN=0
- . FOR  SET TMGDFN=$O(^DPT("B",PATNAME,TMGDFN)) QUIT:TMGDFN'>0  DO
- . . WRITE "SHREDDING ",PATNAME,!
- . . NEW DOB,SSN
- . . SET DOB=$P($G(^DPT(TMGDFN,0)),"^",3) W "->",DOB
- . . SET $P(^DPT(TMGDFN,0),"^",3)=DOB+10000 W "-",$P($G(^DPT(TMGDFN,0)),"^",3),!
- . . SET SSN=$P($G(^DPT(TMGDFN,0)),"^",9) W "->",SSN
- . . IF $$UP^XLFSTR(SSN)'["P" DO
- . . . SET $P(^DPT(TMGDFN,0),"^",9)=SSN+132097 
- . . W "-",$P($G(^DPT(TMGDFN,0)),"^",9),!
- QUIT
- ;" 
 FIXMAG ;
   SET LOCIEN=2
   NEW ROOT SET ROOT=$GET(^MAG(2005.2,LOCIEN,22700))
@@ -946,129 +593,68 @@ FIXMAG ;
   . . WRITE IEN,": ","MOVED ",FNAME," -> ",FNAME3,!
   QUIT
   ;
-FINDMEDS ;  ;"SCAN ALL PATIENTS AND SEE IF THEY HAVE ACTIVE MEDS.
-  NEW ADFN SET ADFN=0
-  NEW USER SET USER=168
-  NEW VIEW SET VIEW=1
-  NEW UPDATE SET UPDATE=1
-  NEW CT SET CT=0
-  FOR  SET ADFN=$ORDER(^DPT(ADFN)) QUIT:ADFN'>0  DO
-  . NEW ARR
-  . DO ACTIVE^ORWPS(.ARR,ADFN,USER,1,1) ; retrieve active inpatient & outpatient meds
-  . KILL ARR(0)
-  . SET CT=CT+1
-  . ;"//IF CT#100 WRITE "."
-  . IF $DATA(ARR)=0 QUIT
-  . NEW ZN SET ZN=$GET(^DPT(ADFN,0))
-  . WRITE !,"DFN=",ADFN," ",$PIECE(ZN,"^",1),!
-  . ZWR ARR
-  QUIT
-  ;
-FIXPATCH  ;
-  DO FIXPATCH^TMGPAT5
-  QUIT
-  ;
-   
-FIX22719D2 ;
-  NEW ADFN SET ADFN=0
-  FOR  SET ADFN=$ORDER(^TMG(22719.2,ADFN)) QUIT:ADFN'>0  DO
-  . NEW SAVEARR
-  . NEW TOPICREC SET TOPICREC=0
-  . FOR  SET TOPICREC=$ORDER(^TMG(22719.2,ADFN,1,TOPICREC)) QUIT:TOPICREC'>0  DO
-  . . NEW DTREC SET DTREC=0
-  . . FOR  SET DTREC=$ORDER(^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC)) QUIT:DTREC'>0  DO
-  . . . NEW ZN SET ZN=$GET(^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC,0))
-  . . . NEW DT SET DT=$PIECE(ZN,"^",1)
-  . . . NEW IEN8925 SET IEN8925=$PIECE(ZN,"^",2)
-  . . . IF IEN8925>0 QUIT  ;"already present
-  . . . SET IEN8925=+$GET(SAVEARR(DT))
-  . . . IF IEN8925'>0  SET IEN8925=+$$GETDOC(ADFN,DT)
-  . . . IF IEN8925'>0 QUIT
-  . . . SET $PIECE(ZN,"^",2)=IEN8925
-  . . . SET ^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC,0)=ZN  ;"DIRECT WRITE
-  . . . SET SAVEARR(DT)=IEN8925
-  . WRITE "."
-  . ;"IF $DATA(SAVEARR) ZWR SAVEARR
-  QUIT
-  ;
-GETDOC(ADFN,DT)  ;"CONVERT DFN + DT --> IEN8925
-  NEW RESULT SET RESULT=+$ORDER(^TIU(8925,"ZTMGPTDT",ADFN,DT,0))
-  QUIT RESULT
-  ;
-FIX22719D5 ;
-  NEW IEN SET IEN=0
-  FOR  SET IEN=$ORDER(^TMG(22719.5,IEN)) QUIT:IEN'>0  DO
-  . NEW ZN SET ZN=$GET(^TMG(22719.5,IEN,0))
-  . NEW DFN SET DFN=$PIECE(ZN,"^",1)
-  . IF DFN=IEN QUIT
-  . IF $DATA(^TMG(22719.5,DFN)) DO  QUIT
-  . . WRITE !,"CAN'T MERGE INTO #"_DFN_", BECAUSE DATA ALREADY THERE.  SKIPPING",!
-  . MERGE ^TMG(22719.5,DFN)=^TMG(22719.5,IEN) KILL ^TMG(22719.5,IEN)
-  QUIT 
   ;"
-TIUNOPAT
-  ;"SCRATCH FUNCTION TO FIND NOTES WITHOUT PATIENTS ATTACHED TO THEM
-  NEW TIUIEN SET TIUIEN=0
-  NEW COUNT SET COUNT=0
-  FOR  SET TIUIEN=$O(^TIU(8925,TIUIEN)) QUIT:TIUIEN'>0  DO
-  . NEW ZN SET ZN=$G(^TIU(8925,TIUIEN,0))
-  . NEW TMGDFN SET TMGDFN=+$P(ZN,"^",2)
-  . IF TMGDFN'>0  DO
-  . . NEW TITLEIEN SET TITLEIEN=+$P(ZN,"^",1)
-  . . NEW TITLE SET TITLE=$P($G(^TIU(8925.1,TITLEIEN,0)),"^",1)
-  . . NEW ENTRYDATE SET ENTRYDATE=$P($G(^TIU(8925,TIUIEN,12)),"^",1)
-  . . WRITE "FOUND ONE NOTE: ",TIUIEN,!
-  . . WRITE "         TITLE: ",TITLE,!
-  . . WRITE "       ENTERED: ",$$EXTDATE^TMGDATE(ENTRYDATE,1),!
-  . . SET COUNT=COUNT+1
-  . . ;"DELETE THIS NOTE NOW
-  . . NEW DIK SET DIK="^TIU(8925,",DA=TIUIEN
-  . . D ^DIK
-  WRITE "TOTAL RECORDS DELETED: ",COUNT,!
-  QUIT
-  ;"
-MOVEICDS ;
-  ;"This will be one-time code for moving data from 22719.5 LINK->ICD to LINK->ICDS (multiple)
-  NEW PTIEN SET PTIEN=0
-  FOR  SET PTIEN=$ORDER(^TMG(22719.5,PTIEN)) QUIT:PTIEN'>0  DO
-  . NEW LINKIEN SET LINKIEN=0
-  . FOR  SET LINKIEN=$ORDER(^TMG(22719.5,PTIEN,1,LINKIEN)) QUIT:LINKIEN'>0  DO
-  . . NEW ZN SET ZN=$GET(^TMG(22719.5,PTIEN,1,LINKIEN,0))
-  . . NEW IEN80 SET IEN80=+$PIECE(ZN,"^",3) QUIT:IEN80'>0
-  . . NEW SUBSUBIEN SET SUBSUBIEN=$ORDER(^TMG(22719.5,PTIEN,1,LINKIEN,1,"B",IEN80,""))
-  . . IF SUBSUBIEN>0 QUIT  ;"IEN80 already present
-  . . NEW TMGFDA,TMGIEN,TMGMSG,IENS
-  . . SET IENS="+1,"_LINKIEN_","_PTIEN_","
-  . . SET TMGFDA(22719.511,IENS,.01)="`"_IEN80
-  . . DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
-  . . IF $DATA(TMGMSG) DO  QUIT
-  . . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)  
-  . . SET SUBSUBIEN=+$GET(TMGIEN(1))
-  . . IF SUBSUBIEN'>0 QUIT
-  . . SET TMGFDA(22719.51,LINKIEN_","_PTIEN_",",.03)="@"
-  . . DO FILE^DIE("E","TMGFDA","TMGMSG")
-  . . IF $DATA(TMGMSG) DO  QUIT
-  . . . SET TMGRESULT="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)  
+TESTFIX  
+  NEW ADFN SET ADFN=75072
+  DO FIX22719D2(ADFN)
   QUIT
   ;
-LABFILE
-  NEW IDX SET IDX=0
-  FOR  SET IDX=$O(^TMG(22748,IDX)) QUIT:IDX'>0  DO
-  . NEW SUBIDX SET SUBIDX=0
-  . FOR  SET SUBIDX=$O(^TMG(22748,IDX,5,SUBIDX)) QUIT:SUBIDX'>0  DO  
-  . . NEW FILESTR SET FILESTR=$G(^TMG(22748,IDX,5,SUBIDX,0))
-  . . IF FILESTR["^" DO
-  . . . NEW PATH,FILE SET PATH=$P(FILESTR,"^",1),FILE=$P(FILESTR,"^",2)
-  . . . WRITE "FIXING ",FILESTR," TO BE ",PATH,FILE,!
-  . . . SET ^TMG(22748,IDX,5,SUBIDX,0)=PATH_FILE
-  . . ;"^TMG(22748,5674,5,1,0)="076/130/^24C201HKDCLAB.pdf"   
+FIX22719D2(ADFN) ;
+  ;
+  NEW DATA DO TOPIC2DATA^TMGTOPIC(ADFN,.DATA)
+  NEW ATOPIC SET ATOPIC=""
+  FOR  SET ATOPIC=$ORDER(DATA("TOPIC",ATOPIC)) QUIT:ATOPIC=""  DO
+  . NEW TOPICS
+  . NEW ADT SET ADT=0
+  . FOR  SET ADT=$ORDER(DATA("TOPIC",ATOPIC,ADT)) QUIT:ADT'>0  DO
+  . . NEW CURARR MERGE CURARR=DATA("TOPIC",ATOPIC,ADT)
+  . . NEW CURSTR SET CURSTR=$$ARR2STR^TMGSTUT2(.CURARR," ")
+  . . SET TOPICS(ADT)=CURSTR
+  . NEW SAVEDTOPICS MERGE SAVEDTOPICS=TOPICS
+  . DO CLEANTOPICS(.TOPICS)
+  . ZWR SAVEDTOPICS WRITE ! ZWR TOPICS
   QUIT
-  ;"
-IMMTEST
-  NEW IDX SET IDX=0
-  FOR  SET IDX=$O(^AUPNVIMM(IDX)) QUIT:IDX'>0  DO
-  . NEW ZN SET ZN=$G(^AUPNVIMM(IDX,0))
-  . ;"IF $P(ZN,"^",1)'=129 QUIT
-  . IF $P(ZN,"^",2)'=75734 QUIT
-  . WRITE "FOUND ONE ",IDX,!
+  ;
+CLEANTOPICS(TOPICS)  ;
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(TOPICS(IDX),-1) QUIT:IDX'>0  DO                                
+  . NEW CURARR,CURTEXT SET CURTEXT=$GET(TOPICS(IDX)) QUIT:CURTEXT=""
+  . NEW JDX SET JDX=IDX
+  . FOR  SET JDX=$ORDER(TOPICS(JDX),-1) QUIT:(JDX'>0)  DO             
+  . . NEW PRIORARR,PRIORTEXT SET PRIORTEXT=$GET(TOPICS(JDX)) QUIT:PRIORTEXT=""
+  . . NEW MATCHES DO SUBSTRMATCH^TMGSTUT3(PRIORTEXT,CURTEXT,.MATCHES,.PRIORARR,.CURARR)
+  . . NEW HASMATCH FOR  DO  QUIT:HASMATCH=0
+  . . . SET HASMATCH=0
+  . . . NEW ALEN SET ALEN=+$ORDER(MATCHES("LENIDX",""),-1) QUIT:ALEN'>0  
+  . . . NEW MATCHIDX SET MATCHIDX=$ORDER(MATCHES("LENIDX",ALEN,0)) QUIT:MATCHIDX'>0
+  . . . NEW AMATCH SET AMATCH=$GET(MATCHES(MATCHIDX)) QUIT:AMATCH=""
+  . . . NEW MATCHLEN SET MATCHLEN=$PIECE(AMATCH,"^",3) QUIT:(MATCHLEN<=2)
+  . . . SET HASMATCH=1 
+  . . . NEW STARTPOS SET STARTPOS=+AMATCH
+  . . . NEW LEN SET LEN=+$PIECE(AMATCH,"^",2)
+  . . . NEW PARTA SET PARTA=""
+  . . . IF STARTPOS>0 SET PARTA=$EXTRACT(CURTEXT,1,STARTPOS-1)
+  . . . NEW PARTB SET PARTB=$EXTRACT(CURTEXT,STARTPOS,STARTPOS+LEN-1)
+  . . . NEW PARTC SET PARTC=""
+  . . . IF LEN>0 SET PARTC=$EXTRACT(CURTEXT,STARTPOS+LEN-1,$LENGTH(CURTEXT))
+  . . . IF (PARTA="")&(PARTC="") SET CURTEXT=""
+  . . . ELSE  SET CURTEXT=PARTA_"..."_PARTC
+  . . . SET TOPICS(IDX)=CURTEXT
+  . . . KILL CURARR,MATCHES 
+  . . . DO SUBSTRMATCH^TMGSTUT3(PRIORTEXT,CURTEXT,.MATCHES,.PRIORARR,.CURARR)  
+  SET IDX=0
+  FOR  SET IDX=$ORDER(TOPICS(IDX)) QUIT:IDX'>0  DO
+  . NEW CURARR,CURTEXT SET CURTEXT=$GET(TOPICS(IDX))
+  . IF CURTEXT="" QUIT
+  . NEW DONE SET DONE=0
+  . FOR  DO  QUIT:DONE
+  . . NEW CH SET CH=$EXTRACT(CURTEXT,1) 
+  . . IF $ASCII(CH)=-1 SET DONE=1 QUIT
+  . . IF " ."'[CH SET DONE=1 QUIT
+  . . SET CURTEXT=$EXTRACT(CURTEXT,2,$LENGTH(CURTEXT))
+  . SET TOPICS(IDX)=CURTEXT
   QUIT
+
+  
+  
+  

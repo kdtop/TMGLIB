@@ -124,9 +124,8 @@ MP2 ;
   write !,!
   for  set x=$order(^TMP("slope",$j,x)) quit:x'>0  do
   . write $piece(^TMP("slope",$j,x),"#",1),!
-  
   quit
-
+  ;
 IntegerTriangleArea(b,h) ;  ;"//expect integer inputs
   ;"//y=mx+b
   new result set result=0
@@ -161,13 +160,13 @@ area2(b,h)  ;"expect integer inputs
   . new n2 set n2=y1-$p(y1,".",1)
   . write x,": ",$j(y0,1,2)," -> ",$j(y1,1,2)," ==> ",$j(n1,1,2)," ->  ",$j(n2,1,2),"  ",$$pctarea(n1,n2),!
   quit
-  
+  ;
 TestRandom(array) ;
   new i
   for i=1:1:50 do
   . set array($$RANDOM^TMGKERNL(0,1))=i
   quit
-
+  ;
 TestRandom2() ;
   new array
   do TestRandom(.array)
@@ -176,8 +175,7 @@ TestRandom2() ;
   for  set i=$ORDER(array(i)) quit:i=""  do
   . write "For index ",i,", value was",array(i),!
   quit
-
-
+  ;
 CHECKRX
   NEW CT SET CT=0
   NEW IEN SET IEN=0
@@ -275,7 +273,7 @@ TREE ;
   . SET WIDTH=WIDTH-4
   FOR I=1:1:3 WRITE ?(CENTERX-1),"##",!
   QUIT
-
+  ;
 PYRAMID(ROWS,CENTERX,WIDTH) ;
   IF WIDTH'>0 SET WIDTH=3
   NEW ROW FOR ROW=1:1:ROWS DO
@@ -306,11 +304,11 @@ SLOWLOOP  ;
   . HANG 1
   QUIT
   ;
- ;"=============================================================================
- ;"=============================================================================
- ;"---- show prime numbers.  From here: https://github.com/PlummersSoftwareLLC/Primes/tree/drag-race/PrimeM/solution_1
- ;"=============================================================================
- ;"=============================================================================
+  ;"=============================================================================
+  ;"=============================================================================
+  ;"---- show prime numbers.  From here: https://github.com/PlummersSoftwareLLC/Primes/tree/drag-race/PrimeM/solution_1
+  ;"=============================================================================
+  ;"=============================================================================
   ; Prime Sieve solution in M by Marisa Heit.
 	;
 	; This is some boilerplate to execute the different implementations
@@ -488,9 +486,8 @@ printResults(sieve,showResults,duration,passes) n num,count
  ;"---- END of show prime numbers.  From here: https://github.com/PlummersSoftwareLLC/Primes/tree/drag-race/PrimeM/solution_1
  ;"=============================================================================
  ;"=============================================================================
-
+ ;
 UNICODEBOX  ; 
- 
  ;"Define Unicode characters for box drawing
  SET TOPLEFTCORNER="$250C"
  SET TOPRIGHTCORNER="$2510"
@@ -566,8 +563,7 @@ CHARDEMO ;
   . DO UTF8WRITE^TMGSTUTL(IDX) 
   . W !
   QUIT
-
-
+  ;
 TESTMONA ;
   NEW TEMP DO GETMONA(.TEMP)
   DO ALTBUF^TMGTERM(1)  ;"switch to alternative buffer
@@ -781,8 +777,9 @@ TESTPIPE2 ;
   . IF SHOWDBLOG CLOSE LOGPIPE
   ;
   USE TMGIO
-
-
+  ;
+  ;"-----------------
+  ;
 PRIME ; Calculate prime numbers up to 10,000
     NEW N,I,J,K,IsPrime
     SET N=10000
@@ -828,209 +825,133 @@ ACCEPT(TO)      ;Read A/V and echo '*' char. (p702 Modified to accept IAM STS to
         Q A
         ;
   ;"========================================================================
-  ;"
-HTMLTEST1 ;
-  ;;<!DOCTYPE html>
-  ;;<html>
-  ;;<head>
-  ;;    <meta charset="UTF-8">
-  ;;    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  ;;    <title>Float Layout Tests</title>
-  ;;    <style>
-  ;;        body {
-  ;;            margin: 0;
-  ;;            font-family: Arial, sans-serif;
-  ;;            flex-direction: column; /* Stack the test divs above the main content */
-  ;;        }
-  ;;        .test-container {
-  ;;            width: 100%;
-  ;;            overflow: hidden; /*clear flots */
-  ;;        }
-  ;;        .test-div {
-  ;;            width: 50%;
-  ;;            float: left; /* Float divs to the left */
-  ;;            border: 3px solid black;
-  ;;            height: 50px;
-  ;;            box-sizing: border-box; /* Include border in size calculation */
-  ;;        }
-  ;;        #toc {
-  ;;            width: 20%;
-  ;;            border-right: 1px solid #ccc;
-  ;;            overflow-y: auto;
-  ;;            padding: 10px;  
-  ;;            float: left; /* Float toc to the left */
-  ;;            box-sizing: border-box; 
-  ;;            height: 100vh; /* Ensure full height for scrolling */
-  ;;        }
-  ;;        #content {
-  ;;           width: 75%;
-  ;;           float: left; /* Float content to the left */
-  ;;           overflow-y: auto;
-  ;;           padding: 20px;
-  ;;           border-left: 2px solid #ccc;
-  ;;           box-sizing: border-box;
-  ;;           height: 100vh; /* Ensure full height for scrolling */
-  ;;       }
-  ;;       #debug {
-  ;;           width: 20%;
-  ;;           float: left; /* Float debug to the left */
-  ;;           background-color: #f9f9f9;
-  ;;           border-left: 1px solid #ccc;
-  ;;           padding: 10px;
-  ;;           box-sizing: border-box;
-  ;;           height: 100vh; /* Ensure full height for scrolling */
-  ;;       } 
-  ;; 
-  ;;        a {
-  ;;            text-decoration: none;
-  ;;            color: blue;
-  ;;        }
-  ;;        a:hover {
-  ;;            text-decoration: underline;
-  ;;        }
-  ;;        th {
-  ;;            background-color: #f2f2f2;
-  ;;            padding: 8px;
-  ;;        }
-  ;;        td {
-  ;;            border: 1px solid #ddd;
-  ;;            padding: 8px;
-  ;;            text-align: left;
-  ;;        }
-  ;;        table {
-  ;;            width: 100%;
-  ;;            border-collapse: collapse;
-  ;;        }
-  ;;    </style>
-  ;;</head>
-  ;;<body>
-  ;;
-  ;;    <!--  
-  ;;    <div id="debug">Debug messages will appear here.</div>
-  ;;    -->
-  ;;
-  ;;    <div id="toc">
-  ;;        <h3>Table of Contents</h3>
-  ;;        <ul>
-  ;;            <li><a href="#1" onclick="navigateTo(event, '1')">Section 1</a></li>
-  ;;            <li><a href="#2" onclick="navigateTo(event, '2')">Section 2</a></li>
-  ;;            <li><a href="#3" onclick="navigateTo(event, '3')">Section 3</a></li>
-  ;;        </ul>
-  ;;    </div>
-  ;;
-  ;;    <div id="content">
-  ;;        <table>
-  ;;            <tr>
-  ;;                <th id="1">Section 1</th>
-  ;;            </tr> 
-  ;;            <tr>
-  ;;                <td>
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                </td>
-  ;;            </tr>
-  ;;            <tr>
-  ;;                <th id="2">Section 2</th>
-  ;;            </tr>
-  ;;            <tr>
-  ;;                <td>
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 2. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                </td>
-  ;;            </tr>
-  ;;            <tr>
-  ;;                <th id="3">Section 3</th>
-  ;;            </tr>
-  ;;            <tr>
-  ;;                <td>
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                  This is the content for Section 3. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  ;;                </td>
-  ;;            </tr>
-  ;;        </table>
-  ;;    </div>    
-  ;;
-  ;;    <script>
-  ;;        function setDebugMessage(message) {
-  ;;            var debugDiv = document.getElementById('debug');
-  ;;            if (debugDiv) {
-  ;;                debugDiv.innerText = message;
-  ;;            }
-  ;;        }
-  ;;               
-  ;;        function navigateTo(event, id) {     
-  ;;            setDebugMessage('id=' + id);
-  ;;
-  ;;            // Prevent the default link behavior and stop event propagation
-  ;;            if (event.preventDefault) {
-  ;;                event.preventDefault();
-  ;;                event.stopPropagation();     
-  ;;            } else {
-  ;;                event.returnValue = false; // For IE
-  ;;            }
-  ;;            // handling errors
-  ;;            try {
-  ;;              var targetElement = document.getElementById(id);
-  ;;              var contentDiv = document.getElementById('content');  
-  ;;              // if (targetElement) {
-  ;;              //     targetElement.scrollIntoView();
-  ;;              // }  
-  ;;              if (targetElement && contentDiv) {
-  ;;                  // Calculate the offset of the target element relative to the content div
-  ;;                  var offsetTop = targetElement.offsetTop;
-  ;;                  setDebugMessage('Trying to set contentDiv.scrollTop to offsetTop: ' + offsetTop.toString());
-  ;;                  contentDiv.scrollTop = offsetTop;
-  ;;              }    
-  ;;            } catch (error) {
-  ;;              setDebugMessage('Error: ' + error.message);
-  ;;            }
-  ;;              
-  ;;        }
-  ;;    </script>
-  ;;</body>
-  ;;</html>
-  ;;#DONE_WITH_HTML        
-        
-  
+TEST1  ;
+   NEW T,H,E,Y,A,R,V,S,M
+   NEW VAR
+   FOR T=0:1:9 DO
+   . SET VAR("T")=T
+   . SET VAR("USED",T)=1
+   . FOR H=0:1:9 DO
+   . . SET VAR("H")=H
+   . . IF $GET(VAR("USED",H))=1 QUIT
+   . . SET VAR("USED",H)=1
+   . . FOR E=0:1:9 DO
+   . . . SET VAR("E")=E
+   . . . IF $GET(VAR("USED",E))=1 QUIT
+   . . . SET VAR("USED",E)=1
+   . . . FOR Y=0:1:9 DO
+   . . . . SET VAR("Y")=Y
+   . . . . IF $GET(VAR("USED",Y))=1 QUIT
+   . . . . SET VAR("USED",Y)=1
+   . . . . FOR A=0:1:9 DO
+   . . . . . SET VAR("A")=A
+   . . . . . IF $GET(VAR("USED",A))=1 QUIT
+   . . . . . SET VAR("USED",A)=1
+   . . . . . FOR R=0:1:9 DO
+   . . . . . . SET VAR("R")=R
+   . . . . . . IF $GET(VAR("USED",R))=1 QUIT
+   . . . . . . SET VAR("USED",R)=1
+   . . . . . . FOR V=0:1:9 DO
+   . . . . . . . SET VAR("V")=V
+   . . . . . . . IF $GET(VAR("USED",V))=1 QUIT
+   . . . . . . . SET VAR("USED",V)=1
+   . . . . . . . FOR S=0:1:9 DO
+   . . . . . . . . SET VAR("S")=S
+   . . . . . . . . IF $GET(VAR("USED",S))=1 QUIT
+   . . . . . . . . SET VAR("USED",S)=1
+   . . . . . . . . FOR M=0:1:9 DO
+   . . . . . . . . . SET VAR("M")=M
+   . . . . . . . . . IF $GET(VAR("USED",M))=1 QUIT
+   . . . . . . . . . SET VAR("USED",M)=1
+   . . . . . . . . . IF $$TESTCOMBO(.VAR)=1 DO
+   . . . . . . . . . . NEW V2 MERGE V2=VAR KILL V2("USED")
+   . . . . . . . . . . ;"ZWR V2(*)
+   . . . . . . . . . . NEW IDX,STR SET (IDX,STR)="" 
+   . . . . . . . . . . FOR  SET IDX=$ORDER(V2(IDX)) QUIT:IDX=""  DO
+   . . . . . . . . . . . IF STR'="" SET STR=STR_", "
+   . . . . . . . . . . . SET STR=STR_IDX_"="_$GET(V2(IDX))
+   . . . . . . . . . . WRITE STR,!
+   . . . . . . . . . . ;"WRITE "---------------",!
+   . . . . . . . . . SET VAR("USED",M)=0
+   . . . . . . . . SET VAR("USED",S)=0
+   . . . . . . . SET VAR("USED",V)=0
+   . . . . . . SET VAR("USED",R)=0
+   . . . . . SET VAR("USED",A)=0
+   . . . . SET VAR("USED",Y)=0
+   . . . SET VAR("USED",E)=0
+   . . SET VAR("USED",H)=0
+   . SET VAR("USED",T)=0
+   QUIT
+   ;
+TESTCOMBO(V)  ;
+    ;"  T H E Y
+    ;"    A R E
+    ;"  V E R Y
+    ;"---------
+    ;"S M A R T
+    ;
+    NEW RESULT SET RESULT=0
+    NEW COL,COLIDX,TEMP,CARRY
+CL1 SET TEMP=V("Y")+V("E")+V("Y")
+    SET CARRY=TEMP\10 SET TEMP=TEMP#10
+    IF TEMP'=V("T") GOTO TESTDN
+CL2 SET TEMP=CARRY+V("E")+V("R")+V("R")   
+    SET CARRY=TEMP\10 SET TEMP=TEMP#10
+    IF TEMP'=V("R") GOTO TESTDN
+CL3 SET TEMP=CARRY+V("H")+V("A")+V("E")    
+    SET CARRY=TEMP\10 SET TEMP=TEMP#10
+    IF TEMP'=V("A") GOTO TESTDN
+CL4 SET TEMP=CARRY+V("T")+V("V")    
+    SET CARRY=TEMP\10 SET TEMP=TEMP#10
+    IF TEMP'=V("M") GOTO TESTDN
+CL5 SET TEMP=CARRY  
+    IF TEMP'=V("S") GOTO TESTDN
+    SET RESULT=1
+TESTDN ;
+   QUIT RESULT
+   
+   
+Show(solution,expression) ;
+ new arr,ch,digit
+ for j=1:1:$length(expression) do
+ . set ch=$extract(expression,j),digit=$extract(solution,j)
+ . if ch'?1a quit
+ . set arr(ch)=digit
+ set ch="" for  set ch=$order(arr(ch)) quit:ch=""  write ch,"=",$get(arr(ch)),", "
+ write !
+ quit
+ ;
+PuzzleCall(digits) ;
+ New try Set try=$Translate(expression,callletter,digits)
+ If @try do
+ . Set solution(try)=$Get(solution(try))+1
+ . do Show(try,expression)
+ ;"else  write "FAIL: ",try,!
+ Quit
+ ;
+Permut(in,lead) ;
+ New ii,letter,next
+ SET lead=$get(lead)
+ If in="" Do  Quit
+ . Quit:lead=""
+ . do PuzzleCall(lead) quit
+ . Set Permut(lead)=$Get(Permut(lead))+1
+ . Quit
+ For ii=1:1:$Length(in) Do
+ . Set letter=$Extract(in,ii)
+ . set next=in
+ . set $Extract(next,ii)=""
+ . Do Permut(next,lead_letter)
+ . Quit
+ Quit
+ ; 
+Puzzle(expression)  ;" E.g.: Do Puzzle("SEND+MORE=MONEY") 
+ New callletter,ii,letter,solution,ch set callletter=""
+ For ii=1:1:$Length(expression) do
+ . set ch=$extract(expression,ii) 
+ . if ch?1a,callletter'[ch set callletter=callletter_ch
+ Do Permut(1234567890,"")
+ Quit
+ 
+ 
+
