@@ -309,12 +309,12 @@ MAKENOTE(TMGDFN,TMGDUZ,DOS,NOTETITLE,ARR,ERDCNOTE)
         ;
         ;" --- COMPOSE THE NOTE ---
         NEW IDX SET IDX=1
-        SET NOTETEXT("TEXT",IDX,0)="<!DOCTYPE HTML PUBLIC ""-//WC3//DTD HTML 3.2//EN"">  <HTML><BODY>",IDX=IDX+1    ;"HTML HEADER
-        SET NOTETEXT("TEXT",IDX,0)=ALLERGIES_"<P>",IDX=IDX+1
+        SET NOTETEXT("TEXT",IDX,0)="<!DOCTYPE HTML PUBLIC ""-//WC3//DTD HTML 3.2//EN"">  <HTML><body>",IDX=IDX+1    ;"HTML HEADER
+        SET NOTETEXT("TEXT",IDX,0)=ALLERGIES_"<p>",IDX=IDX+1
         DO ARR2TABL(.ARR,REFNOTETEXT,.IDX)  ;"Add table with ADT information.  
-        SET NOTETEXT("TEXT",IDX,0)="<P><P>Office staff has been notified to get records for this encounter.<P>",IDX=IDX+1
-        ;"DO HL72PRE(.TMGHL7MSG,REFNOTETEXT,.IDX) ;"Show raw HL7 data in <PRE> block. 
-        SET NOTETEXT("TEXT",IDX,0)="</BODY></HTML>"
+        SET NOTETEXT("TEXT",IDX,0)="<p><p>Office staff has been notified to get records for this encounter.<p>",IDX=IDX+1
+        ;"DO HL72PRE(.TMGHL7MSG,REFNOTETEXT,.IDX) ;"Show raw HL7 data in <pre> block. 
+        SET NOTETEXT("TEXT",IDX,0)="</body></HTML>"
         SET NOTETEXT("HDR")="1^1"
         ;
         NEW RESULT DO SETTEXT^TMGTIUS1(.RESULT,TIUIEN,.NOTETEXT,0)
@@ -341,9 +341,9 @@ COVDNOTE(TMGDFN,DOS,TMGDUZ)
         ;
         ;" --- COMPOSE THE NOTE ---
         NEW IDX SET IDX=1
-        SET NOTETEXT("TEXT",IDX,0)="<!DOCTYPE HTML PUBLIC ""-//WC3//DTD HTML 3.2//EN"">  <HTML><BODY>",IDX=IDX+1    ;"HTML HEADER
+        SET NOTETEXT("TEXT",IDX,0)="<!DOCTYPE HTML PUBLIC ""-//WC3//DTD HTML 3.2//EN"">  <HTML><body>",IDX=IDX+1    ;"HTML HEADER
         SET NOTETEXT("TEXT",IDX,0)="REVIEW HOSPITAL NOTES AND CONSIDER FOLLOW UP FOR COVID",IDX=IDX+1         
-        SET NOTETEXT("TEXT",IDX,0)="</BODY></HTML>"
+        SET NOTETEXT("TEXT",IDX,0)="</body></html>"
         SET NOTETEXT("HDR")="1^1"
         ;
         NEW RESULT DO SETTEXT^TMGTIUS1(.RESULT,TIUIEN,.NOTETEXT,0)
@@ -384,17 +384,17 @@ ARR2TABL(ARR,REFHTML,JDX,STYLE) ;"Convert array to HTML table.
         ;"              @REFHTML@(1,0)=<HTML TEXT LINE 1>
         ;"              @REFHTML@(2,0)=<HTML TEXT LINE 2> ... etc.
         ;"       JDX -- PASS BY REFERENCE.  Index output text array
-        ;"       STYLE -- OPTIONAL.  Default is "BORDER=1"  This is added to <TABLE> tag for formatting.  
+        ;"       STYLE -- OPTIONAL.  Default is "BORDER=1"  This is added to <table> tag for formatting.  
         ;"Result: none
         SET STYLE=$GET(STYLE,"BORDER=1")
         NEW IDX SET IDX=""
-        SET @REFHTML@(JDX,0)="<TABLE "_STYLE_">",JDX=JDX+1
+        SET @REFHTML@(JDX,0)="<table "_STYLE_">",JDX=JDX+1
         FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
         . NEW LINE SET LINE=$GET(ARR(IDX)) QUIT:LINE=""
         . NEW COL1 SET COL1=$PIECE(LINE,"^",1)
         . NEW COL2 SET COL2=$PIECE(LINE,"^",2,99)
-        . SET @REFHTML@(JDX,0)="<TR><TD>"_COL1_"</TD><TD>"_COL2_"</TD></TR>",JDX=JDX+1
-        SET @REFHTML@(JDX,0)="</TABLE>",JDX=JDX+1
+        . SET @REFHTML@(JDX,0)="<tr><td>"_COL1_"</td><td>"_COL2_"</td></tr>",JDX=JDX+1
+        SET @REFHTML@(JDX,0)="</table>",JDX=JDX+1
         QUIT
         ;
 HL72PRE(ARR,REFHTML,JDX,STYLE) ;"Convert array to PRE block. 
@@ -407,12 +407,12 @@ HL72PRE(ARR,REFHTML,JDX,STYLE) ;"Convert array to PRE block.
         ;"Result: none
         SET STYLE=$GET(STYLE,"""BORDER-TOP: gray 1px solid;BORDER-BOTTOM: gray 1px solid;BORDER-RIGHT: gray 1px solid;BORDER-LEFT: gray 1px solid;"" width=""200%""")
         NEW IDX SET IDX=""
-        SET @REFHTML@(JDX,0)="<P><P>========RAW HL7 DATA BELOW========<P>",JDX=JDX+1
-        SET @REFHTML@(JDX,0)="<PRE "_STYLE_">",JDX=JDX+1        
+        SET @REFHTML@(JDX,0)="<p><p>========RAW HL7 DATA BELOW========<p>",JDX=JDX+1
+        SET @REFHTML@(JDX,0)="<pre "_STYLE_">",JDX=JDX+1        
         FOR  SET IDX=$O(TMGHL7MSG(IDX)) QUIT:+IDX'>0  DO
         . NEW LINE SET LINE=$GET(TMGHL7MSG(IDX)) QUIT:LINE=""
         . SET @REFHTML@(JDX,0)=LINE,JDX=JDX+1        
-        SET @REFHTML@(JDX,0)="</PRE>",JDX=JDX+1
+        SET @REFHTML@(JDX,0)="</pre>",JDX=JDX+1
         QUIT
         ;
 SETALERT(ERRTEXT,AMSG,IEN772,IEN773,AMODE,TMGENV) ;

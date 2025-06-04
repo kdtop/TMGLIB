@@ -114,8 +114,8 @@ GETTIMEOLD(TMGDFN,VERBOSE,SHOWMSG)  ;"
   IF VERBOSE=0 SET TMGRESULT=""
   SET TMGRESULT=TMGRESULT_"Time spent with patient: "_TOTTIME_" mins"
   IF SHOWMSG=1 DO
-  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>This time may include chart review before the visit, the actual patient visit, and time spent on documentation after the visit."
-  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>If any procedures were done during the visit, the time for the procedure was not included in determining the level of visit."
+  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<br>This time may include chart review before the visit, the actual patient visit, and time spent on documentation after the visit."
+  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<br>If any procedures were done during the visit, the time for the procedure was not included in determining the level of visit."
   IF SHOWMSG=2 DO   ;"ONLY RETURN TIME, FOR TMG CPRS GET STARTING TIME
   . SET TMGRESULT=TOTTIME
   QUIT TMGRESULT
@@ -161,8 +161,8 @@ GETTIME(TMGDFN,VERBOSE,SHOWMSG)  ;"
   IF VERBOSE=0 SET TMGRESULT=""
   SET TMGRESULT=TMGRESULT_"Time spent with patient: "_TOTTIME_" mins"
   IF SHOWMSG=1 DO
-  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>This time may include chart review before the visit, the actual patient visit, and time spent on documentation after the visit."
-  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<BR>If any procedures were done during the visit, the time for the procedure was not included in determining the level of visit."
+  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<br>This time may include chart review before the visit, the actual patient visit, and time spent on documentation after the visit."
+  . SET TMGRESULT=TMGRESULT_$C(13,10)_$C(13,10)_"<br>If any procedures were done during the visit, the time for the procedure was not included in determining the level of visit."
   IF SHOWMSG=2 DO   ;"ONLY RETURN TIME, FOR TMG CPRS GET STARTING TIME
   . SET TMGRESULT=TOTTIME
   QUIT TMGRESULT
@@ -184,10 +184,10 @@ GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
   NEW SDT,EDT
   SET SDT=+$G(ALPHA)
   SET EDT=+$G(OMEGA) IF EDT'>0 SET EDT="9999999"
-  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>PATIENT EVENT REPORT</B><BR>"
-  SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<BR>1410 TUSCULUM BLVD  STE. 2600 <BR>"
-  SET HD=HD_" GREENEVILLE, TN 37745</CAPTION><TR><TH>DATE</TH>"
-  SET HD=HD_"<TH>EVENT</TH><TH>USER</TH><TH>TIME</TH><TH>ELLAPSED</TH></TR>"
+  NEW HD SET HD="<table BORDER=3><caption><b>PATIENT EVENT REPORT</b><br>"
+  SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
+  SET HD=HD_" GREENEVILLE, TN 37745</caption><TR><th>DATE</th>"
+  SET HD=HD_"<th>EVENT</th><th>USER</th><th>TIME</th><th>ELLAPSED</th></TR>"
   NEW IDX SET IDX=9999999
   NEW LASTDATE SET LASTDATE=0
   NEW LASTTIME SET LASTTIME=0

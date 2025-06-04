@@ -39,7 +39,7 @@ TMGRPT4  ;TMG/kst TMG REPORTS  ;10/7/16, 3/24/21
 ADD(ROOT,STR,BR) ;
   SET BR=$GET(BR,1)
   NEW IDX SET IDX=+$ORDER(@ROOT@(""),-1)+1
-  NEW BRSTR SET BRSTR=$SELECT($GET(BR)>0:"<BR>",1:"") 
+  NEW BRSTR SET BRSTR=$SELECT($GET(BR)>0:"<br>",1:"") 
   SET @ROOT@(IDX)=STR_BRSTR
   QUIT
   ;  
@@ -58,10 +58,10 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   ;"Result: None.  Output goes into @ROOT
   SET SDT=+$GET(SDT)
   SET EDT=+$GET(EDT) IF EDT'>0 SET EDT="9999999"
-  DO ADD(ROOT,"<HTML><HEAD>",0)
+  DO ADD(ROOT,"<HTML><head>",0)
   DO ADD(ROOT,"<TITLE>CPT CODES</TITLE>",0)
-  DO ADD(ROOT,"</HEAD><BODY>",0)
-  ;DO ADD(ROOT,"THIS <B>IS A</B> TEST3")
+  DO ADD(ROOT,"</head><body>",0)
+  ;DO ADD(ROOT,"THIS <b>IS A</b> TEST3")
   ;DO ADD(ROOT,"DFN="_TMGDFN)
   ;DO ADD(ROOT,"ID="_$GET(ID))
   ;DO ADD(ROOT,"SDT="_$GET(SDT))
@@ -70,11 +70,11 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   ;DO ADD(ROOT,"REMOTE="_$GET(REMOTE))
   ;DO ADD(ROOT,"MAX="_$GET(MAX))
   ;DO ADD(ROOT,"ORFHIE="_$GET(ORFHIE))
-  NEW STR SET STR="<U>CPT's And ICD's FOR DATES: "
-  SET STR=STR_"<B>"_$$FMTE^XLFDT(SDT\1)_"</B> - "  
-  IF EDT=9999999 SET STR=STR_"<B>(NOW)</B>"
-  ELSE  SET STR=STR_"<B>"_$$FMTE^XLFDT(EDT\1)_"</B>"
-  SET STR=STR_"</U>"
+  NEW STR SET STR="<u>CPT's And ICD's FOR DATES: "
+  SET STR=STR_"<b>"_$$FMTE^XLFDT(SDT\1)_"</b> - "  
+  IF EDT=9999999 SET STR=STR_"<b>(NOW)</b>"
+  ELSE  SET STR=STR_"<b>"_$$FMTE^XLFDT(EDT\1)_"</b>"
+  SET STR=STR_"</u>"
   DO ADD(ROOT,STR)
   NEW TEMP 
   DO GETCPT(.TEMP,.TMGDFN,.SDT,.EDT)
@@ -82,20 +82,20 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   NEW FOUND SET FOUND=0
   NEW DT SET DT=""
   FOR  SET DT=$ORDER(TEMP("DT",DT),-1) QUIT:+DT'>0  DO
-  . DO ADD(ROOT,"<B><U>"_$$FMTE^XLFDT(DT\1)_"</B></U>")
+  . DO ADD(ROOT,"<b><u>"_$$FMTE^XLFDT(DT\1)_"</b></u>")
   . NEW ICD SET ICD=""
   . FOR  SET ICD=$ORDER(TEMP("DT",DT,"ICD",ICD)) QUIT:ICD=""  DO
-  . . NEW STR SET STR="<B>"_$PIECE(ICD,"^",1)_"</B> -- "_$PIECE(ICD,"^",2)
+  . . NEW STR SET STR="<b>"_$PIECE(ICD,"^",1)_"</b> -- "_$PIECE(ICD,"^",2)
   . . DO ADD(ROOT,"&nbsp;&nbsp;ICD: "_STR)
   . NEW CPT SET CPT=""
   . FOR  SET CPT=$ORDER(TEMP("DT",DT,"CPT",CPT)) QUIT:CPT=""  DO
-  . . NEW STR SET STR="<B>"_$PIECE(CPT,"^",1)_"</B> -- "_$PIECE(CPT,"^",2)
+  . . NEW STR SET STR="<b>"_$PIECE(CPT,"^",1)_"</b> -- "_$PIECE(CPT,"^",2)
   . . DO ADD(ROOT,"&nbsp;&nbsp;CPT: "_STR)
   . SET FOUND=1
   IF FOUND=0 DO
   . DO ADD(ROOT,"(None found in date range -- perhaps try a different date range?)")
-  DO ADD(ROOT,"<P>")  
-  DO ADD(ROOT,"</BODY></HTML>")
+  DO ADD(ROOT,"<p>")  
+  DO ADD(ROOT,"</body></HTML>")
   QUIT
   ;
 GETCPT(OUT,TMGDFN,SDT,EDT) ;"gather CPT'S for patient into array

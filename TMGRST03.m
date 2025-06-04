@@ -97,11 +97,11 @@ GETBODY(OUT,TMGDFN) ;
   . NEW LINE SET LINE=""
   . IF 'FIRST SET LINE=LINE_" (alias) "
   . SET LINE=LINE_ANAME
-  . DO ADDLN(.OUT,LINE_"<BR>")
+  . DO ADDLN(.OUT,LINE_"<br>")
   . SET FIRST=0
-  DO ADDLN(.OUT,"<P>")
+  DO ADDLN(.OUT,"<p>")
   DO ADDTABLE(.OUT,TMGDFN)  
-  DO ADDLN(.OUT,"<P>")
+  DO ADDLN(.OUT,"<p>")
   QUIT
   ;
 ADDTABLE(OUT,TMGDFN)  ;
@@ -156,7 +156,7 @@ PREPRCLK(OUTARR,TMGDFN,DIR)  ;"Prep listing of record links
   . NEW TMGFILTER SET TMGFILTER("*")=""
   . NEW TMP SET TMP=$$LIST^%ZISH(HFSPATH,"TMGFILTER","TMGLIST")
   . IF TMP'=1 DO  QUIT
-  . . DO ADDLN(.OUT,"<P><B>Error reading path: "_HFSPATH)
+  . . DO ADDLN(.OUT,"<p><b>Error reading path: "_HFSPATH)
   . NEW AFILE SET AFILE=""
   . FOR  SET AFILE=$ORDER(TMGLIST(AFILE)) QUIT:AFILE=""  DO
   . . IF $$UP^XLFSTR(AFILE)="THUMBS.DB" QUIT
@@ -264,7 +264,7 @@ LMDDN ;
 ADDLN(OUT,TXT,ADDBR)  ;" Add one line to html document being built
   NEW IDX SET IDX=+$ORDER(OUT(""),-1)+1
   SET OUT(IDX)=$GET(TXT)
-  IF $GET(ADDBR) SET OUT(IDX)=OUT(IDX)_"<BR>"
+  IF $GET(ADDBR) SET OUT(IDX)=OUT(IDX)_"<br>"
   SET OUT(IDX)=OUT(IDX)_$C(13,10)
   QUIT
   ;

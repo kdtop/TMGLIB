@@ -45,10 +45,10 @@ HRAFORM(TMGDFN,MODE)
  ;"
  ;"Cycle through the topics
  IF MODE=0 DO
- . SET TMGRESULT="<TABLE BORDER=1 width=""700"" ID=""tmg_risk_assessment""><CAPTION><B>HEALTH RISK ASSESSMENT QUESTIONNAIRE<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
+ . SET TMGRESULT="<table BORDER=1 width=""700"" ID=""tmg_risk_assessment""><CAPTION><b>HEALTH RISK ASSESSMENT QUESTIONNAIRE<br>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</b><br></CAPTION>"
  ELSE  DO
- . SET TMGRESULT="<TABLE BORDER=1 width=""700"" ID=""tmg_risk_assessment_physician_review"">"   ;""<TABLE BORDER=1 width=""700""><CAPTION><B>ANSWERS TO REVIEW<BR>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</B><BR></CAPTION>"
- . SET TMGRESULT=TMGRESULT_"<tr style=""background-color:"_$$COLOR("TOPIC")_"""><td>Question<br><B>Answer</B></td><td width=""350"">Physician's Comments</td></tr>"
+ . SET TMGRESULT="<table BORDER=1 width=""700"" ID=""tmg_risk_assessment_physician_review"">"   ;""<table BORDER=1 width=""700""><CAPTION><b>ANSWERS TO REVIEW<br>COMPLETED ON: "_$$EXTDATE^TMGDATE(DATE)_"</b><br></CAPTION>"
+ . SET TMGRESULT=TMGRESULT_"<tr style=""background-color:"_$$COLOR("TOPIC")_"""><td>Question<br><b>Answer</b></td><td width=""350"">Physician's Comments</td></tr>"
  FOR  SET TOPICIEN=$O(AWVLIST(TOPICIEN)) QUIT:TOPICIEN'>0  DO
  . NEW TOPIC SET TOPIC=$G(AWVLIST(TOPICIEN,0))
  . IF MODE=0 DO  ;"SKIP FOR MODE 1 AND ONLY ADD BELOW IF NOT ALREADY ENTERED
@@ -91,7 +91,7 @@ HRAFORM(TMGDFN,MODE)
  . . . . . IF TOPICADDED=0 DO
  . . . . . . SET TMGRESULT=TMGRESULT_"<tr><th colspan=""2"" style=""background-color:"_$$COLOR("TOPIC")_""" >"_TOPIC_"</th></tr>"
  . . . . . . SET TOPICADDED=1
- . . . . . SET QUESTION=QUESTION_"<BR><B>"_ANSWER_"</B>"
+ . . . . . SET QUESTION=QUESTION_"<br><b>"_ANSWER_"</b>"
  . . . . . DO SET1ROW(.TMGRESULT,QUESTION," .","")
  . . . ELSE  DO
  . . . . DO SET1ROW(.TMGRESULT,QUESTION,ANSWER,COLOR)
@@ -104,8 +104,8 @@ HRAFORM(TMGDFN,MODE)
  . . . SET ANSWER="NO RESPONSE FOUND"
  . . . IF DUZ'=168 DO
  . . . . DO SET1ROW(.TMGRESULT,QUESTION,ANSWER,COLOR)
- SET TMGRESULT=TMGRESULT_"</TABLE>"
- SET TMGRESULT=TMGRESULT_"<BR>PATIENT GIVEN COPY OF THIS PLAN"
+ SET TMGRESULT=TMGRESULT_"</table>"
+ SET TMGRESULT=TMGRESULT_"<br>PATIENT GIVEN COPY OF THIS PLAN"
  QUIT TMGRESULT
  ;"
 SET1ROW(TMGRESULT,QUESTION,ANSWER,COLORTYPE)
@@ -397,10 +397,10 @@ HELHRPT(TMGDFN)
   ;"       MAX    --
   ;"       ORFHIE --
   ;"Result: None.  Output goes into @ROOT
-  ;"NEW THHEAD SET THHEAD="<TH style=""background-color:"_$$COLOR("TOPIC")_""">"
-  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>PERSONALIZED PREVENTION PLAN OF SERVICE</B></CAPTION><TR style=""background-color:"_$$COLOR("TOPIC")_"""><TH>ITEM</TH>"
-  SET HD=HD_"<TH>STATUS</TH><TH>LAST DONE</TH><TH>DUE DATE</TH><TH>FREQUENCY</TH></TR>"
-  ;"SET HD=HD_"<TH>STATUS</TH></TR>"
+  ;"NEW THHEAD SET THHEAD="<th style=""background-color:"_$$COLOR("TOPIC")_""">"
+  NEW HD SET HD="<table BORDER=3><CAPTION><b>PERSONALIZED PREVENTION PLAN OF SERVICE</b></CAPTION><tr style=""background-color:"_$$COLOR("TOPIC")_"""><th>ITEM</th>"
+  SET HD=HD_"<th>STATUS</th><th>LAST DONE</th><th>DUE DATE</th><th>FREQUENCY</th></tr>"
+  ;"SET HD=HD_"<th>STATUS</th></tr>"
   NEW SUFFIXARR DO GETSUFFIX(TMGDFN,.SUFFIXARR)
   NEW REMIEN,REMLIST SET REMIEN=0
   DO AWVREMS^TMGRPT2(.REMLIST)
@@ -425,7 +425,7 @@ HELHRPT(TMGDFN)
   . . . SET DONE=$$EXTDATE^TMGDATE(HFDONE,1)
   . . ELSE  DO
   . . . IF DONE'="" DO
-  . . . . SET DONE="NO RECORD OF BEING DONE<BR>REMINDER COMPLETED ON "_DONE
+  . . . . SET DONE="NO RECORD OF BEING DONE<br>REMINDER COMPLETED ON "_DONE
   . . . ELSE  DO
   . . . . SET DONE="NO RECORD OF BEING DONE"
   . IF DONE="" SET DONE="NO RECORD OF BEING DONE"
@@ -499,8 +499,8 @@ BIOTBL(TMGDFN)  ;"
   ;"Purpose: This table returns the patients most recent BP, Lipids, Glucose, Weight
   NEW TMGRESULT,TMGOUT SET TMGRESULT=""
   NEW OUT
-  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>MOST RECENT BIOMETRIC MEASURES</B></CAPTION><TR style=""background-color:"_$$COLOR("TOPIC")_"""><TH>MEASUREMENT</TH>"
-  SET HD=HD_"<TH>VALUE</TH><TH>DATE</TH></TR>"     ;"<TH>RESULT</TH></TR>"  
+  NEW HD SET HD="<table BORDER=3><CAPTION><b>MOST RECENT BIOMETRIC MEASURES</b></CAPTION><tr style=""background-color:"_$$COLOR("TOPIC")_"""><th>MEASUREMENT</th>"
+  SET HD=HD_"<th>VALUE</th><th>DATE</th></tr>"     ;"<th>RESULT</th></tr>"  
   ;"BP
   NEW BP,BPDATE SET BP=$$TREND^TMGGMRV1(TMGDFN,"T","BP",1,"",1) ;" <-Get last BP with date
   SET BPDATE=$P($P(BP,"(",2),")",1),BP=$P(BP," ",1)
@@ -543,22 +543,22 @@ SETHTML(ROOT,RESULTS,HEADING,COLNUMS)  ;
   NEW END SET END=3
   MERGE ^EDDIE("TMGRPT2")=RESULTS
   NEW DATA
-  SET ROOT=""  ;""<TABLE BORDER=1 width=""700"">"  ;"<CAPTION><B>"_TITLE_"</CAPTION></B>"
+  SET ROOT=""  ;""<table BORDER=1 width=""700"">"  ;"<CAPTION><b>"_TITLE_"</CAPTION></b>"
   SET DATA=HEADING
   NEW IDX SET IDX=0
   FOR  SET IDX=$ORDER(RESULTS(IDX)) QUIT:IDX'>0  DO
   . IF $DATA(RESULTS(IDX,"HEADING")) DO
-  . . SET DATA=DATA_"<TR bgcolor=#c4e3ed align=""center"">"
+  . . SET DATA=DATA_"<tr bgcolor=#c4e3ed align=""center"">"
   . ELSE  DO
-  . . SET DATA=DATA_"<TR>"
+  . . SET DATA=DATA_"<tr>"
   . NEW PIECE
   . FOR PIECE=1:1:COLNUMS  DO
-  . . SET DATA=DATA_"<TD>"_$PIECE($GET(RESULTS(IDX)),"^",PIECE)_"</TD>"
-  . ;SET DATA=DATA_"<TD>"_$GET(RESULTS(IDX))_"</TD>"
-  . SET DATA=DATA_"</TR>"
+  . . SET DATA=DATA_"<td>"_$PIECE($GET(RESULTS(IDX)),"^",PIECE)_"</td>"
+  . ;SET DATA=DATA_"<td>"_$GET(RESULTS(IDX))_"</td>"
+  . SET DATA=DATA_"</tr>"
   . SET END=END+1
   SET ROOT=ROOT_DATA
-  SET ROOT=ROOT_"</TABLE>"
+  SET ROOT=ROOT_"</table>"
   QUIT   
   ;"
 DRVSPACE()  ;"

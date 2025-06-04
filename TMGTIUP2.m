@@ -109,7 +109,7 @@ GETHPI(IEN8925,ITEMARRAY,OUT,OPTION) ;"Get HPI section as one long string, with 
         ;"          NOTE: More OPTIONS defined in COMPHPI, see there for details.  
         DO PARSETIU(IEN8925,.ITEMARRAY,.OPTION);"Get HPI section as one long string, with processing, formatting etc.
         SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
-        SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        SET OPTION("TRAILING <br>")=1  ;"Add blank line to end of each section
         DO ADDCARRYFWD(IEN8925,.ITEMARRAY,.OPTION) ;"Include topic info from interval since IEN8925
         NEW TMGHPI SET TMGHPI=$$COMPHPI(.ITEMARRAY,.OPTION,.OUT)  ;"COMPILE HPI   
 LHDN    QUIT TMGHPI
@@ -165,7 +165,7 @@ PARSETIU(IEN8925,ITEMARRAY,OPTION) ;"parse HPI section of TIU NOTE with processi
         ;"        ITEMARRAY -- PASS BY REFERNCE.  An OUT PARAMETER.  See PARSEARR() for format
         ;"        OPTION -- PASS BY REFERENCE.  OPTIONAL
         ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
-        ;"          OPTION("THREADS") = 1.  If THREAD option desired.  See description PRTIUHTM^TMGTIUP3
+        ;"          OPTION("THREADS") = 1.  If THREADS option desired.  See description PRTIUHTM^TMGTIUP3.  NOTE: 'THREADS' is different from 'THREAD' ('THREAD' is used downstream)
         ;"          OPTION("SKIP REFRESH TABLES")=1 If should NOT refresh tables. 
         ;"RESULT: 1^OK, or -1^ErrorMessage
         NEW RESULT SET RESULT="1^OK"  ;"default
@@ -252,6 +252,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         IF TEMP["SKIPPED" GOTO PRSDN  ;"//kt 2/23/23
         ;
         ;"CONVERT ENTIRE NOTE INTO LONG STRING (TMGHPI)
+        ;"NOTE: String length limit in ydb is 1 mb.  So if longer than 1,000,000 chars, will cause problems. 
         SET IDX=0 FOR  SET IDX=$ORDER(TIUARRAY(IDX)) QUIT:IDX'>0  DO
         . SET TMGHPI=TMGHPI_$GET(TIUARRAY(IDX))
         IF TMGHPI="" SET TMGRESULT="-1^No text for not found for processing." GOTO PRSDN
@@ -288,7 +289,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         NEW STARTDIV,ENDDIV SET (STARTDIV,ENDDIV)=""
         FOR  SET STARTDIV=$ORDER(STARTARR(STARTDIV))  QUIT:TMGHPI[STARTDIV  ;"when STARTDIV="", <text>["" is always TRUE
         IF STARTDIV="" SET TMGRESULT="-1^Unable to find 'HISTORY OF PRESENT ILLNESS (HPI)', or other tag, to start getting HPI" GOTO PRSDN
-        NEW ISCARRYFWD SET ISCARRYFWD=(STARTDIV["CARRY FORWARD")  ;"This is unsed in interval notes, not full office notes.
+        NEW ISCARRYFWD SET ISCARRYFWD=(STARTDIV["CARRY FORWARD")  ;"This is used in interval notes, not full office notes.
         IF ISCARRYFWD DO    
         . SET OPTION("SKIP AUTOADD","SOCIAL")=1        ;"Don't add section if missing
         . SET OPTION("SKIP AUTOADD","PREVENTION")=1    ;"Don't add section if missing
@@ -297,7 +298,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         IF ENDDIV="" SET TMGRESULT="-1^Unable to find 'PAST MEDICAL HISTORY (PMH)', or other tag, as end of HPI section" GOTO PRSDN
         ;"ELH ADDED TO RETURN REST OF NOTE
         IF DORTNNOTE=1 DO
-        . ;"SET RTNNOTE=$PIECE(TMGHPI,STARTDIV,1)_STARTDIV_"<BR>"_"@@TMGHPI@@"
+        . ;"SET RTNNOTE=$PIECE(TMGHPI,STARTDIV,1)_STARTDIV_"<br>"_"@@TMGHPI@@"
         . ;"SET RTNNOTE=RTNNOTE_ENDDIV_$PIECE(TMGHPI,ENDDIV,2)
         . NEW ORIGSTARTDIV,ORIGENDDIV SET (ORIGSTARTDIV,ORIGENDDIV)=""
         . FOR  SET ORIGSTARTDIV=$ORDER(STARTARR(ORIGSTARTDIV))  QUIT:ORIGNOTE[ORIGSTARTDIV  ;"when STARTDIV="", <text>["" is always TRUE
@@ -310,14 +311,18 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"
         IF TMGHPI="" SET TMGRESULT="-1^No text for HPI found between opening and closing markers." GOTO PRSDN
         ;"
-        SET TMGHPI=$$UPTAGS^TMGHTM2(TMGHPI)  ;"force all tags to UPPER CASE
+        ;"//kt 6/3/25 SET TMGHPI=$$UPTAGS^TMGHTM2(TMGHPI)  ;"force all tags to UPPER CASE
+        SET TMGHPI=$$LOTAGS^TMGHTM2(TMGHPI)  ;"force all tags to LOWER CASE   ;"//kt 6/3/25
         ;"Remove/replace unwanted tags / strings from note  
         DO RPTAGS^TMGHTM1(.TMGHPI,"<BR />","<BR>")
         DO RPTAGS^TMGHTM1(.TMGHPI,"<P />","<P>")
+        DO RPTAGS^TMGHTM1(.TMGHPI,"<br />","<br>")  ;"5/30/25
+        DO RPTAGS^TMGHTM1(.TMGHPI,"<p />","<p>")    ;"5/30/25
         DO RMTAGS^TMGHTM1(.TMGHPI,"=== HPI ISSUES BELOW WERE NOT ADDRESSED TODAY ===")
         DO RMTAGS^TMGHTM1(.TMGHPI,"--&nbsp;[FOLLOWUP&nbsp;ITEMS]&nbsp;---------")
         ;"DO RMTAGS^TMGHTM1(.TMGHPI,"-- [FOLLOWUP ITEMS] ---------")
         DO RPTAGS^TMGHTM1(.TMGHPI,"<LI>  <P>","<LI> ")
+        DO RPTAGS^TMGHTM1(.TMGHPI,"<li>  <p>","<li> ")  ;"5/30/25
         DO RPTAGS^TMGHTM1(.TMGHPI,"[group ","[GROUP ")  ;"force group tags to be ucase 11/13/18
         DO RPTAGS^TMGHTM1(.TMGHPI,"[Group ","[GROUP ")
         DO RMTAGS^TMGHTM1(.TMGHPI,"<I>")   ;"//kt should have been already removed via DOM processing
@@ -327,10 +332,12 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         ;"                           
         ;"Parse Items
         NEW TABLES,SECTION SET IDX=1       
-        NEW DELIMITER SET DELIMITER=$$NEXTCH^TMGSTUT3(TMGHPI,0,"<LI>","*")
+        ;"//kt 6/3/25 NEW DELIMITER SET DELIMITER=$$NEXTCH^TMGSTUT3(TMGHPI,0,"<LI>","*")
+        NEW DELIMITER SET DELIMITER=$$NEXTCH^TMGSTUT3(TMGHPI,0,"<li>","*")  ;"//kt 6/3/25
         ;"If the delimiter is *, then we will replace any <LI>'s to *
-        IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<LI>","*")
-        SET TMGHPI=$P(TMGHPI,DELIMITER,2,999)                            
+        ;"//kt IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<LI>","*")
+        IF DELIMITER="*" SET TMGHPI=$$REPLSTR^TMGSTUT3(TMGHPI,"<li>","*")
+        SET TMGHPI=$PIECE(TMGHPI,DELIMITER,2,999)                            
         NEW PREVFOUND SET PREVFOUND=0
         NEW SOCIALFOUND SET SOCIALFOUND=0
         NEW CONTRAFOUND SET CONTRAFOUND=0
@@ -390,7 +397,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
         . SET TEMPARR(2)="[TABLE]"
         . SET TEMPARR(2,"TABLE")="FOLLOWUP ITEMS"
         . SET TEMPARR(2,"TEXT")=FOLLOWUPITEMS
-        . DO ADDITEM(.ITEMARRAY,.IDX,"Followup Items","<U>Followup Items</U>: <BR>    "_FOLLOWUPITEMS,.TEMPARR)
+        . DO ADDITEM(.ITEMARRAY,.IDX,"Followup Items","<u>Followup Items</u>: <br>    "_FOLLOWUPITEMS,.TEMPARR)
 PRSDN   IF $$SHOULDGARBLE^TMGMISC4() DO GARBLEHPI^TMGMISC4(.ITEMARRAY)   ;"//kt -- Check for special mode to hide patient info during demos
         QUIT TMGRESULT
         ;   
@@ -456,12 +463,15 @@ IGNORESECTION(SECTION) ;"Return 1 if should ignore section
         IF ($$TRIMSECT(SECTION)="") QUIT 1
         IF (SECTION="<P>")!(SECTION="<BR>")!(SECTION="<BR><BR>") QUIT 1
         IF (SECTION="<BR></P>")!(SECTION="<U></U>:")!(SECTION=":") QUIT 1
+        IF (SECTION="<p>")!(SECTION="<br>")!(SECTION="<br><br>") QUIT 1
+        IF (SECTION="<br></p>")!(SECTION="<u></u>:")!(SECTION=":") QUIT 1
         QUIT 0
         ;        
 TRIMSECT(SECTION) ;"This removes tags and trims to determine if section is
                   ;"actually empty
         NEW TRIMMED SET TRIMMED=SECTION
         DO RMTAGS^TMGHTM1(.TRIMMED,"</B>") 
+        DO RMTAGS^TMGHTM1(.TRIMMED,"</b>") 
         DO RMTAGS^TMGHTM1(.TRIMMED,"<B>")
         DO RMTAGS^TMGHTM1(.TRIMMED,"<BR>")
         SET TRIMMED=$$TRIM^XLFSTR(TRIMMED)
@@ -535,7 +545,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         NEW NUMOFGROUPS  SET NUMOFGROUPS=$GET(OPTION("NUMOFGROUPS"))
         NEW GROUPING SET GROUPING=$GET(OPTION("GROUPING"))
         NEW BULLETS SET BULLETS=$GET(OPTION("BULLETS"))
-        NEW ADDBR SET ADDBR=+$GET(OPTION("TRAILING <BR>"))
+        NEW ADDBR SET ADDBR=+$GET(OPTION("TRAILING <br>"))
         NEW GROUPORDER SET GROUPORDER=$GET(OPTION("GROUP-ORDER"))
         NEW GROUPOFF SET GROUPOFF=+$G(OPTION("GROUP OFF"))
         NEW AWV SET AWV=+$G(OPTION("AWV"))
@@ -549,9 +559,9 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         IF AWV=1 DO  ;"turn off grouping
         . SET GROUPING=0,AUTOGROUPING=0,GROUPORDER=""
         IF DUZ=168 DO
-        . IF GROUPORDER'="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("Items arranged in Following Order:"_GROUPORDER_"<BR>","#e0ac11",.OPTION)
+        . IF GROUPORDER'="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("Items arranged in Following Order:"_GROUPORDER_"<br>","#e0ac11",.OPTION)
         . IF GROUPING=1 DO
-        . . IF GROUPORDER="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("NOTE: No group order was found in last note.<BR>","#39a5fc",.OPTION)  ;"at this point if a group is not returned set a message 
+        . . IF GROUPORDER="" SET TMGHPI=$$WRAPTEXT^TMGTIUOT("NOTE: No group order was found in last note.<br>","#39a5fc",.OPTION)  ;"at this point if a group is not returned set a message 
         . . NEW UNGROUPED
         . . SET UNGROUPED=$$GETNOGRP(.ITEMARRAY)
         . . NEW GRPSTR,GRPNAME
@@ -575,7 +585,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . . . IF GROUPORDER'="" SET HANDLEDUNGRPED="Set to current group order"
         . . . ELSE  SET HANDLEDUNGRPED="At top of note"
         . . . SET GRPSTR=GRPSTR_", Ungrouped="_UNGROUPED_" ("_HANDLEDUNGRPED_")"
-        . . SET GRPSTR="Grouping count: "_GRPSTR_" Avg per group: "_AVERAGE_"<BR>"
+        . . SET GRPSTR="Grouping count: "_GRPSTR_" Avg per group: "_AVERAGE_"<br>"
         . . ;"REMOVED BELOW FOR NOW, PER DR. K    5/19/20
         . . ;"SET TMGHPI=TMGHPI_$$WRAPTEXT^TMGTIUOT(GRPSTR,"#e0ac11",.OPTION)        
         ;"        
@@ -604,9 +614,9 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . . . SET LASTSECT="GROUP"
         . . ELSE  IF STR="[TABLE]" DO  QUIT
         . . . NEW INLINE SET INLINE=+$GET(TEXTARR(PART,"INLINE"))
-        . . . IF 'INLINE SET LINE=LINE_"<BR><BR>"
+        . . . IF 'INLINE SET LINE=LINE_"<br><br>"
         . . . SET LINE=LINE_$GET(TEXTARR(PART,"TEXT"))_" "
-        . . . IF 'INLINE SET LINE=LINE_"<BR>"
+        . . . IF 'INLINE SET LINE=LINE_"<br>"
         . . . SET LASTSECT="TABLE"
         . . DO  QUIT
         . . . IF (DUZ=168)&(LINE'["GROUP")&(GROUPORDER'="") DO   ;"ELH ADDED THIS IF FOR TOPICS WITHOUT GROUPS, ASSUMING THE GROUPORDER  4/28/20
@@ -614,7 +624,7 @@ COMPHPI(ITEMARRAY,OPTION,OUT)  ;"COMPILE HPI
         . . . NEW TEXT SET TEXT=$GET(TEXTARR(PART))
         . . . SET LINE=LINE_$$FORMATTX(TEXT) ;"FORMAT BODY TEXT OF ONE SECION
         . . . SET LASTSECT="TEXT"
-        . IF ADDBR,LASTSECT="TEXT" SET LINE=LINE_"<BR>"
+        . IF ADDBR,LASTSECT="TEXT" SET LINE=LINE_"<br>"
         . SET LINE=LINE_DELIM(BULLETS,"END")        
         . SET TMGHPI=TMGHPI_$$ADDSTR(LINE,.OUT)  ;"//add to TMGHPI string and OUT array
         IF BULLETS SET TMGHPI=TMGHPI_$$ADDSTR("</UL>",.OUT)
@@ -798,11 +808,11 @@ NEXT(STR,FIRST,SECOND) ;"
         . SET TMGRESULT=SECOND
 NXDN    QUIT TMGRESULT
         ;
-SUDELIM(ARR) ;"//kt 7/10/17
+SUDELIM(ARR) ;
         SET ARR(0,"START")="&nbsp;&nbsp;&nbsp;&nbsp;* " 
-        SET ARR(0,"END")="<P>" 
-        SET ARR(1,"START")="<LI>" 
-        SET ARR(1,"END")="</LI>" 
+        SET ARR(0,"END")="<p>"   ;"//kt 6/3/25 set to lowercase 
+        SET ARR(1,"START")="<li>" 
+        SET ARR(1,"END")="</li>" 
         QUIT
         ;
 SPLITTL(SECTION,TOPIC,TEXTARR,TABLES,OPTION) ;"Split TOPIC and main text of section, and parse section into parts
@@ -902,9 +912,14 @@ PRCSSTXT(TEXTARR,TABLES,OPTION)  ;"Process, parse, clean text for one section fo
         ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
         ;"       TOPIC -- OPTIONAL -- name of topic (section title) being checked
         ;"Results: none
-        DO RPTAGS^TMGHTM1(.TEXTARR,"<P>","<BR>") DO RMTAGS^TMGHTM1(.TEXTARR,"</P>") ;"convert <P>...</P> into <BR>...
+        ;"//kt 5/30/25  DO RPTAGS^TMGHTM1(.TEXTARR,"<P>","<BR>") DO RMTAGS^TMGHTM1(.TEXTARR,"</P>") ;"convert <P>...</P> into <BR>...
+        DO RPTAGS^TMGHTM1(.TEXTARR,"<P>","<br>") DO RMTAGS^TMGHTM1(.TEXTARR,"</P>") ;"convert <P>...</P> into <br>...  ;"//kt 5/30/25
         DO RMTAGS^TMGHTM1(.TEXTARR,"<LI>") 
         DO RMTAGS^TMGHTM1(.TEXTARR,"</LI>")
+        ;"5/30/25
+        DO RPTAGS^TMGHTM1(.TEXTARR,"<p>","<br>") DO RMTAGS^TMGHTM1(.TEXTARR,"</p>") ;"convert <P>...</P> into <BR>...
+        DO RMTAGS^TMGHTM1(.TEXTARR,"<li>")
+        DO RMTAGS^TMGHTM1(.TEXTARR,"</li>")
         SET TEXTARR=$$MATCHTAG^TMGHTM1(TEXTARR) ;"ENSURE MATCHING OPEN/CLOSE TAGS
         DO PRTIUHTM^TMGTIUP3(.TEXTARR,.TABLES,.OPTION)  ;"PARSE TEXTARR into parts, handling tables.  
         NEW IDX SET IDX=0
@@ -926,8 +941,13 @@ TRAILTRM(STR)  ;"TRIM FROM TRAILING PART OF STR
         SET TRIMARR("<P>")=""
         SET TRIMARR("<BR>")=""
         SET TRIMARR("</P>")=""
+        ;"5/30/25
+        SET TRIMARR("<p>")=""
+        SET TRIMARR("<br>")=""
+        SET TRIMARR("</p>")=""
         SET TRIMARR("...")=""
         SET TRIMARR("</FONT>")=""
+        SET TRIMARR("</font>")=""
         SET TRIMARR(" ")=""
         NEW FOUND
         FOR  DO  QUIT:FOUND=0
@@ -948,13 +968,25 @@ SRCH    SET STR=$$TRIM^XLFSTR(STR)
         IF $E(STR,$L(STR)-2,$L(STR))="<P>" DO
         . SET STR=$E(STR,1,$L(STR)-3)
         . SET TRIMMING=1
+        IF $E(STR,$L(STR)-2,$L(STR))="<p>" DO  ;"5/30/25
+        . SET STR=$E(STR,1,$L(STR)-3)
+        . SET TRIMMING=1
         IF $E(STR,$L(STR)-3,$L(STR))="<BR>" DO
+        . SET STR=$E(STR,1,$L(STR)-4)
+        . SET TRIMMING=1
+        IF $E(STR,$L(STR)-3,$L(STR))="<br>" DO  ;"5/30/25
         . SET STR=$E(STR,1,$L(STR)-4)
         . SET TRIMMING=1
         IF $E(STR,$L(STR)-3,$L(STR))="</P>" DO
         . SET STR=$E(STR,1,$L(STR)-4)
         . SET TRIMMING=1
+        IF $E(STR,$L(STR)-3,$L(STR))="</p>" DO  ;"5/30/25
+        . SET STR=$E(STR,1,$L(STR)-4)
+        . SET TRIMMING=1
         IF $E(STR,$L(STR)-6,$L(STR))="</FONT>" DO
+        . SET STR=$E(STR,1,$L(STR)-7)
+        . SET TRIMMING=1
+        IF $E(STR,$L(STR)-6,$L(STR))="</font>" DO  ;"5/30/25
         . SET STR=$E(STR,1,$L(STR)-7)
         . SET TRIMMING=1
         SET TMGRESULT=$L(STR)
@@ -964,10 +996,14 @@ SRCH    SET STR=$$TRIM^XLFSTR(STR)
 ITALICS(SECTION)    ;"This will remove the italics and add one single
         ;"set of italics for the entire section before any table is found
         ;"Remove existing italics tags
-        DO RMTAGS^TMGHTM1(.SECTION,"<I>")   ;"//kt should have been already removed via DOM processing
-        DO RMTAGS^TMGHTM1(.SECTION,"</I>")  ;"//kt should have been already removed via DOM processing
-        DO RMTAGS^TMGHTM1(.SECTION,"<EM>")  ;"//kt should have been already removed via DOM processing
-        DO RMTAGS^TMGHTM1(.SECTION,"</EM>") ;"//kt should have been already removed via DOM processing
+        DO RMTAGS^TMGHTM1(.SECTION,"<I>")   
+        DO RMTAGS^TMGHTM1(.SECTION,"<i>")   
+        DO RMTAGS^TMGHTM1(.SECTION,"</I>")  
+        DO RMTAGS^TMGHTM1(.SECTION,"</i>")  
+        DO RMTAGS^TMGHTM1(.SECTION,"<EM>")  
+        DO RMTAGS^TMGHTM1(.SECTION,"<em>")  
+        DO RMTAGS^TMGHTM1(.SECTION,"</EM>") 
+        DO RMTAGS^TMGHTM1(.SECTION,"</em>") 
         ;"Add end italics tags
         IF (SECTION["-- [")!(SECTION["--&nbsp;[") DO
         . NEW POS1,POS2,LEN
@@ -984,25 +1020,25 @@ ITALICS(SECTION)    ;"This will remove the italics and add one single
         . SET P2=$E(SECTION,POS1+1,$L(SECTION))
         . IF $E(P1,$L(P1)-2,$L(P1))="..." DO
         . . SET P1=$E(P1,1,$L(P1)-3)
-        . SET SECTION=P1_"</I>... "_$$TODAY^TMGDATE(1)_" "_P2_"<BR>"
+        . SET SECTION=P1_"</i>... "_$$TODAY^TMGDATE(1)_" "_P2_"<br>"
         ELSE  DO
-        . SET SECTION=SECTION_"</I>..."_$$TODAY^TMGDATE(1)_" "
+        . SET SECTION=SECTION_"</i>..."_$$TODAY^TMGDATE(1)_" "
         ;"Add beginning tags
         NEW POS SET POS=$F(SECTION,">:")
         IF POS'>0 DO
         . SET POS=$F(SECTION,":")
         IF POS>0 DO
         . NEW P1,P2 SET P1=$E(SECTION,0,POS-1),P2=$E(SECTION,POS,$L(SECTION))
-        . SET SECTION=P1_"<I>"_P2        
+        . SET SECTION=P1_"<i>"_P2        
         ELSE  DO
-        . SET SECTION="<I>"_SECTION
+        . SET SECTION="<i>"_SECTION
         DO INLINE(.SECTION)
         QUIT SECTION
         ;"
 INLINE(SECTION) ;"
         IF SECTION'["]]" GOTO ILDN
-        SET SECTION=$P(SECTION,"[",1)_"</I>["_$P(SECTION,"[",2,999)
-        SET SECTION=$P(SECTION,"]]",1)_"]]<I>"_$P(SECTION,"]]",2,999)
+        SET SECTION=$P(SECTION,"[",1)_"</i>["_$P(SECTION,"[",2,999)
+        SET SECTION=$P(SECTION,"]]",1)_"]]<i>"_$P(SECTION,"]]",2,999)
 ILDN    QUIT SECTION
         ;"
 GROUP(IDX,TOPICS,NUMOFGROUPS)

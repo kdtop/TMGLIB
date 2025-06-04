@@ -44,7 +44,7 @@ MENU(OPTION,DEFCHOICE,USERRAW) ;
 SCROLLER(TMGPSCRLARR,OPTION) ;       
   ;"Purpose: Provide a scroll box
   ;"Input: TMGPSCRLARR -- PASS BY NAME.  format:
-  ;"         @TMGPSCRLARR@(1,DisplayText)=Return Text <-- note: must be numbered 1,2,3 etc.
+  ;"         @TMGPSCRLARR@(1,DisplayText)=Return Text <-- note: must be numbered with INTEGERS 1,2,3 etc. (not 1.1, 1.2 etc)
   ;"         @TMGPSCRLARR@(2,DisplayText)=Return Text
   ;"         @TMGPSCRLARR@(3,DisplayText)=Return Text
   ;"              NOTE: IF Display TEXT contains {{name}} then name is taken as color directive
@@ -88,6 +88,9 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   ;"          OPTION("SCRN TOP OFFSET")= OPTIONAL offset # to have at top of display
   ;"                                   NOTE: OPTION("SCRN HEIGHT") should be set to shortened value to account for top blank lines.
   ;"                                   This was primarly implemented to allow debugger to run on top of screen with scroller on bottom. 
+  ;"          OPTION("WRAP DATA")=# If value found then display data is wrapped to width ONCE a beginning
+  ;"                                but not with dynamically added data or if columns changed or viewport changed etc.  
+  ;"                                If 1, then wrapped to SCRN WIDTH-2, or if other number then wrapped to this length.  
   ;"          ---- COLORs (optional) ------
   ;"          NOTE: When writing text such as 'This is {{HIGH}}text.', the HIGH color will be set, based on definition below. 
   ;"                This scroller  doesn't intrinsically know about the names of colors, e.g. 'RED', or 'BLUE'. 
@@ -276,6 +279,7 @@ SCROLLER(TMGPSCRLARR,OPTION) ;
   NEW DRAWMODE SET DRAWMODE="FULL"
   SET VIEWSTATE("VIEWPORTX")=0
   DO AUTOSETCOLWIDTHS(.VIEWSTATE,SCRNW,.OPTION,0)  
+  IF $GET(OPTION("WRAP DATA"))>0 DO WRAPDATA(TMGPSCRLARR,.OPTION,SCRNW)  ;"One time wrap if requested.  
   ;
   FOR  DO  QUIT:DONE  ;"MAIN LOOP
   . IF "FULL"[DRAWMODE DO INITVIEWSTATE(.VIEWSTATE,.OPTION) 
@@ -937,7 +941,7 @@ AUTOSETCOLWIDTHS(VIEWSTATE,SCRNW,OPTION,OVERRIDE) ;"Set up column widths in OPTI
   QUIT
   ;  
 ADJUSTVS4CSR(VIEWSTATE,OPTION) ;"Ensure the ViewState so that cursor/highline (selected line) will be on screen
-  ;"NOTE: This doesn't actually do any drawing.  It just adjust view parameters.  
+  ;"NOTE: This doesn't actually do any drawing.  It just adjusts view parameters.  
   ;"Input VIEWSTATE -- Pass by reference
   ;"      OPTION -- Pass by reference 
   ;"NOTE: Uses TMGPSCRLARR,SCRNW in global scope
@@ -1123,6 +1127,42 @@ NCOL1  ;
   IF (SP>0)&(SP<=$LENGTH(TEXT)) GOTO NCOL1
 NCOLDN  ;
   QUIT RESULT
+  ;
+WRAPDATA(REF,OPTION,SCRNW)  ;"Wrap data to width.  
+  ;"Input: TMGPSCRLARR -- PASS BY NAME.  format:
+  ;"         @REF@(1,DisplayText)=Return Text <-- note: must be numbered 1,2,3 etc.
+  ;"         @REF@(2,DisplayText)=Return Text
+  ;"         @REF@(3,DisplayText)=Return Text
+  SET WIDTH=$GET(OPTION("WRAP DATA")) QUIT:WIDTH'>0
+  IF WIDTH=1 SET WIDTH=$GET(SCRNW) QUIT:WIDTH'>1
+  NEW MODIFIED SET MODIFIED=0
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(@REF@(IDX)) QUIT:IDX'>0  DO
+  . NEW TXT,DONE SET DONE=0 
+  . SET TXT=$ORDER(@REF@(IDX,""))
+  . NEW VAL SET VAL=$GET(@REF@(IDX,TXT))
+  . FOR  DO  QUIT:DONE
+  . . IF $$NOCOLEN(TXT)'>WIDTH SET DONE=1 QUIT
+  . . ;"NOTE -- Later I can add code to ensure split doesn't take place inside a color marker. 
+  . . NEW PARTA SET PARTA=$EXTRACT(TXT,1,WIDTH)
+  . . NEW PARTB SET PARTB=" ~WRAP~ "_$EXTRACT(TXT,WIDTH+1,$LENGTH(TXT))
+  . . KILL @REF@(IDX)
+  . . SET @REF@(IDX,PARTA)=VAL
+  . . SET IDX=IDX+0.000001
+  . . SET @REF@(IDX,PARTB)=VAL
+  . . SET TXT=PARTB
+  . . SET MODIFIED=1
+  IF MODIFIED DO
+  . SET IDX=0
+  . NEW JDX SET JDX=0
+  . NEW TEMP
+  . FOR  SET IDX=$ORDER(@REF@(IDX)) QUIT:IDX'>0  DO
+  . . NEW TXT,DONE SET DONE=0 
+  . . SET TXT=$ORDER(@REF@(IDX,""))
+  . . NEW VAL SET VAL=$GET(@REF@(IDX,TXT))
+  . . KILL @REF@(IDX) SET TEMP($I(JDX),TXT)=VAL
+  . MERGE @REF=TEMP
+  QUIT
   ;
 GETCODEFN(LABEL,OPTION) ;"Setup CODEFN for event, if available
   NEW CODEFN SET CODEFN=$GET(OPTION(LABEL))
@@ -1475,12 +1515,14 @@ DEMOSCRL ;"A VERY SIMPLE DEMO OF SCROLLER
   SET OPTION("HEADER",1)="This is the code for {{BOLD}}TMGUSRIF{{NORM}} file"
   SET OPTION("HEADER",2)="1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
   SET OPTION("SHOW INDEX")=1
+  SET OPTION("LR SCROLLING")=1   
+  SET OPTION("WRAP DATA")=1   
   ;"BELOW IS GOOD FOR DEBUGGING
   NEW ZZDEBUG SET ZZDEBUG=1
   IF ZZDEBUG=1 DO                    
   . SET OPTION("SCRN TOP OFFSET")=22
   . SET OPTION("SCRN HEIGHT")=20
-  . SET OPTION("SCRN WIDTH")=130
+  . SET OPTION("SCRN WIDTH")=40  ;"130
   ;  
   DO ADDNICECOLORS(.OPTION) 
   DO SCROLLER("DEMOARR",.OPTION)

@@ -982,7 +982,8 @@ NEXTFRAG(STR,STARTPOS,FRAGS,FOUNDPOS) ;"Get first next character (or string frag
   . SET MIN=POS(JDX)
   . SET MINIDX=JDX
   SET FOUNDPOS=+$GET(POS(MINIDX))
-  QUIT $GET(POS(MINIDX,"TEST"))
+  NEW RESULT SET RESULT=$GET(POS(MINIDX,"TEST"))
+  QUIT RESULT
   ;      
 NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G,H,I) ;"Get first next character (or string fragment), matching from 9 possible inputs.  
   ;"Purpose: Check string to determine which string fragment comes first and return it
@@ -996,7 +997,8 @@ NEXTCH(STR,STARTPOS,A,B,C,D,E,F,G,H,I) ;"Get first next character (or string fra
   SET:D'="" FRAGS(D)=""      SET:E'="" FRAGS(E)=""      
   SET:F'="" FRAGS(F)=""      SET:G'="" FRAGS(G)=""
   SET:H'="" FRAGS(H)=""      SET:I'="" FRAGS(I)=""
-  QUIT $$NEXTFRAG(.STR,.STARTPOS,.FRAGS)     
+  NEW RESULT SET RESULT=$$NEXTFRAG(.STR,.STARTPOS,.FRAGS)
+  QUIT RESULT      
   ;    
 LMATCH(STR,SUBSTR,CASESPEC) ;"Does left part of STR match SUBSTR?
   SET STR=$GET(STR),SUBSTR=$GET(SUBSTR) IF (STR="")!(SUBSTR="") QUIT 0
@@ -1357,11 +1359,9 @@ PARSESTR(STR,ARR) ;"PARSE STRING -- for use in SUBSTRMATCH()
   NEW INDIV SET INDIV=0  ;"Is parsing position in a divisor character
   NEW P FOR P=1:1:$LENGTH(STR) DO
   . NEW CH SET CH=$EXTRACT(STR,P) QUIT:CH=""
-  . ;"IF CH?.P DO  QUIT  ;"If ch is a punctuation character
   . IF DIVS[CH DO  QUIT  ;"If ch is a punctuation character
   . . SET INDIV=1
   . . SET CURDIV=CURDIV_CH
-  . ;"IF CH?.AN DO  QUIT  ;"If ch is an upper or lower case alphabetic character or number
   . ELSE  DO  QUIT  
   . . IF INDIV DO
   . . . ;"last char was a divisor, so we must be starting a new word
@@ -1380,7 +1380,7 @@ SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR)  ;"Get match info of substring in
   ;"Input: SUBSTR -- String input.  We will search for matches or partial matches of this inside STR
   ;"       STR -- String input.  This will be string that is searched for parts of SUBSTR
   ;"       MATCH -- PASS BY REFERENCE.  An OUT PARAMETER.  Format:
-  ;"         MATCH(#)=<start position in STRING (not SUBSTRING)>^<match character length)^<number of words in match>
+  ;"         MATCH(#)=<start position in STRING (not SUBSTRING)>^<match character length)^<number of words in match>^<end position of last char of match>
   ;"         MATCH(#,"STR")=<upper case matched string>
   ;"         MATCH("LENIDX",<char length>,#)=""
   ;"       SUBSTRARR -- OPTIONAL.  PASS BY REFERENCE.  If this contains data, it will be used instead of SUBSTR
@@ -1523,7 +1523,7 @@ SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR)  ;"Get match info of substring in
   . NEW TRAINIDX SET TRAINIDX=0
   . FOR  SET TRAINIDX=$ORDER(ZZ("STR","TRAIN",TRAINIDX)) QUIT:TRAINIDX'>0  DO
   . . IF $GET(ZZ("STR","TRAIN",TRAINIDX,"STATUS"))="CLOSED" QUIT
-  . . IF $GET(ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","EXT"))'=UWORD DO  QUIT
+  . . IF $GET(ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","EXT"))'=UWORD DO  QUIT  
   . . . SET ZZ("STR","TRAIN",TRAINIDX,"STATUS")="CLOSED" 
   . . . KILL ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD")
   . . ELSE  DO
@@ -1539,7 +1539,9 @@ SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR)  ;"Get match info of substring in
   . . . ;"Get the new next word, for matching against next round
   . . . KILL ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD")
   . . . NEW NEWSEQ SET NEWSEQ=CURSEQ+1
-  . . . NEW NEWNEXT SET NEWNEXT=$$UP^XLFSTR($PIECE($GET(STRARR(NEWSEQ)),"^",1))
+  . . . NEW TMP SET TMP=$GET(STRARR(NEWSEQ))
+  . . . NEW NEWNEXT SET NEWNEXT=$$UP^XLFSTR($PIECE(TMP,"^",1))
+  . . . NEW NEXTDIV SET NEXTDIV=$PIECE(TMP,"^",2)
   . . . IF NEWNEXT="" DO  QUIT
   . . . . SET ZZ("STR","TRAIN",TRAINIDX,"STATUS")="CLOSED"
   . . . SET ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","INT")=NEWSEQ_"-"_NEWNEXT
@@ -1571,7 +1573,9 @@ SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR)  ;"Get match info of substring in
   . . SET ZZ("STR","TRAIN",TRAINIDX,"LEN")=1
   . . ;"Get the new next word, for matching against next round
   . . NEW NEWSEQ SET NEWSEQ=STRWORDSEQ+1
-  . . NEW NEWNEXT SET NEWNEXT=$$UP^XLFSTR($PIECE($GET(STRARR(NEWSEQ)),"^",1))
+  . . NEW TMP SET TMP=$GET(STRARR(NEWSEQ))
+  . . NEW NEWNEXT SET NEWNEXT=$$UP^XLFSTR($PIECE(TMP,"^",1))
+  . . NEW NEWNEXTDIV SET NEWNEXTDIV=$PIECE(TMP,"^",2)
   . . IF NEWNEXT="" DO  QUIT
   . . . SET ZZ("STR","TRAIN",TRAINIDX,"STATUS")="CLOSED"
   . . SET ZZ("STR","TRAIN",TRAINIDX,"NEXT WORD","INT")=NEWSEQ_"-"_NEWNEXT
@@ -1595,16 +1599,26 @@ SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR)  ;"Get match info of substring in
   . NEW FIRSTENTRY SET FIRSTENTRY=$GET(STRARR(FIRSTIDX))
   . NEW STARTPOS SET STARTPOS=+$PIECE(FIRSTENTRY,"^",3)
   . NEW MATCHLEN SET MATCHLEN=$LENGTH(RETURN)
-  . SET MATCH(OUTIDX)=STARTPOS_"^"_MATCHLEN_"^"_TRAINLEN
+  . NEW TRAINLEN SET TRAINLEN=$LENGTH(ATRAIN,"^")
+  . IF $PIECE(ATRAIN,"^",TRAINLEN)="" SET TRAINLEN=TRAINLEN-1
+  . NEW LASTWORD,LASTIDX SET LASTWORD=$PIECE(ATRAIN,"^",TRAINLEN),LASTIDX=+LASTWORD
+  . NEW LASTENTRY SET LASTENTRY=$GET(STRARR(LASTIDX))
+  . SET LASTWORD=$PIECE(LASTWORD,"-",2)
+  . NEW ENDPOS SET ENDPOS=+$PIECE(LASTENTRY,"^",3)+$LENGTH(LASTWORD)-1  ;"position of last char of last word
+  . SET MATCH(OUTIDX)=STARTPOS_"^"_MATCHLEN_"^"_TRAINLEN_"^"_ENDPOS
   . SET MATCH("LENIDX",MATCHLEN,OUTIDX)=""  
   QUIT
   ;
 TESTSS  ;"TEST SUBSTRMATCH()
   NEW IDX SET IDX=0
   NEW TOPICS
-  SET TOPICS($I(IDX))="Bill and Ted went on an adventure."
-  SET TOPICS($I(IDX))="I remember that Bill and Ted, dressed in costumes, went on an adventure to France."
-  SET TOPICS($I(IDX))="Remember, Bill and Ted, dressed in costumes, went on an adventure to France. Bill got lost."
+  ;"SET TOPICS($I(IDX))="Bill and Ted went on an adventure."
+  ;"SET TOPICS($I(IDX))="I remember that Bill and Ted, dressed in costumes, went on an adventure to France."
+  ;"SET TOPICS($I(IDX))="Remember, Bill and Ted, dressed in costumes, went on an adventure to France. Bill got lost."
+  SET TOPICS($I(IDX))="Listen to this -- Dr. office.  None recently."
+  SET TOPICS($I(IDX))="Listen to this -- Dr. office.  ... None recently.  It continues to be about the same."  
+  ;"SET TOPICS($I(IDX))="That Cat and dog."
+  ;"SET TOPICS($I(IDX))="Cat and dog and crow."
   ;"
   SET IDX=""
   FOR  SET IDX=$ORDER(TOPICS(IDX),-1) QUIT:IDX'>0  DO
@@ -1621,12 +1635,13 @@ TESTSS  ;"TEST SUBSTRMATCH()
   . . . SET HASMATCH=1
   . . . NEW STARTPOS SET STARTPOS=+AMATCH
   . . . NEW LEN SET LEN=+$PIECE(AMATCH,"^",2)
+  . . . NEW ENDPOS SET ENDPOS=+$PIECE(AMATCH,"^",4)
   . . . NEW PARTA SET PARTA=""
   . . . IF STARTPOS>0 SET PARTA=$EXTRACT(CURTEXT,1,STARTPOS-1)
-  . . . NEW PARTB SET PARTB=$EXTRACT(CURTEXT,STARTPOS,STARTPOS+LEN-1)
+  . . . NEW PARTB SET PARTB=$EXTRACT(CURTEXT,STARTPOS,ENDPOS)
   . . . NEW PARTC SET PARTC=""
-  . . . IF LEN>0 SET PARTC=$EXTRACT(CURTEXT,STARTPOS+LEN-1,$LENGTH(CURTEXT))
-  . . . SET CURTEXT=PARTA_"..."_PARTC
+  . . . IF LEN>0 SET PARTC=$EXTRACT(CURTEXT,ENDPOS+1,$LENGTH(CURTEXT))
+  . . . SET CURTEXT=$SELECT(PARTA'="":PARTA_"...",1:"")_PARTC
   . . . SET TOPICS(IDX)=CURTEXT
   . . . KILL CURARR,MATCHES 
   . . . DO SUBSTRMATCH^TMGSTUT3(PRIORTEXT,CURTEXT,.MATCHES,.PRIORARR,.CURARR)

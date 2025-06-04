@@ -63,48 +63,10 @@ SUMNOTE(TIUIEN,ARRAY,OPTION) ;
         SET OPTION("FORCE PROCESS")=0
         SET OPTION("SKIP REFRESH TABLES")=1   
         SET OPTION("THREADS")=1
-        ;"IF $$GETHPI^TMGTIUP2(TIUIEN,.ITEMARRAY,.OUT,.OPTION)  ;"IGNORE RESULT
         DO PARSETIU^TMGTIUP2(TIUIEN,.ITEMARRAY,.OPTION) ;"parse HPI section of TIU NOTE with processing, formatting etc.
         DO PARSESCT2(.ITEMARRAY,.ARRAY,TIUIEN)
 SNDN    QUIT
         ;
-  ;"HPIDIV(LINESTR)  ;
-  ;"        ;"Purpose: Determine if LINESTR text indicates change into HPI parts
-  ;"        ;"Input: LINES -- 1 line of text
-  ;"        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
-  ;"        NEW RESULT SET RESULT=1
-  ;"        IF LINESTR["HPI" GOTO HPDN
-  ;"        NEW TEMPS SET TEMPS=$$UP^XLFSTR(LINESTR)
-  ;"        IF TEMPS["HISTORY",TEMPS["PRESENT",TEMPS["ILLNESS" GOTO HPDN
-  ;"        SET RESULT=0
-  ;"HPDN    QUIT RESULT
-  ;"        ;        
-  ;"PMHDIV(LINESTR)  ;
-  ;"        ;"Purpose: Determine if LINESTR text indicates change from HPI to PMH parts
-  ;"        ;"Input: LINES -- 1 line of text
-  ;"        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
-  ;"        NEW RESULT SET RESULT=1
-  ;"        IF LINESTR["(PMH)" GOTO PDDN
-  ;"        IF LINESTR["ROS:" GOTO PDDN
-  ;"        ;"Allergies are now located in HPI section -> IF LINESTR["ALLERGIES:" GOTO PDDN
-  ;"        IF LINESTR["OBJECTIVE" GOTO PDDN
-  ;"        IF LINESTR["[MEDICATIONS]" GOTO PDDN
-  ;"        IF LINESTR["[PROBLEM LIST]" GOTO PDDN
-  ;"        IF LINESTR["PMFS" GOTO PDDN
-  ;"        SET RESULT=0
-  ;"PDDN    QUIT RESULT
-  ;"        ;
-  ;"ASSEMENT(LINESTR) ;
-  ;"        ;"Purpose: Determine IF LINES text indicates change into Assesment & Plan parts
-  ;"        ;"Input: LINES -- 1 line of text
-  ;"        ;"Result: 1 IF LINESTR is a section divider, 0 otherwise.
-  ;"        NEW RESULT SET RESULT=1
-  ;"        NEW TEMPS SET TEMPS=$$UP^XLFSTR(LINESTR)
-  ;"        IF (TEMPS["ASSESMENT")&(TEMPS["PLAN") GOTO ASDN
-  ;"        IF (TEMPS["ASSESSMENT")&(TEMPS["PLAN") GOTO ASDN
-  ;"        SET RESULT=0
-  ;"ASDN    QUIT RESULT
-  ;"        ;    
 PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;"PARSE SECTIONS
         ;"NOTE: see also PARSEARR^TMGTIUP2 regarding parsing sections
         ;"Purpose: parse one section on note array

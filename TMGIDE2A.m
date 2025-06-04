@@ -78,6 +78,7 @@ CMDPROMPT  ;
   . IF tmgAction="CLS" WRITE # QUIT
   . IF tmgAction["TABLE" DO HndlTable^TMGIDE2C(tmgOrigAction) QUIT
   . IF tmgAction["SHOW" DO HndlShow^TMGIDE2C QUIT
+  . IF tmgAction["SHWo" DO HndlShow^TMGIDE2C QUIT   ;"<-- I keep having fat fingers!!!
   . IF tmgAction["ZWR" DO HndlZWR^TMGIDE2C QUIT
   . IF tmgAction["BROWSE" DO HndlBrowse^TMGIDE2C QUIT
   . IF tmgAction["NODES" DO HndlNodes^TMGIDE2C QUIT

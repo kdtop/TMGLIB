@@ -406,7 +406,7 @@ W1RPCHLP(IEN,RPCNAME)  ;"WRITE 1 RPC HELP
         ;
         WRITE "<strong>RPC DESCRIPTION:</strong><br>  " 
         DO RPCDESCR(IEN)
-        WRITE "<P>",!
+        WRITE "<p>",!
         ;
         WRITE "</div>",!
         WRITE "</body",!

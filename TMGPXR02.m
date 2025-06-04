@@ -93,7 +93,7 @@ DOTABL(TMGDFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         SET OUTARR(LN)=AHEADER
         SET RESULT=AHEADER
         IF ADDLF DO
-        . IF HTML SET RESULT=RESULT_"<BR>"
+        . IF HTML SET RESULT=RESULT_"<br>"
         . SET RESULT=RESULT_$CHAR(13)_$CHAR(10)
         NEW MAXLEN SET MAXLEN=+$PIECE($GET(^TMG(22708,TABLEIEN,0)),"^",4)
         IF MAXLEN'>0 SET MAXLEN=9999
@@ -120,7 +120,7 @@ DOTABL(TMGDFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         . ;"      items destined to be show in an HTML page are properly encoded.
         . ;"      So I am going to arbitrarily draw the line here.  
         . ;"      IF HTML=1, then everything that comes back from XECUTE should ALREADY be 
-        . ;"      HTML symbol encoded, AND have a trailing <BR>
+        . ;"      HTML symbol encoded, AND have a trailing <br>
         . ;"      This will likely break other things.  But at this point, I have a broken system,
         . ;"      and am doing this to get it back going again.
         . XECUTE TEMP  ;"E.g. $$GETITEM(TMGDFN,TABLEIEN,SUBIEN,MAXLEN,.OUTARR)
@@ -133,7 +133,7 @@ DOTABL(TMGDFN,LABEL,GICODE,OUTARR,OPTION) ;"Get Table, with options
         . . . SET RESULT=RESULT_" "
         . . ELSE  DO
         . . . SET RESULT=RESULT_SPACES
-        . . ;"IF HTML SET LINEDATA=$$TXS2HTML^TMGHTM1(LINEDATA)_"<BR>"
+        . . ;"IF HTML SET LINEDATA=$$TXS2HTML^TMGHTM1(LINEDATA)_"<br>"
         . . ;"If the line item is set to be removed, don't add  8/7/18  ELH
         . . IF $DATA(KILLARR),$$TOKILL^TMGTIUO6(LINEDATA,LABEL,.KILLARR)=1 QUIT  
         . . IF (LINEDATA["00/")&(LINEDATA'["<-")&(LINEDATA'["&lt;-") SET LINEDATA=$$REPLSTR^TMGSTUT3(LINEDATA,"00/","")  ;"remove empty months or days. 4/2/19

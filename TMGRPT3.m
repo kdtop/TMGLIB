@@ -41,10 +41,10 @@ PTINQ(TMGDFN)  ;"Replacement for DGINQB^ORCXPND1 patient inquiry.
   DO GETINFO(TMGDFN,.ARR,FLDS) ;"Get needed patient info
   IF SHOULDGARBLE KILL ARR  ;"check for special mode to hide patient info during demos
   IF $DATA(ARR("ERR")) DO  GOTO PTCH
-  . WRITE "<B>ERROR</B><BR>",!
+  . WRITE "<b>ERROR</b><br>",!
   . SET IDX=0 FOR  SET IDX=$ORDER(ARR("ERR",IDX)) QUIT:IDX=""  DO  
-  . . WRITE $GET(ARR("ERR",IDX)),"<BR>",!
-  WRITE "<TABLE BORDER=0>",!
+  . . WRITE $GET(ARR("ERR",IDX)),"<br>",!
+  WRITE "<table BORDER=0>",!
   SET IDX=0 FOR  SET IDX=$ORDER(FLDS(IDX)) QUIT:+IDX'>0  DO
   . NEW TEMP SET TEMP=$GET(FLDS(IDX))
   . NEW FLDNUM SET FLDNUM=$PIECE(TEMP,"^",1) QUIT:FLDNUM=""
@@ -56,7 +56,7 @@ PTINQ(TMGDFN)  ;"Replacement for DGINQB^ORCXPND1 patient inquiry.
   . IF PARSRTN'="" DO
   . . NEW CODE SET CODE="SET VALUE=$$"_PARSRTN_"(VALUE)"
   . . XECUTE CODE
-  . WRITE "<TR><TD align=right><B>",DISPNAME,"</B></TD><TD>&nbsp;&nbsp;",VALUE,"</TD></TR>",!
+  . WRITE "<tr><td align=right><b>",DISPNAME,"</b></td><td>&nbsp;&nbsp;",VALUE,"</td></tr>",!
   ;"Add insurances
   NEW INSIDX,INSIEN,INSCOUNT SET (INSCOUNT,INSIDX)=0
   FOR  SET INSIDX=$ORDER(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
@@ -67,10 +67,10 @@ PTINQ(TMGDFN)  ;"Replacement for DGINQB^ORCXPND1 patient inquiry.
   . NEW COB SET COB=+$P($G(^DPT(TMGDFN,.312,INSIDX,0)),"^",20)
   . IF COB'>0 SET COB="#"
   . NEW INSID SET INSID=$G(^DPT(TMGDFN,.312,INSIDX,5))
-  . WRITE "<TR><TD align=right><B>INSURANCE ",COB,"<B></TD><TD>&nbsp;&nbsp;",INSNAME,"</TD></TR>",!
-  . WRITE "<TR><TD align=right><B>INS ID NUM.<B></TD><TD>&nbsp;&nbsp;",INSID,"</TD></TR>"
+  . WRITE "<tr><td align=right><b>INSURANCE ",COB,"<b></td><td>&nbsp;&nbsp;",INSNAME,"</td></tr>",!
+  . WRITE "<tr><td align=right><b>INS ID NUM.<b></td><td>&nbsp;&nbsp;",INSID,"</td></tr>"
   IF INSCOUNT=0 DO
-  . WRITE "<TR><TD align=right><B>INSURANCE<B></TD><TD>&nbsp;&nbsp;No insurances found</TD></TR>",!
+  . WRITE "<tr><td align=right><b>INSURANCE<b></td><td>&nbsp;&nbsp;No insurances found</td></tr>",!
   ;"Add next appointment
   NEW DATE,X,Y
   DO NOW^%DTC SET DATE=X
@@ -81,26 +81,26 @@ PTINQ(TMGDFN)  ;"Replacement for DGINQB^ORCXPND1 patient inquiry.
   . NEW REASON SET REASON=$P($G(^TMG(22723,TMGDFN,1,IDX,0)),"^",4)
   . SET Y=DATE
   . DO DD^%DT
-  . WRITE "<TR><TD align=right><B>UPCOMING APPT<B></TD><TD>&nbsp;&nbsp;",Y,"&nbsp;&nbsp;",REASON,"</TD></TR>",!
+  . WRITE "<tr><td align=right><b>UPCOMING APPT<b></td><td>&nbsp;&nbsp;",Y,"&nbsp;&nbsp;",REASON,"</td></tr>",!
   . SET APPTCOUNT=APPTCOUNT+1
-  IF APPTCOUNT=0 WRITE "<TR><TD align=right><B>UPCOMING APPT<B></TD><TD>&nbsp;&nbsp;No upcoming appts found</TD></TR>",!
-  WRITE "</TABLE>",!
-  WRITE "<HR>",!
+  IF APPTCOUNT=0 WRITE "<tr><td align=right><b>UPCOMING APPT<b></td><td>&nbsp;&nbsp;No upcoming appts found</td></tr>",!
+  WRITE "</table>",!
+  WRITE "<hr>",!
   IF $DATA(ARR("NAR")) DO  GOTO PTCH
-  . WRITE "<H3>NOTES</H3>",!
+  . WRITE "<h3>NOTES</h3>",!
   . SET IDX=0 FOR  SET IDX=$ORDER(ARR("NAR",IDX)) QUIT:IDX=""  DO  
   . . WRITE $GET(ARR("NAR",IDX)),!
 PTCH ;  
   WRITE "</HTML>",!
   
-  ;" WRITE "<TABLE BORDER=0><TR><TD>",!
-  ;" WRITE "NAME</TD><TD>SSN</TD><TD>DOB</TD></TR></TABLE>",!
-  ;" WRITE "<TABLE><TR><TD>",!
-  ;" WRITE "ADDRESS</TD><TD>100 FAKE STREET<BR>GREENEVILLE</TD></TR><TR><TD>",!
-  ;" WRITE "PHONE #</TD></TR><TR><TD>",!
-  ;" WRITE "CELL #</TD></TR><TR><TD>",!
-  ;" WRITE "OTHER</TD></TR>",!
-  ;" WRITE "</TABLE></HTML>",!
+  ;" WRITE "<table BORDER=0><tr><td>",!
+  ;" WRITE "NAME</td><td>SSN</td><td>DOB</td></tr></table>",!
+  ;" WRITE "<table><tr><td>",!
+  ;" WRITE "ADDRESS</td><td>100 FAKE STREET<br>GREENEVILLE</td></tr><tr><td>",!
+  ;" WRITE "PHONE #</td></tr><tr><td>",!
+  ;" WRITE "CELL #</td></tr><tr><td>",!
+  ;" WRITE "OTHER</td></tr>",!
+  ;" WRITE "</table></HTML>",!
   QUIT
   ;
 NEXTAPPT(TMGDFN)  ;"Return date of next appt
@@ -575,7 +575,7 @@ NOLABS(TMGDFN)  ;"THIS WILL CREATE A MESSAGE IF THE PATIENT HAS
   NEW ACTORDERS DO GETAORD(TMGDFN,.ACTORDERS)
   ;" IF THEY HAVE ACTIVE ORDERS SET MESSAGE FOR TIU OBJECT
   IF $D(ACTORDERS) DO
-  . SET TMGRESULT="{HTML:<FONT style=""BACKGROUND-COLOR:#f58742"">}PATIENT HAS UNFULFILLED LAB ORDERS AND NO RESULTS IN THE LAST 14 DAYS.{HTML:</FONT><P>}"
+  . SET TMGRESULT="{HTML:<font style=""BACKGROUND-COLOR:#f58742"">}PATIENT HAS UNFULFILLED LAB ORDERS AND NO RESULTS IN THE LAST 14 DAYS.{HTML:</font><p>}"
   QUIT TMGRESULT
   ;"
 HEADING(RPTDATE)  ;"
@@ -678,13 +678,13 @@ TIMESTR(TMGDFN)
 BILLTIME(TMGDFN)  ;"
    NEW TMGRESULT SET TMGRESULT=$$TIMESTR(TMGDFN)
    IF TMGRESULT'="" DO
-   . SET TMGRESULT="<B><FONT style=""BACKGROUND-COLOR:#ff0000"">[^^!"_TMGRESULT_"IF THIS IS A TELEPHONE VISIT BILL FOR TIME.!^^]</B></FONT>"
+   . SET TMGRESULT="<b><font style=""BACKGROUND-COLOR:#ff0000"">[^^!"_TMGRESULT_"IF THIS IS A TELEPHONE VISIT BILL FOR TIME.!^^]</b></font>"
    QUIT TMGRESULT
    ;"
 TIMEWARN(TMGDFN)  ;"
    SET TMGRESULT=$$TIMESTR(TMGDFN)
    IF TMGRESULT'="" DO
-   . SET TMGRESULT="<B><FONT style=""BACKGROUND-COLOR:#ff0000"">[^^!"_TMGRESULT_"IF THIS IS A TELEPHONE VISIT TURN ON TIMER.!^^]</B></FONT>"
+   . SET TMGRESULT="<b><font style=""BACKGROUND-COLOR:#ff0000"">[^^!"_TMGRESULT_"IF THIS IS A TELEPHONE VISIT TURN ON TIMER.!^^]</b></font>"
    QUIT TMGRESULT
    ;"
 NOTEWARN(TMGRESULT,TMGDFN,NOTETYPE)  ;"

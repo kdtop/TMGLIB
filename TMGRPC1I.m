@@ -151,7 +151,7 @@ SORTBY(TMGRESULT,TMGIN,GROUPLETTER) ;
         NEW TEMP SET TEMP=$$PARSEARR^TMGTIUP2(.NOTEARR,.ITEMARRAY,.OPTION,.RTNNOTE)  ;"Parse note array into formatted arraY     
         SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
         SET OPTION("GROUP-ORDER")=GROUPLETTER
-        SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        SET OPTION("TRAILING <br>")=1  ;"Add blank line to end of each section
         SET OPTION("DIRECT HTML INSERTION")=1
         SET TMGHPI=$$COMPHPI^TMGTIUP2(.ITEMARRAY,.OPTION,.TMGHPIARR)  ;"COMPILE HPI
         ;"
@@ -191,7 +191,7 @@ AUTOGRP(TMGRESULT,TMGIN,NUMBER) ;
         NEW RTNNOTE
         NEW TEMP SET TEMP=$$PARSEARR^TMGTIUP2(.NOTEARR,.ITEMARRAY,.OPTION,.RTNNOTE)  ;"Parse note array into formatted arraY     
         SET OPTION("BULLETS")=$$GETINIVALUE^TMGINI01(DUZ,"Use Bullets In HPI",1)
-        SET OPTION("TRAILING <BR>")=1  ;"Add blank line to end of each section
+        SET OPTION("TRAILING <br>")=1  ;"Add blank line to end of each section
         SET OPTION("DIRECT HTML INSERTION")=1
         SET TMGHPI=$$COMPHPI^TMGTIUP2(.ITEMARRAY,.OPTION,.TMGHPIARR)  ;"COMPILE HPI
         ;"

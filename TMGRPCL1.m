@@ -112,8 +112,8 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO
   . NEW DAY SET DAY=$P(ADT,".",1)
   . IF '$D(ARRAY(DAY)) QUIT
-  . ;"SET OUT(IDX)="<TABLE BORDER=2 WIDTH=""600"">",IDX=IDX+1
-  . ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(ADT)_"</B></CAPTION>",IDX=IDX+1
+  . ;"SET OUT(IDX)="<table BORDER=2 WIDTH=""600"">",IDX=IDX+1
+  . ;"SET OUT(IDX)="<CAPTION><b>"_$$EXTDATE^TMGDATE(ADT)_"</b></CAPTION>",IDX=IDX+1
   . ;"SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   . NEW SETHEAD SET SETHEAD=0
   . NEW NODE SET NODE=""
@@ -129,23 +129,23 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   . . . ;"SET STR="LAB^"_ADT_"^"_NODE_"^"_$GET(LABS("DT",ADT,NODE))
   . . . NEW ROWHEAD 
   . . . IF ($P($GET(LABS("DT",ADT,NODE)),"^",4)'="")&($P($GET(LABS("DT",ADT,NODE)),"^",4)'="N") DO
-  . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
+  . . . . SET ROWHEAD="<tr bgcolor=""#FF9999"">"
   . . . ELSE  DO
-  . . . . SET ROWHEAD="<TR>"
-  . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",ADT,NODE)))_"</TR>"
+  . . . . SET ROWHEAD="<tr>"
+  . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",ADT,NODE)))_"</tr>"
   . . . SET COUNT=COUNT+1
   . . . SET OUT(IDX)=STR,IDX=IDX+1
   . . ELSE  IF NODE="COMMENT" DO
   . . . NEW JDX SET JDX=0
   . . . FOR  SET JDX=$ORDER(LABS("DT",ADT,"COMMENT",JDX)) QUIT:+JDX'>0  DO
   . . . . ;"SET STR="LAB^"_ADT_"^COMMENT^"_JDX_"^"_$GET(LABS("DT",ADT,"COMMENT",JDX))
-  . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<BR>"
+  . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<br>"
   . . . . SET COMMENT=COMMENT_$GET(LABS("DT",ADT,"COMMENT",JDX))
   . . . . ;"SET OUT(IDX)=STR,IDX=IDX+1     
   . IF (COMMENT'="")&(COUNT>0) DO
   . . SET OUT(IDX)="<tr><td colspan=""6"">"_COMMENT_"</td></tr>",IDX=IDX+1
   . ;"SET OUT(3)=$G(ARRAY(1))
-  . SET OUT(IDX)="</table><BR>",IDX=IDX+1
+  . SET OUT(IDX)="</table><br>",IDX=IDX+1
   SET OUT(IDX)="</font></body></html>" 
   QUIT
   ;"
@@ -181,12 +181,12 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . IF DAY'=LASTDT DO 
   . . DO CAPTION(.OUT,.IDX,ADT,TMGDFN)
   . ELSE  DO
-  . . SET OUT(IDX)="<TABLE BORDER=1 WIDTH=""600"">",IDX=IDX+1
+  . . SET OUT(IDX)="<table BORDER=1 WIDTH=""600"">",IDX=IDX+1
   . . SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   . SET LASTDT=DAY
   . ;"IF '$D(DATEARR(DAY)) QUIT
-  . ;"SET OUT(IDX)="<TABLE BORDER=2 WIDTH=""600"">",IDX=IDX+1
-  . ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(ADT)_"</B></CAPTION>",IDX=IDX+1
+  . ;"SET OUT(IDX)="<table BORDER=2 WIDTH=""600"">",IDX=IDX+1
+  . ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(ADT)_"</b></CAPTION>",IDX=IDX+1
   . ;"SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   . NEW SETHEAD SET SETHEAD=0
   . NEW NODE SET NODE=""
@@ -202,17 +202,17 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . . . ;"SET STR="LAB^"_ADT_"^"_NODE_"^"_$GET(LABS("DT",ADT,NODE))
   . . . NEW ROWHEAD 
   . . . IF ($P($GET(LABS("DT",ADT,NODE)),"^",4)'="")&($P($GET(LABS("DT",ADT,NODE)),"^",4)'="N") DO
-  . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
+  . . . . SET ROWHEAD="<tr bgcolor=""#FF9999"">"
   . . . ELSE  DO
-  . . . . SET ROWHEAD="<TR>"
-  . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",ADT,NODE)))_"</TR>"
+  . . . . SET ROWHEAD="<tr>"
+  . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",ADT,NODE)))_"</tr>"
   . . . SET COUNT=COUNT+1
   . . . SET OUT(IDX)=STR,IDX=IDX+1
   . . ELSE  IF NODE="COMMENT" DO
   . . . NEW JDX SET JDX=0
   . . . FOR  SET JDX=$ORDER(LABS("DT",ADT,"COMMENT",JDX)) QUIT:+JDX'>0  DO
   . . . . ;"SET STR="LAB^"_ADT_"^COMMENT^"_JDX_"^"_$GET(LABS("DT",ADT,"COMMENT",JDX))
-  . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<BR>"
+  . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<br>"
   . . . . SET COMMENT=COMMENT_$GET(LABS("DT",ADT,"COMMENT",JDX))
   . . . . ;"SET OUT(IDX)=STR,IDX=IDX+1     
   . IF (COMMENT'="")&(COUNT>0) DO
@@ -222,7 +222,7 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . . . SET COMMENT=$GET(TMP(1))
   . . SET OUT(IDX)="<tr><td colspan=""6"">"_COMMENT_"</td></tr>",IDX=IDX+1
   . ;"SET OUT(3)=$G(ARRAY(1))
-  . SET OUT(IDX)="</td></tr></table><BR>",IDX=IDX+1
+  . SET OUT(IDX)="</td></tr></table><br>",IDX=IDX+1
   SET OUT(IDX)="</font></body></html>" 
   QUIT
   ;"
@@ -236,32 +236,32 @@ CAPTION(OUT,IDX,LABDATE,TMGDFN)
   . SET NAME=$$GARBLENAME^TMGMISC4(NAME)
   . SET DOB=$$RANDOMDOB^TMGMISC4()
   . SET AGE=$RANDOM(200)
-  SET OUT(IDX)="<P><HR><P>",IDX=IDX+1
+  SET OUT(IDX)="<p><HR><p>",IDX=IDX+1
   ;"UNCOMMENT SET OUT(IDX)="<DIV align left>",IDX=IDX+1
-  SET OUT(IDX)="<TABLE width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
+  SET OUT(IDX)="<table width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
   SET OUT(IDX)="cellpadding=""1"" style=""background-color: #F2F2F2;"">",IDX=IDX+1
-  SET OUT(IDX)="<TR valign=""bottom"" align=""left"">",IDX=IDX+1
-  SET OUT(IDX)="<TD nowrap><B>Patient: "_NAME_"</B></TD>",IDX=IDX+1
-  ;"SET OUT(IDX)="<TD nowrap><B>DOB: "_DOB_"</B></TD>",IDX=IDX+1
-  SET OUT(IDX)="<TD nowrap><B>DOB: "_DOB_" ("_AGE_")</B></TD>",IDX=IDX+1
-  ;"SET OUT(IDX)="<TD nowrap><B>Age: "_AGE,IDX=IDX+1
-  SET OUT(IDX)="<TD nowrap><B>Date: "_$$EXTDATE^TMGDATE(LABDATE),IDX=IDX+1
-  SET OUT(IDX)="</B></TD>",IDX=IDX+1
-  SET OUT(IDX)="</TR></TABLE></DIV>",IDX=IDX+1
-  SET OUT(IDX)="<TABLE BORDER=1 WIDTH=""600"">",IDX=IDX+1
-  ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(LABDATE)_"</B></CAPTION>",IDX=IDX+1
+  SET OUT(IDX)="<tr valign=""bottom"" align=""left"">",IDX=IDX+1
+  SET OUT(IDX)="<td nowrap><B>Patient: "_NAME_"</b></td>",IDX=IDX+1
+  ;"SET OUT(IDX)="<td nowrap><B>DOB: "_DOB_"</b></td>",IDX=IDX+1
+  SET OUT(IDX)="<td nowrap><B>DOB: "_DOB_" ("_AGE_")</b></td>",IDX=IDX+1
+  ;"SET OUT(IDX)="<td nowrap><B>Age: "_AGE,IDX=IDX+1
+  SET OUT(IDX)="<td nowrap><B>Date: "_$$EXTDATE^TMGDATE(LABDATE),IDX=IDX+1
+  SET OUT(IDX)="</b></td>",IDX=IDX+1
+  SET OUT(IDX)="</tr></table></DIV>",IDX=IDX+1
+  SET OUT(IDX)="<table BORDER=1 WIDTH=""600"">",IDX=IDX+1
+  ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(LABDATE)_"</b></CAPTION>",IDX=IDX+1
   SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   QUIT
   ;"
 HEADER()
-  QUIT "<TR><TH width=""50%"" bgcolor=""#FAFAD4"">LAB NAME</TH><TH width=""10%"" bgcolor=""#FAFAD4"">RESULT</TH><TH width=""10%"" bgcolor=""#FAFAD4"">UNITS</TH><TH width=""10%"" bgcolor=""#FAFAD4"">FLAG</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF LOW</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF HIGH</TH></TR>"
+  QUIT "<tr><TH width=""50%"" bgcolor=""#FAFAD4"">LAB NAME</TH><TH width=""10%"" bgcolor=""#FAFAD4"">RESULT</TH><TH width=""10%"" bgcolor=""#FAFAD4"">UNITS</TH><TH width=""10%"" bgcolor=""#FAFAD4"">FLAG</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF LOW</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF HIGH</TH></tr>"
   ;"
 U2CELL(LINE) ;"CONVERT STRING WITH CAROT TO HTML TABLE CELL
   NEW DONE SET DONE=0
   SET LINE=$$REPLSTR^TMGSTUT3(LINE,"<","&lt;")
   SET LINE=$$REPLSTR^TMGSTUT3(LINE,">","&gt;")
-  SET LINE="<TD>"_$$REPLSTR^TMGSTUT3(LINE,"^","</TD><TD>")_"</TD>"
-  SET LINE=$$REPLSTR^TMGSTUT3(LINE,"<TD></TD>","<TD>&nbsp;</TD>")  
+  SET LINE="<td>"_$$REPLSTR^TMGSTUT3(LINE,"^","</td><td>")_"</td>"
+  SET LINE=$$REPLSTR^TMGSTUT3(LINE,"<td></td>","<td>&nbsp;</td>")  
   QUIT LINE
   ;"
 GETLABS(OUT,TMGDFN,SDT,EDT,NCM,NTNX,NTFX,NNMX,NDT,NPNL) ;
@@ -550,8 +550,8 @@ LABREPRT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"lab report
         FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO
         . NEW DAY SET DAY=$P(ADT,".",1)
         . IF (DAY<SDT)!(DAY>EDT) QUIT
-        . ;"SET OUT(IDX)="<TABLE BORDER=2 WIDTH=""600"">",IDX=IDX+1
-        . ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(ADT)_"</B></CAPTION>",IDX=IDX+1
+        . ;"SET OUT(IDX)="<table BORDER=2 WIDTH=""600"">",IDX=IDX+1
+        . ;"SET OUT(IDX)="<CAPTION><b>"_$$EXTDATE^TMGDATE(ADT)_"</b></CAPTION>",IDX=IDX+1
         . ;"SET OUT(IDX)=$$HEADER(),IDX=IDX+1
         . NEW SETHEAD SET SETHEAD=0
         . NEW NODE SET NODE=""
@@ -569,23 +569,23 @@ LABREPRT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"lab report
         . . . NEW FLAG SET FLAG=$$UP^XLFSTR($P($GET(LABS("DT",ADT,NODE)),"^",4))
         . . . ;"IF $P($GET(LABS("DT",ADT,NODE)),"^",4)'="" DO
         . . . IF (FLAG["H")!(FLAG["L")!(FLAG["A") DO
-        . . . . SET ROWHEAD="<TR bgcolor=""#FF9999"">"
+        . . . . SET ROWHEAD="<tr bgcolor=""#FF9999"">"
         . . . ELSE  DO
-        . . . . SET ROWHEAD="<TR bgcolor=""#FCFCED"">"
-        . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",ADT,NODE)))_"</TR>"
+        . . . . SET ROWHEAD="<tr bgcolor=""#FCFCED"">"
+        . . . SET STR=ROWHEAD_$$U2CELL($GET(LABS("DT",ADT,NODE)))_"</tr>"
         . . . SET COUNT=COUNT+1
         . . . SET @ROOT@(IDX)=STR,IDX=IDX+1
         . . ELSE  IF NODE="COMMENT" DO
         . . . NEW JDX SET JDX=0
         . . . FOR  SET JDX=$ORDER(LABS("DT",ADT,"COMMENT",JDX)) QUIT:+JDX'>0  DO
         . . . . ;"SET STR="LAB^"_ADT_"^COMMENT^"_JDX_"^"_$GET(LABS("DT",ADT,"COMMENT",JDX))
-        . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<BR>"
+        . . . . IF COMMENT'="" SET COMMENT=COMMENT_"<br>"
         . . . . SET COMMENT=COMMENT_$GET(LABS("DT",ADT,"COMMENT",JDX))
         . . . . ;"SET OUT(IDX)=STR,IDX=IDX+1     
         . IF (COMMENT'="")&(COUNT>0) DO
 		. . SET @ROOT@(IDX)="<tr bgcolor=""#FAFAD4""><td colspan=""6""><font face=""Consolas"">"_COMMENT_"</font></td></tr>",IDX=IDX+1
 		. ;"SET OUT(3)=$G(ARRAY(1))
-		. SET @ROOT@(IDX)="</td></tr></table><BR>",IDX=IDX+1
+		. SET @ROOT@(IDX)="</td></tr></table><br>",IDX=IDX+1
 		SET @ROOT@(IDX)="</font></body></html>" 
 		QUIT
 		;"
@@ -596,17 +596,17 @@ CAPTION2(OUT,IDX,LABDATE,TMGDFN)
   SET DOB=$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3))
   K VADM SET AGE=$$AGE^TIULO(TMGDFN)
   SET @OUT@(IDX)="<DIV align left>",IDX=IDX+1
-  ;"WIDTH=""600""SET @OUT@(IDX)="<TABLE width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
-  SET @OUT@(IDX)="<TABLE WIDTH=""600"" border=""0"" cellspacing=""0""",IDX=IDX+1
+  ;"WIDTH=""600""SET @OUT@(IDX)="<table width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
+  SET @OUT@(IDX)="<table WIDTH=""600"" border=""0"" cellspacing=""0""",IDX=IDX+1
   SET @OUT@(IDX)="cellpadding=""1"" style=""background-color:#F2F2F2;"">",IDX=IDX+1
-  SET @OUT@(IDX)="<TR valign=""bottom"" align=""left"">",IDX=IDX+1
-  SET @OUT@(IDX)="<TD nowrap><B>Patient: "_NAME_"</B></TD>",IDX=IDX+1
-  SET @OUT@(IDX)="<TD nowrap><B>DOB: "_DOB_"</B></TD>",IDX=IDX+1
-  SET @OUT@(IDX)="<TD nowrap><B>Age: "_AGE,IDX=IDX+1
-  SET @OUT@(IDX)="</B></TD>",IDX=IDX+1
-  SET @OUT@(IDX)="</TR></TABLE></DIV><HR>",IDX=IDX+1
-  SET @OUT@(IDX)="<TABLE BORDER=1 WIDTH=""600"">",IDX=IDX+1
-  SET @OUT@(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(LABDATE)_"</B></CAPTION>",IDX=IDX+1
+  SET @OUT@(IDX)="<tr valign=""bottom"" align=""left"">",IDX=IDX+1
+  SET @OUT@(IDX)="<td nowrap><b>Patient: "_NAME_"</b></td>",IDX=IDX+1
+  SET @OUT@(IDX)="<td nowrap><b>DOB: "_DOB_"</b></td>",IDX=IDX+1
+  SET @OUT@(IDX)="<td nowrap><b>Age: "_AGE,IDX=IDX+1
+  SET @OUT@(IDX)="</b></td>",IDX=IDX+1
+  SET @OUT@(IDX)="</tr></table></DIV><HR>",IDX=IDX+1
+  SET @OUT@(IDX)="<table BORDER=1 WIDTH=""600"">",IDX=IDX+1
+  SET @OUT@(IDX)="<CAPTION><b>"_$$EXTDATE^TMGDATE(LABDATE)_"</b></CAPTION>",IDX=IDX+1
   SET @OUT@(IDX)=$$HEADER(),IDX=IDX+1
   QUIT
   ;"		
@@ -666,11 +666,11 @@ SENTRECS(TMGRESULT,TMGDFN)
   SET TMGRESULT(OUTIDX)="    function showContent(option) {",OUTIDX=OUTIDX+1
   SET TMGRESULT(OUTIDX)="        var content = document.getElementById('content');",OUTIDX=OUTIDX+1
   SET TMGRESULT(OUTIDX)="        if (option === 'option1') {",OUTIDX=OUTIDX+1
-  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 1 Content</h1><p>Office Note<BR>Lab 9/3/23</p>';",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 1 Content</h1><p>Office Note<br>Lab 9/3/23</p>';",OUTIDX=OUTIDX+1
   SET TMGRESULT(OUTIDX)="        } else if (option === 'option2') {",OUTIDX=OUTIDX+1
-  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 2 Content</h1><p>2 other Office Notes<BR>Lab 9/3/23</p>';",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 2 Content</h1><p>2 other Office Notes<br>Lab 9/3/23</p>';",OUTIDX=OUTIDX+1
   SET TMGRESULT(OUTIDX)="        } else if (option === 'option3') {",OUTIDX=OUTIDX+1
-  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 3 Content</h1><p>2023 Records<BR>2023 Notes</p>';",OUTIDX=OUTIDX+1
+  SET TMGRESULT(OUTIDX)="            content.innerHTML = '<h1>Option 3 Content</h1><p>2023 Records<br>2023 Notes</p>';",OUTIDX=OUTIDX+1
   SET TMGRESULT(OUTIDX)="        }",OUTIDX=OUTIDX+1
   SET TMGRESULT(OUTIDX)="    }",OUTIDX=OUTIDX+1
   SET TMGRESULT(OUTIDX)="</script>",OUTIDX=OUTIDX+1

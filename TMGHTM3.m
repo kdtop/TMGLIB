@@ -78,7 +78,7 @@ HTMLMODE(TMGRESULT,MODE) ;"
   ;"----------------------------------------------------------------
   ;"----------------------------------------------------------------
   ;
-GETCODE(OUTREF,TAG,ROUTINE) ;
+GETCODE(OUTREF,TAG,ROUTINE) ;"Read HTM (or other) code into OUTREF
   ZLINK ROUTINE
   NEW OFFSET
   NEW IDX SET IDX=1

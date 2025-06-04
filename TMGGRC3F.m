@@ -135,8 +135,8 @@ SETGRAPH(ROOT,TITLE,XMIN,XMAX,XTITLE,YMIN,YMAX,YTITLE,XINC,YINC,SOURCE,ACCESSDT,
 	      DO SETITEM^TMGGRC2A(.ROOT,"function AddGraphDataSource() {")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   var s;")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   s = MyGraph;")
-	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+""<P><H6><U>Source of Normative Reference Values</U>:<BR>"";")
-	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+"""_SOURCE_"<BR>"";")
+	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+""<p><h6><u>Source of Normative Reference Values</u>:<br>"";")
+	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+"""_SOURCE_"<br>"";")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+""Accessed on "_ACCESSDT_""";")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   MyGraph=s;")
 	      DO SETITEM^TMGGRC2A(.ROOT,"}")
@@ -279,7 +279,7 @@ ADDDESC(ROOT,GRAPHTYP)	  ;
 	      DO SETITEM^TMGGRC2A(.ROOT,"function AddTableDescription() {")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   var c;")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   c = MyGraph;")
-	      DO SETITEM^TMGGRC2A(.ROOT,"   c=c+""<BR><BR>"";")
+	      DO SETITEM^TMGGRC2A(.ROOT,"   c=c+""<br><br>"";")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   c=c+""<table bgcolor=#FFFFFF>"";")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   c=c+""<tr><th>Description</th></tr>"";")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   c=c+""<tr>"";")
@@ -336,7 +336,7 @@ ADDTABLE(ROOT,ARRAY,GRAPHTYP)	 ;
 	      DO SETITEM^TMGGRC2A(.ROOT,"function AddTableOfValues() {")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   var s;")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   s = MyGraph;")
-	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+""<BR><U>Table of Actual Patient Values</U>:<BR>"";")
+	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+""<br><u>Table of Actual Patient Values</u>:<br>"";")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+""<table border=1 bgcolor=#FFFFFF>"";")
 	      DO SETITEM^TMGGRC2A(.ROOT,"   s=s+""<tr>"";")
 	      IF TTLCOL5="" DO  ;" Don't add column 5 unless
@@ -382,7 +382,7 @@ ENDING	 ;
 	      ;;</script>
 	      ;;
 	      ;;<div id="graphdiv"></div>
-	      ;;<p><H6>Graphs developed by Family Physicians of Greeneville (TMG),
+	      ;;<p><h6>Graphs developed by Family Physicians of Greeneville (TMG),
 	      ;; utilizing XYGraph.js by J. Gebelein
 	      ;;</p>
 	      ;;</body>

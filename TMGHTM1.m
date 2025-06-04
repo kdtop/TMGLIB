@@ -79,7 +79,9 @@ ISHTMREF(REFARRAY,ZN) ;
   . SET LINESTR=$$UP^XLFSTR(LINESTR)        
   . IF (LINESTR["<!DOCTYPE HTML")!(LINESTR["<HTML>") SET RESULT=1 QUIT
   . IF (LINESTR["<P>")!(LINESTR["<B>")!(LINESTR["<I>") SET RESULT=1 QUIT
+  . IF (LINESTR["<p>")!(LINESTR["<b>")!(LINESTR["<i>") SET RESULT=1 QUIT  ;"5/30/25
   . IF (LINESTR["<U>")!(LINESTR["<BR>")!(LINESTR["<HTML>") SET RESULT=1 QUIT
+  . IF (LINESTR["<u>")!(LINESTR["<br>")!(LINESTR["<html>") SET RESULT=1 QUIT  ;"5/30/25
 ISHRDN  ;
   QUIT RESULT
   ;
@@ -105,20 +107,28 @@ HTML2TXT(ARRAY,LISUB) ;
   ;"Results: none
   ;"NOTE: This conversion causes loss of HTML tags, so a round trip
   ;"      conversion back to HTML would fail.
+  ;" 
+  ;"   NOTES TO FUTURE EDDIE - This function has caused issues if the HTML
+  ;"      tags are lower case. We have tried a few methods to solve this,
+  ;"      and that is why there are a lot of commented lines throughout.
+  ;"      We will be testing back and forth, but for the time being
+  ;"      I added the lower case tags in with the upper case ones.
+  ;"                    Love, Past Eddie from 5/30/25
+  ;"
   NEW OUTARRAY,OUTI
   SET OUTI=1
   SET LISUB=$GET(LISUB)
   ;
-  ;"//kt original --> NEW BLKLNTAGS SET BLKLNTAGS="<P>^</TABLE>^</TR>^<TABLE^<TBODY>^</LI>"
-  NEW BLKLNTAGS SET BLKLNTAGS="<P>^</TABLE>^</TR>^<TABLE^<TBODY>^</LI>^<LI>"  ;"//kt 10/12/16
+  NEW BLKLNTAGS SET BLKLNTAGS="<P>^</TABLE>^</TR>^<TABLE^<TBODY>^</LI>^<p>^</table>^</tr>^<table^<tbody>^</li>" ;" ELH added lower case tags for now 5/30/25
   NEW S2 SET S2=""
   NEW LINE SET LINE=0
   FOR  SET LINE=$ORDER(ARRAY(LINE)) QUIT:(LINE="")  DO
   . NEW LINESTR SET LINESTR=S2_$GET(ARRAY(LINE,0))
+  . ;" REVERTING TO OLD WAY TO TEST  NEW LOWLINE SET LOWLINE=$$LOW^XLFSTR(LINESTR)
   . SET S2=""
   . FOR  DO  QUIT:(LINESTR'["<")
   . . NEW TAG,SORTPOS,P,NEXTTAG,PARTA,PARTB
-  . . FOR TAG="<P>","<BR>","<LI>","</LI>","</TABLE>","</TR>","<TABLE","<TBODY>" DO
+  . . FOR TAG="<P>","<BR>","<LI>","</LI>","</TABLE>","</TR>","<TABLE","<TBODY>","<p>","<br>","<li>","</li>","</table>","</tr>","<table","<tbody>" DO   ;"elh  added lower case tags to this for now   5/30/25
   . . . SET SORTPOS($FIND(LINESTR,TAG),TAG)=""
   . . SET NEXTTAG="" SET P=+$ORDER(SORTPOS(0)) IF P>0 SET NEXTTAG=$ORDER(SORTPOS(P,""))
   . . IF NEXTTAG'="",NEXTTAG'[">" DO  ;"//handle open tags (tags that might have properties)
@@ -127,11 +137,11 @@ HTML2TXT(ARRAY,LISUB) ;
   . . . SET NEXTTAG=$EXTRACT(LINESTR,P1,P2)
   . . IF NEXTTAG'="" SET PARTA=$PIECE(LINESTR,NEXTTAG,1),PARTB=$PIECE(LINESTR,NEXTTAG,2,999)
   . . ELSE  SET PARTA=LINESTR,PARTB=""
-  . . NEW TAGSUB SET TAGSUB=$SELECT(NEXTTAG="<LI>":LISUB,1:"")
+  . . NEW TAGSUB SET TAGSUB=$SELECT(NEXTTAG="<LI>":LISUB,NEXTTAG="<li>":LISUB,1:"")
   . . IF NEXTTAG'="" DO  QUIT
   . . . SET OUTARRAY(OUTI,0)=PARTA
   . . . SET OUTI=OUTI+1
-  . . . IF BLKLNTAGS[$PIECE(NEXTTAG," ",1) DO
+  . . .  IF BLKLNTAGS[$PIECE(NEXTTAG," ",1) DO
   . . . . SET OUTARRAY(OUTI,0)=""  ;"Add blank line to create paragraph break.
   . . . . SET OUTI=OUTI+1
   . . . SET LINESTR=TAGSUB_PARTB
@@ -147,6 +157,7 @@ HTML2TXT(ARRAY,LISUB) ;
   FOR  SET LINE=$ORDER(OUTARRAY(LINE)) QUIT:(LINE="")  DO
   . NEW LINESTR SET LINESTR=$GET(OUTARRAY(LINE,0))
   . SET LINESTR=$$REPLSTR^TMGSTUT3(LINESTR,"<VEFA>","{VEFA}")
+  . SET LINESTR=$$REPLSTR^TMGSTUT3(LINESTR,"<vefa>","{VEFA}")
   . FOR  QUIT:(LINESTR'["<")!(LINESTR'[">")  DO  ;" aaa<bbb>ccc  or aaa>bbb<ccc
   . . NEW S1,S2,S3
   . . SET S1=$PIECE(LINESTR,"<",1)
@@ -164,7 +175,7 @@ HTML2TXT(ARRAY,LISUB) ;
   SET SPEC("&gt;")=">"
   SET SPEC("&amp;")="&"
   SET SPEC("&quot;")=""""
-  SET SPEC("{VEFA}")="<VEFA>"
+  SET SPEC("{VEFA}")="<vefa>"
   NEW LINE SET LINE=0
   FOR  SET LINE=$ORDER(OUTARRAY(LINE)) QUIT:(LINE="")  DO
   . NEW LINESTR SET LINESTR=$GET(OUTARRAY(LINE,0))
@@ -296,8 +307,11 @@ HTMLTRIM(STR,FLAG,TRIMCHARS,TRIMTAGS) ;"Trim from HTML text
   SET CONV(1,"&amp;")="&"
   SET CONV(1,"&quot;")=""""
   SET CONV(1,"<P>")=" "
+  SET CONV(1,"<p>")=" "  ;"5/30/25
   SET CONV(1,"</P>")=" "
+  SET CONV(1,"</p>")=" "   ;"5/30/25
   SET CONV(1,"<BR>")=" "
+  SET CONV(1,"<br>")=" "   ;"5/30/25
   ;"DO
   ;". NEW CODE SET CODE="" 
   ;". FOR  SET CODE=$ORDER(CONV(1,CODE)) QUIT:CODE=""  DO
