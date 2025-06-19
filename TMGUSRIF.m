@@ -1129,10 +1129,12 @@ NCOLDN  ;
   QUIT RESULT
   ;
 WRAPDATA(REF,OPTION,SCRNW)  ;"Wrap data to width.  
-  ;"Input: TMGPSCRLARR -- PASS BY NAME.  format:
-  ;"         @REF@(1,DisplayText)=Return Text <-- note: must be numbered 1,2,3 etc.
+  ;"Input: REF -- PASS BY NAME.  format:
+  ;"         @REF@(1,DisplayText)=Return Text <-- note: must be numbered 1,2,3 etc. (INTEGERS)
   ;"         @REF@(2,DisplayText)=Return Text
   ;"         @REF@(3,DisplayText)=Return Text
+  ;"       OPTION
+  ;"       SCRNW
   SET WIDTH=$GET(OPTION("WRAP DATA")) QUIT:WIDTH'>0
   IF WIDTH=1 SET WIDTH=$GET(SCRNW) QUIT:WIDTH'>1
   NEW MODIFIED SET MODIFIED=0

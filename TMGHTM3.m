@@ -78,10 +78,10 @@ HTMLMODE(TMGRESULT,MODE) ;"
   ;"----------------------------------------------------------------
   ;"----------------------------------------------------------------
   ;
-GETCODE(OUTREF,TAG,ROUTINE) ;"Read HTM (or other) code into OUTREF
+GETCODE(OUTREF,TAG,ROUTINE,IDX) ;"Read HTM (or other) code into OUTREF
   ZLINK ROUTINE
   NEW OFFSET
-  NEW IDX SET IDX=1
+  IF $GET(IDX)'>0 SET IDX=$ORDER(@OUTREF@(""),-1)+1
   NEW DONE SET DONE=0
   FOR OFFSET=1:1 DO  QUIT:DONE
   . NEW LINE SET LINE=$TEXT(@TAG+OFFSET^@ROUTINE)

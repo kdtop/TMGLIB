@@ -25,10 +25,11 @@ TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18, 3/24/21, 
  ;"=======================================================================
  ;
 PROCESS(TMGRESULT,TMGIN,OPTION) ;
-  ;"Called from:
+  ;"Called from:  (as of 6/4/25)
   ;"   PROCESS() <-- PROCESS^TMGRPC1H <-- RPC call 'TMG CPRS PROCESS NOTE'
   ;"   PROCESS() <-- GETHPI^TMGTIUP2 <-- LASTHPI^TMGTIUP2 <-- LASTHPI^TMGTIUOJ <-- TIU TEXT OBJECT 'TMG LAST HPI'
   ;"   PROCESS() <-- PARSETIU^TMGTIUP2 <-- SUMNOTE^TMGTIUP1 <-- HNDLFRGND^TMGTIUT4 <-- MAINTRIG^TMGTIUT5 <-- [POST-SIG EVENT]
+  ;
   ;"Purpose: Entrypoint for RPC to effect processing a note from CPRS
   ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.
   ;"       TMGIN -- Input from client.  Format:
@@ -67,8 +68,10 @@ PRODN ;
   QUIT
   ;       
 FRSHTABL(TMGRESULT,TMGIN,OPTION) ;"REFRESH TABLES
-  ;"NOTE: As of 5/20/18, only called from PROCESS^TMGTIUP3()
-  ;"            7/28/24, also calling from GETFULRPC^TMGTIUT3()
+  ;"Called from:  (as of 6/4/25)
+  ;"   FRSHTABL() <-- PROCESS^TMGTIUP3()
+  ;"   FRSHTABL() <-- GETFULRPC^TMGTIUT3()
+  ;
   ;"Input: TMGRESULT -- PASS BY REFERENCE, an OUT PARAMETER.  Format:
   ;"          TMGRESULT(#)=<line of text>
   ;"       TMGIN -- Input from client.  Format:
@@ -255,6 +258,11 @@ GETNL(REFARR,IDX) ;"Get next line (non-html text)
   QUIT LINE        
   ;
 GETTABLS(TABLES,OPTION) ;"Get list of all defined text tables, minus protected ones
+  ;"Called from:  (as of 6/4/25)
+  ;"  GETTABLS() <-- FRSHTABL^TMGTIUP3
+  ;"  GETTABLS() <-- PRTIUHTM^TMGTIUP3 <--
+  ;"  GETTABLS() <-- PRCSTEXT^TMGTIUOB <-- GETOPIC1^TMGTIUP3 <-- GETTOPIC^TMGTIUOB <-- PROBSUM^TMGTIUOB <-- NOTECOMP^TMGTIUOB <-- TIU TEXT OBJECT entry point for 'TMG NOTE COMPONENT'  
+  
   ;"Note: Some tables don't need refreshing because they are fresh from
   ;"      insertion as TIU TEXT OBJECTS.  These are removed from list.
   ;"Input: TABLES -- an OUT PARAMETER
@@ -371,8 +379,12 @@ CHNGES(TMGRESULT,XU1) ;"change ES, Return 0 = success
 CESDN ;
   QUIT        
   ;
-PRTIUHTM(TEXT,TABLES,OPTION)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO ARRAY (HANDLING TABLES)  
-  ;"//As of 5/20/18, only called from PRCSSTXT^TMGTIUIP2() 
+PRTIUHTM(TEXT,TABLES,OPTION)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, INTO ARRAY (HANDLING TABLES)
+  ;"Called from:  (as of 6/4/25)
+  ;"  PRTIUHTM() <-- PRCSSTXT^TMGTIUP2 <-- SPLITTL^TMGTIUP2 <-- PARSEARR^TMGTIUP2 <-- (multiple entry points)
+  ;"  PRTIUHTM() <-- PRCSSTXT^TMGTIUP2 <-- SPLITTL^TMGTIUP2 <-- ALLGRPS^TMGTIUP2 <-- PARSEARR^TMGTIUP2 <-- (multiple entry points)
+  ;"  PRTIUHTM() <-- PRCSSTXT^TMGTIUP2 <-- SPLITTL^TMGTIUP2 <-- TOCPARSE^TMGRPC1H <--  
+  ;  
   ;"INPUT: TEXT -- PASS BY REFERENCE.  AN IN & OUT PARAMETER.  
   ;"           For input, TEXT = HTML string to process.  This is expected to be
   ;"             the text for one section of HPI part of progress note
@@ -492,6 +504,14 @@ PRTIUHTM(TEXT,TABLES,OPTION)  ;"PARSE HTML IN TYPICAL FORMAT FOR FPG/TMG NOTES, 
   QUIT
   ;
 EXTRACTHREAD(STR,FMDT,TEXTARR,OPTION) ;"Extract text found after FMDT specified date
+  ;"Called by (as of 6/4/25)
+  ;"  EXTRACTHREAD() <-- PRTIUHTM^TMGTIUP3 <--PRCSSTXT^TMGTIUP2 <-- SPLITTL^TMGTIUP2 <-- PARSEARR^TMGTIUP2 <-- (multiple entry points)
+  ;"  EXTRACTHREAD() <-- PRTIUHTM^TMGTIUP3 <--PRCSSTXT^TMGTIUP2 <-- SPLITTL^TMGTIUP2 <-- ALLGRPS^TMGTIUP2 <-- PARSEARR^TMGTIUP2 <-- (multiple entry points)
+  ;"  EXTRACTHREAD() <-- PRTIUHTM^TMGTIUP3 <--PRCSSTXT^TMGTIUP2 <-- SPLITTL^TMGTIUP2 <-- TOCPARSE^TMGRPC1H <--      
+  ;
+  ;"NOTE: A 'thread' is used here to mean the additional text that the provider ADDED to 
+  ;"      a given topic in this note. 
+  ;
   ;"INPUT: STR -- string with full paragraph
   ;"       FMDT -- Fileman DT format date
   ;"       TEXTARR -- PASS BY REFERENCE.  The array to put result into
@@ -501,7 +521,7 @@ EXTRACTHREAD(STR,FMDT,TEXTARR,OPTION) ;"Extract text found after FMDT specified 
   ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
   NEW RESULT SET RESULT=""
   DO RMTAGS^TMGHTM1(.STR,"<BR>") 
-  DO RMTAGS^TMGHTM1(.STR,"<br>")  ;"//KT 5/30/25 
+  DO RMTAGS^TMGHTM1(.STR,"<br>")  ;"//kt 5/30/25 
   SET STR=$$REPLSTR^TMGSTUT3(STR,"&nbsp;"," ")
   SET STR=$$TRIM^XLFSTR(STR)
   IF STR="" GOTO ETHRDN
@@ -547,6 +567,9 @@ ETHRDN ;
   QUIT 
   ;
 SAVAMED(TMGIN)  ;"SAVE ARRAY (containing a note) containing MEDS to 22733.2 
+  ;"Called from:  (as of 6/4/25)
+  ;"  SAVAMED() <-- PROCESS^TMGRPC1H <-- RPC: 'TMG CPRS PROCESS NOTE'
+  ;
   ;"Purpose: This function scans through input text looking for [MEDICATION]
   ;"         table, and saves this to storage, for use with refreshing tables. 
   ;"Input:   TMGIN -- Input from client.  Format:

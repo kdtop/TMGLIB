@@ -485,10 +485,10 @@ MATCHTAG(HTMLSTR,ALLOWNESTING)  ;"ENSURE MATCHING TAGS IN HTML STRING
   ;"Result: returns long HTML string with final results.  
   ;"NOTE!:  'currently, </i>hello<i>  will be turned into just 'hello', not considered matched.  
   ;
-  ;"TO DO...  Fix so that <IMG ... /> tag is not removed...
-  ;
   NEW EMPTYTAGS SET EMPTYTAGS="^AREA^BASE^BR^COL^HR^IMG^INPUT^LINK^META^PARAM^KEYGEN^SOURCE^"
+  SET EMPTYTAGS=EMPTYTAGS_$$LOW^XLFSTR(EMPTYTAGS)  ;"add lowercase versions of tags  6/5/25
   NEW KEEPOPENCLOSE SET KEEPOPENCLOSE="^P^BR^IMG^"
+  SET KEEPOPENCLOSE=KEEPOPENCLOSE_$$LOW^XLFSTR(KEEPOPENCLOSE)  ;"add lowercase versions of tags  6/5/25
   SET ALLOWNESTING=+$GET(ALLOWNESTING)
   SET HTMLSTR=$GET(HTMLSTR)
   NEW ARR DO PARSBYTG(.HTMLSTR,.ARR)

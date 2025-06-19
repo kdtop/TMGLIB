@@ -861,11 +861,11 @@ BILLTEST(OUTARRAY,BDATE,EDATE,TEXT)  ;"DEMO TEST FUNCTION
   ;"SET OUTARRAY("TEST,PERSON",TEXT,3160919)=""
   QUIT TMGRESULT
   ;"
-GETNAME(TMGDFN)
+GETNAME(TMGDFN)  ;
   SET TMGDFN=+$GET(TMGDFN)
   QUIT $PIECE($GET(^DPT(TMGDFN,0)),"^",1)_" ("_$PIECE($GET(^DPT(TMGDFN,"TMG")),"^",2)_")"
   ;
-ASKBMI
+ASKBMI  ;
   ;"Interactive entry point for BMIMISSED
   NEW %ZIS
   SET %ZIS("A")="Enter Output Device: "
@@ -987,7 +987,7 @@ NEXTAPPT(TMGRESULT,TMGDFN,TODAY)  ;"
   . IF FOUND=1 SET TMGRESULT="LAST APPOINTMENT WAS: "_$$EXTDATE^TMGDATE(LASTAPPT,1)
   QUIT
   ;"
-MISSED
+MISSED  ;
        ;"Purpose: Provide an NON-interactive entry point for report
        ; device.
        NEW %ZIS,IOP
@@ -1000,7 +1000,7 @@ MISSED
        DO ^%ZISC  ;" Close the output device
 DCNDn  QUIT
        ;"
-MISMAMMO
+MISMAMMO  ;
        ;"Purpose: Print report for patients with unscheduled mammograms
        NEW RESULT
        NEW X,Y DO NOW^%DTC NEW NowDate SET NowDate=X
@@ -1146,7 +1146,7 @@ TICKLER(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"Tickler report
   DO SETHTML(.ROOT,.DATA,"PATIENT TICKLER MESSAGES",HD,6)
   QUIT
   ;"
-TSTATUS(STATUS)
+TSTATUS(STATUS)  ;
   NEW RESULT SET RESULT=""
   IF STATUS="C" QUIT "COMPLETED"
   IF STATUS="U" QUIT "UNSIGNED"
@@ -1154,7 +1154,7 @@ TSTATUS(STATUS)
   IF STATUS="O" QUIT "DISCARDED"
   QUIT RESULT
   ;"
-OVERDUE(STATUS,DUE)
+OVERDUE(STATUS,DUE)  ;
   NEW RESULT SET RESULT=0
   IF (STATUS'="C")&(STATUS'="O") DO
   . IF DUE<$$TODAY^TMGDATE(0) SET RESULT=1
@@ -1203,7 +1203,7 @@ TOPICS(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"TOPICS report
   DO SETHTML(.ROOT,.DATA,"PATIENT TOPICS",HD,3)
   QUIT
   ;"  
-CPTIIRPT
+CPTIIRPT  ;
   ;"This report is designed to return all patients, over 65
   ;"with any metrics they have had for the current month.
   ;"
@@ -1219,7 +1219,7 @@ CPTIIRPT
   IF POP DO  GOTO NRDn
   . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
   USE IO
-TEST
+TEST  ;
   ;"get month name and beginning date
   NEW BEGINDATE SET BEGINDATE=$$TODAY^TMGDATE
   SET BEGINDATE=$E(BEGINDATE,1,5)_"01.000000"
@@ -1374,7 +1374,7 @@ CLEANUP(DATAARR)  ;"
   . . . KILL DATAARR(NAME,KEY)
   QUIT
   ;"
-HOMEBPS(BDATE,DATAARR)  
+HOMEBPS(BDATE,DATAARR)  ;  
   ;"Purpose: get the at home blood pressure readings
   ;"         adding Brief Nurse Note to the check for patient's who
   ;"         came in the office for BP checks
@@ -1428,7 +1428,7 @@ NOTETEXT(TIUIEN)  ;"RETURNS TEXT OF A NOTE IN A STRING
   . SET STRING=STRING_$G(^TIU(8925,TIUIEN,"TEXT",IDX,0))
   QUIT STRING
   ;"
-GETCPT(TMGDFN,KEY,VALUE,TMGRESULT,DATE) 
+GETCPT(TMGDFN,KEY,VALUE,TMGRESULT,DATE)   ;
   ;"This function returns the CPT and ICD codes
   ;"to be documented. This needs to be added to a file at a later date
   SET TMGRESULT=""
@@ -1478,7 +1478,7 @@ GETCPT(TMGDFN,KEY,VALUE,TMGRESULT,DATE)
   . IF +$$HASCPT^TMGRPU1(TMGDFN,CPT,BEGINDATE,9999999)=1 SET TMGRESULT=TMGRESULT_" (ALREADY REPORTED)"
   QUIT REPORTED
   ;"  
-CHKNOTE(TMGDFN,NOTEIEN,BEGINDATE,DATESTR,CPT,EXCLUDEFOUND)
+CHKNOTE(TMGDFN,NOTEIEN,BEGINDATE,DATESTR,CPT,EXCLUDEFOUND)  ;
   ;"Purpose: This function goes through a patient's notes and tries to find
   ;"         whether the given note exists
   ;"Input: TMGDFN - Patient's IEN
@@ -1519,7 +1519,7 @@ CHKNOTE(TMGDFN,NOTEIEN,BEGINDATE,DATESTR,CPT,EXCLUDEFOUND)
 CHDN
   QUIT RESULT
   ;"
-CHKMEDS(TMGDFN,LISTIEN,DATESTR,CPT)
+CHKMEDS(TMGDFN,LISTIEN,DATESTR,CPT)  ;
   NEW RESULT SET RESULT=0,DATESTR=""
   IF $$HASCPT^TMGRPU1(TMGDFN,CPT,$$FIRSTYR^TMGDATE,9999999) GOTO CMDN
   IF LISTIEN'>0 GOTO CMDN

@@ -65,6 +65,7 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
   ;"FOREACHTAG(TEXT,TAGSTART,TAGEND,HNDTAG) -- Cycle through each tag, calling callback Fn HNDTAG  
   ;"$$FINDDT(TEXT,SPOS,OUT,SPT,EPT) --Find date in TEXT, starting at option SPOS, return value found in DTOUT
   ;"SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR) -- Get match info of substring in string, return results in MATCH
+  ;"SCANDATES(STR,OUT) -- return positions of dates, in format of ##/##/#### etc
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
@@ -89,6 +90,7 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
   ;"TESTFE ;  
   ;"TESTCALLBACK(TEXT,ATAG,POS) --CALLBACK FOR TESTFE
   ;"TESTSS  -- TEST SUBSTRMATCH()
+  ;"TESTSCNDT  -- Test SCANDATES
   ;"=======================================================================
   ;"Dependancies: XLFSTR
   ;
@@ -1647,3 +1649,103 @@ TESTSS  ;"TEST SUBSTRMATCH()
   . . . DO SUBSTRMATCH^TMGSTUT3(PRIORTEXT,CURTEXT,.MATCHES,.PRIORARR,.CURARR)
   QUIT
   ;
+SCANDATES(STR,OUT)  ;"return positions of dates, in format of ##/##/####  Days, month can be 1 or 2 digits.  Yr can be 2 or 4 digits
+  ;"INPUT:  STR -- String to scan.  
+  ;"        OUT -- PASS BY REFERENCE, AN OUT PARAMETER. 
+  ;"            OUT(#)=<StartPosOfDate>^<EndPosOfDate>^<DateString>
+  ;"Result: 1 if any dates found, otherwise 0
+  ;"Allowed date formats:
+  ;"   #/#/##       e.g  1/1/24
+  ;"   ##/#/##      e.g. 12/3/25
+  ;"   #/##/##      e.g. 3/24/19
+  ;"   ##/##/##     e.g. 10/31/18
+  ;"   #/#/####     e.g  1/1/2024
+  ;"   ##/#/####    e.g. 12/3/2025
+  ;"   #/##/####    e.g. 3/24/2019
+  ;"   ##/##/####   e.g. 10/31/2018
+  ;
+  ;"   ##/#/#       e.g  24/1/1
+  ;"   ##/#/##      e.g. 25/3/1
+  ;"   ##/##/#      e.g. 19/3/24
+  ;"   ##/##/##     e.g. 18/10/31
+  ;"   ####/#/#     e.g  2024/1/1
+  ;"   ####/##/#    e.g. 2025/12/3
+  ;"   ####/#/##    e.g. 2019/3/24
+  ;"   ####/##/##   e.g. 2019/10/31
+  ;
+  ;"  Days, month can be 1 or 2 digits.  Yr can be 2 or 4 digits
+  ;"  Year can be in 1st or last position. 
+  ;         
+  NEW RESULT SET RESULT=0
+  NEW P1,P2 SET (P1,P2)=0
+  NEW DONE SET DONE=0
+  FOR  DO  QUIT:DONE
+  . SET P1=$FIND(STR,"/",P1)
+  . IF P1'>0 SET DONE=1 QUIT  
+  . SET P2=$FIND(STR,"/",P1)
+  . IF P2-P1>3 SET DONE=1 QUIT
+  . ;"At this point we have ????/?/???? or ????/??/????
+  . NEW MID SET MID=$EXTRACT(STR,P1,P2-2)
+  . IF MID'?1.2N SET DONE=1 QUIT  ;"If not 1-2 digits of numbers, quit
+  . NEW MIDLEN SET MIDLEN=$LENGTH(MID)
+  . ;"At this point we have ????/#/???? or ????/##/????
+  . ;"Next, scan pre area for numbers.  
+  . NEW P0,PRE,CH SET PRE=""
+  . NEW DN2 SET DN2=0  ;"i.e DONE2
+  . FOR P0=P1-2:-1:1 DO  QUIT:DN2
+  . . SET CH=$EXTRACT(STR,P0)
+  . . IF CH'?1N SET DN2=1 QUIT
+  . . SET PRE=CH_PRE
+  . NEW PRELEN SET PRELEN=$LENGTH(PRE) IF PRELEN=0 SET DONE=1 QUIT
+  . NEW PRESTART SET PRESTART=P1-1-$LENGTH(PRE)
+  . ;"At this point we have ####/#/???? or ####/##/????
+  . ;"Next, scan post area for numbers.  
+  . NEW POST SET POST=""
+  . SET DN2=0  ;"i.e DONE2
+  . FOR P0=P2:1:$LENGTH(STR) DO  QUIT:DN2
+  . . SET CH=$EXTRACT(STR,P0)
+  . . IF CH'?1N SET DN2=1 QUIT
+  . . SET POST=POST_CH
+  . NEW POSTLEN SET POSTLEN=$LENGTH(POST) IF POSTLEN=0 SET DONE=1 QUIT
+  . NEW POSTEND SET POSTEND=P2+$LENGTH(POST)-1
+  . ;"At this point we have ####/#/#### or ####/##/####
+  . ;"Now check for valid length configurations.  
+  . IF (",1,2,4,"[PRELEN)=0 SET DONE=1 QUIT
+  . IF (",1,2,"[MIDLEN)=0 SET DONE=1 QUIT
+  . IF (",1,2,4,"[POSTLEN)=0 SET DONE=1 QUIT
+  . IF PRELEN=4,POSTLEN>2 SET DONE=1  ;"If 4 digit year is first, last position must be 1 or 2 digits.
+  . ;"If we got here, we have a date!!
+  . NEW IDX SET IDX=$ORDER(OUT(""),-1)+1
+  . NEW FRAG SET FRAG=$EXTRACT(STR,PRESTART,POSTEND)
+  . SET OUT(IDX)=PRESTART_"^"_POSTEND_"^"_FRAG
+  . SET P1=POSTEND+1
+  QUIT
+  ;
+SCNDTDN ;
+  QUIT RESULT
+  
+TESTSCNDT ;
+  NEW ARR
+  SET ARR(1)="pre text 1/1/24 post text 12/3/25 post text"
+  SET ARR(2)="pre text 12/3/25 post text 3/24/19 post text"
+  SET ARR(3)="pre text 3/24/19 post text 10/31/18 post text"
+  SET ARR(4)="pre text 10/31/18 post text"
+  SET ARR(5)="pre text 1/1/2024 post text"
+  SET ARR(6)="pre text 12/3/2025 post text"
+  SET ARR(7)="pre text 3/24/2019 post text"
+  SET ARR(8)="pre text 10/31/2018 post text"
+  SET ARR(9)="pre text 24/1/1 post text"
+  SET ARR(10)="pre text 25/3/1 post text"
+  SET ARR(11)="pre text 19/3/24 post text"
+  SET ARR(12)="pre text 18/10/31 post text"
+  SET ARR(13)="pre text 2024/1/1 post text"
+  SET ARR(14)="pre text 2025/12/3 post text"
+  SET ARR(15)="pre text 2019/3/24 post text"
+  SET ARR(16)="pre text 2019/10/31 post text"
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  . NEW STR SET STR=ARR(IDX)
+  . NEW POSINFO DO SCANDATES(STR,.POSINFO)
+  . IF $DATA(POSINFO) WRITE STR," --> ",! ZWR POSINFO
+  
+  QUIT

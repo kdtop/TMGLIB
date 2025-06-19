@@ -105,16 +105,11 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   
   ;"SET OUT(0)="<!DOCTYPE html>"
   SET OUT(1)="<html><head><title>Page Title</title></head><body><font size=""2"">"
-  ;"SET OUT(1)="<html><body>"
-  ;"SET OUT(2)="<table BORDER=1>"
   NEW ADT SET ADT=99999999
   NEW STR
   FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO
   . NEW DAY SET DAY=$P(ADT,".",1)
   . IF '$D(ARRAY(DAY)) QUIT
-  . ;"SET OUT(IDX)="<table BORDER=2 WIDTH=""600"">",IDX=IDX+1
-  . ;"SET OUT(IDX)="<CAPTION><b>"_$$EXTDATE^TMGDATE(ADT)_"</b></CAPTION>",IDX=IDX+1
-  . ;"SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   . NEW SETHEAD SET SETHEAD=0
   . NEW NODE SET NODE=""
   . NEW COMMENT SET COMMENT=""
@@ -126,7 +121,6 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   . . . . . SET OUT(IDX)="<p style=""page-break-before: always"">",IDX=IDX+1
   . . . . DO CAPTION(.OUT,.IDX,ADT,TMGDFN)
   . . . . SET SETHEAD=1
-  . . . ;"SET STR="LAB^"_ADT_"^"_NODE_"^"_$GET(LABS("DT",ADT,NODE))
   . . . NEW ROWHEAD 
   . . . IF ($P($GET(LABS("DT",ADT,NODE)),"^",4)'="")&($P($GET(LABS("DT",ADT,NODE)),"^",4)'="N") DO
   . . . . SET ROWHEAD="<tr bgcolor=""#FF9999"">"
@@ -144,7 +138,6 @@ GETREPRT(OUT,TMGDFN,ARRAY) ;"
   . . . . ;"SET OUT(IDX)=STR,IDX=IDX+1     
   . IF (COMMENT'="")&(COUNT>0) DO
   . . SET OUT(IDX)="<tr><td colspan=""6"">"_COMMENT_"</td></tr>",IDX=IDX+1
-  . ;"SET OUT(3)=$G(ARRAY(1))
   . SET OUT(IDX)="</table><br>",IDX=IDX+1
   SET OUT(IDX)="</font></body></html>" 
   QUIT

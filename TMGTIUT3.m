@@ -21,7 +21,7 @@ TMGTIUT3 ;TMG/kst-TIU-related code ; 5/20/15, 4/11/17, 3/15/23, 7/28/24
   ;"LKSUGEST(OUT,TOPIC)  -- Suggest info for problems to create for given topic. RPC ENTRY POINT FOR: TMG CPRS TOPIC CODE SUGGEST
   ;"ORDERDXS(OUT,ADFN) -- Get list of possible diagnoses for user to pick from, to be used in lab order dialog  
   ;"DXLIST(OUT,ADFN,CMD,SDT) -- Get list of possible diagnoses for user to pick from, during patient encounter.  RPC NAME:  TMG CPRS ENCOUNTER GET DX LIST
-  ;"SUMNOTE(IEN8925,ARRAY) -- Get back summary data from prior parsing and storage. 
+  ;"NTESUMRY(IEN8925,ARRAY) -- Get back summary data from prior parsing and storage. 
   ;"THREADS(OUT,ADFN,IEN8925,ARRAY) -- Get THREADS info for note
   ;"UNUSEDTOPICS(OUT,ARRAY,THREADINFO) -- Get list of topics that do NOT have corresponding thread text  
   ;"PROBLST(OUT,ADFN,SDT)  -- Get listing of patient's defined problem list
@@ -1060,7 +1060,7 @@ DXLIST(OUT,ADFN,CMD,SDT)  ;"Get list of possible diagnoses for user to pick from
   NEW CMD1 SET CMD1=$PIECE(CMD,"^",1)
   IF CMD1="LIST FOR NOTE" DO
   . NEW IEN8925 SET IEN8925=+$PIECE(CMD,"^",2)
-  . NEW ARRAY DO SUMNOTE(IEN8925,.ARRAY)
+  . NEW ARRAY DO NTESUMRY(IEN8925,.ARRAY)
   . KILL ARRAY(IEN8925,"FULL"),ARRAY(IEN8925,"SEQ#")
   . NEW PROBLIST DO PROBLST(.PROBLIST,ADFN,SDT)
   . NEW THREADINFO DO THREADS(.THREADINFO,ADFN,IEN8925,.ARRAY)
@@ -1260,7 +1260,8 @@ ICDCSYS2(CSIEN) ;"Get ICD coding system for CS IEN in  file 80.4
   . SET RESULT=$PIECE(ZN,"^",2)_"^"_$PIECE(ZN,"^",1)_"^"_CSIEN
   QUIT RESULT
   ;
-SUMNOTE(IEN8925,ARRAY) ;"Get back summary data from prior parsing and storage. 
+NTESUMRY(IEN8925,ARRAY) ;"database to note summary -- Get back summary data from prior parsing and storage.
+  ;"NOTE: renamed from SUMNOTE to avoid confusion with SUMNOTE^TMGTIUP1
   ;"Input: IEN8925 -- note IEN
   ;"       ARRAY -- PASS BY REFERENCE, AN OUT PARAMETER.  Format: 
   ;"            ARRAY(<IEN8925>,"THREAD",#)=<TOPIC NAME>^<THREAD TEXT>
@@ -1269,7 +1270,7 @@ SUMNOTE(IEN8925,ARRAY) ;"Get back summary data from prior parsing and storage.
   ;"NOTE(3/28/25): This function first looks for Threads in file 22719.5, these will be topics actively discussed in the note
   ;"      It then looks for Topics in file 22719. Later routines will determine topics discussed today from ones
   ;"      not discussed in comparing Threads to the Topics. If both of these Arrays are empty then it calls
-  ;"      SUMNOTE to get all Topics and Threads.
+  ;"      SUMNOTE^TMGTIUP1 to get all Topics and Threads.
   ;"   POINT TO REMEMBER: Threads and Topics should be blank unless the note has already been signed. These are only
   ;"      populated in the post signature code. 
   SET IEN8925=+$GET(IEN8925)
@@ -1284,7 +1285,8 @@ SUMNOTE(IEN8925,ARRAY) ;"Get back summary data from prior parsing and storage.
   . . . NEW IDX SET IDX=0
   . . . FOR  SET IDX=$ORDER(^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC,1,IDX)) QUIT:IDX'>0  DO
   . . . . SET LINE=LINE_$GET(^TMG(22719.2,ADFN,1,TOPICREC,1,DTREC,1,IDX,0))
-  . . . SET ARRAY(IEN8925,"THREAD",DTREC)=TOPICNAME_"^"_LINE
+  . . . ;"//kt 6/5/25 SET ARRAY(IEN8925,"THREAD",DTREC)=TOPICNAME_"^"_LINE  <-- note: DTREC alone would be often be 1, and get overwritten on following loop
+  . . . SET ARRAY(IEN8925,"THREAD",TOPICREC_";"_DTREC)=TOPICNAME_"^"_LINE  ;"//kt 6/5/25  Changing to compound index to avoid being overwritten
   NEW TOPICREC SET TOPICREC=0
   FOR  SET TOPICREC=$ORDER(^TMG(22719,IEN8925,2,TOPICREC)) QUIT:TOPICREC'>0  DO
   . NEW ZN SET ZN=$GET(^TMG(22719,IEN8925,2,TOPICREC,0))
@@ -1292,7 +1294,7 @@ SUMNOTE(IEN8925,ARRAY) ;"Get back summary data from prior parsing and storage.
   IF $DATA(ARRAY)=0 DO SUMNOTE^TMGTIUP1(IEN8925,.ARRAY)
   QUIT
   ;
-THREADS(OUT,ADFN,IEN8925,ARRAY)  ;"Get THREADS info for note
+THREADS(OUT,ADFN,IEN8925,ARRAY)  ;"Get listing of TOPICS which have added thread text for note
   ;"INPUT:  OUT -- PASS BY REFERENCE, AN OUT PARAMETER.  Format:
   ;"           OUT(#)='<TOPIC NAME>^<THREAD TEXT>^<LINKED PROBLEM IEN>^<ICD_INFO>'
   ;"           OUT("TOPIC",<TOPIC NAME>)=#
@@ -1305,7 +1307,7 @@ THREADS(OUT,ADFN,IEN8925,ARRAY)  ;"Get THREADS info for note
   ;"                HCC COLOR -- color to show id ICD is HCC code, or if descendant child code would be HCC ICD
 	;"        ADFN -- patient IEN
   ;"        IEN8925 -- NOTE IEN
-  ;"        ARRAY -- note info as could be created by SUMNOTE() or SUMNOTE^TMGTIUP1
+  ;"        ARRAY -- PASS BY REFERENCE.  IN PARAMETER.  Note info as could be created by NTESUMRY() or SUMNOTE^TMGTIUP1
   ;"            ARRAY(<IEN8925>,"THREAD",#)=<TOPIC NAME>^<THREAD TEXT>
   NEW IDX SET IDX=1  
   NEW JDX SET JDX=0  
@@ -1364,7 +1366,7 @@ UNUSEDTOPICS(OUT,ARRAY,THREADINFO)  ;"Get list of topics that do NOT have corres
   ;"           OUT("TOPIC",<TOPIC NAME>)=#
   ;"           OUT("PROBLEM",<PROBLEM IEN>)=#
   ;"           OUT("ICD",<ICD COD>)=#
-  ;"        ARRAY -- note info as could be created by SUMNOTE() or SUMNOTE^TMGTIUP1
+  ;"        ARRAY -- note info as could be created by NTESUMRY() or SUMNOTE^TMGTIUP1
   ;"            ARRAY(<IEN8925>,"HPI",#)=<TOPIC NAME>^<SUMMARY TEXT>
   ;"        THREADINFO -- ARRAY as created by THREADS()
   NEW IDX SET IDX=1
