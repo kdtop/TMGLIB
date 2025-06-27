@@ -8,6 +8,69 @@ TMGPRE01 ;TMG/kst/Pre-visit HTML stuff ;6/17/25
  ;" to license terms outlined in separate file TMGLICNS.m, which should 
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
+  ;
+  ;"================================================================================"
+  ;"  NODE-STYLE RPC FOR USER LOG IN
+  ;"================================================================================"
+  ;
+USRLOGIN(LASTNAME,FIRSTNAME,DOB,ERR)  ;
+  ;"INPUT -- LASTNAME -- first name
+  ;"         FIRSTNAME -- Last name
+  ;"         DOB -- MM-DD-YYYY
+  ;"         ERR -- PASS BY REFERENCE, an OUT PARAMETER.  Format: "<error message>"
+  ;"RESULT: 1^SessionID if existing session, 2^SessionID if new session, or 0 if patient not found
+  NEW RESULT SET RESULT=0 ; Default to failure
+  SET LASTNAME=$$UP^XLFSTR($GET(LASTNAME))
+  SET FIRSTNAME=$$UP^XLFSTR($GET(FIRSTNAME))
+  SET DOB=$GET(DOB)
+  NEW PTINFO
+  NEW FULLNAME SET FULLNAME=LASTNAME_","_FIRSTNAME
+  SET PTINFO("NAME")=FULLNAME
+  SET PTINFO("DOB")=DOB
+  NEW DFN SET DFN=$$GETDFN^TMGGDFN(.PTINFO)
+  IF DFN'>0 DO  GOTO ULDN
+  . SET ERR="Unable to location patient '"_FULLNAME_", DOB: "_DOB
+  ;
+  NEW SESSION SET SESSION=$$GETSESSION^TMGNODE1(DFN)
+  SET RESULT=SESSION
+  ;
+  ;NEW HCLNAME SET HCLNAME=$$UP^XLFSTR("Smith")
+  ;NEW HCDOB SET HCDOB="1980-05-20" ; Use YYYY-MM-DD format
+ULDN    ;
+  QUIT RESULT
+  ;
+  ;"================================================================================"
+  ;"  NODE-STYLE RPC FOR GETTING FORMS NEEDED FOR PATIENT. 
+  ;"================================================================================"
+  ;
+GETPATFORMS(OUT,SESSIONID)    ;"Get list of needed documents for patient.;
+  NEW RESULT SET RESULT="1^OK"
+  NEW DFN SET DFN=$$SESSION2DFN^TMGNODE1(SESSIONID)
+  IF DFN'>0 DO  GOTO GDLDN
+  . SET RESULT="0^Patient not found for sessionID"
+  NEW IDX SET IDX=0
+  SET OUT(IDX)="Update Medical History^hxupdate",IDX=IDX+1
+  SET OUT(IDX)="Patient Demographics^demographics_form",IDX=IDX+1
+  SET OUT(IDX)="Insurance Information^insurance_form",IDX=IDX+1
+  SET OUT(IDX)="Consent to Treat^consent_form",IDX=IDX+1
+GDLDN ;
+  QUIT RESULT
+  ;
+  ;"================================================================================"
+  ;"  NODE-STYLE RPC FOR GETTING USER HISTORY UPDATE
+  ;"================================================================================"
+  ;  
+GETHXFORM(OUT,SESSIONID)  ;"Get HTML for patient history
+  NEW RESULT SET RESULT="1^OK"
+  NEW TMGDFN SET TMGDFN=$$SESSION2DFN^TMGNODE1(SESSIONID)
+  IF TMGDFN'>0 DO  GOTO GHXDN
+  . SET RESULT="0^Patient not found for sessionID"
+    DO GETQUEST(TMGDFN,.OUT)
+GHXDN ;
+  QUIT RESULT;
+ ;
+ ;"================================================================================"
+ ;"================================================================================"
  ;
 TESTGQ ;
   NEW OUT DO GETQUEST(74592,.OUT)   ;"DFN for ZZTEST,BABY test patient.  
@@ -194,9 +257,9 @@ GETNAME(TMGDFN) ;
   ;
 PTQUESTMPL ;" Patient questionaire HTML Template.    
   ;;<!DOCTYPE html>
-  ;;<html lang="en-US">
+  ;;<html lang='en-US'>
   ;;<head>
-  ;;  <meta charset="utf-8">
+  ;;  <meta charset='utf-8'>
   ;;  <title>Review of Systems</title>
   ;;  <style>
   ;;  body {
@@ -263,7 +326,7 @@ PTQUESTMPL ;" Patient questionaire HTML Template.
   ;;    background-color: #e2e2e2;
   ;;  }
   ;;
-  ;;  input[type="checkbox"]:checked + .custom-checkbox-text {
+  ;;  input[type='checkbox']:checked + .custom-checkbox-text {
   ;;    background-color: #3498db; /* Default checked color (blue) */
   ;;    color: white;
   ;;    transform: translateY(-1px);
@@ -321,16 +384,16 @@ PTQUESTMPL ;" Patient questionaire HTML Template.
   ;;  }
   ;;
   ;;  .details-options-row {
-  ;;    display: flex; /* Use flexbox to align "NONE" and "Details:" side-by-side */
+  ;;    display: flex; /* Use flexbox to align 'NONE' and 'Details:' side-by-side */
   ;;    align-items: center; /* Vertically align items */
-  ;;    gap: 15px; /* Space between "NONE" and "Details:" */
+  ;;    gap: 15px; /* Space between 'NONE' and 'Details:' */
   ;;    margin-bottom: 10px; /* Space above textarea */
   ;;  }
   ;;
-  ;;  .details-label { /* Style for the "Details:" label in this specific context */
+  ;;  .details-label { /* Style for the 'Details:' label in this specific context */
   ;;      font-weight: bold;
   ;;      color: #444;
-  ;;      white-space: nowrap; /* Prevent "Details:" from wrapping */
+  ;;      white-space: nowrap; /* Prevent 'Details:' from wrapping */
   ;;    }
   ;;
   ;;    .details-textarea-container {
@@ -366,7 +429,7 @@ PTQUESTMPL ;" Patient questionaire HTML Template.
   ;;        font-size: 0.95em;
   ;;      }
   ;;      .details-options-row {
-  ;;        flex-direction: column; /* Stack "NONE" and "Details:" vertically on small screens */
+  ;;        flex-direction: column; /* Stack 'NONE' and 'Details:' vertically on small screens */
   ;;        align-items: flex-start;
   ;;        gap: 5px;
   ;;      }
@@ -376,6 +439,15 @@ PTQUESTMPL ;" Patient questionaire HTML Template.
   ;;<body>
   ;;  {@@@[BODY]@@@}
   ;;
+  ;;</body>
+  ;;</html>
+  ;;#DONE_WITH_HTML  
+  ;
+  
+  
+  
+  ;"=== cut from above, delete later.  
+PTQSTJS  ;  
   ;;  <script>
   ;;    document.addEventListener('DOMContentLoaded', function() {
   ;;      const noneCheckboxes = document.querySelectorAll('.none-toggle-checkbox');
@@ -394,7 +466,7 @@ PTQUESTMPL ;" Patient questionaire HTML Template.
   ;;              if (isChecked) {
   ;;                targetElement.classList.add('hidden'); // Hide the element
   ;;                // If the element contains checkboxes or a textarea, clear/uncheck them
-  ;;                const checkboxes = targetElement.querySelectorAll('input[type="checkbox"]');
+  ;;                const checkboxes = targetElement.querySelectorAll('input[type=\'checkbox\']');
   ;;                checkboxes.forEach(cb => {
   ;;                  cb.checked = false; // Uncheck all checkboxes within the hidden section
   ;;                });
@@ -419,10 +491,8 @@ PTQUESTMPL ;" Patient questionaire HTML Template.
   ;;      });
   ;;    });
   ;;  </script>
-  ;;</body>
-  ;;</html>
   ;;#DONE_WITH_HTML  
-  ;
+  
   
   ;"=== Example of expected output below ====  DELETE LATER...
     ;"<!DOCTYPE html>

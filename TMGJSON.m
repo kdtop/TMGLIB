@@ -6,19 +6,19 @@ TMGJSON ;TMG/kst/JSON utilities ;5/27/25
 	;"Copyright (c) 5/27/25  Kevin S. Toppenberg MD
 	;"
 	;"This file is part of the TMG LIBRARY, and may only be used in accordence
-	;" to license terms outlined in separate file TMGLICNS.m, which should 
+	;" to license terms outlined in separate file TMGLICNS.m, which should
 	;" always be distributed with this file.;
 	;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
 	;
 	;"=======================================================================
 	;" API -- Public Functions.;
-	;"=======================================================================       
+	;"=======================================================================
 	;"ARR2JSON(REF,[GETSIBLINGS],[TOPVAL],[PRIOR]) -- Stringify MUMPS array into JSON format (serialized into long string)
 	;"JSON2ARR(JSONSTR,OUTREF,ENCAPS)  -- Parse JSON string into MUMPS array, storing in @OUTREF
 	;"=======================================================================
 	;" Private Functions.;
 	;"=======================================================================
-	;"MAP2ARR(OUTREF,MAPREF,MODE,EXPECTED,ERR,TOKENRESIDUAL) 
+	;"MAP2ARR(OUTREF,MAPREF,MODE,EXPECTED,ERR,TOKENRESIDUAL)
 	;"J2AERR(ERR,MSG) ;
 	;"SSNUMERIC(REF,SSNUM)  -- IS SUBSCRIPT #, GIVEN BY SSNUM, PURELY NUMERIC, AND POSITIVE INTEGER VALUED?
 	;"NEXTREF(REF,PRIOR) -- UTILITY FUNCTION FOR ARR2JSON
@@ -30,30 +30,30 @@ TMGJSON ;TMG/kst/JSON utilities ;5/27/25
 	;"TESTJ2A  -- TEST JSON TO ARRAY
 	;"TESTJ2A2  -- TEST JSON TO ARRAY2
 	;"=======================================================================
-	;"=======================================================================       
+	;"=======================================================================
 	;
 ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format (serialized into long string)
 	;"PURPOSE: REPLACE functionality of ENCODE^XLFJSON.;
 	;"INPUT:  REF -- NAME of MUMPS array to process
 	;"        GETSIBLINGS.  Optional.  Default is 0.  If 1 then siblings of REF are added
 	;"        TOPVAL -- Optional.  If present, inserted as a value of the top level node in REF
-	;"        PRIOR -- PASS BY REFERENCE.  Used when calling self recursively, to 
-	;"                 avoid endless loops as can happen with skipped nodes in array.  
+	;"        PRIOR -- PASS BY REFERENCE.  Used when calling self recursively, to
+	;"                 avoid endless loops as can happen with skipped nodes in array.;
 	;"EXAMPLE showing issues with ENCODE^XLFJSON.;
 	;"  ZWR Y
 	;"  Y(0)=0
 	;"  Y(1)=1
 	;"  Y(1,2,3)=0
 	;"  Y(2)=2
-	;"  
+	;"
 	;"  DO ENCODE^XLFJSON("Y","ZZOUT") ZWR ZZOUT
 	;"  ZZOUT(1)="{""0"":0,""1"":1,""2"":2}"  <-- missing data, see below
-	;"  
+	;"
 	;"  DO DECODE^XLFJSON("ZZOUT","TMP")
-	;"  
+	;"
 	;"  yottadb>ZWR TMP
 	;"  TMP("""0")=0    <--- notice added "
-	;"  TMP("""1")=1    <--- notice that node 1,2,3=0 is missing.  
+	;"  TMP("""1")=1    <--- notice that node 1,2,3=0 is missing.;
 	;"  TMP("""2")=2
 	;
 	;"Expected json
@@ -70,7 +70,7 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	;" },
 	;" 2]
 	;"
-	;"NOTICE that if a subscript is only positive integers, it will be treated as an array.  
+	;"NOTICE that if a subscript is only positive integers, it will be treated as an array.;
 	;"       And in this case, every index has to be accounted for, so null will be inserted for undefined nodes
 	;"NOTE: TO DO, check for escape characters etc. ;
 	;
@@ -84,12 +84,12 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	IF TOPLEVEL=0 DO
 	. ;"IF TOPVAL'="",(+TOPVAL'=TOPVAL)!(TOPVAL\1'=TOPVAL) QUIT  ;"leave as non-numeric
 	. IF TOPVAL'="" QUIT  ;"leave as non-numeric
-	. SET ISNUMERIC=$$SSNUMERIC(REF,ORIGQL)  ;"IS SUBSCRIPT #, GIVEN BY SSNUM, PURELY NUMERIC, AND POSITIVE INTEGER VALUED?    
+	. SET ISNUMERIC=$$SSNUMERIC(REF,ORIGQL)  ;"IS SUBSCRIPT #, GIVEN BY SSNUM, PURELY NUMERIC, AND POSITIVE INTEGER VALUED?
 	NEW RESULT SET RESULT=$SELECT(TOPLEVEL:"",ISNUMERIC:"[",1:"{")
 	NEW NUMIDX SET NUMIDX=0
 	NEW QT SET QT=""""
 	NEW DONE SET DONE=0
-	FOR  DO  QUIT:DONE 
+	FOR  DO  QUIT:DONE
 	. NEW LN SET LN=$QLENGTH(REF)
 	. NEW CURNODE SET CURNODE=$QSUBSCRIPT(REF,LN)
 	. IF ISNUMERIC FOR  QUIT:(NUMIDX'<CURNODE)  DO
@@ -97,13 +97,13 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	. . SET NUMIDX=NUMIDX+1
 	. SET PRIOR(REF)=1
 	. IF TOPVAL'="" DO
-	. . NEW VAL SET VAL=TOPVAL
-	. . IF +VAL'=VAL SET VAL=QT_VAL_QT
-	. . SET RESULT=RESULT_QT_"%%node_value%%"_QT_":"_VAL_","
+	. . NEW AVAL SET AVAL=TOPVAL
+	. . IF +AVAL'=AVAL SET AVAL=$$QTSTR(AVAL)
+	. . SET RESULT=RESULT_$$QTSTR("%%node_value%%")_":"_AVAL_","
 	. . SET TOPVAL=""
 	. IF TOPLEVEL=0 DO   ;"Exclude top level
 	. . IF ISNUMERIC QUIT  ;"If numeric, then we have array, not key:value pair. So don't show 'key'
-	. . SET RESULT=RESULT_QT_CURNODE_QT_":"  ;"CURNODE is the 'key'
+	. . SET RESULT=RESULT_$$QTSTR(CURNODE)_":"  ;"CURNODE is the 'key'
 	. NEW DV SET DV=$DATA(@REF)
 	. ;"1  = node has value, but no subnode(s)
 	. ;"11 = node has value AND subnode(s)
@@ -112,13 +112,13 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	. . SET RESULT=RESULT_"null,"
 	. IF DV=1 DO      ;"1  = node has value, but no subnode(s)
 	. . IF ISNUMERIC DO
-	. . . NEW VAL SET VAL=$GET(@REF)
-	. . . IF +VAL'=VAL SET VAL=QT_VAL_QT
-	. . . SET RESULT=RESULT_VAL_","
+	. . . NEW AVAL SET AVAL=$GET(@REF)
+	. . . IF +AVAL'=AVAL SET AVAL=$$QTSTR(AVAL)
+	. . . SET RESULT=RESULT_AVAL_","
 	. . . SET NUMIDX=NUMIDX+1
 	. . ELSE  DO
 	. . . NEW AVAL SET AVAL=$GET(@REF)
-	. . . IF +AVAL'=AVAL SET AVAL=QT_AVAL_QT
+	. . . IF +AVAL'=AVAL SET AVAL=$$QTSTR(AVAL)
 	. . . SET RESULT=RESULT_AVAL_","
 	. ELSE  IF (DV=10)!(DV=11) DO   ;"subnode(s) are found descending from this node
 	. . IF DV=11 DO   ;"11 = node has value AND subnode(s)
@@ -132,21 +132,27 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	. ;"NEW N2 SET N2=$$NAME2QL(REF,ORIGQL-1)
 	. ;"IF N1'=N2 SET DONE=1 QUIT
 	. ;"NEW NEWQL SET NEWQL=$QLENGTH(NEXTREF)
-	. ;"IF NEWQL-LN>1 SET NEXTREF=$$NAME2QL(REF,LN+1)  
+	. ;"IF NEWQL-LN>1 SET NEXTREF=$$NAME2QL(REF,LN+1)
 	. IF (NEXTREF="") SET DONE=1 QUIT
 	. IF (GETSIBLINGS=0),$QSUBSCRIPT(NEXTREF,ORIGQL)'=ORIGLAST do
 	. . SET DONE=1
 	. SET REF=NEXTREF
 	IF $EXTRACT(RESULT,$LENGTH(RESULT))="," DO
 	. SET RESULT=$EXTRACT(RESULT,1,$LENGTH(RESULT)-1)  ;"remove trailing ','
-	SET RESULT=RESULT_$SELECT(TOPLEVEL:"",ISNUMERIC:"]",1:"}")  
+	SET RESULT=RESULT_$SELECT(TOPLEVEL:"",ISNUMERIC:"]",1:"}")
 	;
 	QUIT RESULT
-	;  
+	;
+QTSTR(S)  ;"Return S surrounded by quotes (and protecting any quotes already in S)
+	NEW QT SET QT=""""
+	IF S[QT SET S=$$QTPROTCT^TMGSTUT3(S)
+	NEW RESULT SET RESULT=QT_S_QT
+	QUIT RESULT
+	;
 GETNEXTTOKEN(MAPREF,IDX,TOKEN,SUBSEQUENT,DONE,RESIDUAL,PEEK) ;"Get next token from MAPREF
 	;"INPUT: MAPREF -- map as created by MAPMATCH3^TMGSTUT3()
 	;"       IDX -- PASS BY REFERENCE.  This is current index that we are pulling from
-	;"       TOKEN -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is the RESULT of the function.  
+	;"       TOKEN -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is the RESULT of the function.;
 	;"       SUBSEQUENT --PASS BY REFERENCE.  AN OUT PARAMETER -- This is the token that will follow current token (sometimes needed in parsing)
 	;"       DONE -- PASS BY REFERENCE.  Set to 1 when at end of MAPREF
 	;"       RESIDUAL -- PASS BY REFERENCE.  Used to hold part of token not yet released
@@ -159,9 +165,9 @@ GETNEXTTOKEN(MAPREF,IDX,TOKEN,SUBSEQUENT,DONE,RESIDUAL,PEEK) ;"Get next token fr
 	KILL TOKEN,SUBSEQUENT
 	SET RESIDUAL=$GET(RESIDUAL)
 	;
-	;"-- Get next element from input 'stream' (stored in @MAPREF) 
+	;"-- Get next element from input 'stream' (stored in @MAPREF)
 	IF RESIDUAL'="" DO
-	. SET TOKEN=RESIDUAL  
+	. SET TOKEN=RESIDUAL
 	. SET TOKEN("ISSTR")=0 ;"NOTE: Residual will never be a STRING, as those are never split up and put back into residual
 	. SET RESIDUAL=""
 	ELSE  DO
@@ -174,33 +180,33 @@ GETNEXTTOKEN(MAPREF,IDX,TOKEN,SUBSEQUENT,DONE,RESIDUAL,PEEK) ;"Get next token fr
 	. SET IDX=$ORDER(@MAPREF@(IDX))
 	;
 	;"---Trim and parse token such that only next element returned.  Store remainder in RESIDUAL
-	IF TOKEN("ISSTR")=0 SET TOKEN=$$TRIM^XLFSTR(TOKEN,"L")  ;"trim any leading whitespace.  
+	IF TOKEN("ISSTR")=0 SET TOKEN=$$TRIM^XLFSTR(TOKEN,"L")  ;"trim any leading whitespace.;
 	NEW LEN SET LEN=$LENGTH(TOKEN)
 	IF (TOKEN("ISSTR")=1)!(LEN=1) GOTO GNT2
-	;"-- check for single character tokens.  
+	;"-- check for single character tokens.;
 	NEW CH SET CH=$EXTRACT(TOKEN,1)
 	IF "{[:,]}"[CH DO  GOTO GNT2
 	. SET RESIDUAL=$$TRIM^XLFSTR($EXTRACT(TOKEN,2,$LENGTH(TOKEN)))
 	. SET TOKEN=$EXTRACT(TOKEN,1)
 	;"-- look for comma-separated elements.  At this point we are NOT dealing with strings which could contain a comma
-	IF TOKEN["," DO  
+	IF TOKEN["," DO
 	. SET RESIDUAL=$$TRIM^XLFSTR(","_$PIECE(TOKEN,",",2,999))  ;"leave comma as first char of residual
 	. SET TOKEN=$PIECE(TOKEN,",",1)
 	NEW UPTOKEN SET UPTOKEN=$$UP^XLFSTR(TOKEN)
-	IF (UPTOKEN="TRUE")!(UPTOKEN="FALSE") DO   ;"Handle JSON booleans.   
+	IF (UPTOKEN="TRUE")!(UPTOKEN="FALSE") DO   ;"Handle JSON booleans.;
 	. SET TOKEN="%%bool%%"_TOKEN
 	. SET TOKEN("ISSTR")=1
-	;"-- can add more checks below if needed later  
+	;"-- can add more checks below if needed later
 	;" ...;
-GNT2  
+GNT2
 	;"SET TOKEN("HASCOMMA")=(TOKEN[",")&(TOKEN("ISSTR")=0)
 	;"SET TOKEN("HASCOLON")=(TOKEN[":")&(TOKEN("ISSTR")=0)
 	;"SET TOKEN("LEN")=$LENGTH(TOKEN)
 	IF TOKEN("ISSTR") DO
 	. IF $$ISNUM^TMGSTUT3(TOKEN)=0 QUIT
-	. IF +TOKEN'=TOKEN QUIT  ;""51837880897980798046658450" exceeds mumps num length, so keep as string.  
-	. SET TOKEN("NUM")=+TOKEN   ;"will store numeric equivalence of numeric string, if applicable.  
-	;  
+	. IF +TOKEN'=TOKEN QUIT  ;""51837880897980798046658450" exceeds mumps num length, so keep as string.;
+	. SET TOKEN("NUM")=+TOKEN   ;"will store numeric equivalence of numeric string, if applicable.;
+	;
 	SET DONE=(IDX'>0)&(RESIDUAL="")
 	;
 	;"-- Now get subsequent token.  Sometimes needed when interpreting TOKEN
@@ -210,9 +216,9 @@ GNT2
 	. DO GETNEXTTOKEN(MAPREF,TEMPIDX,.SUBSEQUENT,,,TEMRESIDUAL,1) ;"Get next token from MAPREF
 	;
 	QUIT
-	;  
+	;
 MAP2ARR(OUTREF,MAPREF,MODE,EXPECTED,ERR,TOKENRESIDUAL) ;
-	;"INPUT:  OUTREF -- PASS BY NAME.  Data will be appended.  
+	;"INPUT:  OUTREF -- PASS BY NAME.  Data will be appended.;
 	;"                E.g. if OUTREF="MVAR(1,2)", then json data will be put into MYVAR(1,2,<here> ...;
 	;"        MAP -- PASS BY NAME.  MAP AS CREATED BY MAPMATCH3^TMGSTUT3
 	;"        MODE -- "" OR "ARRAY" OR "OBJ"
@@ -220,11 +226,11 @@ MAP2ARR(OUTREF,MAPREF,MODE,EXPECTED,ERR,TOKENRESIDUAL) ;
 	;"        ERR -- PASS BY REFERENCE.  AN OUT ERROR ARRAY.  Format:
 	;"             ERR(#)=<error message>
 	;"        TOKENRESIDUAL -- OPTIONAL.  Used when calling self residually, for managing input token stream
-	;"Result: 1^OK, OR -1^ERROR MESSAGE   
+	;"Result: 1^OK, OR -1^ERROR MESSAGE
 	;"------------
 	;"Example map:
 	;"  MAP
-	;"  }~1 = [  
+	;"  }~1 = [
 	;"  | }~1 = 0,
 	;"  | }~2 = {
 	;"  | | }~1 = "
@@ -274,23 +280,23 @@ MAP2ARR(OUTREF,MAPREF,MODE,EXPECTED,ERR,TOKENRESIDUAL) ;
 	. IF EXPECTED["$",HANDLED=0 DO       ;"$ means a value (any element)
 	. . SET TOKEN("ID")="VAL",EXPECTED=",]}"
 	. . SET HANDLED=1
-M2 . ;"--- Now that TOKEN is set up, use below --- 
+M2 . ;"--- Now that TOKEN is set up, use below ---
 	. IF (TOKEN="}")!(TOKEN="]") DO  QUIT
 	. . IF DEPTH=0 SET DONE=1 QUIT  ;"End of grouping
 	. . IF DEPTH>0 SET DEPTH=DEPTH-1
 	. IF TOKEN=":" DO  QUIT
 	. . SET EXPECTED="[{$"    ;"IN KEY:VALUE, value can be [] or {} or a value
-	. IF TOKEN="," DO  QUIT   
+	. IF TOKEN="," DO  QUIT
 	. . SET EXPECTED=$SELECT(MODE="ARRAY":"[{$]",MODE="OBJ":"&}",1:"?")
 	. . ;" IF MODE="ARRAY" DO  QUIT
-	. . ;" . SET EXPECTED="[{$]"  
+	. . ;" . SET EXPECTED="[{$]"
 	. . ;" IF MODE="OBJ" DO  QUIT
-	. . ;" . SET EXPECTED="&}"  
+	. . ;" . SET EXPECTED="&}"
 	. IF EXPECTED["&",TOKEN("ID")="KEY" DO  QUIT  ;"in this case TOKEN will hold key value
 	. . IF MODE="ARRAY" DO J2AERR(.ERR,"Got a KEY value ["_KEY_"], but expected a VALUE because in ARRAY mode") QUIT
 	. . KILL KEY MERGE KEY=TOKEN KILL TOKEN
 	. . SET EXPECTED=":"
-	. IF TOKEN("ID")="VAL" DO  QUIT  
+	. IF TOKEN("ID")="VAL" DO  QUIT
 	. . IF MODE="ARRAY" DO
 	. . . IF KEY'="" DO J2AERR(.ERR,"Got a KEY:VALUE, but expected just a VALUE because in ARRAY mode") QUIT
 	. . . SET EXPECTED=",]"
@@ -303,10 +309,10 @@ M2 . ;"--- Now that TOKEN is set up, use below ---
 	. . . IF KEY="%%node_value%%" DO
 	. . . . SET @OUTREF=TOKEN
 	. . . ELSE  DO
-	. . . . NEW ANODE SET ANODE=$SELECT($DATA(KEY("NUM"))>0:+KEY("NUM"),1:KEY)  ;"If numeric string, use number.  
+	. . . . NEW ANODE SET ANODE=$SELECT($DATA(KEY("NUM"))>0:+KEY("NUM"),1:KEY)  ;"If numeric string, use number.;
 	. . . . SET @OUTREF@(ANODE)=TOKEN
 	. . . KILL KEY
-	. . . SET EXPECTED=",}"  
+	. . . SET EXPECTED=",}"
 	. IF (TOKEN="{")!(TOKEN="[") DO  QUIT   ;"starting {} or [], so call self recursively. ;
 	. . NEW SUBMAP SET SUBMAP=$NAME(@MAPREF@(CURIDX))
 	. . NEW SUBMODE SET SUBMODE=$SELECT(TOKEN="[":"ARRAY",TOKEN="{":"OBJ")
@@ -314,7 +320,7 @@ M2 . ;"--- Now that TOKEN is set up, use below ---
 	. . IF MODE="ARRAY" DO
 	. . . SET SUBREF=$NAME(@SUBREF@(ARRIDX))
 	. . ELSE  IF MODE="OBJ" DO
-	. . . NEW ANODE SET ANODE=$SELECT(KEY="":"NODE",$DATA(KEY("NUM"))>0:+KEY("NUM"),1:KEY)  ;"If numeric string, use number.  
+	. . . NEW ANODE SET ANODE=$SELECT(KEY="":"NODE",$DATA(KEY("NUM"))>0:+KEY("NUM"),1:KEY)  ;"If numeric string, use number.;
 	. . . SET SUBREF=$NAME(@OUTREF@(ANODE))
 	. . NEW SUBEXPECT SET SUBEXPECT="[{"_$SELECT(SUBMODE="ARRAY":"$",SUBMODE="OBJ":"&")  ;"$ means value, & means KEY:VALUE
 	. . SET DEPTH=DEPTH+1
@@ -342,11 +348,11 @@ SSNUMERIC(REF,SSNUM)  ;"IS SUBSCRIPT #, GIVEN BY SSNUM, PURELY NUMERIC, AND POSI
 	. NEW ASUBSCR SET ASUBSCR=$QSUBSCRIPT(REF,SSNUM)
 	. IF (ASUBSCR'=""),(+ASUBSCR'=ASUBSCR)!(ASUBSCR\1'=ASUBSCR)!(ASUBSCR<0) SET RESULT=0 QUIT
 	. IF FIRSTSS="" SET FIRSTSS=ASUBSCR
-	. SET CT=CT+1  
-	. SET REF=$QUERY(@REF) 
+	. SET CT=CT+1
+	. SET REF=$QUERY(@REF)
 	. IF REF="" SET DONE=1 QUIT
 	IF FIRSTSS>5 SET RESULT=0      ;"e.g. if we have a first node with value of 75, don't make array with null entries for 1..74
-	IF CT<3 SET RESULT=0           ;"e.g. if we only have 1 or 2 nodes, treat as KEY:VALUE, not arrays   
+	;"IF CT<3 SET RESULT=0           ;"e.g. if we only have 1 or 2 nodes, treat as KEY:VALUE, not arrays
 	QUIT RESULT
 	;
 NEXTREF(REF,PRIOR) ;"UTILITY FUNCTION FOR ARR2JSON
@@ -362,8 +368,8 @@ NEXTREF(REF,PRIOR) ;"UTILITY FUNCTION FOR ARR2JSON
 	IF NEXTREF="" GOTO NRDN
 	NEW NEWQLEN SET NEWQLEN=$QLENGTH(REF)
 	NEW NODECHANGED SET NODECHANGED=($QSUBSCRIPT(NEXTREF,ORIGQLEN)'=ORIGLASTN) ;"Gone from ZZ(1 --> ZZ(2, ?  or ZZ(1 --> ZZ(1,1 ?
-	;"if e.g. colation jumps from ZZ(1) to ZZ(1,2,3,4,5) because intermediate nodes have no value, 
-	;"  then make result to be ZZ(1,2), which is next needed node for making json  
+	;"if e.g. colation jumps from ZZ(1) to ZZ(1,2,3,4,5) because intermediate nodes have no value,
+	;"  then make result to be ZZ(1,2), which is next needed node for making json
 	;"Notice in this case, both start with "ZZ(1"
 	;"IF NODECHANGED=0,NEWQLEN-ORIGQLEN>1 DO
 	IF NODECHANGED=0 DO
@@ -377,8 +383,8 @@ NEXTREF(REF,PRIOR) ;"UTILITY FUNCTION FOR ARR2JSON
 	NEW REFSTART1 SET REFSTART1=$$NAME2QL(NEXTREF,ORIGQLEN-1)
 	NEW REFSTART2 SET REFSTART2=$$NAME2QL(REF,ORIGQLEN-1)
 	IF REFSTART1'=REFSTART2 SET NEXTREF="" GOTO NRDN
-	;  
-NRDN ;  
+	;
+NRDN ;
 	QUIT NEXTREF
 	;
 NAME2QL(REF,QL)  ;"trim @REF to have no more than QL subscripts.  --UTILITY FUNCTION FOR ARR2JSON
@@ -403,7 +409,7 @@ TESTA2J ;"TEST ARRAY TO JSON
 	;
 JSON2ARR(JSONSTR,OUTREF,ENCAPS,ERR)  ;
 	;"INPUT:  JSONSTR -- the string that represents a stringified version of json. ;
-	;"        OUTREF -- PASS BY NAME.  Data will be appended.  
+	;"        OUTREF -- PASS BY NAME.  Data will be appended.;
 	;"                E.g. if OUTREF="MVAR(1,2)", then json data will be put into MYVAR(1,2,<here> ...;
 	;"        ENCAPS -- OPTIONAL.  Array with encapsulators.  Will be filled automatically if not provided
 	;"        ERR -- OPTIONAL.  PASS BY REFERENCE.  AN OUT ERROR ARRAY.  Format:
@@ -424,7 +430,7 @@ TESTJ2A  ;"TEST JSON TO ARRAY
 	;
 TESTJ2A2  ;"TEST JSON TO ARRAY2
 	NEW REF SET REF=$NAME(^VA(200,168))
-	;"NEW REF SET REF=$NAME(^TIU(8925,5000))  
+	;"NEW REF SET REF=$NAME(^TIU(8925,5000))
 	;"NEW REF SET REF=$NAME(^TMG("TMP","JSON"))
 	NEW TMP,ORIGTMP
 	MERGE TMP=@REF SET REF="TMP"
@@ -454,6 +460,6 @@ TESTJ2A2  ;"TEST JSON TO ARRAY2
 	. WRITE !
 	ELSE  DO
 	. WRITE !,"SUCCESS!!",!
-	;	
-	;	
-	QUIT    
+	;
+	;
+	QUIT
