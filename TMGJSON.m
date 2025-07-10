@@ -73,6 +73,7 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	;"NOTICE that if a subscript is only positive integers, it will be treated as an array.;
 	;"       And in this case, every index has to be accounted for, so null will be inserted for undefined nodes
 	;"NOTE: TO DO, check for escape characters etc. ;
+	;"to do!! -- Any double quote that will be in output should be escaped to \"  <-- backslash-double quote
 	;
 	NEW TOPLEVEL SET TOPLEVEL=(REF'["(")
 	SET GETSIBLINGS=$GET(GETSIBLINGS,0)
@@ -97,8 +98,7 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	. . SET NUMIDX=NUMIDX+1
 	. SET PRIOR(REF)=1
 	. IF TOPVAL'="" DO
-	. . NEW AVAL SET AVAL=TOPVAL
-	. . IF +AVAL'=AVAL SET AVAL=$$QTSTR(AVAL)
+	. . NEW AVAL SET AVAL=$$PREPVAL(TOPVAL)
 	. . SET RESULT=RESULT_$$QTSTR("%%node_value%%")_":"_AVAL_","
 	. . SET TOPVAL=""
 	. IF TOPLEVEL=0 DO   ;"Exclude top level
@@ -111,15 +111,10 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	. IF DV=0 DO      ;"1  = node has no value and no subnodes
 	. . SET RESULT=RESULT_"null,"
 	. IF DV=1 DO      ;"1  = node has value, but no subnode(s)
+	. . NEW AVAL SET AVAL=$$PREPVAL($GET(@REF))
 	. . IF ISNUMERIC DO
-	. . . NEW AVAL SET AVAL=$GET(@REF)
-	. . . IF +AVAL'=AVAL SET AVAL=$$QTSTR(AVAL)
-	. . . SET RESULT=RESULT_AVAL_","
 	. . . SET NUMIDX=NUMIDX+1
-	. . ELSE  DO
-	. . . NEW AVAL SET AVAL=$GET(@REF)
-	. . . IF +AVAL'=AVAL SET AVAL=$$QTSTR(AVAL)
-	. . . SET RESULT=RESULT_AVAL_","
+	. . SET RESULT=RESULT_AVAL_","
 	. ELSE  IF (DV=10)!(DV=11) DO   ;"subnode(s) are found descending from this node
 	. . IF DV=11 DO   ;"11 = node has value AND subnode(s)
 	. . . SET TOPVAL=$GET(@REF)
@@ -142,6 +137,22 @@ ARR2JSON(REF,GETSIBLINGS,TOPVAL,PRIOR) ;"Stringify MUMPS array into JSON format 
 	SET RESULT=RESULT_$SELECT(TOPLEVEL:"",ISNUMERIC:"]",1:"}")
 	;
 	QUIT RESULT
+	;
+PREPVAL(AVAL)  ;"Prepare a value for output.;
+	IF AVAL["%%bool%%" DO
+	. SET AVAL=$PIECE(AVAL,"%%bool%%",2) GOTO PVDN
+	ELSE  IF AVAL="%%null%%" DO
+	. SET AVAL="null" 	;"JSON null
+	ELSE  IF AVAL="%%empty%%" DO
+	. SET AVAL="null" 	;"JSON null
+	ELSE  IF AVAL="%%empty_obj%%" DO
+	. SET AVAL="{}"  ;"JSON object
+	ELSE  IF AVAL="%%empty_array%%" DO
+	. SET AVAL="[]"   ;"JSON array
+	ELSE  IF +AVAL'=AVAL DO
+	. SET AVAL=$$QTSTR(AVAL)
+PVDN ;
+	QUIT AVAL
 	;
 QTSTR(S)  ;"Return S surrounded by quotes (and protecting any quotes already in S)
 	NEW QT SET QT=""""
@@ -185,7 +196,7 @@ GETNEXTTOKEN(MAPREF,IDX,TOKEN,SUBSEQUENT,DONE,RESIDUAL,PEEK) ;"Get next token fr
 	IF (TOKEN("ISSTR")=1)!(LEN=1) GOTO GNT2
 	;"-- check for single character tokens.;
 	NEW CH SET CH=$EXTRACT(TOKEN,1)
-	IF "{[:,]}"[CH DO  GOTO GNT2
+	IF ("{[:,]}"[CH)&(CH'="") DO  GOTO GNT2
 	. SET RESIDUAL=$$TRIM^XLFSTR($EXTRACT(TOKEN,2,$LENGTH(TOKEN)))
 	. SET TOKEN=$EXTRACT(TOKEN,1)
 	;"-- look for comma-separated elements.  At this point we are NOT dealing with strings which could contain a comma
@@ -195,6 +206,9 @@ GETNEXTTOKEN(MAPREF,IDX,TOKEN,SUBSEQUENT,DONE,RESIDUAL,PEEK) ;"Get next token fr
 	NEW UPTOKEN SET UPTOKEN=$$UP^XLFSTR(TOKEN)
 	IF (UPTOKEN="TRUE")!(UPTOKEN="FALSE") DO   ;"Handle JSON booleans.;
 	. SET TOKEN="%%bool%%"_TOKEN
+	. SET TOKEN("ISSTR")=1
+	IF UPTOKEN="NULL" DO
+	. SET TOKEN="%%null%%"
 	. SET TOKEN("ISSTR")=1
 	;"-- can add more checks below if needed later
 	;" ...;
@@ -263,6 +277,12 @@ MAP2ARR(OUTREF,MAPREF,MODE,EXPECTED,ERR,TOKENRESIDUAL) ;
 	NEW DEPTH SET DEPTH=0
 	NEW DONE SET DONE=0
 	NEW IDX SET IDX=$ORDER(@MAPREF@(0))     ;"Get initial value. ;
+	IF IDX="" DO
+	. ;"This will happen if string had, e.g. "value" : [], or "value" : {}  <-- nothing inside encapsulators.;
+	. ;"We need to set SOMETHING, to establish node, even though no children
+	. IF MODE="ARRAY" SET @OUTREF="%%empty_array%%" QUIT
+	. IF MODE="OBJ" SET @OUTREF="%%empty_obj%%" QUIT
+	. SET @OUTREF="%%empty%%"
 	FOR  DO  QUIT:($DATA(ERR)>0)!DONE     ;"<--- note IDX not changed here.  It is change in GETNEXTTOKEN
 	. NEW CURIDX SET CURIDX=IDX ;"GETNEXTTOKEN will advance IDX to the next done.  But we need to reference current node below
 	. NEW TOKEN,SUBSEQUENT DO GETNEXTTOKEN(MAPREF,.IDX,.TOKEN,.SUBSEQUENT,.DONE,.TOKENRESIDUAL)
@@ -274,7 +294,7 @@ MAP2ARR(OUTREF,MAPREF,MODE,EXPECTED,ERR,TOKENRESIDUAL) ;
 	. IF EXPECTED["&" DO  QUIT:$DATA(ERR)   ;"& means key:value pattern expected or allowed
 	. . ;"Just because '&' is accepted doesn't mean TOKEN is going to follow that pattern
 	. . ;"If valid KEY:VALUE pair, then SUBSEQUENT should be ':'
-	. . IF SUBSEQUENT'=":" QUIT  ;"not KEY:VALUE
+	. . IF $GET(SUBSEQUENT)'=":" QUIT  ;"not KEY:VALUE
 	. . SET TOKEN("ID")="KEY"
 	. . SET HANDLED=1
 	. IF EXPECTED["$",HANDLED=0 DO       ;"$ means a value (any element)
@@ -297,22 +317,25 @@ M2 . ;"--- Now that TOKEN is set up, use below ---
 	. . KILL KEY MERGE KEY=TOKEN KILL TOKEN
 	. . SET EXPECTED=":"
 	. IF TOKEN("ID")="VAL" DO  QUIT
+	. . NEW CLOSETOKEN SET CLOSETOKEN=""
+	. . NEW NODE SET NODE=""
 	. . IF MODE="ARRAY" DO
-	. . . IF KEY'="" DO J2AERR(.ERR,"Got a KEY:VALUE, but expected just a VALUE because in ARRAY mode") QUIT
-	. . . SET EXPECTED=",]"
-	. . . NEW ISNULL SET ISNULL=((TOKEN="null")&(TOKEN("ISSTR")=0))
+	. . . IF $GET(KEY)'="" DO J2AERR(.ERR,"Got a KEY:VALUE, but expected just a VALUE because in ARRAY mode") QUIT
+	. . . SET CLOSETOKEN="]"
+	. . . NEW ISNULL SET ISNULL=(((TOKEN="null")&(TOKEN("ISSTR")=0))!(TOKEN=""))
 	. . . IF (ISNULL)=0 DO
 	. . . . SET @OUTREF@(ARRIDX)=TOKEN
 	. . . SET ARRIDX=ARRIDX+1
 	. . ELSE  IF MODE="OBJ" DO
 	. . . IF KEY="" DO J2AERR(.ERR,"Expected KEY:VALUE, but KEY is null while VALUE is ["_VAL_"]") QUIT
+	. . . SET CLOSETOKEN="}"
 	. . . IF KEY="%%node_value%%" DO
 	. . . . SET @OUTREF=TOKEN
 	. . . ELSE  DO
 	. . . . NEW ANODE SET ANODE=$SELECT($DATA(KEY("NUM"))>0:+KEY("NUM"),1:KEY)  ;"If numeric string, use number.;
 	. . . . SET @OUTREF@(ANODE)=TOKEN
-	. . . KILL KEY
-	. . . SET EXPECTED=",}"
+	. . KILL KEY
+	. . SET EXPECTED=","_CLOSETOKEN
 	. IF (TOKEN="{")!(TOKEN="[") DO  QUIT   ;"starting {} or [], so call self recursively. ;
 	. . NEW SUBMAP SET SUBMAP=$NAME(@MAPREF@(CURIDX))
 	. . NEW SUBMODE SET SUBMODE=$SELECT(TOKEN="[":"ARRAY",TOKEN="{":"OBJ")
@@ -322,12 +345,15 @@ M2 . ;"--- Now that TOKEN is set up, use below ---
 	. . ELSE  IF MODE="OBJ" DO
 	. . . NEW ANODE SET ANODE=$SELECT(KEY="":"NODE",$DATA(KEY("NUM"))>0:+KEY("NUM"),1:KEY)  ;"If numeric string, use number.;
 	. . . SET SUBREF=$NAME(@OUTREF@(ANODE))
-	. . NEW SUBEXPECT SET SUBEXPECT="[{"_$SELECT(SUBMODE="ARRAY":"$",SUBMODE="OBJ":"&")  ;"$ means value, & means KEY:VALUE
+	. . NEW SUBEXPECT SET SUBEXPECT="[{@"_$SELECT(SUBMODE="ARRAY":"$",SUBMODE="OBJ":"&")  ;"$ means value, & means KEY:VALUE, @ means nothing (empty [] or {})
 	. . SET DEPTH=DEPTH+1
 	. . DO MAP2ARR(SUBREF,SUBMAP,SUBMODE,SUBEXPECT,.ERR,.TOKENRESIDUAL)
 	. . IF MODE="ARRAY" SET ARRIDX=ARRIDX+1
 	. . SET EXPECTED=","_$SELECT(TOKEN("ID")="[":"]",TOKEN("ID")="{":"}",1:"?")
+	. IF (TOKEN=""),(EXPECTED["@") DO  QUIT
+	. . SET DONE=1
 	. DO J2AERR(.ERR,"Unexpected parse error.  Got ["_TOKEN_"]") ;
+M2ADN ;
 	QUIT
 	;
 J2AERR(ERR,MSG) ;
@@ -414,6 +440,10 @@ JSON2ARR(JSONSTR,OUTREF,ENCAPS,ERR)  ;
 	;"        ENCAPS -- OPTIONAL.  Array with encapsulators.  Will be filled automatically if not provided
 	;"        ERR -- OPTIONAL.  PASS BY REFERENCE.  AN OUT ERROR ARRAY.  Format:
 	;"             ERR(#)=<error message>
+	;"RESULT: None  -- output is into @OUTREF
+	;"NOTE: This currently doesn't support doubly escaped strings, i.e. a strigified json inside another stringified json object
+	;
+	NEW SPEC SET SPEC("\""")="""" SET JSONSTR=$$REPLACE^XLFSTR(JSONSTR,.SPEC)  ;"Unescape JSON quoted strings <-- this replacement causes problems if doubly escaped.;
 	IF $DATA(ENCAPS)=0 DO GETMATCHENCAP^TMGSTUT3(.ENCAPS,"{""'[")
 	SET OUTREFF=$$CREF^DILF(OUTREF)  ;"ensure closed format
 	NEW MAP DO MAPMATCH3^TMGSTUT3(JSONSTR,"MAP",.ENCAPS)  ;"convert linear string into semi-parsed array describing string
@@ -462,4 +492,36 @@ TESTJ2A2  ;"TEST JSON TO ARRAY2
 	. WRITE !,"SUCCESS!!",!
 	;
 	;
+	QUIT
+	;
+TESTJ2A3 ;
+	NEW STR SET STR="[{""value"":[],""type"":""json_array""},{""value"":""1317027576"",""type"":""string""}]"
+	NEW ARR,ERR
+	DO JSON2ARR(STR,"ARR",,.ERR)
+	IF $D(ARR) DO
+	. ZWR ARR
+	QUIT
+	;
+TESTJ2A3B ;
+	NEW STR SET STR="[{""value"":{},""type"":""json_obj""},{""value"":""1317027576"",""type"":""string""}]"
+	NEW ARR,ERR
+	DO JSON2ARR(STR,"ARR",,.ERR)
+	IF $D(ARR) DO
+	. ZWR ARR
+	QUIT
+	;
+TESTJ2A4 ;
+	;"This is a test of doubly escaped strings, i.e. a strigified json inside another stringified json object
+	;"  Currently this is NOT WORKING
+	NEW STR SET STR="[{""value"":""1317027576"",""type"":""string""},{""value"":""{\""visit_reason_physical\"":true,\""visit_reason_details\"":\""Stomach ache\""}"",""type"":""json_object""},{""value"":"""",""type"":""string""}]"
+	NEW ARR
+	DO
+	. NEW INJSON SET INJSON(1)=STR
+	. NEW OUTJSON,ERR
+	. DO DECODE^XLFJSON("INJSON","OUTJSON","ERR")
+	. ZWR OUTJSON
+	;
+	DO JSON2ARR(STR,"ARR",,.ERR)
+	IF $D(ARR) DO
+	. ZWR ARR
 	QUIT
