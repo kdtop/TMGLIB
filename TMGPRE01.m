@@ -51,12 +51,14 @@ GETPATFORMS(OUT,SESSIONID,ERR)    ;"Get list of needed documents for patient.;
 	NEW REF SET REF=$$ID2DATAREF^TMGNODE1(SESSIONID)
 	NEW IDX SET IDX=-1
 	NEW ALLFORMS
-	;"Format: ALLFORMS(IDX)="DisplayName^viewName^storageNode"
-	SET ALLFORMS($I(IDX))="Update Medical History^hxupdate^HX"
-	SET ALLFORMS($I(IDX))="Head-to-toe Questions^rosupdate^ROS"
-	SET ALLFORMS($I(IDX))="Medication Review^medication_review^MEDS"
-	SET ALLFORMS($I(IDX))="Test signature^sig_form^SIG1"
-	SET ALLFORMS($I(IDX))="Consent to Treat^patient_consent_form^CSNT"
+	;"Format: ALLFORMS(IDX)="DisplayName^viewName^storageNode^IconName"
+	SET ALLFORMS($I(IDX))="Update Medical History^hxupdate^HX^ClipboardPlus"
+	SET ALLFORMS($I(IDX))="Head-to-toe Questions^rosupdate^ROS^CoughingIcon"
+	SET ALLFORMS($I(IDX))="Medication Review^medication_review^MEDS^ClipboardCapsule"
+	SET ALLFORMS($I(IDX))="Test signature^sig_form^SIG1^Certificate"
+	SET ALLFORMS($I(IDX))="Consent to Treat^patient_consent_form^CSNT^TalkQuestionMark"
+	SET ALLFORMS($I(IDX))="Mental Health Questionnaire^phq9Quest^PHQ9^Frown"
+	SET ALLFORMS($I(IDX))="Medicare Annual Wellness Visit (AWV) Questionnaire^awvQuest^AWV^HealthCurve"
 	;"SET ALLFORMS($I(IDX))="Patient Demographics^demographics_form^??"
 	;"SET ALLFORMS($I(IDX))="Insurance Information^insurance_form^??"
 	NEW JDX SET JDX=-1
@@ -70,6 +72,7 @@ GETPATFORMS(OUT,SESSIONID,ERR)    ;"Get list of needed documents for patient.;
 	. SET OUT(JDX,"viewName")=$PIECE(ITEM,"^",2)  ;"View Name
 	. NEW NODE SET NODE=$PIECE(ITEM,"^",3)  ;"Storage Node
 	. MERGE OUT(JDX,"progress")=@REF@(NODE_"-PROGRESS")  ;"Get progress data for this form
+	. SET OUT(JDX,"iconName")=$PIECE(ITEM,"^",4)  ;"Icon Name
 	. ;
 	;"TO DO: Add logic to determine which forms are needed for patient
 	;"  Planned format: DisplayName^viewName^totalItems^completedItems^percentComplete"
@@ -139,6 +142,23 @@ GMEL1 ;
 GMEDDN ;
 	QUIT RESULT;
 	;
+TESTTAGML  ;"TEST TAGGED MED LIST
+  NEW DIC,X,Y,TMGDFN,STR,ARR
+  SET DIC=2,DIC(0)="MAEQ" DO ^DIC WRITE ! SET TMGDFN=+Y IF TMGDFN'>0 QUIT
+  NEW ARRAY,OPTION
+  IF $GET(DT)>0 SET OPTION("DT")=DT
+  DO PRIORRXT^TMGTIUO8(+Y,48,.ARRAY,1,.OPTION)
+  KILL OPTION
+  SET OPTION("FOR PATIENTS")=1
+  SET OPTION("HTML COLOR TAGS")=1
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$ORDER(ARRAY(IDX)) QUIT:IDX'>0  DO
+  . NEW LINE SET LINE=$GET(ARRAY(IDX)) QUIT:LINE=""
+  . NEW PARSED DO PARSELN^TMGRX001(.PARSED,LINE,0,.OPTION)
+  . SET ARRAY(IDX)=$$EXTERNAL^TMGRX003(.PARSED,.OPTION)
+  IF $DATA(ARRAY) ZWR ARRAY
+  QUIT
+  ;
 	;"--------------------------------------------------------------------------------""
 	;
 SAVEMEDS(SESSIONID,DATA,PROGRESS,ERR)  ;"Save data
@@ -175,6 +195,30 @@ GETCSNT(OUTDATA,OUTPROGRESS,SESSIONID,ERR) ;"Get consent data for patient"
 	;"--------------------------------------------------------------------------------""
 SAVECSNT(SESSIONID,DATA,PROGRESS,ERR) ;"Get consent data for patient"
 	NEW RESULT SET RESULT=$$SAVECOMMON("CSNT",.SESSIONID,.DATA,.PROGRESS,.ERR)
+	QUIT RESULT
+	;
+	;"================================================================================"
+	;"  NODE-STYLE RPC FOR GETTING/SAVING USER PHQ-9 QUESTIONNAIRE
+	;"================================================================================"
+	;
+GETPHQ9DATA(OUT,OUTPROGRESS,SESSIONID,ERR)  ;"Get data for patient PHQ9 form (based on patient's prior responses)
+	NEW RESULT SET RESULT=$$GETCOMMON("PHQ9",.OUT,.OUTPROGRESS,.SESSIONID,.ERR) ;"Get data for patient"
+	QUIT RESULT;
+	;"--------------------------------------------------------------------------------""
+SAVEPHQ9DATA(SESSIONID,DATA,PROGRESS,ERR)  ;"Save data (patient responses) from PHQ9 form.;
+	NEW RESULT SET RESULT=$$SAVECOMMON("PHQ9",SESSIONID,.DATA,.PROGRESS,ERR)
+	QUIT RESULT
+	;
+	;"================================================================================"
+	;"  NODE-STYLE RPC FOR GETTING/SAVING USER AWV QUESTIONNAIRE
+	;"================================================================================"
+	;
+GETAWVDATA(OUT,OUTPROGRESS,SESSIONID,ERR)  ;"Get data for patient AWV form (based on patient's prior responses)
+	NEW RESULT SET RESULT=$$GETCOMMON("AWV",.OUT,.OUTPROGRESS,.SESSIONID,.ERR) ;"Get data for patient"
+	QUIT RESULT;
+	;"--------------------------------------------------------------------------------""
+SAVEAWVDATA(SESSIONID,DATA,PROGRESS,ERR)  ;"Save data (patient responses) from PHQ9 form.;
+	NEW RESULT SET RESULT=$$SAVECOMMON("AWV",SESSIONID,.DATA,.PROGRESS,ERR)
 	QUIT RESULT
 	;
 	;"================================================================================"

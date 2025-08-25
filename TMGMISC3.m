@@ -15,6 +15,8 @@ TMGMISC3 ;TMG/kst/Misc utility librar ;9/6/17, 7/24/22
  ;" API -- Public Functions.
  ;"=======================================================================
  ;"ARRDUMP(REF,TMGIDX,INDENT) -- dump out array in tree format.  
+ ;"DELTARRAY(ARR1,ARR2,DELTA) --FIND DIFFERENCE BETWEN ARRAYS
+ ;"INDEX(ARR,LINE)  --Return index of line found in ARR (first match)
  ;"SHR(NUM,DIGITS)  //BINARY SHIFT RIGHT
  ;"SHL(NUM,DIGITS) //BINARY SHIFT LEFT
  ;"GCD(U, V) //GREATEST COMMON DENOMINATOR
@@ -31,6 +33,7 @@ TMGMISC3 ;TMG/kst/Misc utility librar ;9/6/17, 7/24/22
 ARRDUMP(REF,TMGIDX,INDENT,OUTREF)  ;"ARRAY DUMP
   ;"NOTE: similar to ArrayDump^TMGIDE (taken from there and modified)
   ;"      But this function is different enough that I will keep separate
+  ;"     See also ZWR2ARR^TMGZWR(NAME,OUTREF,STARTIDX)
   ;"PUBLIC FUNCTION
   ;"Purpose: to get a custom version of GTM's "zwr" command
   ;"Input:  REF -- NAME of global to display, i.e. "^VA(200)"
@@ -100,6 +103,36 @@ ADWRITE(STR,LINEFEED,OUTREF) ;
   . SET @OUTREF=IDX
   QUIT
   ;
+DELTARRAY(ARR1,ARR2,DELTA) ;"FIND DIFFERENCE BETWEN ARRAYS
+  ;"INPUT: ARR1 -- PASS BY REFERENCE
+  ;"       ARR2 -- PASS BY REFERENCE
+  ;"       DELTA -- OPTIONAL.  PASS BY REFERENCE.  Filled with changed lines.  
+  ;"          DELTA(1,<EXTRA LINE NOT IN ARR2>)=""
+  ;"          DELTA(2,<EXTRA LINE NOT IN ARR1>)=""
+  KILL DELTA
+  NEW IDX SET IDX=""
+  ;"Find every line in ARR1 not in ARR2
+  FOR  SET IDX=$ORDER(ARR1(IDX)) QUIT:IDX=""  DO
+  . NEW LINE SET LINE=$GET(ARR1(IDX)) QUIT:LINE=""
+  . NEW TMP SET TMP=$$INDEX(.ARR2,LINE) QUIT:TMP'=""
+  . SET DELTA(1,LINE)=""
+  ;"Find every line in ARR2 not in ARR1
+  SET IDX=""
+  FOR  SET IDX=$ORDER(ARR2(IDX)) QUIT:IDX=""  DO
+  . NEW LINE SET LINE=$GET(ARR2(IDX)) QUIT:LINE=""
+  . NEW TMP SET TMP=$$INDEX(.ARR1,LINE) QUIT:TMP'=""
+  . SET DELTA(2,LINE)=""
+  QUIT
+  ;
+INDEX(ARR,LINE)  ;"Return index of line found in ARR (first match)
+  NEW RESULT SET RESULT=""
+  SET LINE=$GET(LINE) IF LINE="" GOTO IDXDN
+  NEW IDX SET IDX=""
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:(IDX="")!(RESULT'="")  DO
+  . IF $GET(ARR(IDX))=LINE SET RESULT=IDX
+IDXDN ;
+  QUIT RESULT
+
 SHR(NUM,DIGITS)  ;"//BINARY SHIFT RIGHT
   NEW RESULT SET RESULT=NUM
   SET DIGITS=$GET(DIGITS,1)

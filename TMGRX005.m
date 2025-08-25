@@ -20,7 +20,6 @@ TMGRX005 ;TMG/kst/Patient medication code; 08/23/17
  ;"CHKREGRX(LINE,ABORT,TRAIN) -- Interactive test and registration of Rx. 
  ;"REGRX(ARR)  -- REGISTER A MEDICATION
  ;"REGSTRTH(ARR,IEN22733) -- Register strength
- ;"EDITRX(IEN22733)  -- Edit a med record
  ;"SELRX2 -- CHECK WHICH PARSES ARE GOOD. 
  ;"SCRNVAP(ARR)  -- DIC screening routine 
  ;"PKFRMIEN(IEN22733)  --PICK FORM SUB IEN FROM CURRENTLY REGISTERED SUBRECORDS.
@@ -29,6 +28,8 @@ TMGRX005 ;TMG/kst/Patient medication code; 08/23/17
  ;"EDTSTRNT(IEN22733)  -- EDIT CURRENT REGISTERED STRENGTHS FOR MEDICATION
  ;"SHOWMODS(IEN22733,NOPAUSE)  --SHOW CURRENT MODIFIERS FOR MEDICATION
  ;"ADDMOD(IEN22733)  -- ADD A MODIFIER FOR A MEDICATION  
+ ;"EDITRX(IEN22733)  -- Edit a med record
+ ;"EDITFLDS(IEN22733,FLDS)  -- EDIT FIELD(S)
  ;
  ;"=======================================================================
  ;"DEPENDENCIES
@@ -36,30 +37,38 @@ TMGRX005 ;TMG/kst/Patient medication code; 08/23/17
  ;"Uses:  
  ;"=======================================================================
  ;   
-CHKREGRX(LINE,ABORT,TRAIN) ;
+CHKREGRX(LINE,ABORT,TRAIN,OPTION) ;
+  ;"INPUT: LINE
+  ;"       ABORT
+  ;"       TRAIN -- OPTIONAL.  If 1 then interactive process if needed. 
+  ;"                           2 is ALWAYS interactive
+  ;"       OPTION
   ;"NOTE: This is an interactive process, expecting user to be at command-line.
   NEW RESULT SET RESULT=""
   NEW FNRESULT SET FNRESULT=1
   NEW IEN22733 SET IEN22733=0
   NEW NEEDRX SET NEEDRX=1
   NEW NEEDSTRENGTH SET NEEDSTRENGTH=1
-  NEW MEDNAME SET MEDNAME=""
-  NEW USRPICK,MENU,IDX
+  NEW MEDNAME,MATCHMED SET MEDNAME=""
+  NEW USRPICK,MENU,IDX,JDX
   SET TRAIN=+$GET(TRAIN)
   NEW ARR
   IF $GET(LINE)="" GOTO CKR2B
+  NEW FORCEDIT SET FORCEDIT=+$GET(OPTION("FORCE EDIT"))
 CKR1 ;  
-  KILL ARR DO PARSELN^TMGRX001(.ARR,LINE,.TRAIN)
+  KILL ARR DO PARSELN^TMGRX001(.ARR,LINE,.TRAIN,.OPTION)
 CKR2 ;  
   WRITE !,"  ==================================================",!
-  WRITE "Prossing medication entry:",!
+  WRITE "Processing medication entry:",!
   WRITE "  ",LINE,!
   SET IEN22733=+$GET(ARR("IEN22733"))
   SET NEEDRX=(IEN22733'>0)
   SET NEEDSTRENGTH=($ORDER(ARR("STRENGTH","IENS",""))="")
-  IF ('NEEDRX)&('NEEDSTRENGTH) GOTO CKR3
+  IF ('NEEDRX)&('NEEDSTRENGTH)&('FORCEDIT) GOTO CKR3
 CKR2B  ;  
   SET MEDNAME=$GET(ARR("MEDICATION","INPUT NAME")) 
+  SET MATCHMED=$GET(ARR("MEDICATION","GENERIC"))
+  IF MATCHMED="" SET MATCHMED=$GET(ARR("MEDICATION","GENERIC","DATABASE"))
   IF MEDNAME="" DO
   . IF IEN22733>0 SET MEDNAME=$PIECE($GET(^TMG(22733,IEN22733,0)),"^",1)
   . IF MEDNAME="" SET MEDNAME="this medication"
@@ -67,28 +76,33 @@ CKR2B  ;
   IF (NEEDRX=0),NEEDSTRENGTH WRITE "Strength doesn't appear to be registered, or is missing from input",!
 CKRM ;       
   NEW RXREF SET RXREF=$NAME(^TMP("MEDIEN2^TMGRX004",$J)) KILL @RXREF  ;"FORCE REFRESH OF MEDS AFTER EDITING ETC.
-  SET IDX=0  
+  SET IDX=0,JDX=0  
   KILL MENU SET MENU(IDX)="Select Option:"
-  SET MENU(IDX,1)="Line: "_LINE
-  SET MENU(IDX,2)="Processed output: "_$$EXTERNAL^TMGRX003(.ARR)
+  SET MENU(IDX,$I(JDX))="Line: "_LINE
+  IF MATCHMED'="" SET MENU(IDX,$I(JDX))="Matched medication: "_MATCHMED
+  SET MENU(IDX,$I(JDX))="Med Name: "_MEDNAME
+  SET MENU(IDX,$I(JDX))="Processed output: "_$$EXTERNAL^TMGRX003(.ARR)
   IF NEEDRX SET IDX=IDX+1,MENU(IDX)="Register medication NOW"_$CHAR(9)_"REGRX"
   ELSE  IF NEEDSTRENGTH DO
   . SET IDX=IDX+1,MENU(IDX)="Register strength for "_MEDNAME_$CHAR(9)_"REGSTRTH"
   IF IEN22733>0 DO
-  . SET IDX=IDX+1,MENU(IDX)="Show "_MEDNAME_"'s registered strengths"_$CHAR(9)_"SHOWSTRT"
-  . SET IDX=IDX+1,MENU(IDX)="Edit "_MEDNAME_"'s registered strengths"_$CHAR(9)_"EDITSTRENGTHS"    
-  . SET IDX=IDX+1,MENU(IDX)="Edit "_MEDNAME_"'s output settings"_$CHAR(9)_"EDIT-OUTPUT"
-  . SET IDX=IDX+1,MENU(IDX)="Edit "_MEDNAME_"'s capitalization settings"_$CHAR(9)_"EDIT-CAPITALIZATION"
-  . SET IDX=IDX+1,MENU(IDX)="Edit "_MEDNAME_"'s brands"_$CHAR(9)_"EDIT-BRANDS"
-  . SET IDX=IDX+1,MENU(IDX)="Edit "_MEDNAME_" record"_$CHAR(9)_"EDIT^"_IEN22733
-  . SET IDX=IDX+1,MENU(IDX)="Show "_MEDNAME_"'s modifiers"_$CHAR(9)_"SHOWMODIFIERS"
-  . SET IDX=IDX+1,MENU(IDX)="Add modifier for "_MEDNAME_$CHAR(9)_"ADDMODIFIER"
-  SET IDX=IDX+1,MENU(IDX)="Edit another record to add ALIAS (or misspelling)"_$CHAR(9)_"EDIT^OTHER"
+  . SET IDX=IDX+1,MENU(IDX)="SS Show registered strengths"_$CHAR(9)_"SHOWSTRT"
+  . SET IDX=IDX+1,MENU(IDX)="ES Edit registered strengths"_$CHAR(9)_"EDITSTRENGTHS"    
+  . SET IDX=IDX+1,MENU(IDX)="EO Edit output settings"_$CHAR(9)_"EDIT-OUTPUT"
+  . SET IDX=IDX+1,MENU(IDX)="EC Edit capitalization settings"_$CHAR(9)_"EDIT-CAPITALIZATION"
+  . SET IDX=IDX+1,MENU(IDX)="EB Edit brands"_$CHAR(9)_"EDIT-BRANDS"
+  . SET IDX=IDX+1,MENU(IDX)="EF Edit forms"_$CHAR(9)_"EDIT-FORMS"
+  . SET IDX=IDX+1,MENU(IDX)="ER Edit record"_$CHAR(9)_"EDIT^"_IEN22733
+  . SET IDX=IDX+1,MENU(IDX)="SM Show modifiers"_$CHAR(9)_"SHOWMODIFIERS"
+  . SET IDX=IDX+1,MENU(IDX)="AM Add modifier"_$CHAR(9)_"ADDMODIFIER"
+  SET IDX=IDX+1,MENU(IDX)="EOR Edit other record to add ALIAS (or misspelling)"_$CHAR(9)_"EDIT^OTHER"
+  SET IDX=IDX+1,MENU(IDX)="EBOR Edit brands of other record"_$CHAR(9)_"EDIT_OTHER_BRANDS"
   SET IDX=IDX+1,MENU(IDX)="ADD a NEW record for another medication"_$CHAR(9)_"EDIT^NEW"
   IF IEN22733>0 SET IDX=IDX+1,MENU(IDX)="Dump (examine) record for "_MEDNAME_$CHAR(9)_"DUMP^"_IEN22733
-  SET IDX=IDX+1,MENU(IDX)="Dump (examine) another record"_$CHAR(9)_"DUMP"
+  SET IDX=IDX+1,MENU(IDX)="DO Dump (examine) other record"_$CHAR(9)_"DUMP"
   SET IDX=IDX+1,MENU(IDX)="DEBUG through parse process"_$CHAR(9)_"DEBUG"
-  SET IDX=IDX+1,MENU(IDX)="Show array of parsed information"_$CHAR(9)_"SHOWPARSE"
+  SET IDX=IDX+1,MENU(IDX)="EM Edit match strings"_$CHAR(9)_"EDIT_MATCH_STRINGS"
+  SET IDX=IDX+1,MENU(IDX)="SP Show array of parsed information"_$CHAR(9)_"SHOWPARSE"
   SET IDX=IDX+1,MENU(IDX)="Parse again"_$CHAR(9)_"REPARSE"
   SET IDX=IDX+1,MENU(IDX)="Accept current parse as best possible"_$CHAR(9)_"DONE"
   SET IDX=IDX+1,MENU(IDX)="Skip this entry"_$CHAR(9)_"SKIP"
@@ -97,9 +111,9 @@ CKRM ;
   IF USRPICK="^" SET FNRESULT=-1 GOTO CKRDN
   IF USRPICK="DONE" GOTO CKRDN
   IF USRPICK="REPARSE" DO  GOTO CKR2
-  . KILL ARR DO PARSELN^TMGRX001(.ARR,LINE,1)
+  . KILL ARR DO PARSELN^TMGRX001(.ARR,LINE,1,.OPTION)
   IF USRPICK="DEBUG" DO  GOTO CKR2
-  . KILL ARR NEW CODE SET CODE="DO PARSELN^TMGRX001(.ARR,LINE,1)"
+  . KILL ARR NEW CODE SET CODE="DO PARSELN^TMGRX001(.ARR,LINE,1,.OPTION)"
   . DO DIRDEBUG^TMGIDE(CODE)
   IF USRPICK="REGRX" DO  GOTO CKR1
   . DO REGRX(.ARR)  ;"REGISTER A MEDICATION
@@ -121,6 +135,15 @@ CKRM ;
   . DO EDITFLDS(IEN22733,"1.21:1.26")
   IF USRPICK="EDIT-BRANDS" DO  GOTO CKR2
   . DO EDITFLDS(IEN22733,"1")
+  IF USRPICK="EDIT_OTHER_BRANDS" DO  GOTO CKR2
+  . NEW DIC,X,Y SET DIC=22733,DIC(0)="MAEQ"
+  . DO ^DIC QUIT:Y'>0
+  . DO EDITFLDS(+Y,"1")
+  IF USRPICK="EDIT-FORMS" DO  GOTO CKR2
+  . DO EDITFLDS(IEN22733,"2")
+  IF USRPICK="EDIT_MATCH_STRINGS" DO  GOTO CKR2
+  . WRITE !,"Current match string was: ",$GET(ARR("PARSED","MATCH")),!
+  . DO EDITMATCHSTR
   IF USRPICK="SHOWPARSE" DO  GOTO CKR2
   . DO ARRDUMP^TMGMISC3("ARR")
   . DO PRESS2GO^TMGUSRI2
@@ -137,7 +160,7 @@ CKRM ;
   GOTO CKRM
   ;
 CKR3 ;  
-  WRITE "PROCESSED VERSION:",!,"  ",$$EXTERNAL^TMGRX003(.ARR),!
+  WRITE "PROCESSED VERSION:",!,"  ",$$EXTERNAL^TMGRX003(.ARR,.OPTION),!
   WRITE "--------------------------",!
 CKRDN ;
   QUIT FNRESULT
@@ -467,3 +490,9 @@ EDITFLDS(IEN22733,FLDS)  ;"EDIT FIELD(S)
   DO ^DIE WRITE !
   QUIT
   ;
+EDITMATCHSTR  ;"Edit MATCH STRING records.
+  NEW X,Y,DIC SET DIC=22733.1,DIC(0)="MAEQ" DO ^DIC
+  IF Y'>0 QUIT
+  NEW DIE,DA,DR SET DIE=22733.1,DA=+Y,DR=".01"
+  DO ^DIE WRITE !
+  QUIT

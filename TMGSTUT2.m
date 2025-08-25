@@ -47,6 +47,8 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19,10/28/24
   ;"MAXWIDTH(ARR)  -- Return length of longest line in ARR
   ;"LTRIM(S,TRIMCH) -- LEFT TRIM. 
   ;"RTRIM(S,TRIMCH) -- RIGHT TRIM. 
+  ;"EXTR2CHAR(STR,CHAR,STARTPOS)  -- Extract up to (but not including) CHAR
+  ;
   ;"=======================================================================
   ;" Private Functions.
   ;"=======================================================================
@@ -744,3 +746,17 @@ RTRIM(S,TRIMCH) ;"RIGHT TRIM.
   ;"Results: returns modified string
   QUIT $$TRIM^XLFSTR(S,"R",.TRIMCH)
   ;
+EXTR2CHAR(STR,CHAR,STARTPOS)  ;"Extract up to (but not including) CHAR
+  ;"INPUT: STR1 -- string to extract from.  NOT MODIFIED
+  ;"       CHAR -- character (or char substring) to search in STR for.  
+  ;"       STARTPOS -- optional.  Default is 1.  This is starting position for extraction.
+  ;"Result: returns substring fragment, or "" if not found, or invalid input. 
+  NEW RESULT SET RESULT=""
+  SET STR=$GET(STR) GOTO:STR="" X2CDN
+  SET CHAR=$GET(CHAR) GOTO:CHAR="" X2CDN
+  SET STARTPOS=+$GET(STARTPOS)\1 IF STARTPOS'>0 SET STARTPOS=1
+  NEW POS SET POS=$FIND(STR,CHAR,STARTPOS) GOTO:POS=0 X2CDN
+  SET POS=POS-$LENGTH(CHAR)-1  ;"should set POS to the character BEFORE CHAR
+  SET RESULT=$EXTRACT(STR,STARTPOS,POS)
+X2CDN ;  
+  QUIT RESULT

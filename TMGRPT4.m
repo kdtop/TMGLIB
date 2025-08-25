@@ -518,20 +518,22 @@ UNSIGNAPPT  ;"
   QUIT
   ;"  
 UNSIGNTIU  ;"
-  NEW %ZIS
-  SET %ZIS("A")="Enter Output Device: "
-  SET IOP="S121-LAUGHLIN-LASER"
-  DO ^%ZIS  ;"standard device call
-  USE IO  
-  WRITE !
-  WRITE "****************************************************************",!
-  WRITE "                  UNSIGNED OFFICE NOTES",!
-  WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
-  WRITE "",!
-  WRITE "                  PLEASE DELIVER TO EDDIE",!
-  WRITE "****************************************************************",!
-  WRITE "                                        (From TMGRPT4.m)",!,!
-  WRITE " ",!
+  ;"  7/28/25 - NO LONGER WILL THIS BE PRINTED. IT WILL BE A MESSAGE FOR DR. DEE
+  ;NEW %ZIS
+  ;SET %ZIS("A")="Enter Output Device: "
+  ;SET IOP="S121-LAUGHLIN-LASER"
+  ;DO ^%ZIS  ;"standard device call
+  ;USE IO  
+  ;WRITE !
+  ;WRITE "****************************************************************",!
+  ;WRITE "                  UNSIGNED OFFICE NOTES",!
+  ;WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
+  ;WRITE "",!
+  ;WRITE "                  PLEASE DELIVER TO EDDIE",!
+  ;WRITE "****************************************************************",!
+  ;WRITE "                                        (From TMGRPT4.m)",!,!
+  ;WRITE " ",!
+  NEW TEMPMSG,IDX SET IDX=1
   NEW TMGDUZ SET TMGDUZ=0
   FOR  SET TMGDUZ=$O(^XTV(8992,TMGDUZ)) QUIT:TMGDUZ'>0  DO
   . NEW DISPLAY SET DISPLAY=0
@@ -547,10 +549,15 @@ UNSIGNTIU  ;"
   . . SET TIUHLIGHT=$P($G(^TIU(8925.1,TIUTYPE,"TMGH")),"^",1)
   . . SET COLOR=$P($G(^TIU(8925.1,TIUTYPE,"TMGH")),"^",2)
   . . IF (TIUHLIGHT="")&(COLOR'["office notes") QUIT
-  . . IF DISPLAY=0 WRITE " **** ",$P($G(^VA(200,TMGDUZ,0)),"^",1)," **** ",! SET DISPLAY=1
-  . . WRITE "  - ",$P($G(^DPT(TMGDFN,0)),"^",1),", ",$$EXTDATE^TMGDATE($P($G(^TIU(8925,XTVOBJ,13)),"^",1),1)," -> ",$P($G(^TIU(8925.1,TIUTYPE,0)),"^",1),!
+  . . ;"IF DISPLAY=0 WRITE " **** ",$P($G(^VA(200,TMGDUZ,0)),"^",1)," **** ",! SET DISPLAY=1
+  . . ;"WRITE "  - ",$P($G(^DPT(TMGDFN,0)),"^",1),", ",$$EXTDATE^TMGDATE($P($G(^TIU(8925,XTVOBJ,13)),"^",1),1)," -> ",$P($G(^TIU(8925.1,TIUTYPE,0)),"^",1),!
+  . . SET TEMPMSG($I(IDX))="  - "_$P($G(^DPT(TMGDFN,0)),"^",1)_", "_$$EXTDATE^TMGDATE($P($G(^TIU(8925,XTVOBJ,13)),"^",1),1)_" -> "_$E($P($G(^TIU(8925.1,TIUTYPE,0)),"^",1),1,20)
   . IF DISPLAY=1 WRITE !
-  DO ^%ZISC  ;" Close the output device
+  IF $D(TEMPMSG) DO
+  . SET TEMPMSG(1)="== UNSIGNED OFFICE NOTES =="
+  . DO SEND1MSG^TMGMESSG(.OUT,"DrDee","SystemReport",.TEMPMSG)
+  . DO SEND1MSG^TMGMESSG(.OUT,"Eddie","SystemReport",.TEMPMSG)
+  ;DO ^%ZISC  ;" Close the output device
   QUIT
   ;"
 NOFUAPPT  ;"PRINT A LIST OF PATIENT SEEN LAST WEEK, WHO DON'T HAVE APPTS SCHEDULED
@@ -650,5 +657,79 @@ INSCHECK  ;"JUST CHECKS TO SEE WHAT INSURANCE >65 HAS.... CAN BE DELETED LATER
   DO ^%ZISC  ;" Close the output device
   QUIT
   ;"
-  
+LINDSEY()  ;"PRINT LINDSEY'S TASK LIST FOR TODAY
+  ;"
+  ;"CHECK THE DAY
+  NEW X DO NOW^%DTC
+  DO DW^%DTC
+  NEW DAYS SET DAYS="MONDAY,TUESDAY,THURSDAY,FRIDAY"
+  IF DAYS'[X QUIT
+  NEW TASKLIST DO GETTASKS(X,.TASKLIST)
+    NEW %ZIS
+  SET %ZIS("A")="Enter Output Device: "
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  USE IO  
+  WRITE !
+  WRITE "****************************************************************",!
+  WRITE "                     DAILY TASK LIST - ",X,!
+  WRITE "                  RUN DATE: ",$$TODAY^TMGDATE(1,1),!
+  WRITE "",!
+  WRITE "                  PLEASE DELIVER TO LINDSEY",!
+  WRITE "****************************************************************",!
+  WRITE "                                        (From TMGRPT4.m)",!,!
+  WRITE " ",!
+  NEW IDX SET IDX=0
+  FOR  SET IDX=$O(TASKLIST(IDX)) QUIT:IDX'>0  DO
+  . WRITE "[    ] ",$P($G(TASKLIST(IDX)),"^",1),!,!,!
+  . IF $P($G(TASKLIST(IDX)),"^",2)="1" DO
+  . . WRITE "NOTES: _______________________________________________________________________",!,!
+  ;"
+  NEW IDX
+  SET IDX=$O(^TMG(22763,9999999),-1)
+  NEW ZN SET ZN=$G(^TMG(22763,IDX,0))
+  NEW DATE,TOT,AMT,SUSPENDED
+  NEW DAY SET DAY=$P($P(ZN,"^",1),".",1)
+  SET DATE=$$EXTDATE^TMGDATE($P(ZN,"^",1))
+  SET TOT=$P(ZN,"^",2)
+  SET AMT=$P(ZN,"^",3)
+  SET SUSPENDED=$P($P(ZN,"^",4),$C(13),1)
+  WRITE !,"CURRENT FOLLOWUP BUCKET STATS AS OF ",DATE,!,!
+  WRITE "TOTAL CLAIMS: ",TOT,?20,"TOTAL OUTSTANDING: $",AMT,?50,"NUM. SUSPENDED: ",SUSPENDED,!
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+GETTASKS(DAY,TASKLIST)
+  ;" WE CAN MAKE THIS MORE ROBUST VIA A FM FILE, BUT THIS WORKS FOR NOW
+  NEW IDX SET IDX=0
+  DO EVYDAY(.TASKLIST,.IDX)
+  IF DAY="MONDAY" DO
+  . SET TASKLIST($I(IDX))="Check BC/BS for ER admissions^1"
+  . SET TASKLIST($I(IDX))="Print EOBs^1"
+  . SET TASKLIST($I(IDX))="Prevnar-20 report of shots given to be entered in database^1"
+  . SET TASKLIST($I(IDX))="Print PopHealth for Sabrina^1"
+  . SET TASKLIST($I(IDX))="Complete Stellar Health Gaps^1"
+  ELSE  IF DAY="TUESDAY" DO
+  . SET TASKLIST($I(IDX))="Complete DataCore Gaps^1"
+  ELSE  IF DAY="THURSDAY" DO
+  . SET TASKLIST($I(IDX))="Complete PopHealth when Sabrina finishes it^1"
+  . SET TASKLIST($I(IDX))="Complete Practice Assist Gaps^1"
+  ELSE  IF DAY="FRIDAY" DO
+  . SET TASKLIST($I(IDX))="Complete Availity Gaps^1"
+  ;" End with Followup bucket
+  SET TASKLIST($I(IDX))="Work Followup Bucket^1"
+  QUIT
+  ;"
+EVYDAY(TASKLIST,IDX)  ;"THESE ARE THE EVERY DAY TASKS
+  SET TASKLIST($I(IDX))="Pull labs (done before 8:15)"
+  SET TASKLIST($I(IDX))="Pull controlled substances (done before 8:15)"
+  SET TASKLIST($I(IDX))="Get hospital records"
+  SET TASKLIST($I(IDX))="Check previous day's charges for coding errors"
+  SET TASKLIST($I(IDX))="Text message report"
+  SET TASKLIST($I(IDX))="Check for prevnar 20 already given"
+  SET TASKLIST($I(IDX))="Patient appointment reminders"
+  SET TASKLIST($I(IDX))="Check insurance a week ahead of time"
+  SET TASKLIST($I(IDX))="Enter cancels and no shows"
+  QUIT
+  ;"
   

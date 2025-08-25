@@ -35,6 +35,7 @@ NODEAPI(CALLTAG,CALLRTN,JSONARGS) ;" Universal Node.js RPC Dispatcher
 	;
 	NEW REF SET REF=$NAME(^TMG("TMP","NODEAPI^TMGNODE1"))
 	NEW ZZDEBUG SET ZZDEBUG=0
+	IF $GET(ZZSESSIONFLAG)=1 SET ZZDEBUG=1
 	IF ZZDEBUG=0 DO
 	. KILL @REF
 	. SET @REF@("CALLTAG")=CALLTAG
@@ -125,6 +126,9 @@ NODEAPI(CALLTAG,CALLRTN,JSONARGS) ;" Universal Node.js RPC Dispatcher
 	. SET ATYPE=$GET(ARGSARR(IDX,"type"))
 	. MERGE AVALUE=@AVARNAME
 	. KILL @AVARNAME ; Clean up temp variables
+	. IF $GET(AVALUE)["%%empty_",($DATA(AVALUE)\10=1) DO    ;"not empty any more
+	. . NEW TEMP DO MERGESN^TMGMISC(.AVALUE,.TEMP) KILL AVALUE
+	. . DO MERGESN^TMGMISC(.TEMP,.AVALUE)    ;"Kill off value of AVALUE, but keep its subnodes
 	. IF $DATA(AVALUE)=0 DO
 	. . IF ATYPE="json_object" SET AVALUE="%%empty_obj%%"
 	. . IF ATYPE="json_array" SET AVALUE="%%empty_array%%"

@@ -20,6 +20,7 @@ TMGUSRI8 ;TMG/kst/USER INTERFACE -- Terminal Color Picker ;9/20/24
  ;"MAPIDXTO24BIT(IDXCOLOR,ISBKGND) ;"
  ;"SPLITPOS(POS,X,Y) -- Split 'X^Y' into X and Y
  ;"SPLITCOLORPAIR(COLORPAIR,.FG,.BG)  --Split CLRVEC24 pair into FG and BG
+ ;"SPLITCOLOR2REF(COLORPAIR,REF)  -- Output to @REF@("FG") and @REF@("BG")
  ;"ISCOLORPAIR(PAIR)  --Does PAIR have #^# format?
  ;
  ;"=======================================================================
@@ -170,7 +171,9 @@ WEBCOLOR(NAME,COLORARR) ;"Get color vector, based on standardized web color name
   ;"Result: color vector, e.g. '255;192;203'
   NEW UNAME SET UNAME=$$UP^XLFSTR($GET(NAME))
   IF $DATA(COLORARR)=0 DO GETWEBCOLORS(.COLORARR)
-  QUIT $GET(COLORARR("NAME",UNAME))
+  NEW RESULT SET RESULT=$GET(COLORARR("NAME",UNAME))
+  IF RESULT="",NAME="@" SET RESULT=NAME
+  QUIT RESULT
   ;
 RANDCOLOR(COLORARR) ;"Get random color vector 24bit
   ;"Input: COLORARR -- OPTIONAL.  PASS BY REFERENCE.  If provided, then data pulled from array.  Filled if empty.  
@@ -1066,3 +1069,10 @@ SPLITCOLORPAIR(COLORPAIR,FG,BG)  ;"Split CLRVEC24 pair into FG and BG
   SET FG=$PIECE(COLORPAIR,"^",1)
   SET BG=$PIECE(COLORPAIR,"^",2)
   QUIT
+  ;
+SPLITCOLOR2REF(COLORPAIR,REF)  ;"Output to @REF@("FG") and @REF@("BG")
+  NEW FG,BG DO SPLITCOLORPAIR(.COLORPAIR,.FG,.BG)
+  SET @REF@("FG")=FG
+  SET @REF@("BG")=BG
+  QUIT
+  ;

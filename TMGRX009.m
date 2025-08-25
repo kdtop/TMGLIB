@@ -1,38 +1,46 @@
-TMGEDIT ;TMG/kst/Interface to allow use of linux editor in Fileman ;03/25/06, 8/3/2022
-         ;;1.0;TMG-LIB;**1**;7/19/08
+TMGRX009 ;TMG/kst/Patient medication listing code; 8/6/25
+       ;;1.0;TMG-LIB;**1**;08/06/25
  ;
+ ;"Code for dealing with saving patients medication list
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
- ;"Copyright (c) 6/23/2015  Kevin S. Toppenberg MD
+ ;"Copyright (c) 8/6/25  Kevin S. Toppenberg MD
  ;"
  ;"This file is part of the TMG LIBRARY, and may only be used in accordence
  ;" to license terms outlined in separate file TMGLICNS.m, which should 
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
- ;"TMG EDITOR FUNCTIONS
- ;
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================
- ;"$$EDIT(Editor)
+ ;" 
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
  ;"=======================================================================
  ;
  ;"=======================================================================
+ ;"DEPENDENCIES
  ;"=======================================================================
- ;
- ;"NOTE: It appears that a screenman form uses this code as of 8/11/25   
-EDIT(Editor) ;"DEPRECIATED
-  DO EDIT^TMGKERN8(.Editor)
+ ;"Uses:  
+ ;"=======================================================================
+ ; 
+MAKEALERT  ;
+  ;"Entry point for Taskman event
+  N XQA,XQAMSG,XQAROU,XQADATA
+  S XQA(168)=""
+  S XQAMSG="WEEKLY MEDICATION REVIEW IS DUE"
+  S XQAROU="HNDLALERT^TMGRX009"
+  D SETUP^XQALERT
   QUIT
   ;
-EDITARR(REF,EDITOR) ;"DEPRECIATED
-  DO EDITARR^TMGKERN8(.REF,.EDITOR) ;
-  ;"//kt 6/1/20 DO EDITARR2^TMGKERN8(.REF,.EDITOR) ;//kt 6/1/20
+HNDLALERT  ;
+  ;"setup list for recent and upcoming patients.
+  NEW MASTERREF DO GETREFS^TMGRX002(.MASTERREF)
+  NEW SDT,EDT
+  SET SDT=$$ADDDAYS^TMGDATE("-7")
+  SET EDT=$$ADDDAYS^TMGDATE("7")
+  NEW OPT SET OPT("EXCLUDE INACTIVE")=1,OPT("CHECK APPT")=1  
+  KILL @MASTERREF
+  DO CUSTLIST^TMGRX002(MASTERREF,SDT,EDT,.OPT)
+  DO CONSOLE^TMGRX008
   QUIT
-  ;
-LinuxEdit(Editor,FullPathName)  ;"DEPRECIATED
-  DO LINUXEDIT^TMGKERN8(Editor,FullPathName)
-  QUIT
-

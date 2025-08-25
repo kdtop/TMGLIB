@@ -23,6 +23,7 @@ TMGRX007 ;TMG/kst/Patient medication listing code; 05/16/18, 3/24/21
  ;"SAVETABL(TMGDFN,ARR,OPTION)  -- SAVE MEDICATION TABLE.
  ;"SCANDOC(IEN8925,ARR)  -- Scan document for MEDICATION TABLE or FINAL MEDICATION TABLE, extract it if found 
  ;"GETRXTBL(OUTARR,OUTDT,TMGDFN)  --GET MED TABLE FOR PATIENT (doesn't include title name)
+ ;"EDITRXTBL(TMGDFN,DELTA)  --Console-level edit of Medications Table.
  ;" 
  ;"=======================================================================
  ;"PRIVATE API FUNCTIONS
@@ -89,7 +90,6 @@ SCANALL(MODE)  ;"SCAN ALL PATIENTS...
   QUIT
   ;
 SCANPT(TMGDFN) ;"SCAN 1 PATIENT  -- This method is same as used by POST-SIGNATURE code
-  ;"WRITE !,"This scans all patients, and gets last note with table information.",!
   NEW TABLENAME SET TABLENAME="[FINAL MEDICATIONS]"
   NEW NOTES IF $$LASTNOTE^TMGTIUO5(TMGDFN,.NOTES,TABLENAME)=0 QUIT ;"GET LAST NOTE POINTED TO IN 22729
   NEW DT SET DT=$ORDER(NOTES(""),-1) IF DT'>0 QUIT
@@ -171,7 +171,7 @@ SAVETABL(TMGDFN,ARR,OPTION)  ;"SAVE MEDICATION TABLE.
   ;"WHEN ERX SCRIPTS ARE BEING SAVED, THE KEY-VALUE ISN'T POPULATED. 
   ;"WE WILL CHECK TO ENSURE THAT WE ONLY KILL OFF KV AND RESET IF
   ;"IF IT IS FOUND  3/1/19
-  IF $D(ARR("KEY-VALUE")) DO
+  IF $DATA(ARR("KEY-VALUE")) DO
   . MERGE KEYVAL=ARR("KEY-VALUE") 
   . KILL ARR("KEY-VALUE")  
   DO ARRAY2WP^TMGSTUT2("ARR",REF)  ;" <-- saves to field 2, TABLE RAW
@@ -306,3 +306,123 @@ GETRXTBL(OUTARR,OUTDT,TMGDFN)  ;"GET MED TABLE FOR PATIENT from file 22733.2.
   . SET OUTARR("KEY-VALUE",KEY,"LINE")=LINE
   QUIT
   ;
+TESTEDIT ;"Test editing med table.  
+  NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
+  DO ^DIC WRITE !
+  IF +Y'>0 QUIT
+  DO EDITRXTBL(+Y)
+  QUIT
+  
+EDITRXTBL(TMGDFN,DELTA)  ;"Console-level edit of Medication table.
+  ;"INPUT: TMGDFN -- PATIENT IEN
+  ;"       DELTA -- OPTIONAL.  PASS BY REFERENCE.  Filled with changed lines.  
+  ;"          DELTA(1,<OLD LINE>)=""
+  ;"          DELTA(2,<NEW LINE>)="" 
+  KILL DELTA
+  NEW ZN SET ZN=$GET(^DPT(TMGDFN,0))
+  WRITE !,!
+  WRITE "+----------------------------------------------+",!
+  WRITE "|        E D I T - M E D I C A T I O N S       |",!
+  WRITE "+----------------------------------------------+",!
+  WRITE "|         CAUTION!           NOTICE!           |",!
+  WRITE "+----------------------------------------------+",!
+  WRITE "| Editing Rx's here will PERMANENTLY alter the |",!
+  WRITE "| future medication list of the patient.  Only |",!
+  WRITE "| proceed if you are qualified and authorized  |",!
+  WRITE "| to do so!                                    |",!
+  WRITE "+----------------------------------------------+",!
+  WRITE "Patient NAME: ",$PIECE(ZN,"^",1),!
+  NEW DOB SET DOB=$$FMTE^XLFDT($PIECE(ZN,"^",3))
+  WRITE "DOB: ",DOB,!
+  NEW PCP,PCPDUZ DO GETPROV^TMGPROV1(.PCPDUZ,TMGDFN,DUZ)
+  SET PCP=$P($G(^VA(200,PCPDUZ,0)),"^",1)
+  WRITE "PCP: ",PCP,!
+  NEW LASTSEEN DO NEXTAPPT^TMGRPT2(.LASTSEEN,TMGDFN,"1")
+  WRITE LASTSEEN,!
+  WRITE !,"Proceed"
+  NEW % SET %=2 DO YN^DICN WRITE !
+  IF %'=1 QUIT  
+  NEW RXARR,ADT
+  DO GETRXTBL(.RXARR,.ADT,TMGDFN)
+  NEW ARR MERGE ARR=RXARR 
+  KILL ARR("KEY-VALUE")  ;"<-- Not really needed, as EDITARRAY will remove.  But leaving to show it gets killed
+  DO EDITARRAY^TMGKERNL(.ARR)
+  IF $DATA(ARR)=0 DO  GOTO ERXTDN
+  . WRITE "Rx list is empty!  Aborting!",!
+  MERGE ARR("KEY-VALUE")=RXARR("KEY-VALUE")
+  SET %=1 WRITE "Save medication changes into patient's chart" DO YN^DICN WRITE !
+  IF %'=1 DO  GOTO ERXTDN
+  . WRITE "Changes were NOT saved.",!
+  NEW RESULT SET RESULT=$$SAVETABL(TMGDFN,.ARR)
+  IF +RESULT=-1 DO  GOTO ERXTDN
+  . WRITE "Error:  ",$PIECE(RESULT,"^",2),!
+  IF +RESULT'=1 GOTO ERXTDN
+  WRITE !,"Medication table saved successfully.",!
+  DO DELTARRAY^TMGMISC3(.RXARR,.ARR,.DELTA)
+ERXTDN ;  
+  DO PRESS2GO^TMGUSRI2
+  QUIT
+  ;
+EDITRXLN(TMGDFN,MEDLINE,DELTA,OPTION)  ;"Console-level edit of one medication line
+  ;"INPUT: TMGDFN -- PATIENT IEN
+  ;"       DELTA -- OPTIONAL.  PASS BY REFERENCE.  Filled with changed lines.  
+  ;"          DELTA(1,<OLD LINE>)=""
+  ;"          DELTA(2,<NEW LINE>)="" 
+  KILL DELTA
+  NEW ZN SET ZN=$GET(^DPT(TMGDFN,0))
+  NEW PTNAME SET PTNAME=$PIECE(ZN,"^",1)
+  NEW DOB SET DOB=$$FMTE^XLFDT($PIECE(ZN,"^",3))
+  NEW PCP,PCPDUZ DO GETPROV^TMGPROV1(.PCPDUZ,TMGDFN,DUZ)
+  SET PCP=$P($G(^VA(200,PCPDUZ,0)),"^",1)
+  NEW LASTSEEN DO NEXTAPPT^TMGRPT2(.LASTSEEN,TMGDFN,"1")
+  NEW MSG
+  NEW IDX SET IDX=0
+  SET MSG($I(IDX))="        E D I T - M E D I C A T I O N S       "
+  SET MSG($I(IDX))="                                              "
+  SET MSG($I(IDX))="         CAUTION!           NOTICE!           "
+  SET MSG($I(IDX))="----------------------------------------------"
+  SET MSG($I(IDX))=" Editing Rx's here will PERMANENTLY alter the "
+  SET MSG($I(IDX))=" future medication list of the patient.  Only "
+  SET MSG($I(IDX))=" proceed if you are qualified and authorized  "
+  SET MSG($I(IDX))=" to do so!                                    "
+  SET MSG($I(IDX))="                                              "
+  SET MSG($I(IDX))="Patient NAME: "_$PIECE(ZN,"^",1)
+  SET MSG($I(IDX))="DOB: "_DOB
+  SET MSG($I(IDX))="PCP: "_PCP
+  SET MSG($I(IDX))=LASTSEEN
+  SET MSG($I(IDX))="                                              "
+  DO GETRXTBL(.RXARR,.ADT,TMGDFN)
+  NEW OPT2 
+  MERGE OPT2("COLOR")=OPTION("COLORS","NORM")
+  MERGE OPT2("COLOR","EDITOR")=OPTION("COLORS","HEADER")
+  SET OPT2("INIT VALUE")=MEDLINE
+  SET OPT2("WIDTH")=60
+  SET OPT2("ALT BUFFER")=1  ;"forced full screen center, in alt buffer. 
+  NEW EDITEDLINE SET EDITEDLINE=$$EDITDLG^TMGUSRI6(.MSG,.OPT2)
+  ;"Confirm edits
+  WRITE !
+  WRITE "Patient name: ",PTNAME,!
+  WRITE "OLD LINE: ",MEDLINE,!
+  WRITE "NEW LINE: ",EDITEDLINE,!
+  SET %=1 WRITE "Save medication changes into chart of "_PTNAME DO YN^DICN WRITE !
+  IF %'=1 DO  GOTO ERXTDN
+  . WRITE "Changes were NOT saved.",!
+  NEW DONE SET DONE=0
+  SET IDX=0
+  FOR  SET IDX=$ORDER(RXARR(IDX)) QUIT:(IDX'>0)!DONE  DO
+  . NEW ALINE SET ALINE=$GET(RXARR(IDX)) QUIT:ALINE=""
+  . IF ALINE'=MEDLINE QUIT
+  . KILL RXARR(IDX)
+  . IF EDITEDLINE'="" SET RXARR(IDX)=EDITEDLINE
+  . SET DONE=1
+  NEW RESULT SET RESULT=$$SAVETABL(TMGDFN,.RXARR)
+  IF +RESULT=-1 DO  GOTO ERXTDN
+  . WRITE "Error:  ",$PIECE(RESULT,"^",2),!
+  IF +RESULT'=1 GOTO ERXLNDN
+  WRITE "Medication table saved successfully.",!
+  SET DELTA(1,MEDLINE)=""
+  SET DELTA(2,EDITEDLINE)=""
+ERXLNDN  
+  DO PRESS2GO^TMGUSRI2
+  QUIT
+  

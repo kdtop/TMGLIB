@@ -291,7 +291,7 @@ LINUXCURL(OUT,URL,ARR,HEADERS,DATA) ;"Shell to linux curl command.
   ;"Input: OUT -- PASS BY REFERENCE.   An array with output from curl command
   ;"       URL -- the URL to pass to curl
   ;"       ARR -- PASS BY REFERENCE.  Each ARR(x) element is appended to make parameters
-  ;"       HEADERS --  PASS BY REFERENCE. OPTIONAL. Note: passed viat temp intermediate file on HFS
+  ;"       HEADERS --  PASS BY REFERENCE. OPTIONAL. Note: passed via temp intermediate file on HFS
   ;"          Format:  HEADERS(#)=<header line>    <--  "-H" will be added for each line.  
   ;"       DATA -- PASS BY REFERENCE.  OPTIONAL. This DATA mumps variable will be converted
   ;"               to json, stored in intermediate file on host file system, and passed 
@@ -317,7 +317,8 @@ LINUXCURL(OUT,URL,ARR,HEADERS,DATA) ;"Shell to linux curl command.
   . SET DATAFPNAME=$$UNIQUE^%ZISUTL(DIR_"curlData.txt")
   . NEW FPATH,FNAME
   . DO SPLITFPN^TMGIOUTL(DATAFPNAME,.FPATH,.FNAME) ;"split PathFileName into Path, Filename
-  . NEW TMGJSON DO ENCODE^%webjson("DATA","TMGJSON")
+  . ;"//kt 7/28/25 -- NEW TMGJSON DO ENCODE^%webjson("DATA","TMGJSON")
+  . NEW TMGJSON,JSTEMP SET JSTEMP=$$ARR2JSON^TMGJSON("DATA"),TMGJSON(1)=JSTEMP   ;"//kt 7/28/25
   . NEW RESULT SET RESULT=$$ARR2HFS^TMGIOUT3("TMGJSON",FPATH,FNAME)
   . IF RESULT'=1 QUIT
   . SET DELARR(FNAME)=""
@@ -763,7 +764,16 @@ EditHFSFile(FilePathName,Editor)  ;
   NEW RESULT SET RESULT=(CmdResult=0)
   QUIT RESULT
   ;
+TESTEDITARR ;
+  SET ARR(1)="This is a test"
+  SET ARR(2)="Edit this and see how it goes..."
+  DO EDITARRAY(.ARR)
+  IF $DATA(ARR) ZWR ARR
+  DO PRESS2GO^TMGUSRI2
+  QUIT;
+  ;
 EDITARRAY(ARRAY,EDITOR)  ;"interact with Linux to edit array as file on the host file system
+  ;"NOTE: See also EDITARR2^TMGKERN8, for editing multidimensional array
   QUIT $$EditArray(.ARRAY,.EDITOR)
   ;
 EditArray(ARRAY,Editor) ;"interact with Linux to edit array as file on the host file system

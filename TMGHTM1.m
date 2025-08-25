@@ -34,6 +34,7 @@ TMGHTM1 ;TMG/kst-HTML utilities ;7/14/17, 10/18/17
  ;"$$SYMENC(STR) -- replace reserved xml symbols with their encoding, replacement SYMENC^MXMLUTL() 
  ;"$$REPLACE(STR,SRCHSTR,REPLSTR) -- search and replace in line
  ;"$$HEX(NUM) -- numeric to ascii hex.  Supports only 0-FF  
+ ;"$$RTRIMNBS(STR) -- trim all &nbsp; characters from a line's right side
  ;"---------------------------------------------------------------------------
  ;"PRIVATE FUNCTIONS
  ;"---------------------------------------------------------------------------
@@ -597,4 +598,20 @@ HEX(NUM) ;"supports only 0-FF  //kt added
   N D S D="0123456789ABCDEF"
   Q $E(D,NUM\16+1)_$E(D,NUM#16+1)
   ;
-
+RTRIMNBS(STR) ; Remove trailing '&nbsp;' substrings and/or spaces
+  NEW NBSP,LEN
+  SET NBSP="&nbsp;"
+  SET LEN=$LENGTH(NBSP)
+  NEW STRLEN,LASTLEN
+  SET STRLEN=$LENGTH(STR)
+  SET STR=$$TRIM^XLFSTR(STR,"R")
+  SET LASTLEN=0
+  ;"    
+  ;"FOR  QUIT:$EXTRACT(STR,$LENGTH(STR)-LEN+1,$LENGTH(STR))'=NBSP  DO
+  FOR  DO  QUIT:$L(STR)=LASTLEN
+  . SET LASTLEN=$L(STR)
+  . SET STR=$$TRIM^XLFSTR(STR,"R")
+  . QUIT:$EXTRACT(STR,$LENGTH(STR)-LEN+1,$LENGTH(STR))'=NBSP
+  . SET STR=$EXTRACT(STR,1,$LENGTH(STR)-LEN)
+  QUIT STR
+  ;"

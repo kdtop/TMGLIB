@@ -174,7 +174,7 @@ GETCLSRX0(OUT,CLASSIEN,TMGDFN)  ;"DEPRECIATED //kt 5/6/18
   . . SET OUT("CLASS",ONEIEN,LINE)=""
   QUIT
   ;  
-PARSEARR(OUT,ARR)  ;"PARSE A MED LIST  
+PARSEARR(OUT,ARR,OPTION)  ;"PARSE A MED LIST  
   ;"INPUT: OUT -- PASS BY REFERENCE
   ;"          OUT("LINE",<original Rx table line>,IEN50.605)=""
   ;"          OUT("CLASS",IEN50.605)=<CLASS_NAME>^<External Description>  (VA drug class file)
@@ -190,7 +190,7 @@ PARSEARR(OUT,ARR)  ;"PARSE A MED LIST
   . IF LINE["[MEDICATION" QUIT
   . IF LINE["[FINAL MEDICATION" QUIT
   . IF $EXTRACT(LINE,1)="*" QUIT
-  . NEW RXINFO DO PARSELN^TMGRX001(.RXINFO,LINE) ;"<-- if this is too slow, could perhaps make similar function that returns less info
+  . NEW RXINFO DO PARSELN^TMGRX001(.RXINFO,LINE,,.OPTION) ;"<-- if this is too slow, could perhaps make similar function that returns less info
   . DO GETCLASS^TMGRXU01(.OUT,.RXINFO)
   QUIT
   ;
@@ -274,7 +274,7 @@ HNDLEDIT(LIST,PICK) ;
   DO PRESS2GO^TMGUSRI2   
   QUIT
   ;
-VWCLLIST(LIST,PICK) ;"View medications in list, showing drug classes.   
+VWCLLIST(LIST,PICK,OPTION) ;"View medications in list, showing drug classes.   
   IF $DATA(PICK)=0 DO GETSLL4(.PICK,.LIST) ;"Prep array for selection
   NEW SOMESHOWED SET SOMESHOWED=0
   NEW NAME SET NAME=""
@@ -283,7 +283,7 @@ VWCLLIST(LIST,PICK) ;"View medications in list, showing drug classes.
   . SET SOMESHOWED=1
   ;" NEW NAME SET NAME=""
   ;" FOR  SET NAME=$ORDER(LIST(NAME)) QUIT:NAME=""  DO
-  ;" . NEW RXINFO DO PARSELN^TMGRX001(.RXINFO,NAME)
+  ;" . NEW RXINFO DO PARSELN^TMGRX001(.RXINFO,NAME,,.OPTION)
   ;" . NEW IEN22733 SET IEN22733=$GET(RXINFO("IEN22733")) QUIT:IEN22733'>0
   ;" . NEW CLSTR SET CLSTR=$$GTCLSTR^TMGRXU01(IEN22733)
   ;" . WRITE CLSTR," ",NAME," (`",IEN22733,")",!   
@@ -299,7 +299,7 @@ SELRX4(OUT,LIST,PICK) ;"Pick medication lines, showing drug class
   DO SELECTOR^TMGUSRI3("PICK","OUT","Select medication(s). <ESC><ESC> to exit.")
   QUIT
   ;
-GETSLL4(OUT,LIST) ;"Prep array for selection
+GETSLL4(OUT,LIST,OPTION) ;"Prep array for selection
   ;"OUT FORMAT:  OUT(DISPLAY NAME)=MedLine^IEN22733
   SET LISTCT=$SELECT($DATA(LIST)=0:0,1:$$LISTCT^TMGMISC2("LIST"))
   NEW MIN SET MIN=1
@@ -309,7 +309,7 @@ GETSLL4(OUT,LIST) ;"Prep array for selection
   NEW NAME SET NAME=""
   FOR  SET NAME=$ORDER(LIST(NAME)) QUIT:NAME=""  DO
   . SET CT=CT+1 IF CT#10=0 DO PROGBAR^TMGUSRI2(CT,"Progress",1,MAX,60,STARTH)
-  . NEW RXINFO DO PARSELN^TMGRX001(.RXINFO,NAME)
+  . NEW RXINFO DO PARSELN^TMGRX001(.RXINFO,NAME,,.OPTION)
   . NEW IEN22733 SET IEN22733=$GET(RXINFO("IEN22733")) QUIT:IEN22733'>0
   . NEW CLSTR SET CLSTR=$$GTCLSTR^TMGRXU01(IEN22733)
   . SET OUT(CLSTR_" "_NAME)=NAME_"^"_IEN22733   

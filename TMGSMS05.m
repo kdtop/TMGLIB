@@ -303,7 +303,28 @@ SHWA2 ;
   IF VERBOSELVL=2 DO ^%ZISC  
   QUIT
   ;  
-APPT4DT(SDT,EDT,OUT,ACTIVE) ;"GET APPT INFORMATION FOR DATE RANGE
+PTAPPT(SDT,EDT,RETARR)   ;"Return a list of patients who have appointments between the provided ranges
+  ;"INPUT: SDT - Start date
+  ;"       EDT - End date
+  ;"       RETARR - Output array - RETARR(DFN))=""
+  ;"NOTE: This is different from APPT4DT, becuase it will also return past appts, and just outputs patient list.  
+  SET SDT=+$GET(SDT)
+  SET EDT=$GET(EDT) IF +EDT'>0 SET EDT=SDT
+  SET EDT=EDT\1_".999999"
+  NEW ADT SET ADT=SDT-0.000001
+  FOR  SET ADT=$ORDER(^TMG(22723,"DT",ADT)) QUIT:(ADT>EDT)!(+ADT'>0)  DO
+  . NEW IEN SET IEN=0
+  . FOR  SET IEN=$ORDER(^TMG(22723,"DT",ADT,IEN)) QUIT:+IEN'>0  DO
+  . . NEW ADFN SET ADFN=$PIECE($GET(^TMG(22723,IEN,0)),"^",1)
+  . . NEW SUBIEN SET SUBIEN=0
+  . . FOR  SET SUBIEN=$ORDER(^TMG(22723,"DT",ADT,IEN,SUBIEN)) QUIT:+SUBIEN'>0  DO  
+  . . . NEW ZN SET ZN=$GET(^TMG(22723,IEN,1,SUBIEN,0))
+  . . . NEW STATUS SET STATUS=$PIECE(ZN,"^",7)
+  . . . IF STATUS="C" QUIT
+  . . . SET RETARR(ADFN)=STATUS_"^"_ADT_"^"_$P($G(^DPT(ADFN,0)),"^",1)  ;"<-- Data here is not used
+  QUIT
+  ;"  
+APPT4DT(SDT,EDT,OUT,ACTIVE) ;"GET APPT INFORMATION FOR DATE RANGE -- NOTE: only future appts. 
   ;"Purpose: Get an array with information about messages sent during date ranges. 
   ;"Input: SDT -- FM date for starting date-time (REQUIRED)
   ;"       EDT -- FM Date for ending date-time (OPTIONAL). Default is same day as SDT

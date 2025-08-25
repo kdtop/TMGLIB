@@ -575,6 +575,7 @@ GETLEYEE(TMGDFN) ;"Return last diabetic eye exam
         . SET Y=NOTEDATE
         . X ^DD("DD")
         . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
+        . SET COUNT=COUNT+1
         IF TMGRESULT="" SET TMGRESULT="NONE FOUND"
         SET TMGRESULT="<br>"_TMGRESULT_"<br>"
         QUIT TMGRESULT
@@ -614,6 +615,7 @@ GETLGLAS(TMGDFN)  ;"Return last glaucoma screening
         . SET Y=NOTEDATE
         . X ^DD("DD")
         . SET TMGRESULT=TMGRESULT_$PIECE(Y,"@",1)_" "
+        . SET COUNT=COUNT+1
 GGSDN   QUIT TMGRESULT
         ;"        
 GETLPAP(TMGDFN)  ;"Return

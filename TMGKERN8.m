@@ -27,7 +27,7 @@ TMGKERN8 ;TMG/kst/Interface to allow use of linux editor in Fileman ;6/23/15, 8/
  ;"=======================================================================
  ;"=======================================================================
  ;
-EDIT(EDITOR) ;
+EDIT(EDITOR) ;"NOTE: as of 8/8/25, I can't find any calling of this function.  I think it is OLD.
   ;"Purpose: This will be a shell for a linux editor
   ;"Input: EDITOR -- the name of the linux editor to use (i.e. vim, joe, pico etc)
   ;"              Allowed values: joe,vim,pico,nano
@@ -82,26 +82,10 @@ EditAbort ;
   QUIT
   ;
 EDITARR(REF,EDITOR) ;"--DEPRECIATED, use EDITARR2
-  ;"Purpose: to use linux editor to edit an array.
-  ;"Input: REF -- an reference (name of) to array to edit.  E.g. "ARRAY"
-  ;"          ARRAY(1) -- 1st line
-  ;"          ARRAY(1,2) -- 2nd line  <-- sub-nodes OK
-  ;"          ARRAY(2) -- 3rd line ... etc.
-  ;"          NOTE: that the array is 'flattened' into top-level indices
-  ;"       EDITOR -- Optional.  Default is "vim"
-  ;"              Allowed values: joe,vim,pico
-  ;"Output: @REF is edited, and line numbers are reformated (flattening any sub nodes)
-  NEW TMGEWP
-  SET REF=$GET(REF)
-  IF REF="" GOTO EADN
-  DO ARRAY2WP^TMGSTUT2(REF,"TMGEWP")
-  NEW DIC SET DIC="TMGEWP"
-  DO EDIT(.EDITOR)
-  DO WP2ARRAY^TMGSTUT2("TMGEWP",REF)
-EADN ;
   QUIT
   ;
 EDITARR2(REF,EDITOR,PREFIX) ;
+  ;"NOTE: see also EDITARRAY^TMGKERNL for editing single-dimensional array
   ;"Purpose: to use linux editor to edit an array.
   ;"NOTE: For security reasons, this will not work with Globals, only memory arrays
   ;"Input: REF -- an reference (name of) to array to edit.  E.g. "ARRAY"

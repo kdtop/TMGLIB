@@ -20,12 +20,12 @@ TMGRX004 ;TMG/kst/Patient medication code; 08/30/17
  ;"ARR2LINE(ARR,STARTIDX)  -- REASSEMBLE ARRAY, AS CREATED BY LINE2ARR
  ;"ARR2LN2(REF,STARTIDX)   -- REASSEMBLE ARRAY
  ;"ARR2LN3(REF,STARTIDX) -- RESSEMBLE ARRY SUBSTITUTING {{XXX}} WITH SOURCE
- ;"FINDTYPE(WORD,DICT,PARSESIG) -- FIND A TYPE FOR WORD, IF POSSIBLE. 
+ ;"FINDTYPE(WORD,DICT,OPTION) -- FIND A TYPE FOR WORD (OR PHRASE), IF POSSIBLE. 
  ;"GETDICT(ARR,IEN22733)  -- GET A LISTING OF ALL WORDS ASSOCIATED WITH RX
- ;"ADD2ARR(ARR,WORD,TYPE,FILE,FLD,IENS)  --ADD TO ARRAY
+ ;"ADD2ARR(ARR,WORD,TYPE,FILE,FLD,IENS,TAGARR)  --ADD TO ARRAY
  ;"ADDRFDCT(ARR,REF,IEN22733,TYPE)  -- ADD DICT REF REF  
  ;"ADDRFDT2(ARR,FILE,IENS,TYPE)  ;"ADD DICT REF REF, VERSION 2
- ;"CHKPREFX(OUT,LINE)  -- CHECK AND REMOVE PREFIXES (INCLUDING OTC)
+ ;"CHKPREFX(OUT,LINE,OPTION)  -- CHECK AND REMOVE PREFIXES (INCLUDING OTC)
  ;"ISPREFIX(OUT,WORD)  -- HANDLE PREFIXES
  ;"FIXARRWS(LINE) -- FIX ARROWs, change alternate forms into standard form  
  ;"FIXDBLSP(LINE)  --FIX DOUBLE SPACES
@@ -33,9 +33,9 @@ TMGRX004 ;TMG/kst/Patient medication code; 08/30/17
  ;"ISROUTE(WORD)  -- IS WORD A ROUTE?
  ;"ISFREQ(WORD)  -- IS WORD A FREQUENCY?
  ;"ISMODIFR(IEN22733,WORD)  -- IS WORD A RX NAME MODIFIER?  E.g. 'CD'
- ;"ISFORM(WORD)  --IS WORD A FORM (E.G. TAB)
- ;"WORDINFO(WORD,DICT)  -- characterize word
- ;"GETNXWRD(LINE,WORD,DICT)  -- GET NEXT WORD
+ ;"ISFORM(WORD,ARR,IDX)  --IS WORD A FORM (E.G. TAB)
+ ;"WORDINFO(WORD,DICT,OPTION)  -- characterize word
+ ;"GETNXWRD(LINE,WORD,DICT,OPTION)  -- GET NEXT WORD
  ;"DIVSET()  --Standard characters to divide up words.
  ;"SUBDVSET()  ;
  ;"PEEKNXWD(LINE,WORD,IDX)  -- GET NEXT WORD, just look, doesn't remove from line.
@@ -66,7 +66,7 @@ TMGRX004 ;TMG/kst/Patient medication code; 08/30/17
  ;"Uses:  
  ;"=======================================================================
  ;        
-LINE2ARR(ARR,LINE,DICT)  ;"PARSE LINE INTO AN ARRAY THAT COULD BE REASSEMBLED
+LINE2ARR(ARR,LINE,DICT,OPTION)  ;"PARSE LINE INTO AN ARRAY THAT COULD BE REASSEMBLED, WITH WORD CHARACTERIZATION
   ;"INPUT:  ARR -- PASS BY REFERENCE.  AN OUT PARAMETER.  format
   ;"        Example for input LINE of 'ANORO ELLIPTA 62.5MG/25 MG ONCE DAILY'
   ;"        ARR                                                                         
@@ -109,23 +109,28 @@ LINE2ARR(ARR,LINE,DICT)  ;"PARSE LINE INTO AN ARRAY THAT COULD BE REASSEMBLED
   ;"        DICT -- the array of words for Rx, as made by GETDICT^TMGRX004.  OPTIONAL
   NEW WORD,IDX,CT,DIV SET CT=0
   FOR  QUIT:LINE=""  DO
-  . DO GETNXW1(.LINE,.WORD,.DICT)
+  . DO GETNXW1(.LINE,.WORD,.DICT,.OPTION)
   . SET CT=CT+1 MERGE ARR("WORD",CT)=WORD
   QUIT
   ;
-ARR2LINE(ARR,STARTIDX,TRYSUB)  ;"REASSEMBLE ARRAY, AS CREATED BY LINE2ARR
+ARR2LINE(ARR,STARTIDX,TRYSUB,OPTION)  ;"REASSEMBLE ARRAY, AS CREATED BY LINE2ARR
   ;"INPUT:  ARR -- PASS BY REFERENCE.  ARRAY AS CREATED BY LINE2ARR
   ;"        STARTIDX -- OPTIONAL.  DEFAULT=0.
   ;"        TRYSUB -- OPTIONAL.  IF 1, then try to substitute {{xxx}} words with source.  
   SET STARTIDX=+$GET(STARTIDX)
   SET TRYSUB=+$GET(TRYSUB)
   NEW RESULT SET RESULT=""
+  NEW FORPT SET FORPT=($GET(OPTION("FOR PATIENTS"))=1)
   NEW IDX SET IDX=STARTIDX-0.1
   FOR  SET IDX=$ORDER(ARR("WORD",IDX)) QUIT:IDX'>0  DO
   . NEW WORD MERGE WORD=ARR("WORD",IDX)
-  . IF (WORD["{{")&(WORD["}}"),(TRYSUB=1) DO
-  . . NEW SRC SET SRC=$GET(ARR("WORD",IDX,"SOURCE"))
-  . . IF SRC'="" SET WORD=SRC
+  . NEW FORPTWORD SET FORPTWORD=$GET(WORD("FOR PAT"))
+  . IF (WORD["{{")&(WORD["}}") DO
+  . . IF (TRYSUB=1) DO
+  . . . NEW SRC SET SRC=$GET(ARR("WORD",IDX,"SOURCE"))
+  . . . IF FORPT,FORPTWORD'="" SET SRC=WORD("FOR PAT")
+  . . . IF SRC'="" SET WORD=SRC
+  . ELSE  IF FORPT,FORPTWORD'="" SET WORD=WORD("FOR PAT")
   . SET RESULT=RESULT_$GET(WORD)_$GET(WORD("DIV"))
   QUIT RESULT
   ;
@@ -133,28 +138,42 @@ ARR2LN2(REF,STARTIDX)   ;"REASSEMBLE ARRAY
   NEW TEMP MERGE TEMP("WORD")=@REF
   QUIT $$ARR2LINE(.TEMP,.STARTIDX)
   ;
-ARR2LN3(REF,STARTIDX)  ;"RESSEMBLE ARRY SUBSTITING {{XXX}} WITH SOURCE
+ARR2LN3(REF,STARTIDX,OPTION)  ;"RESSEMBLE ARRY SUBSTITING {{XXX}} WITH SOURCE
   NEW TEMP MERGE TEMP("WORD")=@REF
-  QUIT $$ARR2LINE(.TEMP,.STARTIDX,1)
+  QUIT $$ARR2LINE(.TEMP,.STARTIDX,1,.OPTION)
   ;
-FINDTYPE(WORD,DICT,PARSESIG) ;"FIND A TYPE FOR WORD, IF POSSIBLE. 
+FINDTYPE(WORD,DICT,OPTION,ARRREF,IDX) ;"FIND A TYPE FOR WORD OR PHRASE, IF POSSIBLE. 
+  ;"Input: WORD -- word to check. MAY BE MODIFIED IF PASSED BY REFERENCE. 
+  ;"       DICT -- OPTIONAL.  ARRAY OF DICTIONARY WORDS. 
+  ;"       OPTION -- optional.  
+  ;"          OPTION("FOR PATIENTS")=1
+  ;"          OPTION("PARSESIG")=1
+  ;"          OPTION("ABBREVS",<abbv>)=<full phrase>
+  ;"       ARR -- array that holds words (including following words)
+  ;"       IDX -- index of current word.  MAY BE MODIFIED IF PASS BY REFERENCE
+  ;"Result: returns type, or ""
+  ;"NOTE: Sometimes a 'word' really needs to be multiple words.  E.g. 'QHS' (1 wird) is same as 'AT BEDTIME' (2 words)
+  ;"      If this is detected, then WORD var will be extended to contain phrase
   NEW TYPE SET TYPE=""
-  SET PARSESIG=$GET(PARSESIG)
+  ;"SET PARSESIG=$GET(PARSESIG)         
+  NEW PARSESIG SET PARSESIG=+$GET(OPTION("PARSESIG"))                         
   NEW STRIPWORD SET STRIPWORD=$$STRIPWD(WORD)
   IF $DATA(DICT(STRIPWORD))>0 DO
   . SET TYPE=$GET(DICT(STRIPWORD))
   . SET FRACT=($GET(DICT(STRIPWORD,"FRACT"))=1)  ;"<-----  ??   
   ELSE  DO
-  . DO WORDINFO(.STRIPWORD,.DICT)
+  . DO WORDINFO(.STRIPWORD,.DICT,.OPTION)
   . IF $GET(STRIPWORD("TIME"))'="" SET TYPE="TIME" QUIT
   . IF $GET(STRIPWORD("NUM"))'="" SET TYPE="NUM" QUIT
+  . IF $$ISNUMERIC(.WORD,.ARRREF,.IDX,.OPTION) SET TYPE="NUM" QUIT
   . IF $GET(STRIPWORD("DATE"))'="" SET TYPE="DATE" QUIT
-  . IF $$ISFORM(WORD) SET TYPE="FORM" QUIT
-  . IF PARSESIG,$$ISROUTE(WORD) SET TYPE="ROUTE" QUIT
-  . IF PARSESIG,$$ISFREQ(WORD) SET TYPE="FREQ" QUIT
+  . IF $$ISFORM(.WORD,.ARRREF,.IDX) SET TYPE="FORM" QUIT
+  . IF $$ISDELTA(.WORD,.ARRREF,.IDX) SET TYPE="DELTA" QUIT
+  . IF PARSESIG,$$ISROUTE(.WORD,.ARRREF,.IDX) SET TYPE="ROUTE" QUIT
+  . IF PARSESIG,$$ISFREQ(.WORD,.ARRREF,.IDX) SET TYPE="FREQ" QUIT
   QUIT TYPE
   ;
-GETDICT(ARR,IEN22733)  ;"GET A LISTING OF ALL WORDS ASSOCIATED WITH RX
+GETDICT(ARR,IEN22733,TAGARR)  ;"GET A LISTING OF ALL WORDS ASSOCIATED WITH RX
   ;"INPUT:  ARR -- PASS BY REFERENCE, AN OUT PARAMETER.  FORMAT:
   ;"          ARR(120)="STRENGTH"
   ;"          ARR("24 HR")="MODIFIER"
@@ -177,7 +196,8 @@ GETDICT(ARR,IEN22733)  ;"GET A LISTING OF ALL WORDS ASSOCIATED WITH RX
   ;"          ARR("ZZIDX","MODIFIER","SR")="MODIFIER"
   ;"          ARR("ZZIDX","MODIFIER","XR")="MODIFIER"
   ;"          ARR("ZZSOURCE",<WORD>,'<FILE>^<FLD>^<IENS>')=""
-  ;"IEN22733 -- IEN to check
+  ;"        IEN22733 -- IEN to check
+  ;"        TAGARR -- OPTIONAL.  An OUT parameter.  List of all possible match tags.  NOTE: I added this, but then ended up not needing...
   ;"RESULTS -- NONE
   NEW WORD,TYPE,REF
   NEW FILES SET FILES=22733
@@ -192,12 +212,13 @@ GETDICT(ARR,IEN22733)  ;"GET A LISTING OF ALL WORDS ASSOCIATED WITH RX
   SET FILES("UNIT ALIASES")=22733.32
   SET FILES("NAME MODIFIERS")=22733.22
   ;
+  SET IEN22733=+$GET(IEN22733)
   SET ARR("ZZIEN",IEN22733)=""
   SET WORD=$PIECE($GET(^TMG(22733,IEN22733,0)),"^",1) 
-  IF WORD'="" DO ADD2ARR(.ARR,WORD,"DRUG_GENERIC",22733,.01,IEN22733)
-  DO ADDRFDT2(.ARR,FILES("GENERIC ALIASES"),IEN22733,"DRUG_ALIAS")  
-  DO ADDRFDT2(.ARR,FILES("BRAND NAMES"),IEN22733,"DRUG_BRAND")  
-  DO ADDRFDT2(.ARR,FILES("GENERIC ABBREVS"),IEN22733,"DRUG_ABBREV")  
+  DO ADD2ARR(.ARR,WORD,"DRUG_GENERIC",22733,.01,IEN22733,.TAGARR)
+  DO ADDRFDT2(.ARR,FILES("GENERIC ALIASES"),IEN22733,"DRUG_ALIAS",.TAGARR)  
+  DO ADDRFDT2(.ARR,FILES("BRAND NAMES"),IEN22733,"DRUG_BRAND",.TAGARR)  
+  DO ADDRFDT2(.ARR,FILES("GENERIC ABBREVS"),IEN22733,"DRUG_ABBREV",.TAGARR)  
   NEW SUBIEN SET SUBIEN=0
   FOR  SET SUBIEN=$ORDER(^TMG(22733,IEN22733,2,SUBIEN)) QUIT:SUBIEN'>0  DO  ;"DOSAGE FORMS, #22733.02
   . NEW IENS SET IENS=SUBIEN_","_IEN22733_","
@@ -205,21 +226,40 @@ GETDICT(ARR,IEN22733)  ;"GET A LISTING OF ALL WORDS ASSOCIATED WITH RX
   . IF FORMIEN>0 DO
   . . NEW FORM SET FORM=$PIECE($GET(^PS(50.606,FORMIEN,0)),"^",1)
   . . QUIT:FORM=""
-  . . DO ADD2ARR(.ARR,FORM,"FORM",FILES("MEDICATION FORMS"),.01,IENS)
-  . . IF ",CAP,CAPS,"[(","_FORM_",") DO ADD2ARR(.ARR,"CAPSULE","FORM",FILES("MEDICATION FORMS"),.01,IENS)
-  . . IF ",TAB,TABS,"[(","_FORM_",") DO ADD2ARR(.ARR,"TABLET","FORM",FILES("MEDICATION FORMS"),.01,IENS)
-  . DO ADDRFDT2(.ARR,FILES("FORM ALIASES"),IENS,"FORM_ALIAS")    
+  . . DO ADD2ARR(.ARR,FORM,"FORM",FILES("MEDICATION FORMS"),.01,IENS,.TAGARR)
+  . . IF ",CAP,CAPS,"[(","_FORM_",") DO ADD2ARR(.ARR,"CAPSULE","FORM",FILES("MEDICATION FORMS"),.01,IENS,.TAGARR)
+  . . IF ",TAB,TABS,"[(","_FORM_",") DO ADD2ARR(.ARR,"TABLET","FORM",FILES("MEDICATION FORMS"),.01,IENS,.TAGARR)
+  . DO ADDRFDT2(.ARR,FILES("FORM ALIASES"),IENS,"FORM_ALIAS",.TAGARR)    
   . NEW STRENGTHIEN SET STRENGTHIEN=0
   . FOR  SET STRENGTHIEN=$ORDER(^TMG(22733,IEN22733,2,SUBIEN,1,STRENGTHIEN)) QUIT:STRENGTHIEN'>0  DO
   . . NEW SIENS SET SIENS=STRENGTHIEN_","_SUBIEN_","_IEN22733_","
   . . NEW UNITIEN SET UNITIEN=+$PIECE($GET(^TMG(22733,IEN22733,2,SUBIEN,1,STRENGTHIEN,0)),"^",2)  ;"STRENGTHS, #22733.03
   . . NEW UNIT SET UNIT=$PIECE($GET(^PS(50.607,UNITIEN,0)),"^",1)
-  . . IF UNIT'="" DO  ;"check this next line.... Unit and strength??
-  . . . DO ADD2ARR(.ARR,UNIT,"UNIT",FILES("STRENGTHS"),.02,SIENS)
-  . . DO ADDRFDT2(.ARR,FILES("STRENGTH ALIASES"),SIENS,"STRENGTH_ALIAS")    
-  . . DO ADDRFDT2(.ARR,FILES("UNIT ALIASES"),SIENS,"UNIT_ALIAS")    
-  . DO ADDRFDT2(.ARR,FILES("STRENGTHS"),IENS,"STRENGTH")    
-  . DO ADDRFDT2(.ARR,FILES("NAME MODIFIERS"),IENS,"MODIFIER")    
+  . . IF UNIT'="" DO  
+  . . . DO ADD2ARR(.ARR,UNIT,"UNIT",FILES("STRENGTHS"),.02,SIENS,.TAGARR)
+  . . . IF UNIT="MCG/ACTUAT" DO ADD2ARR(.ARR,"MCG/ACT","UNIT",FILES("STRENGTHS"),.02,SIENS,.TAGARR)
+  . . DO ADDRFDT2(.ARR,FILES("STRENGTH ALIASES"),SIENS,"STRENGTH_ALIAS",.TAGARR)    
+  . . DO ADDRFDT2(.ARR,FILES("UNIT ALIASES"),SIENS,"UNIT_ALIAS",.TAGARR)    
+  . DO ADDRFDT2(.ARR,FILES("STRENGTHS"),IENS,"STRENGTH",.TAGARR)    
+  . DO ADDRFDT2(.ARR,FILES("NAME MODIFIERS"),IENS,"MODIFIER",.TAGARR)    
+  DO ADD2ARR(.ARR,"-->","DELTA",,,,.TAGARR)
+  ;
+  ;"Ensure tags added to TAGARR, even if all else fails
+  SET TAGARR("DRUG_GENERIC")=""
+  SET TAGARR("DRUG_ALIAS")=""
+  SET TAGARR("DRUG_BRAND")=""
+  SET TAGARR("DRUG_ABBREV")=""
+  SET TAGARR("FORM")=""
+  SET TAGARR("FORM_ALIAS")=""
+  SET TAGARR("UNIT")=""
+  SET TAGARR("UNIT_ALIAS")=""
+  SET TAGARR("STRENGTH")=""
+  SET TAGARR("STRENGTH_ALIAS")=""
+  SET TAGARR("MODIFIER")=""
+  SET TAGARR("DELTA")=""
+  ;"Below are not added here, but they are added elsewhere, so will include here  
+  SET TAGARR("ROUTE")=""
+  SET TAGARR("FREQ")=""  
   ;
   ;"NOTE: I AM NOT DOING MATCHING BASED ON INGREDIENTS ANY MORE...
   ;";"CHECK IF THIS DRUG HAS INGREDIENTS, IF SO INCLUDE THEM
@@ -235,7 +275,9 @@ GETDICT(ARR,IEN22733)  ;"GET A LISTING OF ALL WORDS ASSOCIATED WITH RX
   ;". MERGE ARR=TEMPARR
   QUIT
   ;
-ADD2ARR(ARR,WORD,TYPE,FILE,FLD,IENS)  ;"ADD TO ARRAY
+ADD2ARR(ARR,WORD,TYPE,FILE,FLD,IENS,TAGARR)  ;"ADD TO ARRAY
+  SET TAGARR(TYPE)=""
+  IF $GET(WORD)="" QUIT
   SET ARR(WORD)=TYPE
   SET ARR("ZZIDX",TYPE,WORD)=""
   SET ARR("ZZLEN",$LENGTH(WORD),WORD)=TYPE
@@ -263,7 +305,8 @@ ADDRFDCT(ARR,REF,IEN22733,TYPE)  ;"ADD DICT REF REF
   MERGE ARR=TEMP
   QUIT
   ;                   
-ADDRFDT2(ARR,FILE,IENS,TYPE)  ;"ADD DICT REF REF, VERSION 2
+ADDRFDT2(ARR,FILE,IENS,TYPE,TAGARR)  ;"ADD DICT REF REF, VERSION 2
+  SET TAGARR(TYPE)=""
   NEW FLD SET FLD=.01
   NEW IDX SET IDX="B"  ;"Note: would have to extend code if need to work with other than .01 field
   NEW ISSF SET ISSF=$$ISSUBFIL^TMGDBAP3(FILE)
@@ -280,17 +323,17 @@ ADDRFDT2(ARR,FILE,IENS,TYPE)  ;"ADD DICT REF REF, VERSION 2
   . . NEW FULLWORD SET FULLWORD=$PIECE($GET(@ROOTREF@(SUBIEN,0)),"^",1)    
   . . ;"NEW IENS3 SET IENS3=+$ORDER(@REF@(WORD,""))_","_IENS
   . . NEW IENS3 SET IENS3=SUBIEN_","_IENS
-  . . DO ADD2ARR(.TEMP,FULLWORD,TYPE,FILE,FLD,IENS3)
+  . . DO ADD2ARR(.TEMP,FULLWORD,TYPE,FILE,FLD,IENS3,.TAGARR)
   . . IF FULLWORD["/" DO ADD2ARR(.TEMP,$$REPLSTR^TMGSTUT3(FULLWORD,"/","-"),TYPE,FILE,FLD,IENS3)
   . . IF FULLWORD["-" DO ADD2ARR(.TEMP,$$REPLSTR^TMGSTUT3(FULLWORD,"-","/"),TYPE,FILE,FLD,IENS3)
   . . IF $$LMATCH^TMGSTUT3(TYPE,"STRENGTH")>0 DO 
-  . . . IF $EXTRACT(FULLWORD,1)="." DO ADD2ARR(.TEMP,"0"_FULLWORD,TYPE,FILE,FLD,IENS3)  ;"auto add 0.5 if given .5
-  . . . IF $EXTRACT(FULLWORD,1,2)="0." DO ADD2ARR(.TEMP,$EXTRACT(FULLWORD,2,$LENGTH(FULLWORD)),TYPE,FILE,FLD,IENS3)  ;"auto add .5 if given 0.5
+  . . . IF $EXTRACT(FULLWORD,1)="." DO ADD2ARR(.TEMP,"0"_FULLWORD,TYPE,FILE,FLD,IENS3,.TAGARR)  ;"auto add 0.5 if given .5
+  . . . IF $EXTRACT(FULLWORD,1,2)="0." DO ADD2ARR(.TEMP,$EXTRACT(FULLWORD,2,$LENGTH(FULLWORD)),TYPE,FILE,FLD,IENS3,.TAGARR)  ;"auto add .5 if given 0.5
   MERGE ARR("ZZIDX",TYPE)=TEMP
   MERGE ARR=TEMP
   QUIT
   ;
-CHKPREFX(OUT,LINE)  ;"CHECK AND REMOVE PREFIXES (INCLUDING OTC)
+CHKPREFX(OUT,LINE,OPTION)  ;"CHECK AND REMOVE PREFIXES (INCLUDING OTC)
   ;"NOTE: during summary process, all words before medication name are added to  
   ;"      prefix in GETMDIEN() <-- OLD, prefix to be removed elsewhere. 
   IF LINE["OTC" DO
@@ -298,7 +341,7 @@ CHKPREFX(OUT,LINE)  ;"CHECK AND REMOVE PREFIXES (INCLUDING OTC)
   . . IF LINE'[REPLSTR QUIT
   . . SET LINE=$$REPLSTR^TMGSTUT3(LINE,REPLSTR,"") 
   . . SET OUT("OTC")=1
-  NEW WORD DO GETNXWRD(.LINE,.WORD)  ;"GET NEXT WORD
+  NEW WORD DO GETNXWRD(.LINE,.WORD,,.OPTION)  ;"GET NEXT WORD
   IF '$$ISPREFIX(.OUT,.WORD) DO
   . DO PUTBKWRD(.LINE,.WORD)
   QUIT
@@ -323,33 +366,236 @@ FIXARRWS(LINE) ;"FIX ARROWs, change alternate forms into standard form
   IF LINE["----->" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"----->","-->")  
   IF LINE["---->" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"---->","-->")  
   IF LINE["--->" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"--->","-->")
+  IF LINE["---- >" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"---- >","-->")
+  IF LINE["--- >" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"--- >","-->")
+  IF LINE["-- >" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"-- >","-->")
+  IF LINE["< -----" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"< -----","<--")  
+  IF LINE["< ----" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"< ----","<--")  
+  IF LINE["< ---" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"< ---","<--")  
+  IF LINE["< --" SET LINE=$$REPLSTR^TMGSTUT3(LINE,"< --","<--")  
   QUIT
+  ;
+FIXRTARROW(LINE)  ;"Change '-->' to words 'CHANGE TO'
+  ;"Note: This presumes that FIXARRWS has been called, standardizing arrow to '-->'
+  IF LINE["-->" DO
+  . NEW PARTA SET PARTA=$PIECE(LINE,"-->",1)
+  . NEW PARTB SET PARTB=$PIECE(LINE,"-->",2)
+  . SET LINE=PARTA_" [ CHANGE TO ] "_PARTB
+  QUIT
+  ;
+DELAUTOADD(LINE)  ;" Remove '[Auto added AUG 02, 2024]'
+  NEW TESTFRAG FOR TESTFRAG="[Auto added","[AUTO ADDED","[HOSP D/C RX" DO
+  . IF LINE'[TESTFRAG QUIT
+  . NEW PARTA SET PARTA=$PIECE(LINE,TESTFRAG,1)
+  . NEW PARTB SET PARTB=$PIECE(LINE,TESTFRAG,2)
+  . SET PARTB=$PIECE(PARTB,"]",2,999)
+  . SET LINE=PARTA_PARTB
+  QUIT;
   ;
 FIXDBLSP(LINE)  ;"FIX DOUBLE SPACES
   FOR  QUIT:LINE'["  "  DO
   . SET LINE=$$REPLSTR^TMGSTUT3(LINE,"  "," ")
   QUIT
-  ;
-XTRCTNTE(OUT,LINE)  ;"EXTRACT NOTE
-  QUIT:LINE'["<--" 
-  SET OUT("NOTE")=$$TRIM^XLFSTR($PIECE(LINE,"<--",2,99))
-  SET LINE=$PIECE(LINE,"<--",1)
+  ;                                                                    
+GETABBVR(REF)  ;"Get listing of abbreviations, e.g. QD --> daily
+  ;"Note: I don't want to include abbreviations for FORM or ROUTE of Rx.  Primarily for SIG parts. 
+  SET @REF@("ac")="before meals"          
+  SET @REF@("bid")="twice a day"
+  SET @REF@("bp")="blood pressure"
+  ;"SET @REF@("cap")="capsule"
+  ;"SET @REF@("caps")="capsule"
+  ;"SET @REF@("gtt")="drop"
+  ;"SET @REF@("gtts")="drops"
+  SET @REF@("h")="hour"
+  SET @REF@("hr")="hour"
+  SET @REF@("hs")="at bedtime"
+  ;"SET @REF@("mcg")="micrograms"
+  ;"SET @REF@("meq")="milliequivalent"
+  ;"SET @REF@("mg")="milligrams"
+  ;"SET @REF@("ml")="milliliters"
+  SET @REF@("od")="right eye"
+  SET @REF@("os")="left eye"
+  SET @REF@("ou")="both eyes"
+  SET @REF@("otc")="over the counter"
+  ;"SET @REF@("oint")="ointment"
+  SET @REF@("oz")="ounce"
+  SET @REF@("po")="by mouth"
+  SET @REF@("pr")="by rectum"
+  SET @REF@("prn")="as needed"
+  SET @REF@("q")="every"
+  SET @REF@("qod")="every other day"
+  SET @REF@("qam")="every morning"
+  SET @REF@("qd")="daily"
+  SET @REF@("qh")="every hour"
+  SET @REF@("qhs")="at bedtime"
+  SET @REF@("q1h")="every hour 1 hour"
+  SET @REF@("q2h")="every hour 2 hours"
+  SET @REF@("q3h")="every hour 3 hours"
+  SET @REF@("q4h")="every hour 4 hours"
+  SET @REF@("q5h")="every hour 5 hours"
+  SET @REF@("q6h")="every hour 6 hours"
+  SET @REF@("q8h")="every hour 8 hours"
+  SET @REF@("q12h")="every hour 12 hours"
+  SET @REF@("q24h")="every hour 24 hours"
+  SET @REF@("qid")="four times a day"
+  SET @REF@("qpm")="every evening"
+  SET @REF@("rx")="prescription"
+  ;"SET @REF@("soln")="solution"
+  ;"SET @REF@("supp")="suppository"
+  ;"SET @REF@("susp")="suspension"
+  ;"SET @REF@("tab")="tablet"
+  SET @REF@("tbsp")="tablespoon"
+  SET @REF@("tid")="three times a day"
+  SET @REF@("top")="topical"
+  SET @REF@("tsp")="teaspoon"
+  SET @REF@("ud")="as directed"    
   QUIT
   ;
-ISROUTE(WORD)  ;"IS WORD A ROUTE?
+CHKABBV(WORD,OPTION)
+  ;"Input: WORD -- PASS BY REFERENCE. Array as used in GETSUMRY^TMGRX001
+  ;"       REF -- @REF@(<abbreviation>)=<replacement string> 
+  IF $DATA(OPTION("ABBREVS"))=0 DO GETABBVR^TMGRX004($NAME(OPTION("ABBREVS")))
+  NEW LOWORD SET LOWORD=$$LOW^XLFSTR(WORD)
+  NEW W2 SET W2=$GET(OPTION("ABBREVS",LOWORD))
+  IF W2'="" DO
+  . SET WORD=W2
+  QUIT
+  ;
+XTRCTNTE(OUT,LINE)  ;"EXTRACT NOTE
+  IF LINE["<--" DO 
+  . SET OUT("NOTE")=$$TRIM^XLFSTR($PIECE(LINE,"<--",2,99))
+  . SET LINE=$PIECE(LINE,"<--",1)
+  IF LINE["NOTE:" DO
+  . SET OUT("NOTE")=$$TRIM^XLFSTR($PIECE(LINE,"NOTE:",2,99))
+  . SET LINE=$PIECE(LINE,"NOTE:",1)
+  QUIT
+  ;
+ISROUTE(WORD,ARRREF,IDX)  ;"IS WORD A ROUTE?
+  ;"       WORD -- WORD TO CHECK.  MAY BE MODIFIED IF PASSED BY REFERENCE
+  ;"       ARRREF -- NAME OF array that holds words (including following words)
+  ;"       IDX -- index of current word.  MAY BE MODIFIED IF PASS BY REFERENCE
+  ;"Result: BOOLEAN
+  ;"NOTE: Sometimes a 'word' really needs to be multiple words.  E.g. 'QHS' (1 wird) is same as 'AT BEDTIME' (2 words)
+  ;"      If this is detected, then WORD var will be extended to contain phrase
   SET WORD=$GET(WORD)
   NEW RESULT SET RESULT=0
-  IF (WORD'=""),(",PO,PR,"[WORD) DO
+  IF ",PO,PR,TOPICAL,TOP,OD,OS,OU,OTIC,VAGINA,VAGINAL,"[(","_WORD_","),(WORD'="") DO
   . SET RESULT=1 
   IF WORD="{{ROUTE}}" SET RESULT=1
   QUIT RESULT
   ;
-ISFREQ(WORD)  ;"IS WORD A FREQUENCY?
+ISFREQ(WORD,ARRREF,IDX)  ;"IS WORD (OR PHRASE) A FREQUENCY?
+  ;"       WORD -- WORD TO CHECK.  MAY BE MODIFIED IF PASSED BY REFERENCE
+  ;"       ARRREF -- NAME OF array that holds words (including following words)
+  ;"       IDX -- index of current word.  MAY BE MODIFIED IF PASS BY REFERENCE
+  ;"Result: BOOLEAN
+  ;"NOTE: Sometimes a 'word' really needs to be multiple words.  E.g. 'QHS' (1 wird) is same as 'AT BEDTIME' (2 words)
+  ;"      If this is detected, then WORD var will be extended to contain phrase
   SET WORD=$GET(WORD)
   NEW RESULT SET RESULT=0
-  IF (WORD'=""),(",QAM,QPM,QDAY,DAILY,BID,TID,QID,QHS,"[(","_WORD_",")) DO
+  IF ",QAM,QPM,QDAY,DAILY,BID,TID,QID,QHS,"[(","_WORD_","),(WORD'="") DO
   . SET RESULT=1 
+  IF WORD="AT",($GET(ARRREF)'="") DO
+  . NEW W2 SET W2=$GET(@ARRREF@(IDX+1))
+  . IF ",NIGHT,BEDTIME,"[(","_W2_",") DO
+  . . NEW DIV SET DIV=$GET(@ARRREF@(IDX,"DIV")," ")
+  . . KILL @ARRREF@(IDX) SET IDX=IDX+1
+  . . SET WORD=WORD_DIV_W2
+  . . SET @ARRREF@(IDX)=WORD
+  . . ;"SET @ARRREF@("S2",IDX)=WORD
+  . . SET RESULT=1
+  IF WORD="IN",($GET(ARRREF)'="") DO
+  . NEW W2 SET W2=$GET(@ARRREF@(IDX+1))
+  . IF ",AM,PM,"[(","_W2_",") DO
+  . . KILL @ARRREF@(IDX) SET IDX=IDX+1
+  . . NEW DIV SET DIV=$GET(@ARRREF@(IDX,"DIV")," ")
+  . . SET WORD=WORD_DIV_W2
+  . . SET @ARRREF@(IDX)=WORD
+  . . ;"SET @ARRREF@("S2",IDX)=WORD
+  . . SET RESULT=1
+  IF WORD="TWICE" DO
+  . NEW W2 SET W2=$GET(@ARRREF@(IDX+1))
+  . IF ",DAILY,"[(","_W2_",") DO    ;"could add more later, e.g. TWICE A DAY, TWICE DAILY IN AM etc etc. 
+  . . NEW DIV SET DIV=$GET(@ARRREF@(IDX,"DIV")," ")
+  . . KILL @ARRREF@(IDX) SET IDX=IDX+1
+  . . SET WORD=WORD_DIV_W2
+  . . SET @ARRREF@(IDX)=WORD
+  . . ;"SET @ARRREF@("S2",IDX)=WORD
+  . . SET RESULT=1
   IF WORD="{{FREQ}}" SET RESULT=1
+  QUIT RESULT
+  ;
+ISNUMERIC(WORD,ARRREF,IDX,OPTION)  ;"IS WORD PHRASE A NUMBER OR FRACTION (E.G. 'ONE HALF')
+  ;"INPUT: WORD -- modified if passed by reference
+  NEW RESULT SET RESULT=0
+  ;"Check for fraction phrases, e.g. ONE HALF
+  SET RESULT=$$ISFRACPHRASE(.WORD,ARRREF,.IDX) GOTO:RESULT ISNDN
+  ;  
+  ;"Check for numeric words, e.g. 'THREE'
+  NEW NUMARR MERGE NUMARR=OPTION("NUMARR")  ;"used to speed processing.  Saves off number words array
+  NEW TMPNUM SET TMPNUM=$$NUMCONVERT^TMGSTUT3(WORD,.NUMARR)
+  MERGE OPTION("NUMARR")=NUMARR
+  IF TMPNUM'="error" DO  GOTO ISNDN
+  . SET WORD=TMPNUM
+  . SET RESULT=1 
+  ;
+  ;"Check for simple numbers
+  IF +WORD=WORD SET RESULT=1 GOTO ISNDN
+  ;
+  ;"More tests later if needed
+  ;
+ISNDN ;
+  QUIT RESULT
+  ;
+ISFRACPHRASE(WORD,ARRREF,IDX)  ;"IS WORD PHRASE A FRACTION (e.g. 'ONE HALF', or even '1/2')
+  ;"       WORD -- WORD TO CHECK.  MAY BE MODIFIED IF PASSED BY REFERENCE
+  ;"       ARRREF -- NAME OF array that holds words (including following words)
+  ;"       IDX -- index of current word.  MAY BE MODIFIED IF PASS BY REFERENCE
+  ;"Result: BOOLEAN
+  ;"NOTE: Sometimes a 'word' really needs to be multiple words.  E.g. 'QHS' (1 wird) is same as 'AT BEDTIME' (2 words)
+  ;"      If this is detected, then WORD var will be extended to contain phrase
+  SET WORD=$GET(WORD)
+  NEW RESULT SET RESULT=0
+  IF ",A,ONE,"[(","_WORD_","),(WORD'="") DO
+  . NEW W2 SET W2=$GET(@ARRREF@(IDX+1))
+  . IF ",HALF,THIRD,FOURTH,FIFTH"[(","_W2_",") DO
+  . . NEW DENOM SET DENOM=0  ;"DENOMINATOR
+  . . IF W2="HALF" SET DENOM=2
+  . . ELSE  IF W2="THIRD" SET DENOM=3
+  . . ELSE  IF W2="FOURTH" SET DENOM=4
+  . . ELSE  IF W2="FIFTH" SET DENOM=5
+  . . IF DENOM'>0 QUIT
+  . . KILL @ARRREF@(IDX) SET IDX=IDX+1
+  . . SET WORD="1/"_DENOM
+  . . SET @ARRREF@(IDX)=WORD
+  . . ;"SET @ARRREF@("S2",IDX)=WORD
+  . . SET RESULT=1
+  ELSE  IF WORD["/" DO
+  . IF $LENGTH(WORD,"/")'=2 QUIT
+  . NEW PARTA SET PARTA=$PIECE(WORD,"/",1)
+  . NEW PARTB SET PARTB=$PIECE(WORD,"/",2)
+  . SET RESULT=((+PARTA=PARTA)&(+PARTB=PARTB))
+  . ;
+  QUIT RESULT
+  ;
+ISDELTA(WORD,ARRREF,IDX)  ;"WORD (OR WORD PHRASE) INDICATE A CHANGE IN DOSE?
+  ;"       WORD -- WORD TO CHECK.  MAY BE MODIFIED IF PASSED BY REFERENCE
+  ;"       ARRREF -- NAME OF array that holds words (including following words)
+  ;"       IDX -- index of current word.  MAY BE MODIFIED IF PASS BY REFERENCE
+  ;"Result: BOOLEAN
+  ;"NOTE: Sometimes a 'word' really needs to be multiple words.  E.g. 'QHS' (1 wird) is same as 'AT BEDTIME' (2 words)
+  ;"      If this is detected, then WORD var will be extended to contain phrase
+  SET WORD=$GET(WORD)
+  NEW RESULT SET RESULT=0
+  IF ",CHANGE,"[(","_WORD_","),(WORD'="") DO
+  . NEW W2 SET W2=$GET(@ARRREF@(IDX+1))
+  . IF ",TO,"[(","_W2_",") DO
+  . . KILL @ARRREF@(IDX) SET IDX=IDX+1
+  . . NEW DIV SET DIV=$GET(@ARRREF@(IDX,"DIV")," ")
+  . . SET WORD=WORD_DIV_W2
+  . . SET @ARRREF@(IDX)=WORD
+  . . ;"SET @ARRREF@("S2",IDX)=WORD
+  . . SET RESULT=1
   QUIT RESULT
   ;
   ;"ISUNIT(WORD) ;"IS WORD A UNIT?
@@ -367,60 +613,83 @@ ISMODIFR(IEN22733,WORD)  ;"IS WORD A RX NAME MODIFIER?  E.g. 'CD'
   . . IF MOD=WORD SET TMGRESULT=1
   QUIT TMGRESULT
   ;
-ISFORM(WORD)  ;"IS WORD A FORM (E.G. TAB)
+ISFORM(WORD,ARRREF,IDX)  ;"IS WORD A FORM (E.G. TAB)
+  ;"       WORD -- WORD TO CHECK.  MAY BE MODIFIED IF PASSED BY REFERENCE
+  ;"       ARRREF -- NAME OF array that holds words (including following words)
+  ;"       IDX -- index of current word.  MAY BE MODIFIED IF PASS BY REFERENCE
+  ;"Result: BOOLEAN
+  ;"NOTE: Sometimes a 'word' really needs to be multiple words.  E.g. 'QHS' (1 wird) is same as 'AT BEDTIME' (2 words)
+  ;"      If this is detected, then WORD var will be extended to contain phrase
   SET WORD=$GET(WORD)
   NEW RESULT SET RESULT=0
   IF (WORD'=""),",TAB,TABLET,"[(","_WORD_",") DO
   . SET RESULT=1
   QUIT RESULT
   ;
-WORDINFO(WORD,DICT)  ;"characterize word
+WORDINFO(WORD,DICT,OPTION)  ;"characterize word
   ;"Input: WORD, PASS BY REFERENCE, AND IN AND OUT PARAMETER.  FORMAT
   ;"           WORD = <word to test>
-  ;"           WORD("NUM")=# if word starts with number
+  ;"           WORD("NUM")=# OUTPUT if word starts with number
   ;"           WORD("S2")=
   ;"           WORD("UNIT IEN")=
+  ;"           WORD("TIME")=time  OUTPUT if time found. 
+  ;"           WORD("DATE")=external date <-- OUTPUT if date
+  ;"           WORD("TYPE")=type. <-- OUTPUT if found in DICT
+  ;"           WORD("DBSOURCE")=src. <-- OUTPUT if found in DICT
   ;"       DICT -- OPTIONAL.  ARRAY OF DICTIONARY WORDS. 
+  ;"       OPTION -- optional.  
+  ;"          OPTION("FOR PATIENTS")=1
+  ;"          OPTION("PARSESIG")=1
+  ;"          OPTION("ABBREVS",<abbv>)=<full phrase>
+  ;"NOTE: This function can not handle word phrases.  It just looks at single words. 
   NEW SAVE SET SAVE=WORD
+  NEW HANDLED SET HANDLED=0
   NEW DONE SET DONE=0
-  IF 1=0 DO  ;"<-- removing block.  I don't remember why used, but was causing problems.  Turned OMEGA 3,6,9 --> OMEGA 369 (which didn't match)
-  . NEW SPEC,EXTRA FOR EXTRA=",",";" IF WORD[EXTRA SET SPEC(EXTRA)=""
-  . IF $DATA(SPEC) SET WORD=$$REPLACE^XLFSTR(WORD,.SPEC)
   NEW NUM SET NUM=""
-  IF $DATA(DICT(WORD)) DO    ;"If 24HR is dictionary word, then don't parse to number etc.  
+  IF $DATA(DICT(WORD)) DO  GOTO WIL2    ;"If 24HR is dictionary word, then don't parse to number etc.  
   . SET WORD("TYPE")=$GET(DICT(WORD))
   . MERGE WORD("DBSOURCE")=DICT("ZZSOURCE",WORD)
-  IF WORD?1.4N1"/"1.4N1"/"1.4N DO   ;"e.g. #/#/#  as a date
+  . SET HANDLED=1
+  IF WORD?1.4N1"/"1.4N1"/"1.4N DO  GOTO WIL2 ;"e.g. #/#/#  as a date
   . SET WORD("DATE")=WORD,WORD=""
-  DO
-  . NEW PARTB SET NUM=$$NUMSTR^TMGSTUT3(WORD,.PARTB),WORD=PARTB
-  ;"ELSE  IF WORD?0.1(1"+",1"-").NP1"/".NP DO   ;"Fractions, e.g. 1/2  or -0.4/.4
-  ;". SET NUM=WORD,WORD=""
-  ;"ELSE  FOR  QUIT:DONE!(WORD="")  DO
-  ;". NEW CH SET CH=$EXTRACT(WORD,1)
-  ;". IF "-.1234567890,"'[CH SET DONE=1 QUIT
-  ;". SET WORD=$EXTRACT(WORD,2,999)
-  ;". SET NUM=NUM_CH
-  ;". IF NUM="0",($EXTRACT(WORD,1)'=".") SET NUM="0 "
-  IF NUM["," SET NUM=$TRANSLATE(NUM,",","")
-  SET WORD("NUM")=NUM
-  SET WORD("S2")=WORD
+  . SET HANDLED=1
+  DO  GOTO:HANDLED WIL2
+  . NEW NUMARR MERGE NUMARR=OPTION("NUMARR")  ;"used to speed processing.  Saves off number words array
+  . NEW TMPNUM SET TMPNUM=$$NUMCONVERT^TMGSTUT3(WORD,.NUMARR)
+  . MERGE OPTION("NUMARR")=NUMARR
+  . IF TMPNUM="error" QUIT
+  . SET WORD("NUM")=TMPNUM
+  . SET HANDLED=1
+  IF NUM'="" DO
+  . IF NUM["," SET NUM=$TRANSLATE(NUM,",","")
+  . SET WORD("NUM")=NUM
+  . SET WORD("S2")=WORD
   NEW TEMPWORD SET TEMPWORD=$$STRIPWD(WORD)
-  NEW UNITIEN SET UNITIEN=0
-  IF TEMPWORD'="",($DATA(DICT(WORD))!$DATA(DICT(TEMPWORD))) DO
+  IF TEMPWORD'="",($DATA(DICT(WORD))!$DATA(DICT(TEMPWORD))) DO  GOTO:HANDLED WIL2
+  . NEW UNITIEN SET UNITIEN=0
   . SET UNITIEN=+$ORDER(^PS(50.607,"B",TEMPWORD,0))
-  IF UNITIEN>0 SET WORD("UNIT IEN")=UNITIEN 
+  . IF UNITIEN>0 DO  
+  . . SET WORD("UNIT IEN")=UNITIEN 
+  . . SET HANDLED=1
   ;"CHECK FOR TIME PATTERN, E.G. 8AM
-  IF (",AM,PM,"[WORD("S2"))&(WORD("S2")'="") DO
+  IF ",AM,PM,"[(","_$GET(WORD("S2"))_",") DO  GOTO WIL2
   . NEW TIME SET TIME=WORD("NUM") SET:TIME'="" TIME=TIME_" "
   . SET TIME=TIME_WORD("S2")
   . SET WORD("TIME")=TIME
+  . SET HANDLED=1
+WIL2 ;  
   SET WORD=SAVE
+  NEW FORPT SET FORPT=($GET(OPTION("FOR PATIENTS"))=1)
+  IF FORPT DO 
+  . NEW W2 SET W2=WORD DO CHKABBV^TMGRX004(.W2,.OPTION)
+  . IF W2=WORD QUIT
+  . SET WORD("FOR PAT")=W2 
 WIDN ;  
   QUIT
   ;  
-GETNXW1(LINE,WORD,DICT)  ;"GET NEXT WORD, first pass
+GETNXW1(LINE,WORD,DICT,OPTION)  ;"GET NEXT WORD, first pass
   ;"INPUT:  LINE -- The line to get next word from.  MODIFIED IF PASSED BY REFERENCE.  
+  ;"         NOTE: it is assumed line will be ALL UPPER CASE.  
   ;"        WORD-- PASS BY REFERENCE.  MODIFIED AS OUT PARAMETER.  
   ;"        DICT -- OPTIONAL.  Array of dictionary words for Rx, as made by GETDICT^TMGRX004
   ;"Results: none.
@@ -429,20 +698,37 @@ GETNXW1(LINE,WORD,DICT)  ;"GET NEXT WORD, first pass
   FOR  SET ALEN=$ORDER(DICT("ZZLEN",ALEN),-1) QUIT:(ALEN'>0)!($DATA(WORD)>0)  DO
   . NEW AWORD SET AWORD=""
   . FOR  SET AWORD=$ORDER(DICT("ZZLEN",ALEN,AWORD)) QUIT:(AWORD="")!($DATA(WORD)>0)  DO
+  . . NEW UPWORD SET UPWORD=$$UP^XLFSTR(AWORD)
   . . NEW DIV SET DIV=""
-  . . IF $$LMATCH^TMGSTUT3(LINE,AWORD)=0 QUIT
-  . . NEW NEXTCH SET NEXTCH=$EXTRACT(LINE,$LENGTH(AWORD)+1)
-  . . IF NEXTCH=".",$$ISNUM^TMGSTUT3(AWORD),$$NUMSTR^TMGSTUT3(LINE)'=AWORD QUIT  ;"prevent '2' from matching with '2.5' in line
+  . . IF $$LMATCH^TMGSTUT3(LINE,UPWORD)=0 QUIT
+  . . NEW NEXTCH SET NEXTCH=$EXTRACT(LINE,$LENGTH(UPWORD)+1)
+  . . NEW WORDISNUM SET WORDISNUM=$$ISNUM^TMGSTUT3(UPWORD)
+  . . NEW SKIP SET SKIP=0
+  . . IF WORDISNUM DO  QUIT:SKIP  
+  . . . ;"IF (NEXTCH=".")!NEXTISNUM,$$NUMSTR^TMGSTUT3(LINE)'=UPWORD DO  QUIT  ;"prevent '2' from matching with '2.5' in line, or '1' matching '10' in line
+  . . . ;"prevent '2' from matching with '2.5' in line, 
+  . . . ;"     or '1' matching '10' in line, 
+  . . . ;"     or '1' matching '1/2'
+  . . . NEW FULLNUMCHARS SET FULLNUMCHARS=$$LXTRNUM^TMGSTUT3(LINE," ") ;"e.g. '1/5/66xxx' --> '1/5/66'
+  . . . IF FULLNUMCHARS'=UPWORD SET SKIP=1 QUIT
   . . IF NEXTCH="/",LINE?1.2N1"/"1.2N1"/"1.4N.E QUIT  ;"DON'T MATCH DATES during dictionary match. (##/##/####)
-  . . SET WORD=AWORD,LINE=$PIECE(LINE,AWORD,2,999)
-  . . IF NEXTCH'="",$$DIVSET()[NEXTCH DO
+  . . NEW RIGHTCH SET RIGHTCH=$EXTRACT(UPWORD,$LENGTH(UPWORD))
+  . . IF NEXTCH?1A,RIGHTCH?1A QUIT  ;"Prevent match of INH from splitting INHALE  //kt 8/7/25.
+  . . SET WORD=UPWORD,LINE=$PIECE(LINE,UPWORD,2,999)
+  . . NEW NEXTCHMATCHES SET NEXTCHMATCHES=0 DO
+  . . . NEW AWORD SET AWORD=""
+  . . . FOR  SET AWORD=$ORDER(DICT(AWORD)) QUIT:(AWORD="")!($EXTRACT(AWORD,1,2)="ZZ")!(NEXTCHMATCHES=1)  DO
+  . . . . NEW UPWORD SET UPWORD=$$UP^XLFSTR(AWORD)
+  . . . . SET NEXTCHMATCHES=($EXTRACT(UPWORD,1)=NEXTCH)
+  . . IF NEXTCH'="",($$DIVSET()[NEXTCH),(NEXTCHMATCHES=0) DO
   . . . SET DIV=NEXTCH,LINE=$EXTRACT(LINE,2,$LENGTH(LINE))
   . . SET WORD("DIV")=DIV
-  . . DO WORDINFO(.WORD,.DICT)  ;"characterize word
-  IF $DATA(WORD)=0 DO GETNXWRD(.LINE,.WORD,.DICT)
+  . . DO WORDINFO(.WORD,.DICT,.OPTION)  ;"characterize word
+  IF $DATA(WORD)=0 DO 
+  . DO GETNXWRD(.LINE,.WORD,.DICT,.OPTION)
   QUIT
   ;
-GETNXWRD(LINE,WORD,DICT)  ;"GET NEXT WORD, older method
+GETNXWRD(LINE,WORD,DICT,OPTION)  ;"GET NEXT WORD, older method
   ;"INPUT:  LINE -- The line to get next word from.  MODIFIED IF PASSED BY REFERENCE.  
   ;"        WORD-- PASS BY REFERENCE.  MODIFIED AS OUT PARAMETER.  
   ;"        DICT -- OPTIONAL.  Array of dictionary words for Rx, as made by GETDICT^TMGRX004
@@ -487,13 +773,13 @@ GETNXWRD(LINE,WORD,DICT)  ;"GET NEXT WORD, older method
   . . ;"NEW TEMP DO GETNXWRD(.LINE,.TEMP)
   . . ;"SET WORD=WORD_"."_TEMP,DIV=$GET(TEMP("DIV"))
   SET WORD("DIV")=DIV
-  DO WORDINFO(.WORD,.DICT)  ;"characterize word
+  DO WORDINFO(.WORD,.DICT,.OPTION)  ;"characterize word
   IF ($GET(WORD("NUM"))'=""),($GET(WORD("S2"))'="") DO
   . SET LINE=WORD("S2")_WORD("DIV")_LINE    ;"if we got 81mg, keep 81 and put mg back onto LINE
   . SET WORD("S2")=""
   . NEW TEMP SET TEMP=WORD("NUM")
   . KILL WORD SET WORD=TEMP,WORD("DIV")=" "
-  . DO WORDINFO(.WORD,.DICT)
+  . DO WORDINFO(.WORD,.DICT,.OPTION)
   . ;"SET WORD=WORD("NUM"),WORD("UNIT IEN")="",WORD("DIV")=" "
   QUIT  
   ;  
@@ -503,7 +789,7 @@ DIVSET()  ;"Standard characters to divide up words.
 SUBDVSET()  ;
   QUIT " ,/;:()."   ;"//used for trimming chars from preface and sig, don't trim "+" or ""-"
   ;
-PEEKNXWD(LINE,WORD,IDX)  ;"GET NEXT WORD, just look, doesn't remove from line.
+PEEKNXWD(LINE,WORD,IDX,OPTION)  ;"GET NEXT WORD, just look, doesn't remove from line.
   ;"INPUT: LINE -- line to look at 
   ;"       WORD -- PASS BY REFERNCE, AN OUT PARAMETER
   ;"       IDX -- OPTIONAL, DEFAULT is 1.  If 2, for example, then 2nd next word returned
@@ -512,7 +798,7 @@ PEEKNXWD(LINE,WORD,IDX)  ;"GET NEXT WORD, just look, doesn't remove from line.
   KILL WORD SET WORD=""
   SET IDX=+$GET(IDX,1) IF IDX'>0 SET IDX=1
   NEW CT FOR CT=1:1:IDX DO
-  . DO GETNXWRD(.TEMP,.WORD)
+  . DO GETNXWRD(.TEMP,.WORD,,.OPTION)
   QUIT
   ;
 PUTBKWRD(LINE,WORD)  ;"PUT BACK WORD
@@ -521,14 +807,14 @@ PUTBKWRD(LINE,WORD)  ;"PUT BACK WORD
   SET LINE=WORD_DIV_LINE
   QUIT
   ;  
-WORDLEN(LINE,DICT)  ;"return length of line, E.G. 'hello-there/world you' as 4 words
+WORDLEN(LINE,DICT,OPTION)  ;"return length of line, E.G. 'hello-there/world you' as 4 words
   ;"LINE -- The line to count
   ;"DICT -- optional array of dictionary words for Rx.  
   NEW TEMPLINE SET TEMPLINE=LINE
   NEW TEMPWORD
   NEW CT SET CT=0
   FOR  QUIT:(TEMPLINE="")  DO
-  . DO GETNXWRD(.TEMPLINE,.TEMPWORD,.DICT) SET CT=CT+1
+  . DO GETNXWRD(.TEMPLINE,.TEMPWORD,.DICT,.OPTION) SET CT=CT+1
   QUIT CT
   ;   
 STRIPWD(WORD) ;"STRIP PUNCTUATION
@@ -540,7 +826,7 @@ STRIPWD(WORD) ;"STRIP PUNCTUATION
   QUIT RESULT
   ;
 ;"GETMDIEN(OUT,LINE)  ;"GET MEDICATION IEN (IEN22733) FROM LINE
-GETMDIEN(LINE)  ;"GET MEDICATION IEN (IEN22733) FROM LINE
+GETMDIEN(LINE,OPTION)  ;"GET MEDICATION IEN (IEN22733) FROM LINE
   ;"Input: delete later --> OUT -- PASS BY REFERENCE.  The array that is being filled with information
   ;"       LINE -- the input line containing line from drug table.
   ;"               NOTE:  If there are words that appear before medication name,
@@ -559,7 +845,7 @@ GETMDIEN(LINE)  ;"GET MEDICATION IEN (IEN22733) FROM LINE
   . KILL WORD
   . SET IEN22733=$$MEDIEN2(.OUT,.LINE,.WORD)  ;"//first try direct pattern match with pre-entered names and aliases.    
   . IF IEN22733>0 QUIT
-  . KILL WORD DO GETNXWRD(.LINE,.WORD)
+  . KILL WORD DO GETNXWRD(.LINE,.WORD,,.OPTION)
   . SET IEN22733=$$MEDIEN(,.WORD,.LINE)   ;"//next try older method.  Would work on LISINOPRIL/ HCTZ based on ingredients
   . IF IEN22733>0 QUIT
   . ;"//--- No Match -------------------------
@@ -578,7 +864,7 @@ GETMDIEN(LINE)  ;"GET MEDICATION IEN (IEN22733) FROM LINE
   ;"SET OUT("WORKING")=LINE
   QUIT IEN22733
   ; 
-MEDIEN(OUT,NAME,LINE)  ;"GET MEDICATION IEN  -- older method
+MEDIEN(OUT,NAME,LINE,OPTION)  ;"GET MEDICATION IEN  -- older method
   ;"Input: OUT -- Used when calling self recursively. 
   ;"       NAME -- 
   ;"       LINE -- 
@@ -674,7 +960,7 @@ MEDIEN(OUT,NAME,LINE)  ;"GET MEDICATION IEN  -- older method
   . . ;"Will just use first found match.  Shouldn't be more than one match...
   . . SET IEN22733=IEN
   . . FOR IDX=1:1:PEEKIDX DO
-  . . . DO GETNXWRD(.LINE,.NEXTWORD)  ;"cut off Rx words that we have already considered.
+  . . . DO GETNXWRD(.LINE,.NEXTWORD,,.OPTION)  ;"cut off Rx words that we have already considered.
 MDINDN ;  
   QUIT IEN22733
   ;
@@ -799,11 +1085,18 @@ MAXLMTCH(REFARR,STR)  ;"findest longest entry in @REFARR, LMATCH'ing with STR
   . . IF VALUE=1 SET MATCHES($LENGTH(RESULT),RESULT)=""
   NEW MAXLEN SET MAXLEN=$ORDER(MATCHES(""),-1)
   SET RESULT=$ORDER(MATCHES(MAXLEN,""))
-  NEW TEMP SET TEMP=RESULT,RESULT=""
-  SET LEN=$LENGTH(TEMP,",")
-  FOR JDX=1:1:LEN DO   ;"COLLAPSE RESULT (CONTAINING ADDREF) BACK INTO A STRING
-  . NEW LETTER SET LETTER=$PIECE(TEMP,",",1),TEMP=$PIECE(TEMP,",",2,LEN)
-  . SET RESULT=RESULT_$EXTRACT(LETTER,2)  
+  DO  ;"COLLAPSE RESULT (CONTAINING ADDREF) BACK INTO A STRING
+  . NEW LEN1 SET LEN1=$QLENGTH($$CREF^DILF(REFARR))
+  . NEW LEN2 SET LEN2=$QLENGTH($$CREF^DILF(REFARR_RESULT))
+  . NEW CREF SET CREF=$$CREF^DILF(REFARR_RESULT)
+  . SET RESULT=""
+  . NEW IDX FOR IDX=LEN1+1:1:LEN2 DO
+  . . SET RESULT=RESULT_$QSUBSCRIPT(CREF,IDX)
+  ;"NEW TEMP SET TEMP=RESULT,RESULT=""
+  ;"SET LEN=$LENGTH(TEMP,",")
+  ;"FOR JDX=1:1:LEN DO   ;"COLLAPSE RESULT (CONTAINING ADDREF) BACK INTO A STRING
+  ;". NEW LETTER SET LETTER=$PIECE(TEMP,",",1),TEMP=$PIECE(TEMP,",",2,LEN)
+  ;". SET RESULT=RESULT_$EXTRACT(LETTER,2)  
   QUIT RESULT
   ;
 MATCHUNT(OUT,WORD)  ;"TRY TO MATCH UNITS TO DATABASE.
@@ -1001,6 +1294,33 @@ GTFRMIEN(IEN22733,FORM)  ;"GET FORM SUBIEN BASED ON INPUT FORM
   . IF AFORM=FORM SET RESULT=SUBIEN
   . IF $DATA(^TMG(22733,IEN22733,2,SUBIEN,.05,"B",FORM))>0 SET RESULT=SUBIEN  
 GTFMINDN ;
+  QUIT RESULT
+  ;
+GETALLOWMULT(DBSOURCE) ;"Are multiple strengths allowed?
+  ;"INPUT: DEBSOURCE.  FORMAT:  DBSOURCE(<FILE^FLD^IENS>)=""
+  ;"
+  ;"Summary of file heirarchy
+  ;"   2  MEDICATION FORMS                <-Mult [22733.02P]
+  ;"      -FORM ALIASES                   <-Mult [22733.055]
+  ;"      - .08 ALLOW MULTIPLE STRENGTHS [S]
+  ;"      -STRENGTHS                      <-Mult [22733.03]
+  ;"       -STRENGTH ALIASES              <-Mult [22733.31]
+  ;"       -UNITS ALIASES                 <-Mult [22733.32]
+  ;
+  NEW RESULT SET RESULT=0
+  NEW DATA SET DATA=$ORDER(DBSOURCE(""))
+  NEW FILE SET FILE=$PIECE(DATA,"^",1)
+  NEW IENS SET IENS=$PIECE(DATA,"^",3)
+  IF FILE=22733.03 DO
+  . ;"E.g.  3,1,54,    3 in 22733.03, 1 in 22733.02, 54 in 22733
+  . SET IENS=$PIECE(IENS,",",2,99)
+  ELSE  IF (FILE=22733.31)!(FILE=22733.31) DO
+  . ;"E.g.  1,3,1,54,    1 in 22733.32 (or22733.31), 3 in 22733.03, 1 in 22733.02, 54 in 22733
+  . SET IENS=$PIECE(IENS,",",3,99)
+  ELSE  GOTO GAMDN  ;"only handle specified files.
+  NEW TMGERR,VALUE SET VALUE=$$GET1^DIQ(22733.02,IENS,.08,"I",,"TMGERR")
+  SET RESULT=(VALUE="Y")
+GAMDN ;    
   QUIT RESULT
   ;
 MATCHFRM(IEN22733,OUT,FORM)  ;"GET PREFERRED ALIAS FORM, GIVEN INPUT FORM -- DELETE THIS

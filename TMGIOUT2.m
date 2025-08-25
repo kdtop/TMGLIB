@@ -11,9 +11,6 @@ TMGIOUT2 ;TMG/kst/IO Utilities -- File browser ;05/16/09; 6/18/25
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
- ;"NOTE: THIS CODE IS NOW SACC COMPLIANT.  Keep it that way!  :-)  
- ;"7/22/15 (NOTE: prob too long now, needs recheck)
- ;
  ;"=======================================================================
  ;" API -- Public Functions.
  ;"=======================================================================

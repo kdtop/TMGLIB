@@ -39,10 +39,14 @@ TESTMSGDLG  ;
 	;
 TESTEDITDLG  ;
 	NEW MSGARR,OPTION
+  NEW TMP,CLR DO ADDNICECOLORS^TMGUSRIF(.TMP) 
+  SET CLR=$GET(TMP("COLORS","NORM"))
+  DO SPLITCOLOR2REF^TMGUSRI8(CLR,$NAME(OPTION("COLOR")))
+  SET CLR=$GET(TMP("COLORS","HEADER"))
+  DO SPLITCOLOR2REF^TMGUSRI8(CLR,$NAME(OPTION("COLOR","EDITOR")))
 	SET MSGARR(1)="Enter Last Name"
 	SET OPTION("INIT VALUE")="Pumpernickle"
-	NEW FG,BG IF $$COLORPAIR^TMGUSRI8("YELLOW","BLUE",,.FG,.BG)  ;"ignore result
-	SET OPTION("COLOR","FG")=FG,OPTION("COLOR","BG")=BG
+	SET OPTION("WIDTH")=60
 	SET OPTION("ALT BUFFER")=1
 	NEW RESULT SET RESULT=$$EDITDLG(.MSGARR,.OPTION)
 	WRITE !,"User entered: ",RESULT,!
@@ -81,6 +85,10 @@ DIALOG(MSGARR,OPTION)  ;"Message Dialog
 	;"                                 If -1, then terminal color is RESET to default.  If BGCOLOR=-1, FGCOLOR is overridden
 	;"          OPTION("COLOR","BG")=  background color.  Format same as accepted by COLORS^TMGTERM
 	;"                                 If -1, then terminal color is RESET to default.  If FGCOLOR=-1, BGCOLOR is overridden
+	;"          OPTION("COLOR","BORDER","FG")= foreground color. OPTIONAL.  If not given, then same as other colors 
+	;"          OPTION("COLOR","BORDER","BG")= background color. OPTIONAL.  If not given, then same as other colors
+	;"          OPTION("COLOR","EDITOR","FG")= foreground color. OPTIONAL.  If not given, then same as other colors 
+	;"          OPTION("COLOR","EDITOR","BG")= background color. OPTIONAL.  If not given, then same as other colors
 	;"          OPTION("WIDTH") -- OPTIONAL.  Default to 40. NOTE: if MSGARR has wider text, MSGARR will be wrapped to WIDTH
 	;"          OPTION("FILLCH") -- OPTIONAL.  DEFAULT IS "_"   Used if MODE="EDIT"
 	;"                  If is "_", then a line is shown for edit field
@@ -123,7 +131,7 @@ DIALOG(MSGARR,OPTION)  ;"Message Dialog
 	NEW FILLSTR SET $PIECE(FILLSTR," ",EDITWIDTH)=" "
 	NEW BOXOPTION MERGE BOXOPTION=OPTION("BORDER","OPTIONS")
 	NEW FILLCH SET FILLCH=$GET(OPTION("FILLCH"),"_")
-	;"DRAW DIALOG
+	;"DRAW CORE DIALOG
 	DO COLORS^TMGTERM(FG,BG)
 	NEW IDX SET IDX=1
 	NEW Y FOR Y=BOXY+1:1:BOXY+BOXHT-1 DO
@@ -131,8 +139,15 @@ DIALOG(MSGARR,OPTION)  ;"Message Dialog
 	. NEW LINE SET LINE=$GET(MSGARR(IDX)) SET IDX=IDX+1
 	. IF LINE="" SET LINE=FILLSTR
 	. WRITE LINE
+	;"Now draw border
 	DO CUP^TMGTERM(BOXX+1,BOXY+BOXHT-2) WRITE $$CJ^XLFSTR("(Press ENTER when done)",EDITWIDTH," ")
-	DO DRAWBOX^TMGTERM2(BOXX,BOXY,BOXWT,BOXHT,FG,BG,.BOXOPTION)
+	NEW BORDERFG SET BORDERFG=$GET(OPTION("COLOR","BORDER","FG")) IF BORDERFG="" SET BORDERFG=FG
+	NEW BORDERBG SET BORDERBG=$GET(OPTION("COLOR","BORDER","BG")) IF BORDERBG="" SET BORDERBG=BG
+	DO DRAWBOX^TMGTERM2(BOXX,BOXY,BOXWT,BOXHT,BORDERFG,BORDERBG,.BOXOPTION)
+	;"Now the editor
+	NEW EDITFG SET EDITFG=$GET(OPTION("COLOR","EDITOR","FG")) IF EDITFG="" SET EDITFG=FG
+	NEW EDITBG SET EDITBG=$GET(OPTION("COLOR","EDITOR","BG")) IF EDITBG="" SET EDITBG=BG
+	DO COLORS^TMGTERM(EDITFG,EDITBG)	
 	IF MODE="EDIT" DO
 	. ;"LAUNCH EDITOR
 	. NEW INITVAL SET INITVAL=$GET(OPTION("INIT VALUE"))

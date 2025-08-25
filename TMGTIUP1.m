@@ -41,7 +41,7 @@ TESTSUM ;"Test summarizing one note.
   ;                                                                                
 T2 ;
   ;"NEW IEN SET IEN=838892
-  NEW IEN SET IEN=829549
+  NEW IEN SET IEN=830693
   NEW ARRAY DO SUMNOTE^TMGTIUP1(IEN,.ARRAY) 
   IF $DATA(ARRAY) DO ZWRITE^TMGZWR("ARRAY")
   QUIT

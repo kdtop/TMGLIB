@@ -206,3 +206,41 @@ GETINSAV(TMGRESULT,TMGDFN)  ;"
   . SET TMGRESULT(CPTIEN)=CPT_"^"_+$G(CHARGEARR(CPT))_"^"_AVG_"^"_HIGH_"^"_LOW
   QUIT
   ;"
+GETINAVG
+       NEW %ZIS
+       SET %ZIS("A")="Enter Output Device: "
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  QUIT
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       DO NOW^%DTC
+       WRITE !
+       WRITE "****************************************************************",!
+       WRITE "           INSURANCE AVERAGE PAYMENTS FOR OFFICE VISITS",!
+       WRITE "                " SET Y=X DO DD^%DT WRITE Y,!
+       WRITE "****************************************************************",!
+       WRITE "                                            (From TMGSEQL8.m)",!!
+  WRITE "INSURANCE",!
+  WRITE ?5,"CPT",?20,"AVG",?30,"HIGH",?40,"LOW",!
+  NEW INSIEN SET INSIEN=0
+  FOR  SET INSIEN=$O(^DIC(36,INSIEN)) QUIT:INSIEN'>0  DO
+  . NEW DATESTORED 
+  . SET DATESTORED=$O(^DIC(36,INSIEN,1,"B",9999999),-1) ;"GET LATEST
+  . IF DATESTORED="" QUIT  ;"NO DATE STORED FOUND
+  . NEW DATEIEN SET DATEIEN=$O(^DIC(36,INSIEN,1,"B",DATESTORED,0))
+  . WRITE $P($P($G(^DIC(36,INSIEN,0)),"^",1)," (EDIT",1),!
+  . NEW CPTIEN SET CPTIEN=0
+  . FOR  SET CPTIEN=$O(^DIC(36,INSIEN,1,DATEIEN,1,CPTIEN)) QUIT:CPTIEN'>0  DO
+  . . NEW ZN SET ZN=$G(^DIC(36,INSIEN,1,DATEIEN,1,CPTIEN,0))
+  . . NEW CPT SET CPT=$P(ZN,"^",1)
+  . . IF $E(CPT,1,2)'="99" QUIT
+  . . NEW AVG SET AVG=$P(ZN,"^",2)
+  . . NEW HIGH SET HIGH=$P(ZN,"^",3)
+  . . NEW LOW SET LOW=$P(ZN,"^",4)
+  . . ;"SET TMGRESULT(CPTIEN)=CPT_"^"_+$G(CHARGEARR(CPT))_"^"_AVG_"^"_HIGH_"^"_LOW
+  . . WRITE ?5,CPT,?20,"$",AVG,?30,"$",HIGH,?40,"$",LOW,!
+  DO ^%ZISC
+  QUIT
+  ;"
+  

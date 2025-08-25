@@ -37,7 +37,11 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
   ;"$$UNQTPROT(STR) --Reversed quotes protection by converting all double quotes to single quotes
   ;"$$ISALPHNUM(CH) -- is character alphanumeric?
   ;"$$ISNUM(STR) -- Return IF STR is numeric
-  ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB  
+  ;"$$NUMSTR(STR,PARTB)  --Return numeric of string, and residual back in PARTB
+  ;"EXTRACTNUM(STR) --Extract numbers scattered through string, exluding any non-number.  
+  ;"LXTRNUM(STR,STARTPOS)  -- Left extract numeric chars, including +-,/ chars. Chars don't have to make a valid number.  
+  ;"$$NUMCONVERT(STR) -- converts a number-word string to its numeric decimal equivalent.
+  ;"$$NUMERICWORDS(NUM) --converts a number to its word form. E.G. '125' would output 'one hundred twenty five' 
   ;"$$EXTRACTNUM(STR) --Extract numbers scattered through string, exluding any non-number.
   ;"$$RANDSTR(LEN,FLAGS,EXCLUDE) --Output a random string of given length, with options
   ;"$$TRIM2NUM(STR) --Trim of anything in string up to, but not including, a number
@@ -734,7 +738,147 @@ EXTRACTNUM(STR) ;"Extract numbers scattered through string, exluding any non-num
   . NEW CH SET CH=$EXTRACT(STR,IDX)
   . IF CH?1N SET RESULT=RESULT_CH
   QUIT RESULT
-  ;    
+  ;
+LXTRNUM(STR,STARTPOS)  ;"Left extract numeric chars, including +-,/ chars. Chars don't have to make a valid number.
+  ;"E.g.  "1/1/66,44DOSE" --> "1/1/66,44"
+  ;"Input: STR -- string to extract from
+  ;"       STARTPOS -- starting position.  Optional Default is 1
+  NEW RESULT SET RESULT=""
+  SET STARTPOS=+$GET(STARTPOS)\1 IF STARTPOS'>0 SET STARTPOS=1
+  NEW CH
+  NEW LEN SET LEN=$LENGTH(STR)
+  NEW DONE,FOUND SET (DONE,FOUND)=0
+  NEW POS FOR POS=STARTPOS:1:LEN DO  QUIT:DONE
+  . SET CH=$EXTRACT(STR,POS)
+  . SET DONE=("1234567890.,+-/"'[CH) 
+  . IF DONE SET POS=POS-1 QUIT 
+  . SET FOUND=1
+  IF FOUND SET RESULT=$EXTRACT(STR,STARTPOS,POS)
+  QUIT RESULT
+  ;
+TESTNUMCVT ;
+  NEW NUMARR
+  NEW NUM,STR,ERR SET ERR=0
+  FOR NUM=0:1:99999 DO  QUIT:ERR
+  . SET STR=$$NUMERICWORDS(NUM)
+  . NEW NUM2 SET NUM2=$$NUMCONVERT(STR,.NUMARR)
+  . IF NUM=NUM2 QUIT
+  . WRITE "ERROR FOR ",NUM,!
+  . SET ERR=1
+  QUIT
+  ;
+NUMCONVERT(STR,NUMARR) ;" This function converts a number-word string to its numeric decimal equivalent.  E.g., 'one hundred twenty-three' returns 123.
+  ;"INPUT: STR -- string containing words, e.g. 'one hundred twenty-three'
+  ;"       NUMARR -- OPTIONAL.  PASS BY REFERENCE. Filled with info needed for conversion.  Will speed processing with repeat calls.  
+  ;" Returns Numeric value, or 'error' if the input is not a recognized number-word.
+  ;"FYI NUMERICWORDS(NUM) does the opposite of this function
+  ;
+  NEW WORD,NUM,MULT
+  NEW TOTAL SET TOTAL="error"  ;"default
+  ;
+  ;" Preprocessing: Convert to lowercase and handle hyphens
+  SET STR=$ZCONVERT($TR(STR,"-"," "),"L")
+  IF STR="" GOTO STNCDN 
+  ;
+  IF $DATA(NUMARR)=0 DO SETUPNUMARR(.NUMARR) 
+  ;
+  ;" Check for simple numbers first
+  FOR NUM=0:1:19 IF STR=NUMARR(NUM) SET TOTAL=NUM GOTO STNCDN  ;" Exit if a match is found
+  FOR NUM=20:10:90 IF STR=NUMARR(NUM) SET TOTAL=NUM GOTO STNCDN 
+  ;
+  NEW ERR SET ERR=0
+  ;" Now, parse multi-word strings
+  NEW PART,PARTS SET PARTS=1
+  SET PART(PARTS)=""
+  NEW IDX FOR IDX=1:1:$LENGTH(STR," ") DO  QUIT:ERR  
+  . SET WORD=$PIECE(STR," ",IDX)
+  . NEW FOUND SET FOUND=0
+  . FOR NUM=100,1000 IF WORD=NUMARR(NUM) DO
+  . . ;" Find the previous number and multiply it
+  . . SET PART(PARTS)=PART(PARTS)*NUM
+  . . SET PARTS=PARTS+1
+  . . SET PART(PARTS)=""
+  . . SET FOUND=1
+  . IF FOUND QUIT
+  . ;" Check for a number word
+  . NEW NUMVAL SET NUMVAL=""
+  . FOR NUM=1:1:19 IF WORD=NUMARR(NUM) SET NUMVAL=NUM,FOUND=1 QUIT
+  . IF FOUND=0 FOR NUM=20:10:90 IF WORD=NUMARR(NUM) SET NUMVAL=NUM,FOUND=1 QUIT
+  . IF NUMVAL="" SET ERR=1 QUIT
+  . SET PART(PARTS)=PART(PARTS)+NUMVAL
+  ;
+  IF ERR SET TOTAL="error" GOTO STNCDN
+  ;" Sum up the parts
+  SET TOTAL=0
+  FOR I=1:1:PARTS SET TOTAL=TOTAL+PART(I)
+  ;
+STNCDN ;  
+  QUIT TOTAL
+  ;
+TESTNWORDS ;
+  F I=1:1:20 SET R=$RANDOM(200) W R," --> ",$$NUMERICWORDS^TMGSTUT3(R),!
+  QUIT
+  ;
+SETUPNUMARR(NUMARR) ;
+  SET NUMARR(0)="zero"
+  SET NUMARR(1)="one",NUMARR(2)="two",NUMARR(3)="three",NUMARR(4)="four",NUMARR(5)="five"
+  SET NUMARR(6)="six",NUMARR(7)="seven",NUMARR(8)="eight",NUMARR(9)="nine"
+  ;
+  SET NUMARR(10)="ten",NUMARR(11)="eleven",NUMARR(12)="twelve",NUMARR(13)="thirteen"
+  SET NUMARR(14)="fourteen",NUMARR(15)="fifteen",NUMARR(16)="sixteen"
+  SET NUMARR(17)="seventeen",NUMARR(18)="eighteen",NUMARR(19)="nineteen"
+  ;
+  SET NUMARR(20)="twenty",NUMARR(30)="thirty",NUMARR(40)="forty",NUMARR(50)="fifty"
+  SET NUMARR(60)="sixty",NUMARR(70)="seventy",NUMARR(80)="eighty",NUMARR(90)="ninety"
+  ;
+  SET NUMARR(100)="hundred",NUMARR(1000)="thousand"
+  QUIT
+  ;
+NUMERICWORDS(NUM,NUMARR) ;"converts a number to its word form. E.G. '125' would output 'one hundred twenty five' 
+  ;" E.g., 125 returns "one hundred twenty-five".
+  ;" Handles numbers from 0 to 999,999.
+  ;" Returns "" if the input is not a valid non-negative integer.
+  ;"FYI -- NUMCONVERT(STR) does the opposite of this function
+  ;
+  NEW OUTPUT SET OUTPUT=""
+  NEW THOUSANDS,HUNDREDS
+  IF NUM<0 QUIT ""  ; Only handle non-negative numbers
+  IF $DATA(NUMARR)=0 DO SETUPNUMARR(.NUMARR) 
+  ;
+  IF NUM>999 DO
+  . SET THOUSANDS=NUM\1000  ;" Integer division.  E.G. 7534 -> 7
+  . SET HUNDREDS=NUM#1000   ;" Modulus.  E.G. 7534 -> 534
+  . DO GETNCVTWORDS(THOUSANDS,.OUTPUT,.NUMARR)
+  . SET OUTPUT=OUTPUT_" thousand"
+  . IF HUNDREDS>0 DO
+  . . SET OUTPUT=OUTPUT_" "
+  . . DO GETNCVTWORDS(HUNDREDS,.OUTPUT,.NUMARR)
+  ELSE  DO
+  . DO GETNCVTWORDS(NUM,.OUTPUT,.NUMARR)
+  ;
+NWSDN ;  
+  QUIT OUTPUT
+  ;
+GETNCVTWORDS(N,OUTPUT,NUMARR) ;" A helper routine for NUMERICWORDS(NUM) 
+  ;" N: The number to convert (0-999)
+  ;" OUTPUT: The string to append to (passed by reference)
+  IF N=0 SET OUTPUT=OUTPUT_NUMARR(0) QUIT
+  NEW HUNDRED SET HUNDRED=N\100   ;"e.g. 175 -> 1
+  IF HUNDRED>0 DO
+  . SET OUTPUT=OUTPUT_$GET(NUMARR(HUNDRED))_" hundred"
+  NEW TEN SET TEN=N#100   ;"e.g. 175 --> 75
+  IF HUNDRED>0,TEN>0 SET OUTPUT=OUTPUT_" "
+  IF TEN>0 DO
+  . IF TEN<20 DO  ;" handles 1-19
+  . . SET OUTPUT=OUTPUT_$GET(NUMARR(TEN))
+  . ELSE  DO  ;" handles 20-99
+  . . NEW ONE SET ONE=TEN#10   ;"E.G. 75 --> 5
+  . . SET TEN=TEN\10*10  ;"e.g. 75 -> 70
+  . . SET OUTPUT=OUTPUT_$GET(NUMARR(TEN))
+  . . NEW HYPHEN SET HYPHEN=$SELECT(ONE>0:"-",1:"")
+  . . IF ONE>0 SET OUTPUT=OUTPUT_HYPHEN_$GET(NUMARR(ONE))
+  QUIT  ;"output is via OUTPUT
+  ;
 RANDSTR(LEN,FLAGS,EXCLUDE) ;"Output a random string of given length, with options
   ;"Input: LEN -- desired length of output string
   ;"       FLAGS -- OPTIONAL. default is "UL"

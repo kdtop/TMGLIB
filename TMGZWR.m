@@ -63,6 +63,7 @@ ZWR2ARR(NAME,OUTREF,STARTIDX) ;"//kt added this function
   ;"Note: lvn and gvn are both supported. 
   ;"      ':' syntax is not supported (yet)
   ;
+  ;"NOTE: See also ARRDUMP^TMGMISC3(REF,TMGIDX,INDENT,OUTREF)  ;"ARRAY DUMP
   NEW L SET L=$LENGTH(NAME) ;" Name length 
   IF $EXTRACT(NAME,L-2,L)=",*)" SET NAME=$EXTRACT(NAME,1,L-3)_")"
   NEW ORIGLAST SET ORIGLAST=$QSUBSCRIPT(NAME,$QLENGTH(NAME))

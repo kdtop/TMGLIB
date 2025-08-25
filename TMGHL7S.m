@@ -173,7 +173,7 @@ LOAD(TMGTESTMSG,TMGHL7MSG,TMGU) ;
         SET TMGINSTRUCT="Delete these lines, and replace them with the HL7 message to work on."
         SET TMGTESTMSG(1)=TMGINSTRUCT
         SET TMGTESTMSG(2)="Then exit editor to continue."
-        DO EDITARR^TMGEDIT($NAME(TMGTESTMSG),"joe")
+        DO EDITARR^KERN8($NAME(TMGTESTMSG),"joe")
         IF ($GET(TMGTESTMSG(1))=TMGINSTRUCT)!($GET(TMGTESTMSG(1))="") DO  GOTO LOADDN
         . WRITE "Sorry.  No HL7 Message.",!
         . DO PRESS2GO^TMGUSRI2

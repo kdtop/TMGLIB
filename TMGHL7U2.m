@@ -304,7 +304,7 @@ XFRMFACILITY(FACILITY,TMGU) ;"Transform sending facility before any processing i
         IF "^IPCHH^IPCH^HCMH^FWCH^SSH^GCHE^JCMCZ^UCH^TRH^"[FACILITY SET SHOULDMAP=1
         IF "^JMHZ^SSHZ^WH^SN^MRMC^CORP^NNCH^LPH^GHC^JCCHZ"[FACILITY SET SHOULDMAP=1    
         IF "^JCHC^BWP^RCHZ^EXTEC^WHSBO,HVIC^LCCH^WIRX^"[FACILITY SET SHOULDMAP=1    
-        IF "^DCH^TH^AHC^SCCH^MVRMC^ETSUP^"[FACILITY SET SHOULDMAP=1    
+        IF "^DCH^TH^AHC^SCCH^MVRMC^ETSUP^SUHS^"[FACILITY SET SHOULDMAP=1    
         IF "^101077^101001^101034^"[FACILITY SET SHOULDMAP=1            
         IF FACILITY="" SET SHOULDMAP=1
         IF SHOULDMAP DO
@@ -587,7 +587,7 @@ LOADMSG(TMGTESTMSG) ;"Get message by allowing user to paste one into editor
         SET TMGINSTRUCT="Delete these lines, and replace them with the HL7 message to work on."
         SET TMGTESTMSG(1)=TMGINSTRUCT
         SET TMGTESTMSG(2)="Then exit editor to continue."
-        DO EDITARR^TMGEDIT($NAME(TMGTESTMSG),"joe")
+        DO EDITARR^TMGKERN8($NAME(TMGTESTMSG),"joe")
         IF ($GET(TMGTESTMSG(1))=TMGINSTRUCT)!($GET(TMGTESTMSG(1))="") DO
         . WRITE "Sorry.  No HL7 Message.",!
         . KILL TMGTESTMSG

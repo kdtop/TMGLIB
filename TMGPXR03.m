@@ -42,7 +42,6 @@ TMGPXR03 ;TMG/kst/TMG Reminder Reports stuff ;4/18/13, 2/2/14, 3/24/21
  ;"GETNTPTS(OUTARRAY) -- Gather list of patients with progress note between dates, to run report on
  ;"GETSWMD(MODES)  -- GET SHOW MODES
  ;"SHOWLST(ARRAY)-- Output list in formatted manner.
- ;"ACTIVEPT(TMGDFN) -- ACTIVE PATIENT
  ;"GETCSPAT(TMGRESULT,BEGDT,ENDDT) -- returns array of patients scheduled for given dates & on Controlled Substances
  ;"LOADHFAR(PREFIX,ARR) -- Load array with up all health factors that start
  ;"MRFNDN(TMGDFN,HFARRAY) -- FIND MOST RECENT HF NAME
