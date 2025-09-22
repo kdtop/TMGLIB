@@ -460,17 +460,6 @@ RXDATA2TABL(OUTREF,DATAREF,STYLESREF,INDENT,MODE)	;"Format medication data into 
 	SET @STYLESREF@("."_RXPREFIX_"-details-header","width")=WIDTH($I(COLNUM))  ;"3 or 4
 	SET @STYLESREF@("."_RXPREFIX_"-details-header","text-align")="center"
 	;
-	;"SET @STYLESREF@(".rx-info-subtable","background-color")="var(--windowRxBackground)"
-	;"SET @STYLESREF@(".rx-info-subtable","width")="100%"
-	;"SET @STYLESREF@(".rx-info-subtable","border-collapse")="collapse"
-	;"SET @STYLESREF@(".rx-info-subtable","margin")="0px"
-	;"SET @STYLESREF@(".rx-info-subtable","overflow")="hidden"
-	;"SET @STYLESREF@(".rx-info-subtable","box-shadow")="none"
-	;"SET @STYLESREF@(".rx-info-subtable","padding")="5px 5px"
-	;";
-	;"SET @STYLESREF@(".rx-info-subtable td","padding")="5px 5px"
-	;"SET @STYLESREF@(".rx-info-subtable td","border")="none"
-	;
 	;"-- Contents of rx-info-subtable ---"
 	SET @STYLESREF@(".rx-name-formatted","padding")="5px 5px"
 	SET @STYLESREF@(".rx-name-formatted","font-size")="1em"
@@ -657,17 +646,6 @@ ALRGYDATA2TABL(OUTREF,DATAREF,STYLESREF,INDENT)	;"Format allergy data into HTML 
 	;
 	SET @STYLESREF@(".alrgy-details-header","width")="25%"
 	SET @STYLESREF@(".alrgy-details-header","text-align")="center"
-	;
-	;"SET @STYLESREF@(".alrgy-info-subtable","background-color")="var(--windowRxBackground)"
-	;"SET @STYLESREF@(".alrgy-info-subtable","width")="100%"
-	;"SET @STYLESREF@(".alrgy-info-subtable","border-collapse")="collapse"
-	;"SET @STYLESREF@(".alrgy-info-subtable","margin")="0px"
-	;"SET @STYLESREF@(".alrgy-info-subtable","overflow")="hidden"
-	;"SET @STYLESREF@(".alrgy-info-subtable","box-shadow")="none"
-	;"SET @STYLESREF@(".alrgy-info-subtable","padding")="5px 5px"
-	;";
-	;"SET @STYLESREF@(".alrgy-info-subtable td","border")="none"
-	;"SET @STYLESREF@(".alrgy-info-subtable td","padding")="5px 5px"
 	;
 	;"-- Contents of alrgy-info-subtable ---"
 	SET @STYLESREF@(".alrgy-name","padding")="5px 5px"
