@@ -1,4 +1,4 @@
-TMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19, 2/27/20, 3/24/21
+HTMGHL76A ;TMG/kst-HL7 transformation engine processing ;7/30/19, 2/27/20, 3/24/21
               ;;1.0;TMG-LIB;**1**;11/14/16
  ;
  ;"TMG HL7 TRANSFORMATION FUNCTIONS 
@@ -259,10 +259,14 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         . . SET DCDATE=$$EXTDATE^TMGDATE(DCDATE)
         . . SET ADTEDATE=ADTEDATE_" ("_DCDATE_")"
         ;"
+     ;"  Check for color of Facility Cell  8/29/25 - Added this section
+        NEW FACILITYCOLOR  ;"This holds the color for the facility cell
+        SET FACILITYCOLOR=$$GTCOLOR(.ASSIGNEDFACILITY,ADTEVENT)        
      ;"  Populate the data for the TIU Note
-        NEW IDX SET IDX=1;
+        NEW IDX SET IDX=1;        
         IF ASSIGNEDFACILITY'="" SET ASSIGNEDFACILITY=$$TRANSFACNAME(ASSIGNEDFACILITY)
         SET ARR(IDX)="PATIENT NAME^"_PATNAME       SET IDX=IDX+1
+        IF FACILITYCOLOR'="" SET ARR(IDX,"COLOR")=FACILITYCOLOR  ;"8/29/25
         SET ARR(IDX)="FACILITY^"_ASSIGNEDFACILITY  SET IDX=IDX+1
         SET ARR(IDX)="DATE^"_ADTEDATE              SET IDX=IDX+1
         SET ARR(IDX)="VISIT TYPE^"_VISITTYPE       SET IDX=IDX+1
@@ -391,9 +395,11 @@ ARR2TABL(ARR,REFHTML,JDX,STYLE) ;"Convert array to HTML table.
         SET @REFHTML@(JDX,0)="<table "_STYLE_">",JDX=JDX+1
         FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
         . NEW LINE SET LINE=$GET(ARR(IDX)) QUIT:LINE=""
+        . NEW COLOR SET COLOR=$G(ARR(IDX,"COLOR"))
+        . IF COLOR'="" SET COLOR=" style=""background-color: "_COLOR_";"" "
         . NEW COL1 SET COL1=$PIECE(LINE,"^",1)
         . NEW COL2 SET COL2=$PIECE(LINE,"^",2,99)
-        . SET @REFHTML@(JDX,0)="<tr><td>"_COL1_"</td><td>"_COL2_"</td></tr>",JDX=JDX+1
+        . SET @REFHTML@(JDX,0)="<tr><td>"_COL1_"</td><td"_COLOR_">"_COL2_"</td></tr>",JDX=JDX+1
         SET @REFHTML@(JDX,0)="</table>",JDX=JDX+1
         QUIT
         ;
@@ -494,6 +500,12 @@ TRANSFACNAME(ASSIGNEDFACILITY)  ;"Check 22761 to see if name has different name
 TFNDN        
         QUIT ASSIGNEDFACILITY
         ;"
+GTCOLOR(ASSIGNEDFACILITY,ADTEVENT)  ;"COLOR FOR GIVEN FACILITY,ADTEVENT
+        NEW TMGRESULT SET TMGRESULT=""
+        IF $GET(ASSIGNEDFACILITY)'="",+$O(^TMG(22761,"B",ASSIGNEDFACILITY,0)) SET TMGRESULT="#FFFFB3"
+        IF (ADTEVENT="A01")!(ADTEVENT="A02")!(ADTEVENT="A03") SET TMGRESULT="#4E9CFF"
+        QUIT TMGRESULT
+        ;"        
 TESTADD
         NEW TMGDFN,DOS,NOTETITLE,TIUIEN,TMGDUZ,USERNAME
         ;"

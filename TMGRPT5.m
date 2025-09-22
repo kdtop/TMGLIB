@@ -201,7 +201,8 @@ GTQUESTS(ARRAY)
    SET ARRAY(3,1,0)="In the past 7 days, on how many days did you drink alcohol?"
      SET ARRAY(3,1,1)="2451^1^^"
 
-   SET ARRAY(3,2,0)="On days when you drank alcohol, how often did you have alcoholic drinks on one occasion? (5 or more for men, 4 or more for women and those men and women 65 years old or over)" 
+   ;"SET ARRAY(3,2,0)="On days when you drank alcohol, how often did you have alcoholic drinks on one occasion? (5 or more for men, 4 or more for women and those men and women 65 years old or over)"
+   SET ARRAY(3,2,0)="Of those days, how often did you have (5 or more for men, 4 or more for women and those men and women 65 years old or over) alcoholic drinks?"
      SET ARRAY(3,2,1)="2438^0^^Never"
      SET ARRAY(3,2,2)="2439^0^^Once during the week"
      SET ARRAY(3,2,3)="2440^0^MODERATE^2-3 times during the week"

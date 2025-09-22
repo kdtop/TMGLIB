@@ -1092,6 +1092,7 @@ MAXLMTCH(REFARR,STR)  ;"findest longest entry in @REFARR, LMATCH'ing with STR
   . SET RESULT=""
   . NEW IDX FOR IDX=LEN1+1:1:LEN2 DO
   . . SET RESULT=RESULT_$QSUBSCRIPT(CREF,IDX)
+  ;"NOTE: Method below fails if matching string contains ',' Better way above.  Delete later.
   ;"NEW TEMP SET TEMP=RESULT,RESULT=""
   ;"SET LEN=$LENGTH(TEMP,",")
   ;"FOR JDX=1:1:LEN DO   ;"COLLAPSE RESULT (CONTAINING ADDREF) BACK INTO A STRING

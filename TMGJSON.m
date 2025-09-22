@@ -149,7 +149,7 @@ PREPVAL(AVAL)  ;"Prepare a value for output.;
 	. SET AVAL="{}"  ;"JSON object
 	ELSE  IF AVAL="%%empty_array%%" DO
 	. SET AVAL="[]"   ;"JSON array
-    ELSE  IF (AVAL="true")!(AVAL="false") GOTO PVDN  ;"don't quote protect
+	ELSE  IF (AVAL="true")!(AVAL="false") GOTO PVDN  ;"don't quote protect
 	ELSE  IF +AVAL'=AVAL DO
 	. SET AVAL=$$QTSTR(AVAL)
 PVDN ;
@@ -224,7 +224,7 @@ GNT2
 	;
 	SET DONE=(IDX'>0)&(RESIDUAL="")
 	;
-	IF $$TRIM^XLFSTR(TOKEN)="",DONE=0 GOTO GNT1  ;"This can happen with whitespace in json object.  
+	IF $$TRIM^XLFSTR(TOKEN)="",DONE=0 GOTO GNT1  ;"This can happen with whitespace in json object.;
 	;
 	;"-- Now get subsequent token.  Sometimes needed when interpreting TOKEN
 	IF PEEK=0,DONE=0 DO
@@ -451,10 +451,12 @@ JSON2ARR(JSONSTR,OUTREF,ENCAPS,ERR)  ;
 	;"RESULT: None  -- output is into @OUTREF
 	;"NOTE: This currently doesn't support doubly escaped strings, i.e. a strigified json inside another stringified json object
 	;
-	NEW SPEC SET SPEC("\""")="""" SET JSONSTR=$$REPLACE^XLFSTR(JSONSTR,.SPEC)  ;"Unescape JSON quoted strings <-- this replacement causes problems if doubly escaped.;
+	;"//NEW SPEC SET SPEC("\""")="""""" SET JSONSTR=$$REPLACE^XLFSTR(JSONSTR,.SPEC)  ;"Unescape JSON quoted strings <-- this replacement causes problems if doubly escaped.;
+	NEW DBQT SET DBQT=""""
+	NEW ESCQT SET ESCQT="\"_DBQT
 	IF $DATA(ENCAPS)=0 DO GETMATCHENCAP^TMGSTUT3(.ENCAPS,"{""'[")
 	SET OUTREFF=$$CREF^DILF(OUTREF)  ;"ensure closed format
-	NEW MAP DO MAPMATCH3^TMGSTUT3(JSONSTR,"MAP",.ENCAPS)  ;"convert linear string into semi-parsed array describing string
+	NEW MAP DO MAPMATCH3^TMGSTUT3(JSONSTR,"MAP",.ENCAPS,ESCQT)  ;"convert linear string into semi-parsed array describing string
 	DO MAP2ARR(OUTREF,"MAP",,,.ERR)
 	QUIT
 	;
@@ -503,11 +505,11 @@ TESTJ2A2  ;"TEST JSON TO ARRAY2
 	QUIT
 	;
 TESTA2JBOOL ;
-    NEW TMP SET TMP("hungry")="false"
-    NEW RESULT SET RESULT=$$ARR2JSON("TMP")
-    W RESULT,!
-    QUIT
-    ;
+	NEW TMP SET TMP("hungry")="false"
+	NEW RESULT SET RESULT=$$ARR2JSON("TMP")
+	W RESULT,!
+	QUIT
+	;
 TESTJ2A3 ;
 	NEW STR SET STR="[{""value"":[],""type"":""json_array""},{""value"":""1317027576"",""type"":""string""}]"
 	NEW ARR,ERR
@@ -540,137 +542,137 @@ TESTJ2A4 ;
 	. ZWR ARR
 	QUIT
 	;
-    ;; {"OTC": [ {"name": {"brand": null,
-    ;;                     "generic": "Cerave"
-    ;;                    },
-    ;;            "dose/form": "to face at bedtime",
-    ;;            "sig": "Use as directed (for granuloma annulare)",
-    ;;            "comments": "for dermatology use"
-    ;;           }
-    ;;        ],
-    ;;  "RX": [  {"name": {"brand": "Lipitor",
-    ;;                     "generic": "atorvastatin"
-    ;;                    },
-    ;;            "dose/form": "40 mg po at bedtime --\u003e 1/2 (20 mg) daily for cholesterol",
-    ;;            "sig": null,
-    ;;            "comments": "FOR CHOLESTEROL; desired change: reduce dose to 20mg daily"
-    ;;           },                            
-    ;;           {"name": {"brand": "Coreg",
-    ;;                      "generic": "carvedilol"
-    ;;                    },
-    ;;            "dose/form": "12.5 mg --\u003e 6.25 mg BID for racing heart and blood pressure",
-    ;;            "sig": null,
-    ;;            "comments": "FOR RACING HEART AND BLOOD PRESSURE; desired change: reduce dose to 6.25mg twice daily"
-    ;;           },
-    ;;           {"name": {"brand": "Nexium",
-    ;;                     "generic": "esomeprazole"
-    ;;                    },
-    ;;             "dose/form": "40 mg PO Daily FOR STOMACH / REFLUX / DYSPEPSIA",
-    ;;             "sig": null,
-    ;;             "comment     s": null
-    ;;           },
-    ;;           {"name": {"brand": "Ferrex",
-    ;;                     "generic": null
-    ;;                    },"dose/form": "150 150 mg capsule; TID",
-    ;;             "sig": null,
-    ;;             "comments": null        
-    ;;           }    
-    ;;         ]
-    ;; }
-
-    ;"  MAP
-    ;"  }~1 = {
-    ;"  | }~1 = "    "
-    ;"  | }~2 = "
-    ;"  | | }~1 = OTC
-    ;"  | | }~STR = OTC
-    ;"  | }~3 = "
-    ;"  | }~4 = ": "
-    ;"  | }~5 = [
-    ;"  | | }~1 = "        "
-    ;"  | | }~2 = {
-    ;"  | | | }~1 = "            "                        
-    ;"  | | | }~2 = "
-    ;"  | | | | }~1 = name
-    ;"  | | | | }~STR = name
-    ;"  | | | }~3 = "
-    ;"  | | | }~4 = ": "
-    ;"  | | | }~5 = {
-    ;"  | | | | }~1 = "                "
-    ;"  | | | | }~2 = "
-    ;"  | | | | | }~1 = brand
-    ;"  | | | | | }~STR = brand
-    ;"  | | | | }~3 = "
-    ;"  | | | | }~4 = ": null,                "
-    ;"  | | | | }~5 = "
-    ;"  | | | | | }~1 = generic
-    ;"  | | | | | }~STR = generic                               
-    ;"  | | | | }~6 = "
-    ;"  | | | | }~7 = ": "
-    ;"  | | | | }~8 = "
-    ;"  | | | | | }~1 = Cerave
-    ;"  | | | | | }~STR = Cerave
-    ;"  | | | | }~9 = "             
-    ;"  | | | | }~10 = "            "
-    ;"  | | | | }~STR = "                "brand": null,                "generic": "Cerave"            "
-    ;"  | | | }~6 = }
-    ;"  | | | }~7 = ",            "
-    ;"  | | | }~8 = "
-    ;"  | | | | }~1 = dose/form
-    ;"  | | | | }~STR = dose/form
-    ;"  | | | }~9 = "
-    ;"  | | | }~10 = ": "
-    ;"  | | | }~11 = "
-    ;"  | | | | }~1 = to face at bedtime
-    ;"  | | | | }~STR = to face at bedtime
-    ;"  | | | }~12 = "
-    ;"  | | | }~13 = ",            "
-    ;"  | | | }~14 = "
-    ;"  | | | | }~1 = sig
-    ;"  | | | | }~STR = sig
-    ;"  | | | }~15 = "
-    ;"  | | | }~16 = ": "
-    ;"  | | | }~17 = "
-    ;"  | | | | }~1 = Use as directed (for granuloma annulare)
-    ;"  | | | | }~STR = Use as directed (for granuloma annulare)
-    ;"  | | | }~18 = "
-    ;"  | | | }~19 = ",            "                                                                                                                                                 | | | }~20 = "
-    ;"  | | | | }~1 = comments
-    ;"  | | | | }~STR = comments
-    ;"  | | | }~21 = "
-    ;"  | | | }~22 = ": "
-    ;"  | | | }~23 = "
-    ;"  | | | | }~1 = for dermatology use
-    ;"  | | | | }~STR = for dermatology use
-    ;"  | | | }~24 = "
-    ;"  | | | }~25 = "        "
-    ;"  | | | }~STR = "            "name": {                "brand": null,                "generic": "Cerave"            },            "dose/form": "to face at bedtime",       ...
-    ;"  | | }~3 = }
-    ;"  | | }~4 = "    "
-    ;"  | | }~STR = "        {            "name": {                "brand": null,                "generic": "Cerave"            },            "dose/form": "to face at bedtime",...
-    ;"  | }~6 = ]
-    ;"  | }~7 = ",    "
-    ;"  | }~8 = "
-    ;"  | | }~1 = RX
-    ;"  | | }~STR = RX
-    ;"  | }~9 = "
-    ;"  | }~10 = ": "
-    ;"  | }~11 = [
-    ;"  | | }~1 = "        "
-    ;"  | | }~2 = {
-    ;"  | | | }~1 = "            "
-    ;"  | | | }~2 = "
-    ;"  | | | | }~1 = name
-    ;"  | | | | }~STR = name
-    ;"  | | | }~3 = "
-    ;"  | | | }~4 = ": "                                                                                                                                                             | | | }~5 = {
-    ;"  | | | | }~1 = "                "
-    ;"  | | | | }~2 = "
-    ;"  | | | | | }~1 = brand
-    ;"  | | | | | }~STR = brand
-    ;"  | | | | }~3 = "
-    ;"  | | | | }~4 = ": "
-    ;"  | | | | }~5 = "
-    ;"  | | | | | }~1 = Lipitor
-                        
-	
+	;; {"OTC": [ {"name": {"brand": null,
+	;;                     "generic": "Cerave"
+	;;                    },
+	;;            "dose/form": "to face at bedtime",
+	;;            "sig": "Use as directed (for granuloma annulare)",
+	;;            "comments": "for dermatology use"
+	;;           }
+	;;        ],
+	;;  "RX": [  {"name": {"brand": "Lipitor",
+	;;                     "generic": "atorvastatin"
+	;;                    },
+	;;            "dose/form": "40 mg po at bedtime --\u003e 1/2 (20 mg) daily for cholesterol",
+	;;            "sig": null,
+	;;            "comments": "FOR CHOLESTEROL; desired change: reduce dose to 20mg daily"
+	;;           },
+	;;           {"name": {"brand": "Coreg",
+	;;                      "generic": "carvedilol"
+	;;                    },
+	;;            "dose/form": "12.5 mg --\u003e 6.25 mg BID for racing heart and blood pressure",
+	;;            "sig": null,
+	;;            "comments": "FOR RACING HEART AND BLOOD PRESSURE; desired change: reduce dose to 6.25mg twice daily"
+	;;           },
+	;;           {"name": {"brand": "Nexium",
+	;;                     "generic": "esomeprazole"
+	;;                    },
+	;;             "dose/form": "40 mg PO Daily FOR STOMACH / REFLUX / DYSPEPSIA",
+	;;             "sig": null,
+	;;             "comment     s": null
+	;;           },
+	;;           {"name": {"brand": "Ferrex",
+	;;                     "generic": null
+	;;                    },"dose/form": "150 150 mg capsule; TID",
+	;;             "sig": null,
+	;;             "comments": null
+	;;           }
+	;;         ]
+	;; }
+	;
+	;"  MAP
+	;"  }~1 = {
+	;"  | }~1 = "    "
+	;"  | }~2 = "
+	;"  | | }~1 = OTC
+	;"  | | }~STR = OTC
+	;"  | }~3 = "
+	;"  | }~4 = ": "
+	;"  | }~5 = [
+	;"  | | }~1 = "        "
+	;"  | | }~2 = {
+	;"  | | | }~1 = "            "
+	;"  | | | }~2 = "
+	;"  | | | | }~1 = name
+	;"  | | | | }~STR = name
+	;"  | | | }~3 = "
+	;"  | | | }~4 = ": "
+	;"  | | | }~5 = {
+	;"  | | | | }~1 = "                "
+	;"  | | | | }~2 = "
+	;"  | | | | | }~1 = brand
+	;"  | | | | | }~STR = brand
+	;"  | | | | }~3 = "
+	;"  | | | | }~4 = ": null,                "
+	;"  | | | | }~5 = "
+	;"  | | | | | }~1 = generic
+	;"  | | | | | }~STR = generic
+	;"  | | | | }~6 = "
+	;"  | | | | }~7 = ": "
+	;"  | | | | }~8 = "
+	;"  | | | | | }~1 = Cerave
+	;"  | | | | | }~STR = Cerave
+	;"  | | | | }~9 = "
+	;"  | | | | }~10 = "            "
+	;"  | | | | }~STR = "                "brand": null,                "generic": "Cerave"            "
+	;"  | | | }~6 = }
+	;"  | | | }~7 = ",            "
+	;"  | | | }~8 = "
+	;"  | | | | }~1 = dose/form
+	;"  | | | | }~STR = dose/form
+	;"  | | | }~9 = "
+	;"  | | | }~10 = ": "
+	;"  | | | }~11 = "
+	;"  | | | | }~1 = to face at bedtime
+	;"  | | | | }~STR = to face at bedtime
+	;"  | | | }~12 = "
+	;"  | | | }~13 = ",            "
+	;"  | | | }~14 = "
+	;"  | | | | }~1 = sig
+	;"  | | | | }~STR = sig
+	;"  | | | }~15 = "
+	;"  | | | }~16 = ": "
+	;"  | | | }~17 = "
+	;"  | | | | }~1 = Use as directed (for granuloma annulare)
+	;"  | | | | }~STR = Use as directed (for granuloma annulare)
+	;"  | | | }~18 = "
+	;"  | | | }~19 = ",            "                                                                                                                                                 | | | }~20 = "
+	;"  | | | | }~1 = comments
+	;"  | | | | }~STR = comments
+	;"  | | | }~21 = "
+	;"  | | | }~22 = ": "
+	;"  | | | }~23 = "
+	;"  | | | | }~1 = for dermatology use
+	;"  | | | | }~STR = for dermatology use
+	;"  | | | }~24 = "
+	;"  | | | }~25 = "        "
+	;"  | | | }~STR = "            "name": {                "brand": null,                "generic": "Cerave"            },            "dose/form": "to face at bedtime",       ...;
+	;"  | | }~3 = }
+	;"  | | }~4 = "    "
+	;"  | | }~STR = "        {            "name": {                "brand": null,                "generic": "Cerave"            },            "dose/form": "to face at bedtime",...;
+	;"  | }~6 = ]
+	;"  | }~7 = ",    "
+	;"  | }~8 = "
+	;"  | | }~1 = RX
+	;"  | | }~STR = RX
+	;"  | }~9 = "
+	;"  | }~10 = ": "
+	;"  | }~11 = [
+	;"  | | }~1 = "        "
+	;"  | | }~2 = {
+	;"  | | | }~1 = "            "
+	;"  | | | }~2 = "
+	;"  | | | | }~1 = name
+	;"  | | | | }~STR = name
+	;"  | | | }~3 = "
+	;"  | | | }~4 = ": "                                                                                                                                                             | | | }~5 = {
+	;"  | | | | }~1 = "                "
+	;"  | | | | }~2 = "
+	;"  | | | | | }~1 = brand
+	;"  | | | | | }~STR = brand
+	;"  | | | | }~3 = "
+	;"  | | | | }~4 = ": "
+	;"  | | | | }~5 = "
+	;"  | | | | | }~1 = Lipitor
+	;
+	;

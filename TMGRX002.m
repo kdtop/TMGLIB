@@ -172,6 +172,17 @@ GETREFS(MASTERREF,DONEREF,DELREF,CURREF) ;
   SET CURREF=$NAME(^TMP("TMP","EXAMPLE MEDS","WORKING"))
   QUIT
   ;
+ONEPTLIST(REF) ;"Make a list of meds from just 1 patient.
+  NEW RESULT SET RESULT=0
+  NEW X,Y,DIC SET DIC=2,DIC(0)="MAEQ"
+  DO ^DIC WRITE !
+  IF +Y'>0 GOTO OPLDN
+  NEW PTLIST SET PTLIST(+Y)=""
+  DO GETBLIST(REF,.PTLIST)  
+  SET RESULT=1  
+OPLDN ;
+  QUIT RESULT;
+  ;
 BIGLIST(REF) ;"Make a big list of meds, based on the med tables from ALL patients
   ;"INPUT: REF -- pass by NAME.  Reference to where med list will be saved.  
   NEW PTLIST,TMGDFN SET TMGDFN=0 

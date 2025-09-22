@@ -577,16 +577,16 @@ PARSBYTG(HTMLSTR,OUT)  ;"PARSE HTML STRING INTO ARRAY BY TAGS
 SYMENC(STR)	; -- replace reserved xml symbols with their encoding.
   ;"NOTE: This is a replacement for buggy SYMENC^MXMLUTL()  //kt 5/243/18
   ;"      See discussion here: https://groups.google.com/forum/#!topic/hardhats/s2uKhnmVPcM  
-	S STR=$$REPLSTR^TMGSTUT3(STR,"&","&amp;")
-	S STR=$$REPLSTR^TMGSTUT3(STR,"<","&lt;")
-	S STR=$$REPLSTR^TMGSTUT3(STR,">","&gt;")
-	S STR=$$REPLSTR^TMGSTUT3(STR,"'","&apos;")
-	S STR=$$REPLSTR^TMGSTUT3(STR,"""","&quot;")
-	;
+  SET STR=$$REPLSTR^TMGSTUT3(STR,"&","&amp;")
+  SET STR=$$REPLSTR^TMGSTUT3(STR,"<","&lt;")
+  SET STR=$$REPLSTR^TMGSTUT3(STR,">","&gt;")
+  SET STR=$$REPLSTR^TMGSTUT3(STR,"'","&apos;")
+  SET STR=$$REPLSTR^TMGSTUT3(STR,"""","&quot;")
+  ;
   NEW IDX SET IDX=1
   NEW LEN SET LEN=$LENGTH(STR)
   FOR  QUIT:IDX>LEN  DO
-	. NEW A SET A=$A($E(STR,IDX))
+  . NEW A SET A=$A($E(STR,IDX))
   . IF A<32 DO
   . . SET STR=$E(STR,1,IDX-1)_"%"_$$HEX(A)_$E(STR,IDX+1,$L(STR))  ;"<-- encodes control chars as %## e.g. %0A
   . . SET LEN=$LENGTH(STR)

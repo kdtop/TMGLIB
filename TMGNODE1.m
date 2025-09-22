@@ -36,19 +36,18 @@ NODEAPI(CALLTAG,CALLRTN,JSONARGS) ;" Universal Node.js RPC Dispatcher
 	NEW REF SET REF=$NAME(^TMG("TMP","NODEAPI^TMGNODE1"))
 	NEW ZZDEBUG SET ZZDEBUG=0
 	IF $GET(ZZSESSIONFLAG)=1 SET ZZDEBUG=1
+	NEW MAXLEN SET MAXLEN=32760
 	IF ZZDEBUG=0 DO
 	. KILL @REF
 	. SET @REF@("CALLTAG")=CALLTAG
 	. SET @REF@("CALLRTN")=CALLRTN
-	. SET @REF@("JSONARGS")=JSONARGS
+	. DO SPLITSET($NAME(@REF@("JSONARGS")),JSONARGS)  ;"JSONARGS can be huge
 	ELSE  DO
 	. SET CALLTAG=@REF@("CALLTAG")
 	. SET CALLRTN=@REF@("CALLRTN")
-	. SET JSONARGS=@REF@("JSONARGS")
-	. ;
+	. SET JSONARGS=$$SPLITGET($NAME(@REF@("JSONARGS")))  ;"JSONARGS can be huge
 	;
 	NEW TMGRESULT SET TMGRESULT="{}"
-	;
 	NEW CALLFN,CODE,ARGSARR,TMGERR
 	NEW %TMGAPICALLRESULT ;" To store the scalar result of the called function
 	NEW $ETRAP,$ESTACK SET $ETRAP="GOTO CATCHERR^TMGNODE1"
@@ -74,7 +73,8 @@ NODEAPI(CALLTAG,CALLRTN,JSONARGS) ;" Universal Node.js RPC Dispatcher
 	. ;" Encode this error object to JSON
 	. SET TMGRESULT=$$ARR2JSON^TMGJSON("ERROBJ")
 	;"
-	MERGE @REF@("JSONARGS-DECODED")=ARGSARR
+	;"MERGE @REF@("JSONARGS-DECODED")=ARGSARR
+	KILL @REF@("JSONARGS-DECODED")
 	;
 	;" 3. Prepare arguments for the dynamic call
 	;"    Iterate through the top-level subscripts of ARGSARR (representing each original arg)
@@ -111,6 +111,9 @@ NODEAPI(CALLTAG,CALLRTN,JSONARGS) ;" Universal Node.js RPC Dispatcher
 	. . SET @AVARNAME=AVALUE
 	. IF PARAMSTR'="" SET PARAMSTR=PARAMSTR_","
 	. SET PARAMSTR=PARAMSTR_"."_AVARNAME
+	. DO SPLITSET($NAME(@REF@("JSONARGS-DECODED",AVARNAME)),"")
+	. DO SPLITSET($NAME(@REF@("JSONARGS-DECODED",AVARNAME,"VALUE")),AVALUE)
+	. DO SPLITSET($NAME(@REF@("JSONARGS-DECODED",AVARNAME,"TYPE")),ATYPE)
 	;" Close the command string
 	SET CODE=CODE_PARAMSTR_")"
 	;"
@@ -187,9 +190,9 @@ GETRNDID()  ;  ;"Return a 10 digit number, not including 0 value (0 OK as a digi
 	IF +CODE=0 SET CODE=$$GETRNDID()
 	QUIT CODE
 	;
-ID2DATAREF(SESSIONID) ;"Return reference to data for storage.;
+ID2DATAREF(SESSIONID,ERR) ;"Return reference to data for storage.;
 	NEW REF SET REF=""
-	NEW TMGDFN SET TMGDFN=$$SESSION2DFN^TMGNODE1(SESSIONID)
+	NEW TMGDFN SET TMGDFN=$$SESSION2DFN^TMGNODE1(.SESSIONID,.ERR)
 	IF TMGDFN>0 DO
 	. SET REF=$NAME(^XTMP($$SESSIONNM(TMGDFN),"DATA"))
 	QUIT REF
@@ -215,7 +218,7 @@ HASSESSION(DFN)  ;"Return prexisting session ID (if any) or 0 if not present
 	. . KILL ^XTMP(SESSIONLBL,0)  ;"SESSION IS INVALID. KILL OFF SESSION
 	QUIT RESULT
 	;
-SESSION2DFN(SESSIONID)  ;"Get DFN that matches sessionID
+SESSION2DFN(SESSIONID,ERR)  ;"Get DFN that matches sessionID
 	SET SESSIONID=$GET(SESSIONID)
 	NEW RESULT SET RESULT=0
 	NEW PRE SET PRE=$$PREFIX()
@@ -226,9 +229,32 @@ SESSION2DFN(SESSIONID)  ;"Get DFN that matches sessionID
 	. IF (ASESSION'>0)!(ASESSION'=SESSIONID) QUIT
 	. SET RESULT=$PIECE(IDX,PRE,2)
 	. IF RESULT>0 SET DONE=1
+	IF RESULT'>0 DO
+	. SET ERR="Patient not found for sessionID.  Got ID=["_SESSIONID_"]"
 	QUIT RESULT
 	;  ;
 	;"================================================================================"
 	;"================================================================================"
 	;
-	;
+SPLITSET(REF,STR,MAX)  ;"Set STR into @REF, splitting to smaller strings if needed.;
+		SET MAX=$GET(MAX,32760)  ;"Largest disk records I think is actually 32767
+		IF $LENGTH(STR)<MAX DO
+		. SET @REF=STR
+		ELSE  DO
+		. NEW IDX SET IDX=0
+		. SET @REF="%%split_string%%"
+		. FOR  DO  QUIT:$LENGTH(STR)=0
+		. . NEW SUBSTR SET SUBSTR=$EXTRACT(STR,1,MAX)
+		. . SET @REF@($I(IDX))=SUBSTR
+		. . SET STR=$EXTRACT(STR,MAX+1,$LENGTH(STR))
+		QUIT
+		;
+SPLITGET(REF)  ;"Reverse of SPLITSET.  Used to recover long strings
+		NEW RESULT SET RESULT=$GET(@REF)
+		IF RESULT="%%split_string%%" DO
+		. SET RESULT=""
+		. NEW IDX SET IDX=0
+		. FOR  SET IDX=$ORDER(@REF@(IDX)) QUIT:IDX'>0  DO
+		. . SET RESULT=RESULT_$GET(@REF@(IDX))
+		QUIT RESULT
+		;
