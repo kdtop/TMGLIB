@@ -131,7 +131,17 @@ AA3     SET IEN60=$$ADD60(NEWTESTNAME,PRINTNAME,FLD63D04,.TMGENV) ;"not interact
         WRITE !,!,INDENTSTR,"OK.  Newly added test should be available to use.",!
 AADN    QUIT TMGRESULT
         ;
-GETPRTNAME(TESTNAME,INDENTN) ;"Get PRINT NAME for TEST NAME
+TESTPRTNAME(PRNTNAME)  ;"Ensure TESTNAME passes input transform for field.
+        ;"Result: 1 if passes, 0 if not.  
+        NEW X SET X=$GET(PRNTNAME)
+        NEW DA SET DA=0
+        NEW CODE SET CODE=$PIECE($GET(^DD(60,51,0)),"^",5,999)
+        DO 
+        . NEW $ETRAP SET $ETRAP="write ""(Invalid M Code!.  Error Trapped.)"",! SET $ETRAP="""",$ECODE="""""
+        . XECUTE CODE
+        QUIT ($DATA(X)>0)
+        ;
+GETPRTNAME(TESTNAME,INDENTN) ;"Get PRINT NAME for TEST NAME   //kt 7/28/26
         ;"Input: TESTNAME -- Name of test to get print name for
         ;"       INDENTN -- [OPTIONAL] Number of spaces to indent
         ;"Result: Returns PRINT NAME, or -1^error if problem or abort.
@@ -147,7 +157,7 @@ GETPRTNAME(TESTNAME,INDENTN) ;"Get PRINT NAME for TEST NAME
         SET TESTNAME=$GET(TESTNAME,"?")
         NEW PRINTNAME SET PRINTNAME=""
         NEW AUTONAME SET AUTONAME=""
-        IF $LENGTH(TESTNAME)'>7 SET TMGRESULT=TESTNAME GOTO GPNDN
+        IF ($LENGTH(TESTNAME)'>7),($$TESTPRTNAME(TESTNAME)=1) SET TMGRESULT=TESTNAME GOTO GPNDN
         ;"Split TESTNAME into an array of words. 
         NEW ARR,ARRI,STR,IDX,CH
         SET ARRI=0,STR=""
@@ -189,9 +199,9 @@ GPN0    ;
         WRITE !
         SET TMGUSERINPUT=$$MENU^TMGUSRI2(.TMGMNU,"1")
         KILL TMGMNU ;"Prevent from cluttering variable table during debug run
-        IF TMGUSERINPUT="AUTO" DO  GOTO GPNDN
+        IF TMGUSERINPUT="AUTO" DO  GOTO GPN2
         . SET TMGRESULT=AUTONAME
-        IF TMGUSERINPUT="PRINTNAME" DO  GOTO GPNDN
+        IF TMGUSERINPUT="PRINTNAME" DO  GOTO GPN2
         . SET TMGRESULT=PRINTNAME
         IF TMGUSERINPUT="^" DO  GOTO GPNDN
         . SET TMGRESULT="-1^User aborted"  ;"default to failure
@@ -199,6 +209,10 @@ GPN0    ;
         . WRITE INDENTSTR,"Cursor keys enabled.",!
         . WRITE INDENTSTR SET PRINTNAME=$$EDITBOX^TMGUSRI6("",7,"_",0,0,7)
         GOTO GPN0
+        ;
+GPN2    IF $$TESTPRTNAME(TMGRESULT)=0 DO  GOTO GPN0
+        . WRITE !,"NOTE: [",TMGRESULT,"] fails Fileman input transform.  Please try again",!
+        . DO PRESS2GO^TMGUSRI2
 GPNDN   ;        
         QUIT TMGRESULT
         ;"OLD METHOD BELOW.  Delete later...

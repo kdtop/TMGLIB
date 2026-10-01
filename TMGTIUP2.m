@@ -183,12 +183,13 @@ PARSETIU(IEN8925,ITEMARRAY,OPTION) ;"parse HPI section of TIU NOTE with processi
   ;"        ITEMARRAY -- PASS BY REFERNCE.  An OUT PARAMETER.  See PARSEARR() for format
   ;"        OPTION -- PASS BY REFERENCE.  OPTIONAL
   ;"          OPTION("FORCE PROCESS")=# (default is 1) If 1 note is processed even if tag is absent
-  ;"          OPTION("THREADS") = 1.  If THREADS option desired.  See description PRTIUHTM^TMGTIUP3.  NOTE: 'THREADS' is different from 'THREAD' ('THREAD' is used downstream)
+  ;"          OPTION("THREADS") = 1.  If THREADS option desired.  See description PRTIUHTM^TMGTIUP3.  NOTE: 'THREADS' is different from 'THREAD FMDT' ('THREAD FMDT' is used downstream)
   ;"          OPTION("SKIP REFRESH TABLES")=1 If should NOT refresh tables. 
   ;"RESULT: 1^OK, or -1^ErrorMessage
   NEW RESULT SET RESULT="1^OK"  ;"default
   NEW TIUARRAY,PROCESSEDARR,IDX SET IDX=0
   SET OPTION("IEN8925")=IEN8925
+  SET OPTION("PROVIEN")=+$PIECE($GET(^TIU(8925,IEN8925,12)),"^",2)  ;"//kt 9/30/26 Pass note provider for provider-specific thread extraction
   NEW TMGDFN SET TMGDFN=+$PIECE($GET(^TIU(8925,IEN8925,0)),"^",2)
   SET TIUARRAY("DFN")=TMGDFN
   SET ITEMARRAY("DFN")=TMGDFN  ;"5/30/19
@@ -196,7 +197,7 @@ PARSETIU(IEN8925,ITEMARRAY,OPTION) ;"parse HPI section of TIU NOTE with processi
   . SET TIUARRAY("TEXT",IDX)=$GET(^TIU(8925,IEN8925,"TEXT",IDX,0))
   IF $GET(OPTION("THREADS"))=1 DO
   . NEW DT SET DT=$PIECE($GET(^TIU(8925,IEN8925,0)),"^",7) ;"0;7 -> Episode Begin Date/Time
-  . SET OPTION("THREAD")=DT  ;"NOTE: 'THREADS' is different from 'THREAD'.  'THREAD' is used downstream
+  . SET OPTION("THREAD FMDT")=DT  ;"NOTE: 'THREADS' is different from 'THREAD FMDT'.  'THREAD FMDT' is used downstream
   DO PROCESS^TMGTIUP3(.PROCESSEDARR,.TIUARRAY,.OPTION) 
   DO SCRUBESCRIBE(.PROCESSEDARR) ;"SCRUB ARRAY FOR ESCRIBE TAGS
   NEW RTNNOTE,TEMP 
@@ -253,7 +254,7 @@ PARSEARR(TIUARRAY,ITEMARRAY,OPTION,RTNNOTE)  ;"Parse note array into formatted a
   ;"          OPTION("SKIP AUTOADD","SOCIAL") = 1 if should NOT add section if missing
   ;"          OPTION("SKIP AUTOADD","PREVENTION") = 1 if should NOT add section if missing
   ;"          OPTION("SKIP AUTOADD","CONTRACEPTION") = 1 if should NOT add section if missing
-  ;"          OPTION("THREAD") = FMDT.  See description PRTIUHTM^TMGTIUP3
+  ;"          OPTION("THREAD FMDT") = FMDT.  See description PRTIUHTM^TMGTIUP3
   ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
   ;"          OPTION("START TAGS",<some start tag>)="" -- Optional ADDITIONAL start tag (defaults still used) for getting HPI elements (topics) from
   ;"          OPTION("END TAGS",<some start tag>)="" -- Optional ADDITIONAL end tag (defaults still used) for getting HPI elements (topics) from
@@ -860,7 +861,7 @@ SPLITTL(SECTION,TOPIC,TEXTARR,TABLES,OPTION) ;"Split TOPIC and main text of sect
   ;"       TEXTARR -- PASS BY REFERENCE.  AN OUT PARAMETER.  This is SECTION with TOPIC stripped, and cleaned.  
   ;"       TABLES -- OPTIONAL.  PASS BY REFERENCE.  Allows reuse from prior calls.  
   ;"       OPTION -- OPTIONAL
-  ;"          OPTION("THREAD") = FMDT.  See description PRTIUHTM^TMGTIUP3
+  ;"          OPTION("THREAD FMDT") = FMDT.  See description PRTIUHTM^TMGTIUP3
   ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
   ;"Results: NONE 
   NEW DIV SET DIV=$$NEXTCH^TMGSTUT3(SECTION,0,":",".","--","---","----")  ;"can add up to 7 strs to check for
@@ -947,7 +948,7 @@ PRCSSTXT(TEXTARR,TABLES,OPTION)  ;"Process, parse, clean text for one section fo
   ;"           ... etc. 
   ;"       TABLES -- OPTIONAL.  PASS BY REFERENCE.  Allows reuse from prior calls.  
   ;"       OPTION -- OPTIONAL
-  ;"          OPTION("THREAD") = FMDT.  See description PRTIUHTM^TMGTIUP3
+  ;"          OPTION("THREAD FMDT") = FMDT.  See description PRTIUHTM^TMGTIUP3
   ;"          OPTION("TOPIC") = TOPIC name for section
   ;"          OPTION("IEN8925") = IEN of note (8925) being evaluated
   ;"       TOPIC -- OPTIONAL -- name of topic (section title) being checked

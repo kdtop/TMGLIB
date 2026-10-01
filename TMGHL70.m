@@ -234,28 +234,9 @@ TESTPARS(TMGENV,TMGTESTMSG,TMGHL7MSG,INDENTN) ;
         IF $DATA(TMGTESTMSG)'>0 DO  GOTO TSTMSG
         . SET TMGRESULT="-1^No message provided to parse, in TESTPARS.TMGHL70"
         ;
-        ;"SET TMGENV("INDENTN")=INDENTN
         NEW OPTION SET OPTION("INTERACTIVE MODE")=1
         SET TMGRESULT=$$HL7PROCESS^TMGHL71(.TMGHL7MSG,.TMGENV,.TMGTESTMSG,.OPTION) ;" PARSE, then XFORM
-        ;
-        ;
-        ;"  NEW TEMP SET TEMP=1
-        ;"  SET TMGRESULT=$$PRSEARRY^TMGHL7X2(,.TMGTESTMSG,.TMGHL7MSG,.TMGU)        
-        ;"  IF TMGRESULT<0 QUIT
-        ;"  SET TMGRESULT=$$SETMAPS^TMGHL70B(.TMGENV,.TMGHL7MSG)
-        ;"  ;"---------------------------------------------------
-        ;"  ;"//kt added below 4/9/19 because a test was failing during full parse, but succeeding here and thus couldn't fix.              
-        ;"  IF TMGRESULT<0 QUIT
-        ;"  SET TMGHL7MSG("STAGE")="PRE"
-        ;"  SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
-        ;"  IF TMGRESULT<0 QUIT
-        ;"  SET TMGRESULT=$$SETMAPS^TMGHL70B(.TMGENV,.TMGHL7MSG)
-        ;"  IF TMGRESULT<0 QUIT
-        ;"  SET TMGHL7MSG("STAGE")="FINAL"
-        ;"  SET TMGRESULT=$$XFMSG^TMGHL7X(.TMGENV,.TMGHL7MSG)
-        ;"  SET TMGHL7MSG("STAGE")=""
-        ;"  ;"---------------------------------------------------
-TSTMSG ;    
+TSTMSG  ;    
         WRITE !,INDENTSTR        
         IF TMGRESULT<0 DO  
         . WRITE $PIECE(TMGRESULT,"^",2),!
@@ -419,7 +400,9 @@ VM1     SET TEST=TESTID
         ;"  lookup by name.  Thus TESTID might not have map but TESTNAME might.  So need to show both.                               
         SET TESTID=$PIECE(TEST,TMGU(2),1)
         IF TEST'["^" GOTO VM15
-        NEW TESTNAME SET TESTNAME=$PIECE(TEST,TMGU(2),2)
+        NEW TESTNAME,ALTTESTID,ALTTESTNAME  ;"//kt 4/1/26 
+        DO PARSETESTNAME^TMGHL7U(TEST,.TMGU,.TESTID,.TESTNAME,.ALTTESTID,.ALTTESTNAME) ;"//kt 4/1/26        
+        ;" NEW TESTNAME SET TESTNAME=$PIECE(TEST,TMGU(2),2)
         WRITE !,"NOTE: Mapping should be checked for BOTH TestID AND TestName",!
         WRITE "      This is because when processing HL7 message, if test can't be",!
         WRITE "      found by ID, then the system falls back to lookup by name.",!

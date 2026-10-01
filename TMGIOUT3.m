@@ -183,11 +183,21 @@ HFS2ARR(PATH,FILENAME,REF,OPTION)  ;
         . KILL %ZZWP(IDX,0)
         GOTO H2ARDN
 H2AR2   ;" handle dividing up by custom line terminator character(s)  Added 8/30/13
+        ;"NOTE: 7/10/26
+        ;" $$FTG^ZISH, on linux, reads 'records' from the filesystem, which
+        ;"   automatically uses $C(10) as line terminator (record divider). 
+        ;"   Therefore, if LINETERM=$C(13,10), then data at this point will
+        ;"   already be divided by $C(10), and each line will have a trailing
+        ;"   $C(13). So I will test for this case and change LINETERM to
+        ;    just $C(13)
         NEW TEMPREF SET TEMPREF="%ZZWP(0)"
         NEW TEMPARR,IDX SET IDX=0
         NEW RESIDUAL SET RESIDUAL=""
         FOR  SET TEMPREF=$QUERY(@TEMPREF) QUIT:(TEMPREF="")  DO
         . NEW S SET S=$GET(@TEMPREF) QUIT:S=""
+        . IF LINETERM=$C(13,10) DO
+        . . IF $EXTRACT(S,$LENGTH(S))=$C(13) DO
+        . . . SET LINETERM=$C(13)  ;"See comment above for rationale for this. 
         . SET S=RESIDUAL_S
         . SET RESIDUAL=""
         . NEW NUMPARTS SET NUMPARTS=$LENGTH(S,LINETERM)

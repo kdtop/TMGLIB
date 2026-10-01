@@ -454,6 +454,7 @@ RPCDN  ;
   ;  
 HASPDF(OUT,TMGDFN,SDT,EDT,INCLUDEALL)  ;"RPC FOR HAS LAB PDF for given date range?
   IF +$G(INCLUDEALL)=1 DO GTLABDTS(.OUT,TMGDFN,SDT,EDT) QUIT
+  SET EDT=EDT+1
   DO RPCHASPDF^TMGLRPD1(.OUT,.TMGDFN,.SDT,.EDT)
   QUIT
   ;
@@ -576,7 +577,7 @@ LABREPRT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"lab report
         . . . . SET COMMENT=COMMENT_$GET(LABS("DT",ADT,"COMMENT",JDX))
         . . . . ;"SET OUT(IDX)=STR,IDX=IDX+1     
         . IF (COMMENT'="")&(COUNT>0) DO
-		. . SET @ROOT@(IDX)="<tr bgcolor=""#FAFAD4""><td colspan=""6""><font face=""Consolas"">"_COMMENT_"</font></td></tr>",IDX=IDX+1
+		. . SET @ROOT@(IDX)="<tr bgcolor=""#FAFAD4""><td colspan=""6""><font face=""Consolas""><pre>"_COMMENT_"</pre></font></td></tr>",IDX=IDX+1
 		. ;"SET OUT(3)=$G(ARRAY(1))
 		. SET @ROOT@(IDX)="</td></tr></table><br>",IDX=IDX+1
 		SET @ROOT@(IDX)="</font></body></html>" 

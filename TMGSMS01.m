@@ -528,16 +528,18 @@ SENDLAB1(DAYLEAD) ;"Send out SMS messages for upcoming appts, via HTTP method
   . NEW PHONE SET PHONE=""
   . FOR  SET PHONE=$ORDER(OUT("MSG",TMGDFN,PHONE)) QUIT:(PHONE="")  DO
   . . NEW MSG SET MSG=$GET(OUT("MSG",TMGDFN,PHONE)) QUIT:MSG=""
-  . . ;"SET MSG="Hi "_$$FNAME(TMGDFN)_". "
-  . . SET MSG="NOTICE: Beginning on March 3, 2026 Family Physicians of Greeneville will not have an in office lab. This is only temporary as we make other arrangements. Please visit https://www.familyphysiciansofgreeneville.com/labinfo or call us at 423-787-7000 for further details."
+  . . ;"SET MSG="Hi "_$$FNAME(TMGDFN)_". Please note that effective immediately our new lab hours will be from 8:15 AM to 11:45 AM on Monday, Tuesday, Thursday, and Friday. We will no longer have lab hours after Noon. Please call us at 787-7000 if you have any questions."
+  . . ;"SET MSG="Hi "_$$FNAME(TMGDFN)_". Please note that Dr. Toppenberg's office will be closed from Friday 7/3 through Monday 7/13. We will reopen on Tuesday 7/14. The LAB WILL BE OPEN 8AM-Noon on Monday 7/6, Friday 7/10 and Monday 7/13. Please visit our website for further details www.familyphysiciansofgreeneville.com ."  
+  . . SET MSG="Hi "_$$FNAME(TMGDFN)_". Please note that the LAB at Dr. Toppenberg's office will not be open today (9/8/26). If you need bloodwork today, please contact us at 423-787-7000 to discuss options. We are sorry for the inconvenience."
   . . IF LIVE=1 DO 
   . . . DO ADDLINE^TMGSMS01(.ARR,"csv:"_PHONE_"|"_MSG)
   . . . ;"                                           DO SMSSEND1^TMGKERN5(PHONE,MSG,TMGDFN) ;
   . . ELSE  WRITE PHONE," -- ",$LENGTH(MSG)," -- ",MSG,!
   ;" SET MSG="NOTICE: Beginning on March 3, 2026 Family Physicians of Greeneville will not have an in office lab. This is only temporary as we make other arrangements. Please visit https://www.familyphysiciansofgreeneville.com/labinfo or call us at 423-787-7000 for further details."
   ;" SET MSG="NOTICE: Beginning on March 3, 2026 Family Physicians of Greeneville will not have an in office lab. This is only temporary as we make other arrangements. Please visit https://www.familyphysiciansofgreeneville.com/labinfo or call us for further details."
+  ;SET MSG="Hi Eddie. Please note that Dr. Toppenberg's office will be closed from Friday 7/3 through Monday 7/13. We will reopen on Tuesday 7/14. The LAB WILL BE OPEN 8AM-Noon on Monday 7/6, Friday 7/10 and Monday 7/13. Please visit our website for further details www.familyphysiciansofgreeneville.com ."
   ;" NEW NONE MERGE NONE=OUT("NONE")
-  ;" DO ADDLINE^TMGSMS01(.ARR,"csv:14234260236|"_MSG)
+  ;DO ADDLINE^TMGSMS01(.ARR,"csv:14234260236|"_MSG)
   ZWR ARR
   DO SMSSEND^TMGKERN5(.ARR,.STORE,1)
   QUIT

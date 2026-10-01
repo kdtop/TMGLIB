@@ -30,6 +30,7 @@ TMGKERNL ;TMG/kst/OS Specific functions ;3/8/18, 8/3/22
  ;"$$LINUXCMD(CMD,OUT)  -- execute command on linux system, and return output
  ;"$$ISFILE(FPNAME)  ;-- FileExists() type file.  See also $$FILEXIST^TMGIOUTL(FilePathName)
  ;"$$ISDIR^TMGKERNL(Path) 
+ ;"$$LINETRMS(FPNAME) -- Return line terminators for file
  ;"$$DIR2(PATH,OUT,OPTION) --Expanded directory lising, with parsing to array etc.  
  ;"$$ENSURDIR(DIR) -- ensure directory path exists  
  ;"$$EnsureDir(Dir) -- ensure directory path exists
@@ -328,6 +329,21 @@ LINUXCURL(OUT,URL,ARR,HEADERS,DATA) ;"Shell to linux curl command.
   . IF $$DEL^%ZISH(DIR,$NAME(DELARR))  ;"ignore possible errors. 
   QUIT
  ;
+LINETRMS(FPNAME) ;"Return line terminators for file
+  ;"Result:  CR, LF, CRLF, NEL (next line) or "" if not ASCII text or if problem.  
+  NEW CMD SET CMD="file -b """_FPNAME_""""
+  NEW OUT DO LINUXCMD(CMD,.OUT) SET OUT=$$UP^XLFSTR($GET(OUT(1)))
+  NEW RESULT SET RESULT=""
+  IF (OUT'["TEXT"),(OUT'["CHARACTER DATA") GOTO FTSDN  ;"NOTE: This might include multi-byte text...
+  SET RESULT="LF"  ;"Normal Unix text is reported without explicitly mentioning LF.
+  NEW POS SET POS=$FIND(OUT," LINE TERMINATORS") IF POS=0 GOTO FTSDN  
+  NEW TERMEND SET TERMEND=POS-$LENGTH(" LINE TERMINATORS")-1  ;"$FIND returns the position immediately after the matched phrase.
+  ;"Scan backward to the space before CR, LF, CRLF or NEL
+  NEW TERMSTART FOR TERMSTART=TERMEND:-1:0 QUIT:$EXTRACT(OUT,TERMSTART)=" "
+  SET RESULT=$EXTRACT(OUT,TERMSTART+1,TERMEND)
+FTSDN ;  
+  QUIT RESULT
+  ;
 RANDOM(LOW,HI) ;"Return random number
   ;"Input: LOW -- OPTIONAL, low end of range for random number. Default = 0
   ;"       HI -- OPTIONAL, high end of range for random number.  Default = 1

@@ -528,6 +528,19 @@ ASKMRRPT  ;
        DO PRESS2GO^TMGUSRI2
 MRRDn  QUIT
        ;"
+RUNPRRPT  ;
+       ;"Purpose: Provide an NON-interactive entry point for report
+       ; device.
+       NEW %ZIS,IOP
+       SET IOP="S121-LAUGHLIN-LASER"
+       DO ^%ZIS  ;"standard device call
+       IF POP DO  GOTO RMRDn
+       . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output. Aborting.")
+       use IO
+       DO CNSLTRPT(1,0)
+       DO ^%ZISC  ;" Close the output device
+RMRDn  QUIT
+       ;
 ALLINRS ;
        ;"Purpose: This report will diaplay all patient's PT/INR TIU Notes
        ;"         for the past year for verification of Sequel charges
@@ -1516,6 +1529,57 @@ TEST
    ;"
 TEST1
    QUIT "YES"
+   ;"
+MCAREAWV ;"
+       NEW MEDICAREARR,PTARRAY,TODAY,OUTARR,DATE,TEST
+       SET TODAY=$$TODAY^TMGDATE
+       DO GETSCHED^TMGPXR03(.PTARRAY,TODAY,TODAY)
+       NEW TMGDFN SET TMGDFN=0
+       NEW PTNAME
+       FOR  SET TMGDFN=$O(PTARRAY(TMGDFN)) QUIT:TMGDFN'>0  DO
+       . SET PTNAME=$P($G(^DPT(TMGDFN,0)),"^",1)
+       . NEW INSIDX SET INSIDX=0
+       . FOR  SET INSIDX=$O(^DPT(TMGDFN,.312,INSIDX)) QUIT:INSIDX'>0  DO
+       . . NEW ZN,COB
+       . . SET ZN=$G(^DPT(TMGDFN,.312,INSIDX,0))
+       . . SET COB=$P(ZN,"^",20)
+       . . IF COB=1 DO
+       . . . SET INS1=+$P(ZN,"^",1)
+       . . . IF INS1=3 DO
+       . . . . NEW LASTDATE SET LASTDATE=$$ADVCPEDN^TMGPXR01(TMGDFN,.TEST,.DATE)
+       . . . . NEW FMLAST SET FMLAST=$$INTDATE^TMGDATE(LASTDATE)
+       . . . . NEW NEXTDATE SET NEXTDATE="No billed AWV on file. Anytime is fine to schedule."
+       . . . . IF LASTDATE'["NO CPE" DO
+       . . . . . SET NEXTDATE=$$ADDDAYS^TMGDATE(366,FMLAST)
+       . . . . . IF NEXTDATE<$$TODAY^TMGDATE DO
+       . . . . . . SET NEXTDATE="Next billable date of "_$$EXTDATE^TMGDATE(NEXTDATE,1)_" has passed. Anytime is fine to schedule."
+       . . . . . ELSE  DO
+       . . . . . . SET NEXTDATE="**Schedule next on or after "_$$EXTDATE^TMGDATE(NEXTDATE,1)
+       . . . . . . SET PTNAME=" !! "_PTNAME
+       . . . . SET MEDICAREARR(PTNAME)=LASTDATE_"^"_NEXTDATE
+       IF $D(MEDICAREARR) DO
+       . NEW %ZIS
+       . SET %ZIS("A")="Enter Output Device: "
+       . SET IOP="S121-LAUGHLIN-LASER"
+       . DO ^%ZIS  ;"standard device call
+       . IF POP DO  GOTO PPDN
+       . . DO SHOWERR^TMGDEBU2(.PriorErrorFound,"Error opening output.  Aborting.")
+       . use IO
+       . ;"
+       . WRITE !
+       . WRITE "***************************************************************",!
+       . WRITE "        Last AWV for Medicare patients on today's schedule",!
+       . WRITE "                   ",$$EXTDATE^TMGDATE($$TODAY^TMGDATE()),!
+       . WRITE "           Please deliver this report to Tammy",!
+       . WRITE "***************************************************************",!
+       . WRITE "                                               (From TMGRPT1.m)",!!
+       . SET PTNAME=""
+       . FOR  SET PTNAME=$O(MEDICAREARR(PTNAME)) QUIT:PTNAME=""  DO
+       . . WRITE PTNAME," was last done on: ",$P($G(MEDICAREARR(PTNAME)),"^",1),!
+       . . IF $P($G(MEDICAREARR(PTNAME)),"^",2)'="" WRITE "    ",$P($G(MEDICAREARR(PTNAME)),"^",2),!
+       . . WRITE !
+       . DO ^%ZISC  ;" Close the output device
+       QUIT
    ;"
        
 

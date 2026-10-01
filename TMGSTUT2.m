@@ -1,4 +1,4 @@
-TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19,10/28/24
+TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;10/28/24, 4/9/26
          ;;1.0;TMG-LIB;**1,17**;7/17/12
   ;
   ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
@@ -48,6 +48,8 @@ TMGSTUT2 ;TMG/kst/SACC ComplIant String Util LIb ;5/23/19,10/28/24
   ;"LTRIM(S,TRIMCH) -- LEFT TRIM. 
   ;"RTRIM(S,TRIMCH) -- RIGHT TRIM. 
   ;"EXTR2CHAR(STR,CHAR,STARTPOS)  -- Extract up to (but not including) CHAR
+  ;"NORMARR(ARR) --NORMALIZE TEXT ARR.  Remove bad chars from text arr.  
+  ;"NORMSTR(STR,CHANGED,MODE,REPL) -NORMALIZE STRING.  Remove bad chars from text string.
   ;
   ;"=======================================================================
   ;" Private Functions.
@@ -760,3 +762,37 @@ EXTR2CHAR(STR,CHAR,STARTPOS)  ;"Extract up to (but not including) CHAR
   SET RESULT=$EXTRACT(STR,STARTPOS,POS)
 X2CDN ;  
   QUIT RESULT
+  ;
+NORMARR(ARR)  ;"NORMALIZE TEXT ARR.  Remove bad chars from text arr.  
+  ;"Input: ARR -- A text array with format of ARR(#)=<text>.  PASS BY REFERENCE
+  ;"Result: none
+  ;"Output: array is modified if bad chars are found.  Replaced as appropriate.  
+  NEW IDX SET IDX=""
+  NEW STR,STR2,CHANGED
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX'>0  DO
+  . SET STR=$GET(ARR(IDX)) QUIT:STR=""
+  . SET STR2=$$NORMSTR(.STR,.CHANGED) QUIT:CHANGED=0
+  . SET ARR(IDX)=STR2
+  ;
+NORMSTR(STR,CHANGED,MODE,REPL)   ;"NORMALIZE STRING.  Remove bad chars from text string.
+  ;"Input: STR -- string to check.  Modified if passed by reference
+  ;"       CHANGED-- OPTIONAL.  An OUT PARAMETER.  Returned as 0 if not changed, or 1 if changed
+  ;"       MODE -- OPTIONAL.  (not case sensitive).  Default is "p"
+  ;"                   'a' - full ASCII (chars 0-127)
+  ;"                   'p' -- printable ASCII (i.e. chars 32 - 126)
+  ;"       REPL -- OPTIONAL.  Character to use for replacement of bad chars.  Default=" "
+  SET CHANGED=0
+  SET MODE=$$UP^XLFSTR($GET(MODE)) 
+  IF MODE="" SET MODE="P"
+  ELSE  IF "AP"'[MODE SET MODE="P"
+  SET REPL=$GET(REPL," ")
+  SET REPL=$EXTRACT($GET(REPL),1)
+  NEW IDX,LEN SET LEN=$LENGTH(STR)
+  FOR IDX=1:1:LEN DO
+  . NEW CH SET CH=$EXTRACT(STR,IDX)
+  . NEW AN SET AN=$ASCII(CH)
+  . NEW OK SET OK=((MODE["A")&(AN<128))!((MODE["P")&(AN>31)&(AN<127))
+  . IF OK QUIT
+  . SET CHANGED=1,$EXTRACT(STR,IDX)=REPL
+  QUIT STR
+  ;

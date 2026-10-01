@@ -399,7 +399,7 @@ HELHRPT(TMGDFN)
   ;"       ORFHIE --
   ;"Result: None.  Output goes into @ROOT
   ;"NEW THHEAD SET THHEAD="<th style=""background-color:"_$$COLOR("TOPIC")_""">"
-  NEW HD SET HD="<table BORDER=3><CAPTION><b>PERSONALIZED PREVENTION PLAN OF SERVICE</b></CAPTION><tr style=""background-color:"_$$COLOR("TOPIC")_"""><th>ITEM</th>"
+  NEW TMGRESULT,HD SET HD="<table BORDER=3><CAPTION><b>PERSONALIZED PREVENTION PLAN OF SERVICE</b></CAPTION><tr style=""background-color:"_$$COLOR("TOPIC")_"""><th>ITEM</th>"
   SET HD=HD_"<th>STATUS</th><th>LAST DONE</th><th>DUE DATE</th><th>FREQUENCY</th></tr>"
   ;"SET HD=HD_"<th>STATUS</th></tr>"
   NEW SUFFIXARR DO GETSUFFIX(TMGDFN,.SUFFIXARR)
@@ -415,7 +415,15 @@ HELHRPT(TMGDFN)
   . SET REMNAME=$P($G(REMLIST(REMIEN)),"^",1),FREQ=$P($G(REMLIST(REMIEN)),"^",2)
   . SET STATUS=$P(REMRESULT,"^",1),DONE=$P($P(REMRESULT,"^",3),"@",1),DUE=$P($P(REMRESULT,"^",2),"@",1)
   . NEW STATUSTOKEEP SET STATUSTOKEEP="DUE NOW^DUE SOON^RESOLVED^DONE"
-  . IF STATUSTOKEEP'[STATUS QUIT
+  . ;" We want to keep the mammogram reminder on here regardless of status. 4/16/26
+  . NEW IGNOREREM SET IGNOREREM=0
+  . ;"IF (STATUSTOKEEP'[STATUS)&(REMIEN'=224) QUIT
+  . IF REMIEN=224 DO
+  . . NEW SEX SET SEX=$P($G(^DPT(TMGDFN,0)),"^",2)
+  . . IF $$UP^XLFSTR(SEX)'["F" SET IGNOREREM=1
+  . ELSE  DO
+  . . IF STATUSTOKEEP'[STATUS SET IGNOREREM=1
+  . IF IGNOREREM=1 QUIT
   . IF (STATUS="RESOLVED")!(STATUS="DONE") SET STATUS="Up To Date"
   . NEW HFDONE SET HFDONE=0
   . IF $D(HFFORREMS(REMIEN)) DO   
@@ -463,6 +471,10 @@ HELHRPT(TMGDFN)
   . IF REMIEN=223 SET REMNAME=REMNAME_$G(SUFFIXARR("COLON"))
   . IF REMIEN=300 SET REMNAME=REMNAME_$G(SUFFIXARR("SHINGRIX"))
   . IF FREQ="" SET FREQ="NO FREQUENCY DEFINED"
+  . ;" Here I am adding a final check for the Status. If Reminder is Due within 3 months, change to DUE SOON for all reminders
+  . NEW THISDUE SET THISDUE=$$INTDATE^TMGDATE($P(DUE,"@",1))
+  . NEW DAYSDIFF SET DAYSDIFF=$$DAYSDIFF^TMGDATE($$TODAY^TMGDATE(),THISDUE)
+  . IF DAYSDIFF<91 SET STATUS="DUE SOON"
   . SET TMGRESULT(REMIEN)=REMNAME_"^"_STATUS_"^"_DONE_"^"_DUE_"^"_FREQ
   . ;"SET TMGRESULT(REMIEN)=$G(REMLIST(REMIEN))_"^"_STATUS
   NEW TMGOUT
@@ -596,4 +608,54 @@ DRVSPACE()  ;"
   . DO INFRMALT^TMGXQAL(.ALRTRESULT,150,ALERT)
   QUIT
   ;"
+CHECKFLU  ;"CHECK FLU SHOTS BILLED FOR AND DOCUMENTED FOR TODAY
+ ;"
+  NEW BILLEDARR
+  DO FLUSHOTS^TMGSSQL1(.BILLEDARR)
+  NEW %ZIS,IOP
+  SET IOP="S121-LAUGHLIN-LASER"
+  DO ^%ZIS  ;"standard device call
+  IF POP QUIT
+  USE IO
+  ;"
+  WRITE !
+  WRITE "************************************************************",!
+  WRITE "          FLU SHOTS BILLED FOR TODAY (",$$TODAY^TMGDATE(1,1),")",!
+  WRITE "************************************************************",!
+  WRITE "                                            (From TMGSSQL1.m)",!!
+  ;"
+  NEW PTNAME SET PTNAME=""
+  NEW COUNT SET COUNT=0
+  FOR  SET PTNAME=$O(BILLEDARR(PTNAME)) QUIT:PTNAME=""  DO
+  . SET COUNT=COUNT+1
+  . WRITE COUNT,") ",PTNAME,!
+  WRITE !,COUNT," Total Flu Shots Billed For Today",!
+  NEW TIUDATE SET TIUDATE=$$TODAY^TMGDATE_".00001"
+  NEW PATARR
+  FOR  SET TIUDATE=$O(^TIU(8925,"D",TIUDATE)) QUIT:TIUDATE=""  DO
+  . NEW TIUIEN SET TIUIEN=0
+  . FOR  SET TIUIEN=$O(^TIU(8925,"D",TIUDATE,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . NEW TIUTYPE SET TIUTYPE=$P($G(^TIU(8925,TIUIEN,0)),"^",1)
+  . . IF TIUTYPE'=18 QUIT
+  . . NEW PATIENT SET PATIENT=$P($G(^TIU(8925,TIUIEN,0)),"^",2)
+  . . NEW TEXT,TEXTIDX SET TEXTIDX=0,TEXT=""
+  . . FOR  SET TEXTIDX=$O(^TIU(8925,TIUIEN,"TEXT",TEXTIDX)) QUIT:TEXTIDX'>0  DO
+  . . . SET TEXT=TEXT_$$UP^XLFSTR($G(^TIU(8925,TIUIEN,"TEXT",TEXTIDX,0)))
+  . . . IF (TEXT["FLU")&(TEXT["TODAY") DO
+  . . . . SET PATARR($P($G(^DPT(PATIENT,0)),"^",1))=""
+  WRITE !
+  WRITE "************************************************************",!
+  WRITE "          FLU SHOTS DOCUMENTED FOR TODAY (",$$TODAY^TMGDATE(1,1),")",!
+  WRITE "************************************************************",!
+  WRITE "                                            (From TMGRPT5.m)",!!
+  NEW PTNAME SET PTNAME=""
+  NEW COUNT SET COUNT=0
+  FOR  SET PTNAME=$O(PATARR(PTNAME)) QUIT:PTNAME=""  DO
+  . SET COUNT=COUNT+1
+  . WRITE COUNT,") ",PTNAME,!
+  WRITE !,COUNT," Total Flu Shots Documented Today",!
+  DO ^%ZISC  ;" Close the output device
+  QUIT
+  ;"
+
   

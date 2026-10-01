@@ -159,8 +159,8 @@ FILEADT(TMGENV,TMGHL7MSG)  ;"File the ADT report.
         IF PCPDUZ'>0 DO  GOTO FADTDN
         . SET TMGRESULT="-1^PCP COULD NOT BE DETERMINED FOR "_$P($G(^DPT(TMGDFN,0)),"^",1)_"  FROM HL7 ADT MESSAGE"
         NEW EDDIEMSG SET EDDIEMSG=""
-        NEW ALRTDUZ SET ALRTDUZ=150  ;"//hard coded to Eddie Hagood user
-        ;"NEW ALRTDUZ SET ALRTDUZ=1053  ;"//Setting to Lindsey
+        ;"NEW ALRTDUZ SET ALRTDUZ=150  ;"//hard coded to Eddie Hagood user
+        NEW ALRTDUZ SET ALRTDUZ=1053  ;"//Setting to Lindsey
         NEW ERDCNOTE SET ERDCNOTE=0
         ;"
      ;" USED HL7 SEGMENTS

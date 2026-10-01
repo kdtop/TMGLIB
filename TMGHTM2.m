@@ -48,7 +48,9 @@ PROCESS(HTMLIO,CALLBACKFN)  ;"Parse HTML array into HTML DOM, then call CALLBACK
   . IF $ORDER(HTML(""))'="" DO  QUIT
   . . SET TMGRESULT="-1^Data found in both HTML= and HTML(x)="
   . SET HTML(1)=HTML,HTML="",RESULTASONELINE=1
-  IF $$ISHTMLAR^TMGHTM1(.HTML)=0 SET TMGRESULT="1^SKIPPED" GOTO PROCDN  ;"//kt  If passed text is NOT HTML, then parser will hang on chars like '<', so skip
+  NEW ISHTML SET ISHTML=$$ISHTMLAR^TMGHTM1(.HTML)  ;"//kt 10/1/26 Detection is heuristic, not full HTML validation
+  IF ISHTML=0 SET TMGRESULT="1^SKIPPED" GOTO PROCDN  ;"//kt  If passed text is NOT HTML, then parser will hang on chars like '<', so skip
+  DO ESCARROW(.HTML)  ;"//kt 10/1/26 Escape raw left arrows only in text already classified as HTML
   NEW ERR SET ERR=$$PARSHTML^TMGEWD01(.HTML,DOMNAME)
   IF ERR'="" SET TMGRESULT="-1^"_ERR GOTO PROCDN
   NEW CODE SET CODE="DO "_CALLBACKFN_"("""_DOMNAME_""",.ERR)"
@@ -94,6 +96,13 @@ PROCESS(HTMLIO,CALLBACKFN)  ;"Parse HTML array into HTML DOM, then call CALLBACK
 PROCDN  ; 
   USE SAVEIO  ;//$P
   QUIT TMGRESULT
+  ;
+ESCARROW(HTML) ;"Escape raw '<--' so it cannot be read as an unterminated HTML tag  ;"//kt 10/1/26
+  NEW IDX SET IDX=""  ;"//kt 10/1/26
+  FOR  SET IDX=$ORDER(HTML(IDX)) QUIT:IDX=""  DO  ;"//kt 10/1/26
+  . NEW STR SET STR=$GET(HTML(IDX)) QUIT:STR'["<--"  ;"//kt 10/1/26
+  . SET HTML(IDX)=$$REPLSTR^TMGSTUT3(STR,"<--","&lt;--")  ;"//kt 10/1/26 Preserve the displayed arrow while preventing DOM parsing as a tag
+  QUIT
   ;
 UPTAGS(HTMLSTR)  ;"Convert all HTML tag names to UPPER CASE
   QUIT $$CASETAGS(HTMLSTR,1)

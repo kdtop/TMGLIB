@@ -923,7 +923,7 @@ GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"SENT RECORDS RE
 	    IF $D(CONSULTARR) DO
 	    . SET @ROOT@(ROOTIDX)="<p>",ROOTIDX=ROOTIDX+1
 	    . SET @ROOT@(ROOTIDX)="<table BORDER=3><CAPTION><B>SET TO AUTOSEND LAB RESULTS</b></CAPTION>",ROOTIDX=ROOTIDX+1
-	    . SET @ROOT@(ROOTIDX)="<TH>When new Pathgroup results are imported, an alert goes to medical records to send them to the following specialists:</TH>",ROOTIDX=ROOTIDX+1
+	    . SET @ROOT@(ROOTIDX)="<TH>When new LabCorp results are imported, an alert goes to medical records to send them to the following specialists:</TH>",ROOTIDX=ROOTIDX+1
 	    . NEW CONSULT SET CONSULT=""
 	    . FOR  SET CONSULT=$O(CONSULTARR(CONSULT)) QUIT:CONSULT=""  DO
 	    . . SET @ROOT@(ROOTIDX)="<tr><td>"_CONSULT_"</td></tr>",ROOTIDX=ROOTIDX+1

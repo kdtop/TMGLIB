@@ -67,11 +67,15 @@ PKPT ;
   IF LRDFN'>0 DO  GOTO FDSPDN
   . WRITE "That patient does not have any labs!  Quitting",!
 PKLB ;  
+  NEW DT,TMP SET TMP=$$PKLABDT^TMGLRWU3(TMGDFN)
+  SET DT=+$PIECE(TMP,"^",2) IF DT>0 GOTO PKL2  ;"//kt 6/28/26
+  ;"Older lookup method below
   SET DIC="^LR("_LRDFN_",""CH""," SET DIC("A")="Enter exact DATE/TIME of lab: "
   DO ^DIC WRITE !
   IF Y'>-1 GOTO PKPT
   NEW RDT SET RDT=+Y
-  NEW DT SET DT=$$RDT2FMDT^TMGLRWU1(RDT)
+  SET DT=$$RDT2FMDT^TMGLRWU1(RDT)
+PKL2 ;  
   NEW PANEL,MENU,SEQ,CT,INPUT
   NEW DA,DR,DIE SET DIE=60,DR=56,DIE("NO^")="OUTOK"
 MNU1
@@ -95,6 +99,19 @@ MNU1
   DO ^DIE WRITE !
   GOTO MNU1
 FDSPDN ;  
+  QUIT
+  ;
+TESTGARR(OUT) ;"Test getting array of labs.
+  SET DIC=2,DIC(0)="MAEQ",DIC("A")="Select patient with sample labs: "
+  DO ^DIC WRITE ! QUIT:+Y'>0
+  SET TMGDFN=+Y
+  NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
+  IF LRDFN'>0 DO  GOTO FDSPDN
+  . WRITE "That patient does not have any labs!  Quitting",!
+  NEW DT,TMP SET TMP=$$PKLABDT^TMGLRWU3(TMGDFN)
+  SET DT=+$PIECE(TMP,"^",2) IF DT'>0 GOTO TGADN
+  DO GETARR(.OUT,TMGDFN,DT)
+TGADN ;  
   QUIT
   ;
 GETARR(OUT,TMGDFN,DT)  ;"USED BY FIXDISP ABOVE

@@ -1289,6 +1289,9 @@ parseElement(%line,%attr,%error,isHTML)
  . . s %this="attrName",attrName="",%apos=""
  . s %c=$e(%buf,%pos)
  . s %c2=$e(%buf,%pos+1)
+ . i %c="" d  q  ;"//kt 10/1/26 Do not loop forever when a malformed tag has no closing '>'
+ . . i %tagStart s %error="Unterminated HTML tag: "_$e(%buf,1,200)  ;"//kt 10/1/26
+ . . s %stop=1  ;"//kt 10/1/26
  . i '%tagStart,%c="<" s %tagStart=1 q
  . i %tagStart,%this="" s %this="tagName"
  . i %this="tagName",tagName["CDATA[",%c'=" " d  q

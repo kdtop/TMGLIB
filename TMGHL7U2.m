@@ -306,9 +306,10 @@ XFRMFACILITY(FACILITY,TMGU) ;"Transform sending facility before any processing i
         IF "^JMHZ^SSHZ^WH^SN^MRMC^CORP^NNCH^LPH^GHC^JCCHZ"[FACILITY SET SHOULDMAP=1    
         IF "^JCHC^BWP^RCHZ^EXTEC^WHSBO,HVIC^LCCH^WIRX^"[FACILITY SET SHOULDMAP=1    
         IF "^DCH^TH^AHC^SCCH^MVRMC^ETSUP^SUHS^ETSUPHY^"[FACILITY SET SHOULDMAP=1    
-        IF "^APP^"[FACILITY SET SHOULDMAP=1    
+        IF "^APP^ETSUB^BHSRX^"[FACILITY SET SHOULDMAP=1    
         ;"IF "^TN-SFH CBC^"[FACILITY SET SHOULDMAP=1    
-        IF "^101077^101001^101034^"[FACILITY SET SHOULDMAP=1            
+        IF "^101077^101001^101034^"[FACILITY SET SHOULDMAP=1
+        IF FACILITY="PO" SET FACILITY="BN"  ;"LABCORP
         IF FACILITY="" SET SHOULDMAP=1
         IF SHOULDMAP DO
         . SET FACILITY="BALLADNETWORK"
@@ -382,6 +383,9 @@ MSH2IENA(MSH,INFO) ;"MSH HEADER TO IEN INFO ARRAY
         NEW IEN771D2 SET IEN771D2=+Y
         ;                
         NEW EVNTMTYPE SET EVNTMTYPE=$PIECE(MSGTYPE,TMGU(2),2)
+        ;"  ELH NOTE: 7/9/26
+        ;" ADDED THE BELOW STATEMENT BECAUSE LABCORP DOESN'T SEND MTYPE. CHATGPT SAID THIS WAS A SAFE ASSUMPTION
+        IF EVNTMTYPE="" SET EVNTMTYPE="R01"
         IF $$XFRMEVENT(.EVNTMTYPE) DO
         . ;"Commented below so the Event in the HL7 msg will reflect the proper event, but EVNTMTYPE will pass the validation
         . ;"SET $PIECE(MSGTYPE,TMGU(2),2)=EVNTMTYPE
@@ -639,7 +643,15 @@ LOADMSG3(TMGTESTMSG,FPATH,FNAME) ;"Get message from path, name
         . IF %=1 KILL TMGTESTMSG
         IF $DATA(TMGTESTMSG) GOTO LM3DN
         NEW OPTION SET OPTION("OVERFLOW")=1
-        SET OPTION("LINE-TERM")=$CHAR(13)   ;"NOTE: HL7 messages have just #13 as line terminator. 
+        ;"//kt mod 6/24/26 ------------
+        ;"NOTE: Traditional HL7 messages have just #13 as line terminator. 
+        NEW LT SET LT=$$LINETRMS^TMGKERNL(FPATH_FNAME)  ;"//kt 6/24/26  Check actual terminators
+        ;"NOTE: This is unix code, and LF termination is standard, so won't specify as special terminator.  
+        NEW CH SET CH=$SELECT(LT="LF":"",LT="CRLF":$CHAR(13,10),LT="CR":$CHAR(13),1:"") ;"//kt 6/24/26
+        IF CH'="" SET OPTION("LINE-TERM")=CH
+        ;"//kt original --> SET OPTION("LINE-TERM")=$CHAR(13)   ;"NOTE: HL7 messages have just #13 as line terminator. 
+        ;"//kt original --> SET OPTION("LINE-TERM")=CH
+        ;"//kt end mod
         DO HFS2ARR^TMGIOUT3(FPATH,FNAME,"TMGTESTMSG",.OPTION)
         IF '$DATA(TMGTESTMSG) DO
         . WRITE "Sorry.  No HL7 Message.",!
@@ -647,11 +659,27 @@ LOADMSG3(TMGTESTMSG,FPATH,FNAME) ;"Get message from path, name
 LM3DN   QUIT
         ;                
 EDITMSG(TMGTESTMSG) ;"Edit message array via HFS (Linux) joe text editor. 
-        ;"Input:
+        ;"Input: TMGTESTMSG -- PASS BY REFERENCE.  Format:
+        ;"            TMGTESTMSG(#)='NTE|3|L|Control 1: 20738701209' <-- FOR EXAMPLE
+        ;"NOTE: if there are long ZEF nodes (used to store binary of pdf files), they will be 
+        ;"      removed before editing, because editor messes them up.  
+        NEW ZEF,IDX SET IDX=""
+        FOR  SET IDX=$ORDER(TMGTESTMSG(IDX)) QUIT:IDX'>0  DO
+        . NEW LINE SET LINE=$GET(TMGTESTMSG(IDX)) QUIT:LINE=""
+        . IF $EXTRACT(LINE,1,3)'="ZEF" QUIT
+        . IF $LENGTH(LINE)<256 QUIT
+        . MERGE ZEF(IDX)=LINE   ;"SAVE OFF ANY LONG ZEF LINE
+        . KILL TMGTESTMSG(IDX)
         NEW TMGRESULT SET TMGRESULT=$$EditArray^TMGKERNL(.TMGTESTMSG,"joe")
-        IF TMGRESULT'>0 DO
+        IF TMGRESULT'>0 DO  
         . WRITE "Edit of currently loaded HL7 message was not successful.",!
         . DO PRESS2GO^TMGUSRI2
+        SET IDX="" FOR  SET IDX=$ORDER(ZEF(IDX)) QUIT:IDX'>0  DO
+        . SET LINE=$GET(ZEF(IDX)) QUIT:LINE=""
+        . NEW JDX SET JDX=IDX
+        . IF $DATA(TMGTESTMSG(IDX))>0 SET JDX=$ORDER(TMGTESTMSG(""),-1)+1  ;"if, after editing, prior index is used, then add to end of array
+        . SET TMGTESTMSG(JDX)=LINE
+EMSGDN  ;        
         QUIT
         ;        
 VIEWMSG0(MSG) ;

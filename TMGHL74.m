@@ -165,7 +165,11 @@ OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc ar
         DO LABLDATA^TMGHL72(.TEMP,.TMGHL7MSG,"OBR",TMGSEGN) ;
         ;
         NEW ORDINFO MERGE ORDINFO=TMGHL7MSG("ORDER",TMGSEGN)
-        NEW TESTNAME SET TESTNAME=$PIECE($GET(TMGHL7MSG("ORDER",TMGSEGN,"IEN60")),"^",2)
+        NEW TESTNAME 
+        IF $D(USEPREMAP) DO  ;"FOR LABCORP   7/27/26
+        . SET TESTNAME=$GET(TMGHL7MSG("ORDER",TMGSEGN,"PREMAP","TESTNAME"))
+        ELSE  DO
+        . SET TESTNAME=$PIECE($GET(TMGHL7MSG("ORDER",TMGSEGN,"IEN60")),"^",2)
         ;
         NEW INFO,PROV,PID  
         NEW ONEACSN SET ONEACSN=$PIECE($GET(TEMP("Filler Order Number")),"^",1)
@@ -183,6 +187,7 @@ OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc ar
         IF PROV["DOCTOR",PROV["UNSPECIFIED",$DATA(TMGINFO("PROV","ORIGINAL")) DO
         . SET PROV=$$HL7N2FMN^TMGHL72(.TMGU,$GET(TMGINFO("PROV","ORIGINAL")))
         . IF PROV["" SET PROV=$TRANSLATE(PROV,"""","'") 
+        IF $D(TMGORCNPI) SET PROV=PROV_" (NPI: "_TMGORCNPI_")"
         NEW OBSDT SET OBSDT=$GET(TEMP("Observation Date/Time"))
         SET OBSDT=$$HL72FMDT^TMGHL7U3(OBSDT)
         SET OBSDT=$$FMTE^XLFDT(OBSDT)
@@ -192,6 +197,7 @@ OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc ar
         NEW RPTDT SET RPTDT=$GET(TEMP("Results Rpt/Status Chng - Date/Time"))
         SET RPTDT=$$HL72FMDT^TMGHL7U3(RPTDT)
         SET RPTDT=$$FMTE^XLFDT(RPTDT)
+        NEW SPECSOURCE SET SPECSOURCE=$P($P($GET(TEMP("Specimen Source")),"^",2),"=",1)
         ;"NEW STATUS SET STATUS=$GET(TEMP("Result Status"))
         ;"IF STATUS="F" SET STATUS="FINAL"
         ;"IF STATUS="I" SET STATUS="INCOMPLETE/PRELIMINARY"
@@ -208,12 +214,15 @@ OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc ar
         NEW GENDER SET GENDER=$GET(TEMP2("Sex"))
         IF GENDER="F" SET GENDER="FEMALE"
         IF GENDER="M" SET GENDER="MALE"
+        IF GENDER="U" SET GENDER="Unknown"
+        IF GENDER="N" SET GENDER="Not Indicated"
         NEW PTDOB SET PTDOB=$GET(TEMP2("Date/Time Of Birth"))
         SET PTDOB=$$HL72FMDT^TMGHL7U3(PTDOB)
         SET PTDOB=$$FMTE^XLFDT(PTDOB,"2D")
         NEW PTNAME SET PTNAME=$TRANSLATE($GET(TEMP2("Patient Name")),TMGU(2),",")
         NEW ACCTN SET ACCTN=$GET(TEMP2("Patient Account Number"))
         NEW PATIENT SET PATIENT=PTNAME_" ("_PTDOB_"), "_GENDER
+        IF $DATA(LABCORPACCTN) SET ACCTN=$G(LABCORPACCTN)  ;"7/14/26
         IF ACCTN'="" SET PATIENT=PATIENT_", Acct #"_ACCTN
         ;
         NEW LINE,ARR,FLD,VALUE SET FLD=""   
@@ -224,6 +233,7 @@ OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc ar
         DO ADD2ARRI^TMGHL72(.ARR,"Lab Accession Number: ",ONEACSN)
         DO ADD2ARRI^TMGHL72(.ARR,"Patient: ",PATIENT)
         DO ADD2ARRI^TMGHL72(.ARR,"Lab Patient ID: ",PID)
+        IF $D(TMGALTPID) DO ADD2ARRI^TMGHL72(.ARR,"Alt Lab Patient ID: ",TMGALTPID)        
         SET LINE="Specimen Collection Date: "_OBSDT
         IF $GET(TMGHL75OBRCOLDT)=1 SET LINE=LINE_" <-- see *NOTE*"
         DO ADDTOARR^TMGHL72(.ARR,LINE)
@@ -232,9 +242,23 @@ OBRDN   ;"Purpose: setup for OBR fields, called *after* fields, subfields etc ar
         . DO ADDTOARR^TMGHL72(.ARR,"          Using date/time lab RECEIVED instead.")    
         KILL TMGHL75OBRCOLDT
         DO ADD2ARRI^TMGHL72(.ARR,"Specimen Received Date: ",RECDT)
+        IF SPECSOURCE'="" DO
+        . DO ADD2ARRI^TMGHL72(.ARR,"Specimen Source: ",SPECSOURCE)
+        IF $D(TMGHL7MSG("LABCORP","SPECIMEN")) DO     ;"8/21/26
+        . NEW SPECIDX SET SPECIDX=0
+        . FOR  SET SPECIDX=$O(TMGHL7MSG("LABCORP","SPECIMEN",SPECIDX)) QUIT:SPECIDX'>0  DO
+        . . NEW ONESPEC SET ONESPEC=$G(TMGHL7MSG("LABCORP","SPECIMEN",(SPECIDX)))
+        . . DO ADD2ARRI^TMGHL72(.ARR,"Specimen "_SPECIDX_": ",$P(ONESPEC,"^",1)_", "_$P(ONESPEC,"^",2))
+        . . ;"DO ADD2ARRI^TMGHL72(.ARR,"  Collection Date/Time: ",$P(ONESPEC,"^",3))
+        IF ($D(LABCORPVOLUME))&(LABCORPVOLUME'="") DO
+        . DO ADD2ARRI^TMGHL72(.ARR,"Total Volume: ",LABCORPVOLUME_" ml")
         DO ADD2ARRI^TMGHL72(.ARR,"Result Report Date: ",RPTDT)
         ;"DO ADD2ARRI^TMGHL72(.ARR,"Result Status: ",STATUS)
-        DO ADDA2ARR^TMGHL72(.ARR,.STATARR) 
+        IF $D(LABCORPSTATUS) DO  ;"7/28/26 FOR LABCORP
+        . DO ADD2ARRI^TMGHL72(.ARR,"Result Status: ",LABCORPSTATUS)
+        ELSE  DO
+        . DO ADDA2ARR^TMGHL72(.ARR,.STATARR)
+        IF $D(LABCORPFASTING) DO ADD2ARRI^TMGHL72(.ARR,"Patient Fasting: ",$G(LABCORPFASTING))
         DO ADDA2ARR^TMGHL72(.ARR,.OBRCOMMENTS)  ;"nothing added if array empty 
         DO ADDTOARR^TMGHL72(.ARR,$$DBLN^TMGHL72())
         ;           

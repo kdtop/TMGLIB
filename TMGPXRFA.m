@@ -59,10 +59,18 @@ COLNSCOP(LIST,FIEVAL,RESULT) ;"SET FOLLOWUP FREQUENCY FOR COLONOSCOPY.
         NEW MRD SET MRD=$$MRDFN^TMGPXRF1(.FIEVAL,"TMG COLONOSCOPY COMPLETED")
         IF MRD=0 GOTO CLNSDN  ;"leaves frequency at baseline   
         NEW FACTORS DO LOADHFAR("TMG COLONOSCOPY FU",.FACTORS)
+        SET FACTORS("TMG FECAL IMM COLOGUARD NEG")=""  ;"6/8/26 GET THIS HF TOO
+        SET FACTORS("TMG COLONOSCOPY D/C FOR 2YRS")=""  ;"6/8/26 GET THIS HF TOO
         NEW NAME SET NAME=$$MRFNDN^TMGPXRF1(.FIEVAL,.FACTORS) ;"Name of most recent finding.
         IF NAME="" GOTO CLNSDN  ;"leaves frequency at baseline
-        NEW YR,MO,DAY DO INTRVLST^TMGPXRF1(NAME,4,.YR,.MO,.DAY) ;"FU interval from string
-        NEW FREQ SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
+        NEW FREQ 
+        IF NAME="TMG FECAL IMM COLOGUARD NEG" DO  ;"ADDED IF HERE TO ACCOUNT FOR NEG COLOGUARD 6/8/26
+        . SET FREQ="3Y"
+        ELSE  IF NAME="TMG COLONOSCOPY D/C FOR 2YRS" DO ;"ADDED IF HERE TO ACCOUNT FOR D/C 2 YRS 6/8/26
+        . SET FREQ="2Y"
+        ELSE  DO
+        . NEW YR,MO,DAY DO INTRVLST^TMGPXRF1(NAME,4,.YR,.MO,.DAY) ;"FU interval from string
+        . SET FREQ=$SELECT((YR>0):YR_"Y",(MO>0):MO_"M",(DAY>0):DAY_"D",1:"")
         SET $PIECE(DEFARR(25,FFN,0),"^",2)=50  ;"MIN age of 50 for routine colonoscopies
         SET $PIECE(DEFARR(25,FFN,0),"^",3)=99  ;"MAX age of 75 for routine colonoscopies
         SET $PIECE(DEFARR(25,FFN,0),"^",4)=FREQ

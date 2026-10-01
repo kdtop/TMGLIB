@@ -75,8 +75,8 @@ XFMSG(TMGENV,TMGHL7MSG) ;"
         NEW TMGORD SET TMGORD=0
         FOR  SET TMGORD=$ORDER(TMGHL7MSG("PO",TMGORD)) QUIT:(+TMGORD'>0)!(TMGRESULT<0)  DO
         . SET TMGSEGN=TMGHL7MSG("PO",TMGORD)
-        . NEW SEGNAME SET SEGNAME=$GET(TMGHL7MSG(TMGSEGN,"SEG")) QUIT:SEGNAME=""
-        . NEW IENSEG SET IENSEG=+$ORDER(^TMG(22720,IEN22720,11,"B",SEGNAME,0))
+        . NEW TMGSEGNAME SET TMGSEGNAME=$GET(TMGHL7MSG(TMGSEGN,"SEG")) QUIT:TMGSEGNAME=""
+        . NEW IENSEG SET IENSEG=+$ORDER(^TMG(22720,IEN22720,11,"B",TMGSEGNAME,0))
         . IF IENSEG'>0 QUIT
         . SET TMGRESULT=$$XFSEG(IEN22720,IENSEG,TMGSEGN,.TMGHL7MSG,.TMGU) ;"transform segments (and from there all subnodes)
         IF TMGRESULT<0 DO  GOTO XFMP
@@ -99,8 +99,10 @@ XFSEG(IEN22720,IENSEG,TMGSEGN,TMGHL7MSG,TMGU) ;
         ;"       TMGSEGN -- The segment number being handled.
         ;"       TMGHL7MSG -- PASS BY REFERENCE.  Format -- See PARSEMSG above.
         ;"       TMGU -- Array with divisor characters
+        ;"Use in GLOBAL SCOPE:  TMGSEGNAME
         ;"Result: 1 if OK, or -1^message IF problem.
         NEW TMGRESULT SET TMGRESULT=1
+        IF $GET(TMGHL7MSG("IGNORE",TMGSEGNAME,TMGSEGN))=1 QUIT ;"skip segments marked to be ignored.
         NEW TMGVALUE,TMGOLDVAL
         ;"------------ Entire seg, prerun code ------------
         SET (TMGVALUE,TMGOLDVAL)=$$STRIPSN(TMGSEGN,.TMGHL7MSG,.TMGU) ;"first piece with segment name (e.g. 'OBX') removed.
@@ -110,6 +112,7 @@ XFSEG(IEN22720,IENSEG,TMGSEGN,TMGHL7MSG,TMGU) ;
         . SET TMGRESULT=$$XECCODE(TMGCODE,.TMGVALUE,TMGSEGN)
         . IF (TMGRESULT=1),(TMGVALUE'=TMGOLDVAL) DO STORSTPD(TMGVALUE,TMGSEGN,.TMGHL7MSG,.TMGU) ;"Refreshed in procedure
         IF TMGRESULT<0 GOTO XFSDN
+        IF $GET(TMGHL7MSG("IGNORE",TMGSEGNAME,TMGSEGN))=1 QUIT ;"skip segments marked to be ignored.
         ;"------------ Code for each field ---------------
         IF $ORDER(^TMG(22720,IEN22720,11,IENSEG,0))'>0 GOTO XFS2  ;"No entries for field transforms. 
         NEW TMGFLDN SET TMGFLDN=0
@@ -117,6 +120,7 @@ XFSEG(IEN22720,IENSEG,TMGSEGN,TMGHL7MSG,TMGU) ;
         . IF $DATA(^TMG(22720,IEN22720,11,IENSEG,11,TMGFLDN))=0 QUIT
         . SET TMGRESULT=$$XFFLD(IEN22720,IENSEG,TMGSEGN,TMGFLDN,.TMGHL7MSG,.TMGU)
         IF TMGRESULT<0 GOTO XFSDN
+        IF $GET(TMGHL7MSG("IGNORE",TMGSEGNAME,TMGSEGN))=1 QUIT ;"skip segments marked to be ignored.
         ;"------------ Entire seg, postrun code ------------
 XFS2    SET (TMGVALUE,TMGOLDVAL)=$$STRIPSN(TMGSEGN,.TMGHL7MSG,.TMGU) ;"first piece with segment name (e.g. 'OBX') removed.
         SET TMGCODREF=$NAME(^TMG(22720,IEN22720,11,IENSEG,12))
@@ -136,8 +140,10 @@ XFFLD(IEN22720,IENSEG,TMGSEGN,TMGFLDN,TMGHL7MSG,TMGU) ;
         ;"       TMGFLDN -- The field number being handled.
         ;"       TMGHL7MSG -- PASS BY REFERENCE.  Format -- See PARSEMSG above.
         ;"       TMGU -- Array with divisor characters
+        ;"Use in GLOBAL SCOPE:  TMGSEGNAME
         ;"Result: 1 if OK, or -1^message IF problem, or 0 IF nothing done
         NEW TMGRESULT SET TMGRESULT=1
+        IF $GET(TMGHL7MSG("IGNORE",TMGSEGNAME,TMGSEGN))=1 QUIT ;"skip segments marked to be ignored.
         NEW TMGVALUE,TMGOLDVAL
         ;"------------ Entire field, prerun code ------------
         SET (TMGVALUE,TMGOLDVAL)=$GET(TMGHL7MSG(TMGSEGN,TMGFLDN))
@@ -149,6 +155,7 @@ XFFLD(IEN22720,IENSEG,TMGSEGN,TMGFLDN,TMGHL7MSG,TMGU) ;
         . . SET TMGHL7MSG(TMGSEGN,TMGFLDN)=TMGVALUE
         . . DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,TMGSEGN,TMGFLDN)
         IF TMGRESULT<0 GOTO XFFDN
+        IF $GET(TMGHL7MSG("IGNORE",TMGSEGNAME,TMGSEGN))=1 QUIT ;"skip segments marked to be ignored.
         ;"------------ Code for each component ---------------
         IF $ORDER(^TMG(22720,IEN22720,11,IENSEG,11,TMGFLDN,0))'>0 GOTO XFF2  ;"No entries for component transforms. 
         NEW TMGCOMPN SET TMGCOMPN=0
@@ -261,7 +268,7 @@ STORSTPD(S,TMGSEGN,TMGHL7MSG,TMGU) ;
         ;"         back into place, using name in the SEG node.  If SEG node not found, then
         ;"         function will exit without storing.
         ;"NOTE: This function WILL refresh the array, parsing changes into subnodes.
-        NEW SEGNAME SET SEGNAME=$GET(TMGHL7MSG(TMGSEGN,"SEG")) GOTO:(SEGNAME="") STSPD
-        SET TMGHL7MSG(TMGSEGN)=SEGNAME_TMGU(1)_S
+        NEW TMGSEGNAME SET TMGSEGNAME=$GET(TMGHL7MSG(TMGSEGN,"SEG")) GOTO:(TMGSEGNAME="") STSPD
+        SET TMGHL7MSG(TMGSEGN)=TMGSEGNAME_TMGU(1)_S
         DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,TMGSEGN)
 STSPD   QUIT

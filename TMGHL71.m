@@ -94,7 +94,7 @@ HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH,EXT,OPTION)    ;
   ;"                  folder to moved completed messages.  
   ;"                  NOTE: subfolders ./Processed  and ./Failed_Messages defined.
   ;"                    will be auto-added if not present (if file permissions allow)
-  ;"       EXT -- OPTIONAL.  Default = '.txt'  '.hl7' is also always added.  
+  ;"       EXT -- OPTIONAL.  Default = '.txt'  '.hl7' and '.DAT' are also always added.  
   ;"       OPTION -- OPTIONAL.  PASS BY REFERENCE. See HL7PROCESS for description
   ;"Result: none
   SET COUNT=+$GET(COUNT,999999)
@@ -103,9 +103,11 @@ HLDIRIN(DIRNAME,COUNT,MAXERRCT,DONEPATH,EXT,OPTION)    ;
   IF $EXTRACT(EXT,1)'="." SET EXT="."_EXT
   SET EXT="*"_EXT
   NEW EXT2 SET EXT2="*.HL7"
+  NEW EXT3 SET EXT3="*.DAT"
   NEW SRCH 
   SET SRCH(EXT)="",SRCH($$UP^XLFSTR(EXT))="",SRCH($$LOW^XLFSTR(EXT))=""
   SET SRCH(EXT2)="",SRCH($$UP^XLFSTR(EXT2))="",SRCH($$LOW^XLFSTR(EXT2))=""
+  SET SRCH(EXT3)="",SRCH($$UP^XLFSTR(EXT3))="",SRCH($$LOW^XLFSTR(EXT3))=""
   NEW LOG,LOGIDX SET LOGIDX=1
 HLDR1 ;  
   NEW HLDIRRETRY SET HLDIRRETRY=0
@@ -602,7 +604,7 @@ CHECKLONGZEF(TMGMSG,ZEFOUT) ;"Look for a long ZEF segment, which is an embedded 
  ;"NOTE: I was having crashes because ZEF segment was > 32k chars in length
  NEW IDX SET IDX=0
  FOR  SET IDX=$ORDER(TMGMSG(IDX)) QUIT:+IDX'>0  DO
- . NEW SEG SET SEG=$EXTRACT(TMGMSG(IDX),1,3)
+ . NEW SEG SET SEG=$EXTRACT($G(TMGMSG(IDX)),1,3)
  . IF SEG'="ZEF" QUIT
  . MERGE ZEFOUT(IDX)=TMGMSG(IDX) 
  . KILL TMGMSG(IDX)

@@ -70,6 +70,8 @@ TMGSTUT3 ;TMG/kst/SACC Compliant String Util Lib ;9/20/17, 11/24/24
 	;"$$FINDDT(TEXT,SPOS,OUT,SPT,EPT) --Find date in TEXT, starting at option SPOS, return value found in DTOUT
 	;"SUBSTRMATCH(SUBSTR,STR,MATCH,SUBSTRARR,STRARR) -- Get match info of substring in string, return results in MATCH
 	;"SCANDATES(STR,OUT) -- return positions of dates, in format of ##/##/#### etc
+	;"STR2PHONE(PHONE)  -- FORMAT PHONE NUMBER 
+	;"STR2ZIP(ZIP)  -- FORMAT ZIP CODE
 	;"=======================================================================
 	;" Private Functions.;
 	;"=======================================================================
@@ -1942,3 +1944,22 @@ TESTSCNDT ;
 	. IF $DATA(POSINFO) WRITE STR," --> ",! ZWR POSINFO
 	;
 	QUIT
+	;"
+STR2PHONE(PHONE)  ;"FORMAT PHONE NUMBER 
+    NEW OUTPHONE SET OUTPHONE=$G(PHONE)
+    IF $L(PHONE)=10 DO  GOTO SPDN
+    . SET OUTPHONE="("_$E(PHONE,1,3)_")"_$E(PHONE,4,6)_"-"_$E(PHONE,7,10)
+    IF $L(PHONE)=7 DO  GOTO SPDN
+    . SET OUTPHONE=$E(PHONE,1,3)_"-"_$E(PHONE,4,7)
+SPDN
+    QUIT OUTPHONE
+    ;"
+STR2ZIP(ZIP)  ;"FORMAT ZIP 
+    NEW OUTZIP SET OUTZIP=$G(ZIP)
+    IF $L(ZIP)=4 DO  GOTO SZDN
+    . SET OUTZIP=ZIP
+    IF $L(ZIP)=9 DO  GOTO SZDN
+    . SET OUTZIP=$E(ZIP,1,5)_"-"_$E(ZIP,6,9)
+SZDN
+    QUIT OUTZIP
+    ;"    

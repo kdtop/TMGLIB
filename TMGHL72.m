@@ -1,4 +1,4 @@
-TMGHL72 ;TMG/kst-HL7 transformation engine processing ;4/11/19, 3/24/21, 4/26/21
+TMGHL72 ;TMG/kst-HL7 transformation engine processing ;4/11/19, 4/26/21, 4/9/26
               ;;1.0;TMG-LIB;**1**;03/26/11
  ;
  ;"TMG HL7 TRANSFORMATION CALL-BACK FUNCTIONS
@@ -352,6 +352,9 @@ OBR16   ;"Transform Ordering provider.
         ;
 OBX     ;"Purpose: to transform the entire OBX segment before any fields are processed
         ;"Uses TMGSEGN, that is set up in from TMGHL7X* code before calling here.
+        IF $$CHKEMPTYOBX(.TMGHL7MSG,TMGSEGN)=1 DO  QUIT   ;"//kt 4/16/26
+        . SET TMGHL7MSG("IGNORE","OBX",TMGSEGN)=1
+        ;
         SET TMGLASTOBX("SEGN")=TMGSEGN  ;"Will be killed in MSG2^TMHL72
         NEW LOBR SET LOBR=+$GET(TMGLASTOBR("SEGN"))
         IF $GET(TMGHL7MSG("IGNORE","OBR",LOBR))>0 DO  ;"If ignoring an OBR group, then ignore corresponding OBX's 
@@ -441,12 +444,20 @@ NTE3    ;"Purpose: To transform the NTE segment, field 3 (the comments)
         IF TMGVALUE["^" SET TMGVALUE=$$REPLSTR^TMGSTUT3(TMGVALUE,"^","/\")
         IF TMGVALUE[$CHAR(9) DO
         . SET TMGVALUE=$$REPLSTR^TMGSTUT3(TMGVALUE,$CHAR(9),"   ")
-        IF TMGVALUE["""" SET TMGVALUE=$TRANSLATE(TMGVALUE,"""","'") 
+        IF TMGVALUE[$CHAR(160) DO    ;"//kt 4/9/26
+        . SET TMGVALUE=$$REPLSTR^TMGSTUT3(TMGVALUE,$CHAR(160)," ")  ;"160 is NBSP, convert to normal space
+        ;"dupliate code IF TMGVALUE["""" SET TMGVALUE=$TRANSLATE(TMGVALUE,"""","'") 
+        SET TMGVALUE=$$NORMSTR^TMGSTUT2(TMGVALUE,,"p","_")  ;"//kt 4/9/26
         IF $LENGTH(TMGVALUE)>80 DO
-        . ;"LINE IS NOW SPLIT INTO ARRAY, BUT NOT SURE HOW TO FILE THE SPLIT LINE
+        . ;"LINE IS NOW SPLIT INTO ARRAY, adding additional NTE segments for added lines
         . NEW SPLITARR,SPLITCOUNT
         . SET SPLITCOUNT=$$SPLITLN^TMGSTUT2(TMGVALUE,.SPLITARR,80)
-        . IF '$D(SPLITARR) QUIT
+        . IF '$DATA(SPLITARR) QUIT
+        . NEW IDX SET IDX=""   ;"Make sure that after splitting arry, that now first char is not "-"  //kt 4/17/26
+        . FOR  SET IDX=$ORDER(SPLITARR(IDX)) QUIT:IDX'>0  DO
+        . . NEW LINE SET LINE=$GET(SPLITARR(IDX))
+        . . IF $EXTRACT(LINE,1)'="-" QUIT
+        . . SET SPLITARR(IDX)=" "_LINE   ;""-" not allowed in space 1
         . SET TMGVALUE=$G(SPLITARR(1))
         . KILL SPLITARR(1) ;"SO WE DON'T CREATE A REDUNDANT ENTRY
         . DO APPNDNTE(.SPLITARR,.TMGHL7MSG,.TMGU,TMGSEGN)
@@ -542,7 +553,7 @@ SUPROV  ;"Purpose: Setup TMGINFO("PROV") -- Ordering provider.
         . SET NAME=$$HL7N2FMN(.TMGU,PROV,.LNAME,.FNAME,.MNAME)
         . NEW DIC,X,Y SET DIC=200,DIC(0)="M",X=NAME
         . DO ^DIC
-        . IF Y'>0 DO  QUIT:($GET(TMGXERR)'="")  ;"//kt added 2/4/21
+        . IF (Y'>0),(LNAME'["TOPPEN") DO  QUIT:($GET(TMGXERR)'="")  ;"//kt added 2/4/21, modified to add name 7/24/26
         . . NEW TEMP SET TEMP=$$ADDPROV(NAME,.TMGU)
         . . IF TEMP>0 SET Y=TEMP QUIT
         . . SET TMGXERR=TEMP
@@ -808,7 +819,7 @@ GETINSRTS(TMGHL7MSG,SEGNPRIOR,COUNT)  ;"Get parameters for insertion
         ;"       COUNT -- the number of elements that will be needed to be inserted AFTER
         ;"                SEGNPRIOR, and before the prior NEXT element
         ;"Result: # to increment by, e.g. 0.01
-        NEW INC SET INC=0.1  ;"Default
+        NEW INC SET INC=0.01  ;"Default   7/14/26 was 0.1
         SET COUNT=+$GET(COUNT)
         IF COUNT'>0 GOTO GETIDN
         NEW NEXTSEGN SET NEXTSEGN=+$ORDER(TMGHL7MSG(SEGNPRIOR))
@@ -858,7 +869,7 @@ INSRTNTE(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert note segment after SEGNPRIOR f
         NEW NTENUM SET NTENUM=1
         NEW SEGN SET SEGN=SEGNPRIOR
         ;"If inserting a NTE, and the next segment is an NTE, then we will change
-        ;"  And APPEND to NTE block.  So will need to find end of block, and also
+        ;"  and APPEND to NTE block.  So will need to find end of block, and also
         ;"  get the last NTE index number.  
         ;"  Also, will prefix ARR with a double line to separate the blockes.  
         NEW DONE SET DONE=0
@@ -877,42 +888,7 @@ INSRTNTE(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert note segment after SEGNPRIOR f
         . SET NTEARR(ARRIDX)="NTE"_TMGU(1)_NTENUM_TMGU(1)_"L"_TMGU(1)_LINE_TMGU(1),NTENUM=NTENUM+1
         SET TMGRESULT=$$INSRTSEG(.NTEARR,.TMGHL7MSG,.TMGU,SEGNPRIOR)
 INSNDN  QUIT TMGRESULT
-
- ;"BACKUP FUNCTION BELOW.  DELETE LATER IF ABOVE VERSION WORKS  10/8/21
-INSRTNTE0(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert note segment after SEGNPRIOR from ARR
-        ;"Input: ARR -- PASS BY REFERENCE.  The array to add.  Format:
-        ;"   ARR(#)=<line of text>
-        ;"      TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
-        ;"      TMGU -- The array with divisor chars.
-        ;"      SEGNPRIOR -- The segment number that the NTE array is to be inserted AFTER
-        ;"NOTE: If there is a NTE segment directly after SEGNPRIOR, then that NTE
-        ;"      block will be appended to.
-        ;"Results: none
-        NEW NEXTSEGN SET NEXTSEGN=+$ORDER(TMGHL7MSG(SEGNPRIOR))
-        NEW SEGNAME SET SEGNAME=$GET(TMGHL7MSG(NEXTSEGN,"SEG"))
-        IF SEGNAME="NTE" DO  GOTO INSNDN
-        . NEW LASTNTESEGN SET LASTNTESEGN=NEXTSEGN
-        . FOR  SET NEXTSEGN=$ORDER(TMGHL7MSG(NEXTSEGN)) QUIT:(+NEXTSEGN'>0)!($GET(TMGHL7MSG(NEXTSEGN,"SEG"))'="NTE")  DO
-        . . SET LASTNTESEGN=NEXTSEGN
-        . DO APPNDNTE^TMGHL72(.ARR,.TMGHL7MSG,.TMGU,LASTNTESEGN)  ;"APPEND NOTE
-        NEW NTENUM SET NTENUM=1
-        NEW FIRST SET FIRST=1
-        NEW NEWSEGN  
-        NEW ARRIDX SET ARRIDX=""
-        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
-        . NEW LINE SET LINE=$GET(ARR(ARRIDX))
-        . IF FIRST SET NEWSEGN=SEGNPRIOR+0.5 SET FIRST=0
-        . ELSE  SET NEWSEGN=SEGNPRIOR+0.01
-        . DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1) 
-        . SET NTENUM=NTENUM+1 
-        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
-        . DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
-        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
-        . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"       
-        . SET TMGHL7MSG("B","NTE",NEWSEGN)=""
-        . SET SEGNPRIOR=NEWSEGN
-        QUIT
-        ;  
+        ;
 PREFIXNT(LINE,TMGHL7MSG,TMGU,SEGN)  ;"PREFIX NOTE (INSERT LINE BEFORE INDEX LINE)
         ;"Input: LINE -- A SINGLE LINE TO PREFIX
         ;"      TMGHL7MSG -- the array to store in. PASS BY REFERENCE.
@@ -1160,6 +1136,7 @@ SUMNTARR(TMGHL7MSG,SEGN,OUT) ;"Convert NTE's after SEGN into simple ARR(#)=Text 
         FOR  SET IDX=$ORDER(TMP(IDX)) QUIT:IDX'>0  DO
         . SET OUT(IDX)=$GET(TMGHL7MSG(IDX,3))   
         QUIT
+        ;
 CHKOBRNT(TMGHL7MSG,SEGN,OBRCOMMENTS) ;"CHECK / Handle NTE's that follow OBR (i.e. order comments)
         ;"This will remove NTE's following an OBR, and return them in simple array
         ;"   for use with adding to other order comments (called from OBRDN)  
@@ -1170,6 +1147,16 @@ CHKOBRNT(TMGHL7MSG,SEGN,OBRCOMMENTS) ;"CHECK / Handle NTE's that follow OBR (i.e
         . . KILL TMGHL7MSG(IDX),TMGHL7MSG("B","NTE",IDX),TMGHL7MSG("PO",IDX)
         . SET OBRCOMMENTS(.5)="Order comments:"
         QUIT
+        ;
+CHKEMPTYOBX(TMGHL7MSG,SEGN,ARR)  ;"Check if OBX is an empty blank line. 
+        ;"Will consider to be empty if name and value are empty.
+        ;"Result: 1 if line is empty and should ignored, 0 if not empty
+        NEW TMGRESULT SET TMGRESULT=0
+        ;"See if OBX.3 or OBX.5 area empty (or filled only with subdividers)
+        NEW OBX3,IDX FOR IDX=3,5 QUIT:TMGRESULT=1  DO
+        . SET OBX3(IDX)=$TRANSLATE($GET(TMGHL7MSG(SEGN,IDX)),TMGU(2),"")
+        . SET TMGRESULT=(OBX3(IDX)="")
+        QUIT TMGRESULT
         ;
 CHKMULTIOBX(TMGHL7MSG,SEGN,ARR) ;"Check if OBX is a multi-lines grouping for results
        ;"INPUT:  TMGHL7MSG -- The master array.  PASS BY REFERENCE

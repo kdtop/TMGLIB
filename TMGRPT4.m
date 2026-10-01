@@ -79,6 +79,7 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   NEW TEMP 
   DO GETCPT(.TEMP,.TMGDFN,.SDT,.EDT)
   DO GETICD(.TEMP,.TMGDFN,.SDT,.EDT)
+  NEW ALLICDS  ;" ARRAY TO STORE ALL THE ICDS
   NEW FOUND SET FOUND=0
   NEW DT SET DT=""
   FOR  SET DT=$ORDER(TEMP("DT",DT),-1) QUIT:+DT'>0  DO
@@ -87,6 +88,8 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   . FOR  SET ICD=$ORDER(TEMP("DT",DT,"ICD",ICD)) QUIT:ICD=""  DO
   . . NEW STR SET STR="<b>"_$PIECE(ICD,"^",1)_"</b> -- "_$PIECE(ICD,"^",2)
   . . DO ADD(ROOT,"&nbsp;&nbsp;ICD: "_STR)
+  . . NEW COLOR SET COLOR=$$ICDCOLOR^TMGCMS1($PIECE(ICD,"^",1))
+  . . SET ALLICDS(STR)=COLOR
   . NEW CPT SET CPT=""
   . FOR  SET CPT=$ORDER(TEMP("DT",DT,"CPT",CPT)) QUIT:CPT=""  DO
   . . NEW STR SET STR="<b>"_$PIECE(CPT,"^",1)_"</b> -- "_$PIECE(CPT,"^",2)
@@ -95,6 +98,15 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   IF FOUND=0 DO
   . DO ADD(ROOT,"(None found in date range -- perhaps try a different date range?)")
   DO ADD(ROOT,"<p>")  
+  DO ADD(ROOT,"<hr><p>")
+  DO ADD(ROOT,"<b><u>ALL ICD'S LISTED FOR THIS DATE RANGE</b></u><br>")
+  NEW STR SET STR=""
+  FOR  SET STR=$O(ALLICDS(STR)) QUIT:STR=""  DO
+  . NEW COLOR SET COLOR=$G(ALLICDS(STR))
+  . IF COLOR'="" DO
+  . . DO ADD(ROOT,"<span style="""_"background-color: "_COLOR_""" "_"<b>"_$P(STR," -- ",1)_"</b> -- "_$P(STR," -- ",2)_""_"</span>")
+  . ELSE  DO
+  . . DO ADD(ROOT,STR)
   DO ADD(ROOT,"</body></HTML>")
   QUIT
   ;
@@ -450,7 +462,7 @@ NOADDL  ;"This report checks to see if over the course of the last
   . . IF ADDLFOUND=0 DO
   . . . NEW TMGDFN SET TMGDFN=$P($G(^TIU(8925,TIUIEN,0)),"^",2)
   . . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
-  . . . SET ADDLARRAY(DOCIEN,NAME,TIUIEN)="  "_$P($G(^DPT(TMGDFN,0)),"^",1)_" ON "_$$EXTDATE^TMGDATE(TIUDATE,1)
+  . . . SET ADDLARRAY(DOCIEN,NAME,TIUIEN)="  "_$P($G(^DPT(TMGDFN,0)),"^",1)_" ON "_$$EXTDATE^TMGDATE(TIUDATE,1)_" ("_TIUIEN_")"
   NEW DOCIEN SET DOCIEN=0
   FOR  SET DOCIEN=$O(ADDLARRAY(DOCIEN)) QUIT:DOCIEN'>0  DO
   . WRITE "==== ",$P($G(^TIU(8925.1,DOCIEN,0)),"^",1)," ====",!
@@ -695,8 +707,8 @@ LINDSEY()  ;"PRINT LINDSEY'S TASK LIST FOR TODAY
   SET TOT=$P(ZN,"^",2)
   SET AMT=$P(ZN,"^",3)
   SET SUSPENDED=$P($P(ZN,"^",4),$C(13),1)
-  WRITE !,"CURRENT FOLLOWUP BUCKET STATS AS OF ",DATE,!,!
-  WRITE "TOTAL CLAIMS: ",TOT,?20,"TOTAL OUTSTANDING: $",AMT,?50,"NUM. SUSPENDED: ",SUSPENDED,!
+  ;"WRITE !,"CURRENT FOLLOWUP BUCKET STATS AS OF ",DATE,!,!
+  ;"WRITE "TOTAL CLAIMS: ",TOT,?20,"TOTAL OUTSTANDING: $",AMT,?50,"NUM. SUSPENDED: ",SUSPENDED,!
   DO ^%ZISC  ;" Close the output device
   QUIT
   ;"
@@ -706,32 +718,33 @@ GETTASKS(DAY,TASKLIST)
   DO EVYDAY(.TASKLIST,.IDX)
   IF DAY="MONDAY" DO
   . SET TASKLIST($I(IDX))="Check BC/BS for ER admissions^1"
-  . SET TASKLIST($I(IDX))="Print EOBs^1"
+  . SET TASKLIST($I(IDX))="Send medical records for referrals^1"
   . SET TASKLIST($I(IDX))="Prevnar-20 report of shots given to be entered in database^1"
-  . SET TASKLIST($I(IDX))="Print PopHealth for Sabrina^1"
+  . SET TASKLIST($I(IDX))="Print 2 copies of PopHealth (1 for Sabrina and 1 for you)^1"
   . SET TASKLIST($I(IDX))="Complete Stellar Health Gaps^1"
   ELSE  IF DAY="TUESDAY" DO
   . SET TASKLIST($I(IDX))="Complete DataCore Gaps^1"
+  . SET TASKLIST($I(IDX))="Mail statements^1"
   ELSE  IF DAY="THURSDAY" DO
-  . SET TASKLIST($I(IDX))="Complete PopHealth when Sabrina finishes it^1"
+  . SET TASKLIST($I(IDX))="Complete PopHealth^1"
   . SET TASKLIST($I(IDX))="Complete Practice Assist Gaps^1"
   ELSE  IF DAY="FRIDAY" DO
   . SET TASKLIST($I(IDX))="Complete Availity Gaps^1"
   ;" End with Followup bucket
-  SET TASKLIST($I(IDX))="Work Followup Bucket^1"
+  SET TASKLIST($I(IDX))="Work Patient Followup Bucket^1"
+  SET TASKLIST($I(IDX))="UHC & Optum referrals as needed^1"
+  SET TASKLIST($I(IDX))="Make specialist appointments^1"
   QUIT
   ;"
 EVYDAY(TASKLIST,IDX)  ;"THESE ARE THE EVERY DAY TASKS
-  SET TASKLIST($I(IDX))="Pull labs (done before 8:15)"
+  SET TASKLIST($I(IDX))="Check state immunization site and document Prenvar-20s (before 8:15)"
   SET TASKLIST($I(IDX))="Check LabCorp for new Lab Results"
-  SET TASKLIST($I(IDX))="Pull controlled substances (done before 8:15)"
   SET TASKLIST($I(IDX))="Get hospital records"
-  SET TASKLIST($I(IDX))="Check previous day's charges for coding errors"
-  SET TASKLIST($I(IDX))="Text message report"
-  SET TASKLIST($I(IDX))="Check for prevnar 20 already given"
-  SET TASKLIST($I(IDX))="Patient appointment reminders"
+  SET TASKLIST($I(IDX))="Scan and push up hospital records"
+  SET TASKLIST($I(IDX))="Get all record requested in CPRS"
   SET TASKLIST($I(IDX))="Check insurance a week ahead of time"
   SET TASKLIST($I(IDX))="Enter cancels and no shows"
   QUIT
   ;"
+  
   

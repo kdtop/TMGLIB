@@ -166,6 +166,9 @@ NOPATSEL(OUT,TMGDUZ)  ;"Called from RPC "TMG CPRS NO PATIENT SELECTED"
   NEW PCPSPEC DO GETINIVL^TMGRPC1A(.PCPSPEC,"DEFAULT","CHECKED IN PATIENTS LIMITED TO PCP",168)
   SET PCPSPEC=$P(PCPSPEC,"^",2)
   SET TMGDUZ=$GET(TMGDUZ)
+  ;IF TMGDUZ=150 DO  QUIT
+  ;. ZLINK "TMGCAL1"
+  ;. DO BUILDCA^TMGCAL1(.OUT,0)
   IF PCPSPEC=1 DO
   . IF (TMGDUZ'=168)&(TMGDUZ'=83) SET TMGDUZ=0
   ELSE  DO
@@ -181,29 +184,40 @@ NOPATSEL(OUT,TMGDUZ)  ;"Called from RPC "TMG CPRS NO PATIENT SELECTED"
   SET I=I+1,OUT(I)="<html>"
   SET I=I+1,OUT(I)="<head>"
   SET I=I+1,OUT(I)="<style>"
-  SET I=I+1,OUT(I)="table {"
+  SET I=I+1,OUT(I)=".appt-table {"
   SET I=I+1,OUT(I)="  font-family: arial, sans-serif; "
   SET I=I+1,OUT(I)="  border-collapse: collapse; "
   SET I=I+1,OUT(I)="  width: 100%; "
   SET I=I+1,OUT(I)="} "
   SET I=I+1,OUT(I)=""
-  SET I=I+1,OUT(I)="td, th {"
+  SET I=I+1,OUT(I)=".appt-table td, .appt-table th {"
   SET I=I+1,OUT(I)="  border: 1px solid #dddddd;  "
   SET I=I+1,OUT(I)="  text-align: center; "
   SET I=I+1,OUT(I)="  padding: 6px; "                             
   SET I=I+1,OUT(I)="}"
   SET I=I+1,OUT(I)=""
-  SET I=I+1,OUT(I)="</style>   "                                           
+  SET I=I+1,OUT(I)=".schedule-header {"
+  SET I=I+1,OUT(I)=" border-collapse: collapse;"
+  SET I=I+1,OUT(I)="}"
+  SET I=I+1,OUT(I)=""
+  SET I=I+1,OUT(I)=".schedule-header td {"
+  SET I=I+1,OUT(I)="  border: 1px solid #999;"
+  SET I=I+1,OUT(I)="  padding: 4px 8px;"
+  SET I=I+1,OUT(I)="}"  
+  DO CALCSS^TMGCAL1(.OUT,.I)
+  SET I=I+1,OUT(I)=""
+  SET I=I+1,OUT(I)="</style>   " 
   SET I=I+1,OUT(I)="</head>"                                               
   SET I=I+1,OUT(I)="<body> "                                               
   SET I=I+1,OUT(I)=" "                                                     
   ;"SET I=I+1,OUT(I)="<h2>Schedule"_HEADERSTR_"</h2> "                                    
   ;"SET I=I+1,OUT(I)="<h3>As of "_NOWSTR_"</h2> "     
-  SET I=I+1,OUT(I)="<table><tr><td><h2>Schedule"_HEADERSTR_"</h2><h3><p>As of "_NOWSTR_"</h3></td><td>"
+  SET I=I+1,OUT(I)="<table class=""appt-table""><tr><td><h2>Schedule"_HEADERSTR_"</h2><h3><p>As of "_NOWSTR_"</h3></td><td>"
   DO GETSTATS(.OUT,.I,.INFO)
   SET I=I+1,OUT(I)="</td></tr></table>"
   SET I=I+1,OUT(I)=""                                                      
-  SET I=I+1,OUT(I)="<table style=""font-size: 16px"">"                                               
+  ;"SET I=I+1,OUT(I)="<table style=""font-size: 16px"">"   
+  SET I=I+1,OUT(I)="<table class=""appt-table"" style=""font-size: 16px"">"
   SET I=I+1,OUT(I)="  <tr> "                                               
   SET I=I+1,OUT(I)="    <th>Time</th> "                                    
   SET I=I+1,OUT(I)="    <th>Patient</th> "                                 
@@ -279,7 +293,10 @@ NOPATSEL(OUT,TMGDUZ)  ;"Called from RPC "TMG CPRS NO PATIENT SELECTED"
   . SET I=I+1,OUT(I)="    <td>"_DTINSTR_"</td>"
   . SET I=I+1,OUT(I)="    <td>"_DTOUTSTR_"</td>"
   . SET I=I+1,OUT(I)="  </tr> "
+  SET I=I+1,OUT(I)="<tr><td colspan=""100%"" style=""text-align: left;""><button onclick=""window.location.href='OTHERPAT';"">Select Other Patient</button></td></tr>" 
   SET I=I+1,OUT(I)="</table> "
+  SET I=I+1,OUT(I)=""
+  DO BUILDCA^TMGCAL1(.OUT,.I)
   SET I=I+1,OUT(I)=""
   SET I=I+1,OUT(I)="</body>"
   SET I=I+1,OUT(I)="</html> "
@@ -413,8 +430,9 @@ GETAPPT(OUT,PROVIDER,SDT,EDT,OPTION)     ;" RETURN LIST OF APPOINTMENTS
 GADN ;  
   IF $$SHOULDGARBLE^TMGMISC4() DO GARBLERESULTS^TMGMISC4(.OUT)     ;"check for special mode to hide patient info during demos
   QUIT TMGRESULT  
-  ;
+  ; 
 GETMINS(DT1,DT2)  ;
   NEW RESULT SET RESULT=$$FMDIFF^XLFDT(DT1,DT2,2)
   SET RESULT=RESULT\60  ;"convert sec to min
-  QUIT RESULT 
+  QUIT RESULT
+  ;"

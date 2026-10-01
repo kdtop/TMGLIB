@@ -79,7 +79,20 @@ GETMDATA(OUT,ADFN,SDT,EDT,OPTION)  ;"API to get metadata from file 22720.5 (TMG 
  . . NEW NODE SET NODE=$GET(^TMG(22720.5,ADFN,1,SUBIEN,0)) QUIT:NODE=""
  . . NEW PATH SET PATH=$PIECE(NODE,"^",2)
  . . NEW FNAME SET FNAME=$PIECE(NODE,"^",3)
- . . IF FILTERBAD,($$ISFILE^TMGKERNL(PATH_FNAME)=0) QUIT ;"Don't return metadata if file not found on HFS
+ . . NEW IGNORE SET IGNORE=0
+ . . ;"IF FILTERBAD,($$ISFILE^TMGKERNL(PATH_FNAME)=0) QUIT ;"Don't return metadata if file not found on HFS
+ . . IF FILTERBAD DO
+ . . . SET IGNORE=($$ISFILE^TMGKERNL(PATH_FNAME)=0) 
+ . . . IF IGNORE=0 QUIT  ;"this is a good filepath. 
+ . . . IF PATH["Failed_Messages" DO
+ . . . . NEW PATH2 SET PATH2=$P(PATH,"Failed_Messages",1)_"Processed"_$P(PATH,"Failed_Messages",2)
+ . . . . IF $$ISFILE^TMGKERNL(PATH2_FNAME)=0 QUIT  ;"leave IGNORE=1
+ . . . . NEW TMGFDA,TMGIEN,TMGMSG
+ . . . . NEW IENS SET IENS=SUBIEN_","_ADFN_","
+ . . . . SET TMGFDA(22720.5,IENS,.02)=PATH2
+ . . . . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")  
+ . . . . IF $DATA(TMGMSG)=0 SET IGNORE=0
+ . . IF IGNORE=1 QUIT
  . . SET OUT(SUBIEN)=NODE
  QUIT
  ; 
@@ -105,6 +118,7 @@ GTHL7LST(OUT,ADFN,SDT,EDT,FILTER)  ;"RPC: TMG CPRS LAB HL7 LIST
  ;"     e.g. OUT(123)="3180306^/mnt/WinServer/PathgroupHL7/Processed/2013/08/^12C2054522LAB130826123421.txt^^^3180306.192044"
  ;"          OUT(456)= ...
  NEW RESULTARR
+ SET OUT(0)="1^OK"
  ;"NEW FILTERADT SET FILTERADT=+$GET(FILTER("ADT"))
  ;"NEW FILTERLAB SET FILTERLAB=+$GET(FILTER("LAB"))
  ;"NEW FILTERRAD SET FILTERRAD=+$GET(FILTER("RAD"))
@@ -112,7 +126,7 @@ GTHL7LST(OUT,ADFN,SDT,EDT,FILTER)  ;"RPC: TMG CPRS LAB HL7 LIST
  NEW FILTERRAD SET FILTERRAD=+$PIECE($GET(FILTER),"^",2)
  NEW FILTERLAB SET FILTERLAB=+$PIECE($GET(FILTER),"^",3)
  NEW FILTER SET FILTER=FILTERLAB!FILTERADT!FILTERRAD
- SET EDT=$$ADDDAYS^TMGDATE(1,EDT)
+ SET EDT=$$ADDDAYS^TMGDATE(5,EDT)  ;"This was originally 1, but with LabCorp we need a larger padding for the end date.
  NEW OPTION SET OPTION("FILTERBAD")=1
  DO GETMDATA(.RESULTARR,ADFN,SDT,EDT,.OPTION)
  IF FILTER=1 DO
@@ -128,7 +142,8 @@ GTHL7LST(OUT,ADFN,SDT,EDT,FILTER)  ;"RPC: TMG CPRS LAB HL7 LIST
  . . ;"IF FILTERLAB,PATH["Laughlin",FNAME["LAB_" QUIT   ;"NOTE: Will need to filter both ballad and NON-Ballad names for labs.
  . . IF FILTERLAB,PATH["Laughlin",FNAME["LAB" QUIT   ;"NOTE: Will need to filter both ballad and NON-Ballad names for labs.
  . . IF FILTERLAB,PATH["Pathgroup" QUIT   ;"NOTE: Will need to filter both ballad and NON-Ballad names for labs.
- . . SET OUT(RESULTIDX)=LINE
+ . . IF FILTERLAB,PATH["LabCorp" QUIT   ;"NOTE: Will need to filter both ballad and NON-Ballad names for labs.
+ . . SET OUT(RESULTIDX+1)=LINE
  ELSE  DO
  . MERGE OUT=RESULTARR
  QUIT
