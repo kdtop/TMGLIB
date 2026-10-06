@@ -21,7 +21,7 @@ TMGTIUP1 ;TMG/kst-TMG TIU NOTE PARSING FUNCTIONS ; 4/11/17, 6/5/25
  ;"=======================================================================
  ;"PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY) -- parse one section on note array
  ;"FRMATTTL(TITLE) -- format titles, so that similar terms sort together.
- ;"PARSESCT2(TEMPARR,TIUIEN,SECTION,ARRAY)  -- parse one section on note array
+ ;"PARSESCT2(ITEMARRAY,ARRAY,TIUIEN) -- parse note sections into topic/thread data, harvesting each topic's [TABLE] names and file 22708 IENs
  ;"ADDLINE(REF,TEXT) -- add text line to end of array.  
  ;"FRMATTTL(TITLE)  -- format titles, so that similar terms sort together.
  ;"GETMODS(MODS) -- load up MODS variable.
@@ -67,9 +67,12 @@ SUMNOTE(TIUIEN,ARRAY,OPTION) ;" Take a given note in file 8925, and parse HPI an
   ;"              ARRAY(TIUIEN,"HPI",<Topic#>)=<TOPIC NAME>^<First line (partial) of paragraph>
   ;"              ARRAY(TIUIEN,"A&P",<Topic#>)=<TOPIC NAME>^<First line (partial) of paragraph>
   ;"              ARRAY(TIUIEN,"TITLE",<TOPIC NAME>)=<topic name as originally in text>
-  ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>,<Topic#>)=<TOPIC NAME>
-  ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>)=# OF TOPICS  <--- I think not used or present. 
-  ;"              ARRAY(TIUIEN,"THREAD",<Topic#>)=<TopicName>^<NewTextAddedThisNote>
+ ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>,<Topic#>)=<TOPIC NAME>
+ ;"              ARRAY(TIUIEN,"SEQ#",<SECTION>)=# OF TOPICS  <--- I think not used or present. 
+ ;"              ARRAY(TIUIEN,"THREAD",<Topic#>)=<TopicName>^<NewTextAddedThisNote>
+ ;"              ARRAY(TIUIEN,"TOPIC META",<Topic#>)=<TopicName>
+ ;"              ARRAY(TIUIEN,"TOPIC META",<Topic#>,"GROUP",<GroupName>)=""
+ ;"              ARRAY(TIUIEN,"TOPIC META",<Topic#>,"TABLE",<Table#>)=<TableName>^<IEN22708>
   NEW TEMPARR
   NEW SECTION SET SECTION=""
   NEW SECTNUM SET SECTNUM=0
@@ -79,7 +82,7 @@ SUMNOTE(TIUIEN,ARRAY,OPTION) ;" Take a given note in file 8925, and parse HPI an
   NEW ITEMARRAY,OUT
   SET OPTION("FORCE PROCESS")=0
   SET OPTION("SKIP REFRESH TABLES")=1   
-  SET OPTION("THREADS")=1
+  SET OPTION("THREADS")=($GET(OPTION("SKIP THREAD DATA"))'>0)
   DO PARSETIU^TMGTIUP2(TIUIEN,.ITEMARRAY,.OPTION) ;"parse HPI section of TIU NOTE with processing, formatting etc.
   DO PARSESCT2(.ITEMARRAY,.ARRAY,TIUIEN)
 SNDN ;
@@ -87,6 +90,7 @@ SNDN ;
   ;
 PARSESCT(TEMPARR,TIUIEN,SECTION,ARRAY)  ;"PARSE SECTIONS
   ;"NOTE: see also PARSEARR^TMGTIUP2 regarding parsing sections
+  ;"NOTE: This legacy parser produces only document-topic summaries.  SUMNOTE uses PARSESCT2, whose output additionally includes THREAD and TOPIC META group/table data.
   ;"Purpose: parse one section on note array
   ;"Input:  TEMPARR -- PASS BY REFERENCE.  Array as created in SUMNOTE()
   ;"        TIUIEN -- IEN 8925
@@ -175,12 +179,26 @@ PARSESCT2(ITEMARRAY,ARRAY,TIUIEN)  ;
   ;"               ARRAY(TIUIEN,"HPI",#)=<TOPIC NAME>^<First line of paragraph>
   ;"               ARRAY(TIUIEN,"THREAD",<Topic#>)=<TopicName>^<TopicUpdateText>
   ;"               ARRAY(TIUIEN,"THREAD",<Topic#>,"TABLE",<Table#>)=<TableName>^<IEN22708>
+  ;"                  -- every numeric ITEMARRAY("TEXT",<Topic#>,<Part#>) node marked "[TABLE]" is harvested; table position is not fixed and multiple tables are supported.
+  ;"               ARRAY(TIUIEN,"TOPIC META",<Topic#>)=<TopicName>
+  ;"               ARRAY(TIUIEN,"TOPIC META",<Topic#>,"GROUP",<GroupName>)=""
+  ;"               ARRAY(TIUIEN,"TOPIC META",<Topic#>,"TABLE",<Table#>)=<TableName>^<IEN22708>
+  ;"                  -- metadata is produced for every parsed topic, including topics without current-visit thread text.
   NEW IDX SET IDX=0
   FOR  SET IDX=$O(ITEMARRAY("TEXT",IDX)) QUIT:IDX'>0  DO
   . NEW TITLE SET TITLE=$G(ITEMARRAY("TEXT",IDX))
-  . NEW TEXT,TEXTIDX SET TEXT="",TEXTIDX=0
+  . SET ARRAY(TIUIEN,"TOPIC META",IDX)=TITLE
+  . NEW TEXT,TEXTIDX,METATABLEIDX SET TEXT="",TEXTIDX=0,METATABLEIDX=0
   . FOR  SET TEXTIDX=$O(ITEMARRAY("TEXT",IDX,TEXTIDX)) QUIT:TEXTIDX'>0  DO
   . . NEW THISTEXT SET THISTEXT=$G(ITEMARRAY("TEXT",IDX,TEXTIDX))
+  . . NEW GROUP SET GROUP=""
+  . . FOR  SET GROUP=$ORDER(ITEMARRAY("TEXT",IDX,TEXTIDX,"GROUP","LIST",GROUP)) QUIT:GROUP=""  DO
+  . . . SET ARRAY(TIUIEN,"TOPIC META",IDX,"GROUP",GROUP)=""
+  . . IF THISTEXT="[TABLE]" DO
+  . . . NEW TABLENAME SET TABLENAME=$GET(ITEMARRAY("TEXT",IDX,TEXTIDX,"TABLE")) QUIT:TABLENAME=""
+  . . . NEW TABLEIEN SET TABLEIEN=$ORDER(^TMG(22708,"B","TMG TABLE - "_TABLENAME,0)) QUIT:TABLEIEN'>0
+  . . . SET METATABLEIDX=METATABLEIDX+1
+  . . . SET ARRAY(TIUIEN,"TOPIC META",IDX,"TABLE",METATABLEIDX)=TABLENAME_"^"_TABLEIEN
   . . IF THISTEXT["[TABLE" SET THISTEXT=$G(ITEMARRAY("TEXT",IDX,TEXTIDX,"TEXT"))
   . . IF THISTEXT["[GROUP" SET THISTEXT=""
   . . SET TEXT=TEXT_THISTEXT

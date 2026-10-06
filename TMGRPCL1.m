@@ -157,24 +157,44 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . SET @ZZREF@("EDT")=$GET(EDT)
   . SET @ZZREF@("SDT")=$GET(SDT)
   ;
-  NEW RESULTS,LABS
-  NEW DATEARR
-  DO FRMTDTS(.ARRAY,.DATEARR)
-  DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)
-  NEW IDX SET IDX=2
-  
-  SET OUT(0)="<!DOCTYPE html>"
-  SET OUT(1)="<html><head><title>Page Title</title></head><body><font size=""2"">"
-  ;"SET OUT(2)="<table BORDER=1>"
-  NEW ADT SET ADT=99999999
-  NEW LASTDT SET LASTDT=0
+  NEW RESULTS,LABS  ;"//kt //codex 10/5/26
+  NEW DATEARR  ;"//kt //codex 10/5/26
+  DO FRMTDTS(.ARRAY,.DATEARR)  ;"//kt //codex 10/5/26
+  DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)  ;"//kt //codex 10/5/26
+  NEW IDX SET IDX=2  ;"//kt //codex 10/5/26
+  NEW ADT,DAY,DATEID,LASTTOCDAY,TOCIDX  ;"//kt //codex 10/5/26 Build a unique, descending date table of contents before rendering report data
+  SET ADT=99999999,LASTTOCDAY=0,TOCIDX=0  ;"//kt //codex 10/5/26
+  FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO  ;"//kt //codex 10/5/26
+  . SET DAY=$PIECE(ADT,".",1)  ;"//kt //codex 10/5/26
+  . IF DAY=LASTTOCDAY QUIT  ;"//kt //codex 10/5/26 One navigation link per calendar date
+  . SET TOCIDX=TOCIDX+1,DATEID(DAY)=TOCIDX,LASTTOCDAY=DAY  ;"//kt //codex 10/5/26
+  SET OUT(0)="<!DOCTYPE html>"  ;"//kt //codex 10/5/26
+  SET OUT(1)="<html><head><title>HTML Lab Report</title><style type=""text/css"">"  ;"//kt //codex 10/5/26
+  SET OUT(IDX)="html, body { height: 100%; margin: 0; overflow: hidden; } body { font-family: Tahoma, Arial, sans-serif; position: relative; }",IDX=IDX+1  ;"//kt //codex 10/5/26 Give the absolute report panes a viewport-sized containing block
+  SET OUT(IDX)=".lab-toc { background: #f5f9fc; border-right: 1px solid #c9d8e6; bottom: 0; left: 0; overflow-y: auto; padding: 9px 6px; position: absolute; top: 0; width: 120px; z-index: 2; }",IDX=IDX+1  ;"//kt //codex 10/5/26
+  SET OUT(IDX)=".lab-toc-title { color: #1f4e79; font-size: 11px; font-weight: bold; margin: 0 3px 6px 3px; text-transform: uppercase; }",IDX=IDX+1  ;"//kt //codex 10/5/26
+  SET OUT(IDX)=".lab-toc a { color: #1f4e79; display: block; font-size: 12px; padding: 4px 3px; text-decoration: none; }",IDX=IDX+1  ;"//kt //codex 10/5/26
+  SET OUT(IDX)=".lab-toc a:hover { background: #dcecf7; }",IDX=IDX+1  ;"//kt //codex 10/5/26
+  SET OUT(IDX)=".lab-content { bottom: 0; left: 133px; overflow: auto; padding: 0 12px 12px 12px; position: absolute; right: 0; top: 0; z-index: 1; }",IDX=IDX+1  ;"//kt //codex 10/5/26 Account for the TOC border and keep lab content out of its column
+  SET OUT(IDX)=".lab-date-anchor { display: block; height: 0; }",IDX=IDX+1  ;"//kt //codex 10/5/26
+  SET OUT(IDX)="</style></head><body><div id=""tmg-lab-html-date-report""><div class=""lab-toc""><div class=""lab-toc-title"">Lab dates</div>",IDX=IDX+1  ;"//kt //codex 10/5/26 Marker lets new CPRS intercept only this report's date links
+  SET ADT=99999999,LASTTOCDAY=0  ;"//kt //codex 10/5/26
+  FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO  ;"//kt //codex 10/5/26
+  . SET DAY=$PIECE(ADT,".",1)  ;"//kt //codex 10/5/26
+  . IF DAY=LASTTOCDAY QUIT  ;"//kt //codex 10/5/26 One navigation link per calendar date
+  . SET OUT(IDX)="<a href=""#lab-date-"_DATEID(DAY)_""">"_$$EXTDATE^TMGDATE(DAY)_"</a>",IDX=IDX+1  ;"//kt //codex 10/5/26 Standard fragment links preserve compatible production rendering
+  . SET LASTTOCDAY=DAY  ;"//kt //codex 10/5/26
+  SET OUT(IDX)="</div><div class=""lab-content""><font size=""2"">",IDX=IDX+1  ;"//kt //codex 10/5/26
+  SET ADT=99999999  ;"//kt //codex 10/5/26
+  NEW LASTDT SET LASTDT=0  ;"//kt //codex 10/5/26
   NEW STR
-  FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO
+  FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO  ;"//kt //codex 10/5/26
   . NEW DAY SET DAY=$P(ADT,".",1)
   . IF DAY'=LASTDT DO 
-  . . DO CAPTION(.OUT,.IDX,ADT,TMGDFN)
+  . . SET OUT(IDX)="<a class=""lab-date-anchor"" name=""lab-date-"_$GET(DATEID(DAY))_""" id=""lab-date-"_$GET(DATEID(DAY))_"""></a>",IDX=IDX+1  ;"//kt //codex 10/5/26 Standard anchors work in the legacy TWebBrowser control
+  . . DO CAPTION(.OUT,.IDX,ADT,TMGDFN)  ;"//kt //codex 10/5/26
   . ELSE  DO
-  . . SET OUT(IDX)="<table BORDER=1 WIDTH=""600"">",IDX=IDX+1
+  . . SET OUT(IDX)="<table border=""1"" width=""600"">",IDX=IDX+1  ;"//kt //codex 10/5/26
   . . SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   . SET LASTDT=DAY
   . ;"IF '$D(DATEARR(DAY)) QUIT
@@ -216,7 +236,7 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . . SET OUT(IDX)="<tr><td colspan=""6"">"_COMMENT_"</td></tr>",IDX=IDX+1
   . ;"SET OUT(3)=$G(ARRAY(1))
   . SET OUT(IDX)="</td></tr></table><br>",IDX=IDX+1
-  SET OUT(IDX)="</font></body></html>" 
+  SET OUT(IDX)="</font></div></div></body></html>"  ;"//kt //codex 10/5/26
   QUIT
   ;"
 CAPTION(OUT,IDX,LABDATE,TMGDFN)
@@ -229,25 +249,25 @@ CAPTION(OUT,IDX,LABDATE,TMGDFN)
   . SET NAME=$$GARBLENAME^TMGMISC4(NAME)
   . SET DOB=$$RANDOMDOB^TMGMISC4()
   . SET AGE=$RANDOM(200)
-  SET OUT(IDX)="<p><HR><p>",IDX=IDX+1
+  SET OUT(IDX)="<p><hr><p>",IDX=IDX+1  ;"//kt //codex 10/5/26
   ;"UNCOMMENT SET OUT(IDX)="<DIV align left>",IDX=IDX+1
   SET OUT(IDX)="<table width=""50%"" border=""0"" cellspacing=""0""",IDX=IDX+1
   SET OUT(IDX)="cellpadding=""1"" style=""background-color: #F2F2F2;"">",IDX=IDX+1
   SET OUT(IDX)="<tr valign=""bottom"" align=""left"">",IDX=IDX+1
-  SET OUT(IDX)="<td nowrap><B>Patient: "_NAME_"</b></td>",IDX=IDX+1
+  SET OUT(IDX)="<td nowrap><b>Patient: "_NAME_"</b></td>",IDX=IDX+1  ;"//kt //codex 10/5/26
   ;"SET OUT(IDX)="<td nowrap><B>DOB: "_DOB_"</b></td>",IDX=IDX+1
-  SET OUT(IDX)="<td nowrap><B>DOB: "_DOB_" ("_AGE_")</b></td>",IDX=IDX+1
+  SET OUT(IDX)="<td nowrap><b>DOB: "_DOB_" ("_AGE_")</b></td>",IDX=IDX+1  ;"//kt //codex 10/5/26
   ;"SET OUT(IDX)="<td nowrap><B>Age: "_AGE,IDX=IDX+1
-  SET OUT(IDX)="<td nowrap><B>Date: "_$$EXTDATE^TMGDATE(LABDATE),IDX=IDX+1
+  SET OUT(IDX)="<td nowrap><b>Date: "_$$EXTDATE^TMGDATE(LABDATE),IDX=IDX+1  ;"//kt //codex 10/5/26
   SET OUT(IDX)="</b></td>",IDX=IDX+1
-  SET OUT(IDX)="</tr></table></DIV>",IDX=IDX+1
-  SET OUT(IDX)="<table BORDER=1 WIDTH=""600"">",IDX=IDX+1
+  SET OUT(IDX)="</tr></table>",IDX=IDX+1  ;"//kt //codex 10/5/26 Keep the lab-content pane open until the report is complete
+  SET OUT(IDX)="<table border=""1"" width=""600"">",IDX=IDX+1  ;"//kt //codex 10/5/26
   ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(LABDATE)_"</b></CAPTION>",IDX=IDX+1
   SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   QUIT
   ;"
 HEADER()
-  QUIT "<tr><TH width=""50%"" bgcolor=""#FAFAD4"">LAB NAME</TH><TH width=""10%"" bgcolor=""#FAFAD4"">RESULT</TH><TH width=""10%"" bgcolor=""#FAFAD4"">UNITS</TH><TH width=""10%"" bgcolor=""#FAFAD4"">FLAG</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF LOW</TH><TH width=""10%"" bgcolor=""#FAFAD4"">REF HIGH</TH></tr>"
+  QUIT "<tr><th width=""50%"" bgcolor=""#FAFAD4"">LAB NAME</th><th width=""10%"" bgcolor=""#FAFAD4"">RESULT</th><th width=""10%"" bgcolor=""#FAFAD4"">UNITS</th><th width=""10%"" bgcolor=""#FAFAD4"">FLAG</th><th width=""10%"" bgcolor=""#FAFAD4"">REF LOW</th><th width=""10%"" bgcolor=""#FAFAD4"">REF HIGH</th></tr>"  ;"//kt //codex 10/5/26
   ;"
 U2CELL(LINE) ;"CONVERT STRING WITH CAROT TO HTML TABLE CELL
   NEW DONE SET DONE=0

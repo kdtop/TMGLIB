@@ -27,9 +27,13 @@ TMGTOPIC ;KT - Topic Routines; 9/1/26
  ;"TEST
  ;"GETCODE(OUTREF,TAG,ROUTINE) ;
  ;"TESTFIX -- test Code for fixing older threads which are full of repeats from prior entries 
- ;"FIXALL -- Code for fixing older threads which are full of repeats from prior entries
+ ;"FIXREPEATALL -- Code for fixing older threads which are full of repeats from prior entries
  ;"FIX22719D2(ADFN) ;
  ;"SAVECHANGES(ARR,ADFN,ERROUT)  ;
+ ;"FIXALL(OPTION) -- Reparse all notes and synchronize topic metadata through FILE1B
+ ;"FIXALL2 -- Run FIXALL in metadata-only mode, without saving thread text
+ ;"FIX1PT(ADFN,OPTION) -- Reparse one patient's notes and synchronize topic metadata through FILE1B
+ ;"SCANPTNOTES(ADFN,OPTION,ACTION,SHOWPROGRESS) -- Shared date-ordered patient note scan for rebuild and metadata maintenance
  ;" 
  ;"=======================================================================
  ;  
@@ -650,36 +654,7 @@ TOPICRPT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)  ;"TOPIC REPORT
   ;"       REMOTE --
   ;"       MAX    --
   ;"       ORFHIE -D- 
-  goto T1
-  SET @ROOT@(1)="<HTML><HEAD><TITLE>TOPIC THREAD REPORT</TITLE></HEAD><BODY>"
-  NEW TOPIC SET TOPIC=""
-  NEW TOPICARR
-  FOR  SET TOPIC=$ORDER(^TMG(22719.2,TMGDFN,1,"B",TOPIC)) QUIT:TOPIC=""  DO
-  . NEW TOPICIDX SET TOPICIDX=0
-  . FOR  SET TOPICIDX=$ORDER(^TMG(22719.2,TMGDFN,1,"B",TOPIC,TOPICIDX)) QUIT:TOPICIDX'>0  DO
-  . . SET TOPICARR($$UP^XLFSTR(TOPIC),TOPICIDX)=""
-  ;"
-  SET TOPIC=""
-  NEW ROOTIDX SET ROOTIDX=1
-  SET @ROOT@($I(ROOTIDX))="<TABLE BORDER=3><TR><TH>TOPIC</TH><TH>THREADS</TH></TR>"
-  FOR  SET TOPIC=$ORDER(TOPICARR(TOPIC)) QUIT:TOPIC=""  DO
-  . SET @ROOT@($I(ROOTIDX))="<TR><TD>"_TOPIC_"</TD><TD><ul>"
-  . NEW TOPIDX SET TOPIDX=0
-  . FOR  SET TOPIDX=$ORDER(TOPICARR(TOPIC,TOPIDX)) QUIT:TOPIDX'>0  DO
-  . . ;"SET @ROOT@($I(ROOTIDX))="threads go here"
-  . . NEW THREADIDX SET THREADIDX=0
-  . . FOR  SET THREADIDX=$ORDER(^TMG(22719.2,TMGDFN,1,TOPIDX,1,THREADIDX)) QUIT:THREADIDX'>0  DO
-  . . . SET @ROOT@($I(ROOTIDX))="<li>"
-  . . . SET @ROOT@($I(ROOTIDX))="<B>"_$$EXTDATE^TMGDATE($GET(^TMG(22719.2,TMGDFN,1,TOPIDX,1,THREADIDX,0)),1)_"</B>"
-  . . . NEW LINEIDX SET LINEIDX=0                      
-  . . . FOR  SET LINEIDX=$ORDER(^TMG(22719.2,TMGDFN,1,TOPIDX,1,THREADIDX,1,LINEIDX)) QUIT:LINEIDX'>0  DO
-  . . . . SET @ROOT@($I(ROOTIDX))=$GET(^TMG(22719.2,TMGDFN,1,TOPIDX,1,THREADIDX,1,LINEIDX,0))
-  . . . SET @ROOT@($I(ROOTIDX))="<hr></li>"
-  . SET @ROOT@($I(ROOTIDX))="</ul></td></tr>"
-  QUIT
-  ;
-  ;
-T1  ;"TEST1
+T1  ;"Build the report with the active HTML template.
   NEW ADFN SET ADFN=TMGDFN
   NEW DATA DO TOPIC2DATA(ADFN,.DATA)
   NEW INFO DO PREPINFO(.DATA,.INFO)
@@ -777,9 +752,10 @@ GETCODE(OUTREF,TAG,ROUTINE) ;
   QUIT
   ;  
   ;"========================================================================
-  ;"Code for fixing older threads which are full of repeats from prior entries
+  ;"Code for fixing threads 
   ;"========================================================================
-TESTFIX ; 
+TESTFIX ;"DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Tests the historical carried-forward-text cleanup; it does not use the current provider-aware thread extractor.
   ;"NEW ADFN SET ADFN=75072
   ;"NEW ADFN SET ADFN=36735  
   ;"NEW ADFN SET ADFN=75071
@@ -788,7 +764,8 @@ TESTFIX ;
   DO FIX22719D2(ADFN)
   QUIT
   ;
-FIXALL ; 
+FIXREPEATALL ;"DEPRECIATED 
+  ;"NOTE: LEGACY ONLY. Runs the historical repair for threads containing repeated carried-forward text; use REBUILDALL for a current full rebuild.
   NEW STIME SET STIME=$H
   NEW PATCT SET PATCT=0
   NEW ADFN SET ADFN=0
@@ -801,7 +778,61 @@ FIXALL ;
   . DO FIX22719D2(ADFN) 
   QUIT  
   ;
+FIXALL(OPTION) ;"Reparse every patient's notes and synchronize topic metadata through FILE1B
+  NEW STIME SET STIME=$H
+  NEW ADFN SET ADFN=0
+  NEW MAXDFN SET MAXDFN=+$ORDER(^DPT("@"),-1)
+  FOR  SET ADFN=$ORDER(^DPT(ADFN)) QUIT:ADFN'>0  DO
+  . NEW PATNAME SET PATNAME=$$LJ^XLFSTR($PIECE($GET(^DPT(ADFN,0)),"^",1),22)
+  . IF $DATA(^TMG("TMP","FIXALL^TMGTOPIC",ADFN)) DO  QUIT
+  . . WRITE "Already processed "_PATNAME,!
+  . DO PROGBAR^TMGUSRI2(ADFN,"Updating topic metadata for "_PATNAME,1,MAXDFN,80,STIME)
+  . DO FIX1PT(ADFN,.OPTION)
+  . SET ^TMG("TMP","FIXALL^TMGTOPIC",ADFN)=""
+  QUIT
+  ;
+FIXALL2 ;"Run the all-patient group/table refresh without creating or rewriting thread text
+  NEW OPTION
+  SET OPTION("SKIP THREAD DATA")=1
+  DO FIXALL(.OPTION)
+  QUIT
+  ;
+FIX1PT(ADFN,OPTION) ;"Reparse one patient's notes and synchronize topic metadata through FILE1B
+  ;"This is going to save off group tags, and associated tables, but NOT the thread text.  
+  SET ADFN=+$GET(ADFN)
+  IF '$DATA(^DPT(ADFN,0)) QUIT
+  DO SCANPTNOTES(ADFN,.OPTION,"META",0)
+  QUIT
+  ;
+SCANPTNOTES(ADFN,OPTION,ACTION,SHOWPROGRESS) ;"Shared date-ordered patient note scan for rebuild and metadata maintenance
+  SET ADFN=+$GET(ADFN)
+  SET ACTION=$GET(ACTION)
+  SET SHOWPROGRESS=+$GET(SHOWPROGRESS)
+  NEW MAXTIUIEN,MAXTIUDT,NOTECOUNT,NOTESTART
+  SET (MAXTIUIEN,MAXTIUDT,NOTECOUNT)=0,NOTESTART=$H
+  IF SHOWPROGRESS DO
+  . SET MAXTIUDT=$ORDER(^TIU(8925,"ZTMGPTDT",ADFN,""),-1)
+  . IF MAXTIUDT>0 SET MAXTIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",ADFN,MAXTIUDT,""),-1)
+  NEW TIUDT SET TIUDT=0
+  FOR  SET TIUDT=$ORDER(^TIU(8925,"ZTMGPTDT",ADFN,TIUDT)) QUIT:TIUDT'>0  DO
+  . NEW TIUIEN SET TIUIEN=0
+  . FOR  SET TIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",ADFN,TIUDT,TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . NEW ARRAY,QUIET
+  . . SET NOTECOUNT=NOTECOUNT+1
+  . . IF SHOWPROGRESS,(NOTECOUNT#10=0) DO
+  . . . DO PROGBAR^TMGUSRI2(TIUIEN,"Note IEN# "_TIUIEN,1,MAXTIUIEN,60,NOTESTART)
+  . . IF ACTION="REBUILD" DO
+  . . . DO SUMM1^TMGTIUT6(TIUIEN,.OPTION)
+  . . ELSE  IF ACTION="META" DO
+  . . . DO SUMNOTE^TMGTIUP1(TIUIEN,.ARRAY,.OPTION)
+  . . . IF $DATA(ARRAY) DO FILE1B^TMGTIUT5(TIUIEN,.ARRAY,.QUIET,.OPTION)
+  . . IF $DATA(QUIET(TIUIEN)) DO
+  . . . WRITE !,"  TIU IEN ",TIUIEN,": ",!
+  . . . ZWR QUIET(TIUIEN,*)
+  QUIT
+  ;
 FIX22719D2(ADFN) ;
+  ;"NOTE: LEGACY ONLY. Performs the historical carried-forward-text cleanup in existing file 22719.2 entries.
   IF $DATA(^TMG("TMP","FIX22719.2",ADFN))>0 GOTO FXDN
   NEW DATA DO TOPIC2DATA^TMGTOPIC(ADFN,.DATA)
   NEW COMPOSITE
@@ -831,7 +862,8 @@ FIX22719D2(ADFN) ;
 FXDN ;  
   QUIT
   ;
-SAVECHANGES(ARR,ADFN,ERROUT)  ;
+SAVECHANGES(ARR,ADFN,ERROUT)  ;"DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Supports FIX22719D2's historical carried-forward-text cleanup.
   ;"NOTE: FILE1B^TMGTIUT5 is where data was initially filed as part of post-sig code.
   ;"INPUT: ARR -- PASS BY REFERENCE.  Array as created by FIX22719D2(ADFN).  Format:
   ;"            ARR(FMDT)=<text for filing>  or "" if entry needs to be deleted
@@ -861,7 +893,8 @@ SAVECHANGES(ARR,ADFN,ERROUT)  ;
   . . . . SET ERROUT(ADT)=$$GETERRST^TMGDEBU2(.TMGMSG)
   QUIT
   ;  
-CLEANTOPICS(TOPICS)  ;
+CLEANTOPICS(TOPICS)  ;"DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Text-deduplication algorithm used only by FIX22719D2.
   NEW DIVS SET DIVS=" ,;:.!?-"
   NEW ADTLATER SET ADTLATER=""
   FOR  SET ADTLATER=$ORDER(TOPICS(ADTLATER),-1) QUIT:ADTLATER'>0  DO                                
@@ -957,16 +990,13 @@ CLEANTOPICS(TOPICS)  ;
   QUIT
   ;
   ;"========================================================================
-  ;"END OF Code for fixing older threads, which will all repeats of full paragraph
-  ;"========================================================================
-  ;  
-  ;"========================================================================
-  ;"Fixing duplicate thread entries
+  ;"Fixing duplicate thread entries  --  DEPRECIATED
   ;" -- This was when topic names > 30 chars were getting filed repeatedly
   ;"    because not immediately found looking only in "B" index.  (fixed now I hope). 
   ;"========================================================================
   ;
-FIXDUPTHREADALLPTS() ;
+FIXDUPTHREADALLPTS() ;"DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Repairs duplicate topic parents created by the former >30-character topic-index defect; current FILE1B lookup prevents new instances.
   NEW TMGDFN SET TMGDFN=0
   FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
   . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
@@ -974,17 +1004,18 @@ FIXDUPTHREADALLPTS() ;
   . DO FIXDUPTHREAD1PT(TMGDFN)
   QUIT
   ;
-FIXDUPTHREAD1PT(TMGDFN) ;"Fix all duplicate threads for 1 patient.  
+FIXDUPTHREAD1PT(TMGDFN) ;"Fix all duplicate threads for 1 patient.  -- DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Repairs duplicate topic parents created by the former >30-character topic-index defect; it is not the user-facing topic merge path.
   ;"Input: TMGDFN -- PATIENT IEN
   ;"Results: none
   ;
   NEW OUT DO TOPICLST(.OUT,TMGDFN)  ;"Get lists of all topics for patient.
   NEW ARR
-  NEW IDX SET IDX=0
+  NEW IDX SET IDX=1
   FOR  SET IDX=$ORDER(OUT(IDX)) QUIT:IDX'>0  DO
   . NEW STR SET STR=$GET(OUT(IDX)) QUIT:STR=""
   . NEW SUBIEN SET SUBIEN=$PIECE(STR,"^",1) QUIT:SUBIEN'>0
-  . NEW TOPIC SET TOPIC=$PIECE(STR,"^",2) QUIT:TOPIC=""
+  . NEW TOPIC SET TOPIC=$PIECE(STR,"^",3) QUIT:TOPIC=""
   . SET ARR(TOPIC)=+$GET(ARR(TOPIC))+1
   . SET ARR(TOPIC,SUBIEN)=""
   NEW ATOPIC SET ATOPIC=""
@@ -998,7 +1029,8 @@ FIXDUPTHREAD1PT(TMGDFN) ;"Fix all duplicate threads for 1 patient.
   . . IF ARESULT'>0 WRITE !,$PIECE(ARESULT,"^",2),!
   QUIT
   ;
-MERGEDUPTHREAD(TMGDFN,DESTIEN,SRCIEN)  ;"Fix 1 duplicate thread pair for 1 patient's topic. 
+MERGEDUPTHREAD(TMGDFN,DESTIEN,SRCIEN)  ;"Fix 1 duplicate thread pair for 1 patient's topic.  DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Merges duplicate topic parents from the former >30-character topic-index defect; same-FMDT entries are treated as duplicates here.
   ;"Input: TMGDFN -- PATIENT IEN
   ;"       DESTIEN -- IEN in 22719.21 (TOPIC field subfile) which will RECEIVE the other record
   ;"       SRCIEN -- IEN in 22719.21 (TOPIC field subfile) which will SUPPLY a record to put into other.    
@@ -1026,7 +1058,8 @@ MERGEDUPTHREAD(TMGDFN,DESTIEN,SRCIEN)  ;"Fix 1 duplicate thread pair for 1 patie
   . SET $PIECE(@REF,"^",4)=RECCT
   QUIT TMGRESULT
   ;
-MERGE1DTT(TMGDFN,DESTIEN,SRCIEN,SRCSUBIEN) ;"Merge 1 duplicate FMDT entry for thread pair for 1 patient's topic. 
+MERGE1DTT(TMGDFN,DESTIEN,SRCIEN,SRCSUBIEN) ;"Merge 1 duplicate FMDT entry for thread pair for 1 patient's topic. DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Supports MERGEDUPTHREAD and intentionally discards a source entry when the destination already has its FMDT.
   ;"Input: TMGDFN -- PATIENT IEN
   ;"       DESTIEN -- IEN in 22719.21 (TOPIC field subfile) which will RECEIVE the other record
   ;"       SRCIEN -- IEN in 22719.21 (TOPIC field subfile) which will SUPPLY a record to put into other.    
@@ -1070,10 +1103,6 @@ MERGE1DTT(TMGDFN,DESTIEN,SRCIEN,SRCSUBIEN) ;"Merge 1 duplicate FMDT entry for th
 M1DTTDN QUIT TMGRESULT  
   ;
   ;"========================================================================
-  ;"END OF Fixing duplicate thread entries
-  ;"========================================================================
-
-  ;"========================================================================
   ;" CODE FOR REBUILDING TOPICS DATA
   ;"========================================================================
   ;
@@ -1088,21 +1117,7 @@ REBUILD1PT(TMGDFN,OPTION) ;"Rebuild all stored topic data for one patient  ;"//k
   SET OPTION("REMOVE OLD")=1  ;"//kt 9/30/26 Reconcile threads no longer produced by the corrected parser
   NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)  ;"//kt 9/30/26
   ;"IF 'SILENT WRITE !,"Rebuilding topic data for ",PTNAME," (",TMGDFN,")",!  ;"//kt 9/30/26
-  NEW MAXTIUDT SET MAXTIUDT=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,""),-1)  ;"//kt 10/1/26 Get the most recent event-date key from the patient TIU cross reference
-  NEW MAXTIUIEN SET MAXTIUIEN=0  ;"//kt 10/1/26
-  IF MAXTIUDT>0 SET MAXTIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,MAXTIUDT,""),-1)  ;"//kt 10/1/26 Use the final TIU IEN as the progress-bar maximum
-  NEW TIUDT SET TIUDT=0  ;"//kt 9/30/26 Process notes in event-date order so prior-thread checks are valid
-  NEW NOTECOUNT SET NOTECOUNT=0  ;"//kt 10/1/26
-  NEW NOTESTART SET NOTESTART=$H  ;"//kt 10/1/26
-  FOR  SET TIUDT=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,TIUDT)) QUIT:TIUDT'>0  DO  ;"//kt 9/30/26
-  . NEW TIUIEN SET TIUIEN=0  ;"//kt 9/30/26
-  . FOR  SET TIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,TIUDT,TIUIEN)) QUIT:TIUIEN'>0  DO  ;"//kt 9/30/26
-  . . SET NOTECOUNT=NOTECOUNT+1  ;"//kt 10/1/26
-  . . IF ('SILENT)&(NOTECOUNT#10=0) DO
-  . . . DO PROGBAR^TMGUSRI2(TIUIEN,"Note IEN# "_TIUIEN,1,MAXTIUIEN,60,NOTESTART)  ;"//kt 10/1/26
-  . . NEW QUIET  ;"//kt 9/30/26
-  . . DO SUMM1^TMGTIUT6(TIUIEN,.OPTION)  ;"//kt 9/30/26 Reparse and rewrite this note's topic/thread data
-  . . IF $DATA(QUIET(TIUIEN)) WRITE !,"  TIU IEN ",TIUIEN,": ",QUIET(TIUIEN),!  ;"//kt 9/30/26
+  DO SCANPTNOTES(TMGDFN,.OPTION,"REBUILD",'SILENT)
   ;"IF 'SILENT WRITE "Topic data rebuild complete.",!  ;"//kt 9/30/26
   IF 'SILENT WRITE "                                                                 ",!
   DO CUU^TMGTERM(1)
@@ -1140,6 +1155,3 @@ REBUILDALL ;"Rebuild stored topic data for every patient  ;"//kt 9/30/26
   DO PROGBAR^TMGUSRI2(MAXDFN,"Topic data rebuild complete.",MAXDFN,MAXDFN,60,STARTTIME)  ;"//kt 10/1/26
   QUIT
   ;
-  ;"========================================================================
-  ;" END OF CODE FOR REBUILDING TOPICS DATA
-  ;"========================================================================

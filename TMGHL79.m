@@ -11,7 +11,7 @@ TMGHL79 ;TMG/kst-HL7 transformation engine processing ;6/15/2026
  ;" always be distributed with this file.
  ;"~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--~--
  ;
- ;"NOTE: this is code for working with labs from **[LabCorp lab -- via WebScrape]**
+ ;"NOTE: this is code for working with labs from **[LabCorp lab]**
  ;"      FYI -- Pathgroup code is in TMGHL73
  ;"             Laughlin code is in TMGHL74
  ;"             Laughlin RADIOLOGY is in TMGHL74R
@@ -323,24 +323,77 @@ HNDLPID ;"Purpose: This will get PID 18.6 and PID 18.7 (Status of Specimen and F
         QUIT
         ;"
 HNDLOBR ;"Purpose: Check all OBRs elements to see if they are children of other OBR
-        ;"To begin with, we have to create a listing of all OBR tests.
-        ;"   This cannot be done top down, because some reflex tests may themselve reflex and overwrite the parent
-        NEW PARENTARR,CHILDARR
-        NEW ONESEGN SET ONESEGN=0
-        FOR  SET ONESEGN=$O(TMGHL7MSG("B","OBR",ONESEGN)) QUIT:ONESEGN'>0  DO
-        . NEW TESTNUM SET TESTNUM=$P($G(TMGHL7MSG(ONESEGN,4)),TMGU(2),1)
-        . SET PARENTARR(TESTNUM)=$G(TMGHL7MSG(ONESEGN,4))
-        . NEW CODE SET CODE=$G(TMGHL7MSG(ONESEGN,11))
-        . IF CODE="G" SET CHILDARR(ONESEGN)=$G(TMGHL7MSG(ONESEGN,29))
-        ;"
-        ;"Now go through each child node, replacing the test with the parent
-        SET ONESEGN=0
-        FOR  SET ONESEGN=$O(CHILDARR(ONESEGN)) QUIT:ONESEGN'>0  DO
-        . NEW PARENT SET PARENT=$G(CHILDARR(ONESEGN))
-        . IF PARENT'="" SET PARENT=$G(PARENTARR(PARENT))
-        . IF PARENT'="" SET $P(TMGHL7MSG(ONESEGN),TMGU(1),5)=PARENT
-        QUIT
-        ;"
+        ;"//kt //codex 2026-10-02 ;"To begin with, we have to create a listing of all OBR tests.
+        ;"//kt //codex 2026-10-02 ;"   This cannot be done top down, because some reflex tests may themselve reflex and overwrite the parent
+        ;"//kt //codex 2026-10-02 NEW PARENTARR,CHILDARR
+        ;"//kt //codex 2026-10-02 NEW ONESEGN SET ONESEGN=0
+        ;"//kt //codex 2026-10-02 FOR  SET ONESEGN=$O(TMGHL7MSG("B","OBR",ONESEGN)) QUIT:ONESEGN'>0  DO
+        ;"//kt //codex 2026-10-02 . NEW TESTNUM SET TESTNUM=$P($G(TMGHL7MSG(ONESEGN,4)),TMGU(2),1)
+        ;"//kt //codex 2026-10-02 . SET PARENTARR(TESTNUM)=$G(TMGHL7MSG(ONESEGN,4))
+        ;"//kt //codex 2026-10-02 . NEW CODE SET CODE=$G(TMGHL7MSG(ONESEGN,11))
+        ;"//kt //codex 2026-10-02 . IF CODE="G" SET CHILDARR(ONESEGN)=$G(TMGHL7MSG(ONESEGN,29))
+        ;"//kt //codex 2026-10-02 ;"
+        ;"//kt //codex 2026-10-02 ;"Now go through each child node, replacing the test with the parent
+        ;"//kt //codex 2026-10-02 SET ONESEGN=0
+        ;"//kt //codex 2026-10-02 FOR  SET ONESEGN=$O(CHILDARR(ONESEGN)) QUIT:ONESEGN'>0  DO
+        ;"//kt //codex 2026-10-02 . NEW PARENT SET PARENT=$G(CHILDARR(ONESEGN))
+        ;"//kt //codex 2026-10-02 . IF PARENT'="" SET PARENT=$G(PARENTARR(PARENT))
+        ;"//kt //codex 2026-10-02 . IF PARENT'="" SET $P(TMGHL7MSG(ONESEGN),TMGU(1),5)=PARENT   ;"  USE  SETPCE^TMGHL7X2
+        ;"//kt //codex 2026-10-02 QUIT
+        ;"//kt //codex 2026-10-02 ;"
+        NEW CHILDOBR SET CHILDOBR=0 
+        FOR  SET CHILDOBR=$ORDER(TMGHL7MSG("B","OBR",CHILDOBR)) QUIT:CHILDOBR'>0  DO  
+        . NEW ACTIONCODE SET ACTIONCODE=$GET(TMGHL7MSG(CHILDOBR,11)) QUIT:ACTIONCODE'["G"  
+        . NEW PARENTOBRID SET PARENTOBRID=$PIECE($GET(TMGHL7MSG(CHILDOBR,29)),TMGU(2),1) QUIT:PARENTOBRID=""  
+        . NEW PARENTOBR,SEARCH SET PARENTOBR=0,SEARCH=CHILDOBR  
+        . FOR  SET SEARCH=$ORDER(TMGHL7MSG(SEARCH),-1) QUIT:(SEARCH'>0)!(PARENTOBR>0)  DO  
+        . . IF $GET(TMGHL7MSG(SEARCH,"SEG"))'="OBR" QUIT  
+        . . IF $GET(TMGHL7MSG(SEARCH,4,1))=PARENTOBRID SET PARENTOBR=SEARCH  
+        . QUIT:PARENTOBR'>0  
+        . NEW PARENTOBXID SET PARENTOBXID=$PIECE($GET(TMGHL7MSG(CHILDOBR,26)),TMGU(2),1) QUIT:PARENTOBXID=""  
+        . NEW PARENTOBX SET PARENTOBX=0,SEARCH=CHILDOBR  
+        . FOR  SET SEARCH=$ORDER(TMGHL7MSG(SEARCH),-1) QUIT:(SEARCH'>0)!(SEARCH<PARENTOBR)!(PARENTOBX>0)  DO  
+        . . IF $GET(TMGHL7MSG(SEARCH,"SEG"))'="OBX" QUIT  
+        . . IF $GET(TMGHL7MSG(SEARCH,3,1))=PARENTOBXID SET PARENTOBX=SEARCH  
+        . QUIT:PARENTOBX'>0  
+        . NEW CURSEGN,STOP,MOVED SET CURSEGN=CHILDOBR,STOP=0,MOVED=0  
+        . FOR  SET CURSEGN=$ORDER(TMGHL7MSG(CURSEGN)) QUIT:(CURSEGN'>0)!STOP  DO  
+        . . NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(CURSEGN,"SEG"))  
+        . . IF (SEGTYPE="ORC")!(SEGTYPE="OBR") SET STOP=1 QUIT  
+        . . IF SEGTYPE'="OBX" QUIT  
+        . . NEW TESTNAME SET TESTNAME=$GET(TMGHL7MSG(CURSEGN,3,2))  
+        . . IF $EXTRACT(TESTNAME,1,7)'="Result " QUIT  
+        . . NEW RESULTNUM SET RESULTNUM=$EXTRACT(TESTNAME,8,$LENGTH(TESTNAME))  
+        . . IF RESULTNUM'?1N.N QUIT  
+        . . NEW NTEARR,NTESEGS,NTESEGN,NOTEDONE,NTECT SET NTESEGN=CURSEGN,NOTEDONE=0,NTECT=0  
+        . . FOR  SET NTESEGN=$ORDER(TMGHL7MSG(NTESEGN)) QUIT:(NTESEGN'>0)!NOTEDONE  DO  
+        . . . IF $GET(TMGHL7MSG(NTESEGN,"SEG"))'="NTE" SET NOTEDONE=1 QUIT  
+        . . . SET NTECT=NTECT+1,NTEARR(NTECT)=$GET(TMGHL7MSG(NTESEGN,3)),NTESEGS(NTESEGN)=""  
+        . . IF NTECT'>0 QUIT  
+        . . NEW TMGRESULT SET TMGRESULT=$$INSRTNTE^TMGHL72(.NTEARR,.TMGHL7MSG,.TMGU,PARENTOBX) QUIT:+TMGRESULT'>0  
+        . . NEW KILLSEGN SET KILLSEGN=0  
+        . . FOR  SET KILLSEGN=$ORDER(NTESEGS(KILLSEGN)) QUIT:KILLSEGN'>0  DO KILLSEG79(KILLSEGN)  
+        . . DO KILLSEG79(CURSEGN)  
+        . . SET MOVED=1  
+        . IF MOVED DO  
+        . . NEW REMAINING,SCAN,SCANSTOP SET REMAINING=0,SCAN=CHILDOBR,SCANSTOP=0  
+        . . FOR  SET SCAN=$ORDER(TMGHL7MSG(SCAN)) QUIT:(SCAN'>0)!SCANSTOP  DO  
+        . . . NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(SCAN,"SEG"))  
+        . . . IF (SEGTYPE="ORC")!(SEGTYPE="OBR") SET SCANSTOP=1 QUIT  
+        . . . IF SEGTYPE="OBX" SET REMAINING=1  
+        . . IF REMAINING=0 SET TMGHL7MSG("IGNORE","OBR",CHILDOBR)=1  
+        QUIT  
+        ;
+KILLSEG79(SEGN) ;"Purpose: Delete one segment and all indexes that refer to it.  ;"//kt //codex 2026-10-02
+        NEW SEGTYPE SET SEGTYPE=$GET(TMGHL7MSG(SEGN,"SEG"))  
+        IF SEGTYPE'="" KILL TMGHL7MSG("B",SEGTYPE,SEGN)  
+        KILL TMGHL7MSG("ORDER",SEGN),TMGHL7MSG("RESULT",SEGN)  
+        NEW POINDEX SET POINDEX=""  
+        FOR  SET POINDEX=$ORDER(TMGHL7MSG("PO",POINDEX)) QUIT:POINDEX=""  DO  
+        . IF $GET(TMGHL7MSG("PO",POINDEX))=SEGN KILL TMGHL7MSG("PO",POINDEX)  
+        KILL TMGHL7MSG(SEGN)  
+        QUIT  
+        ;
 REMVPDF ;"Purpose: This routine will remove and PDFs contains in OBXs of TMGHL7MSG (globally scoped)
         NEW IDX SET IDX=0
         FOR  SET IDX=$O(TMGHL7MSG("B","OBX",IDX)) QUIT:IDX'>0  DO
