@@ -138,6 +138,119 @@ LASTNOTE(TMGDFN,LIST,STARTMARKERS,OPTION) ;"GET LAST NOTE POINTED TO IN 22729
 LNDN ;
   QUIT TMGRESULT
   ;
+GETLASTTEXT(TMGDFN,STARTMARKERS,TEXT,NOTEDT,SPACES) ;"//kt //codex added entire function 10/6/26
+  ;"Purpose: Return cached LAST TABLE TEXT from file 22729 for one patient/table.
+  ;"Input: TMGDFN -- IEN in PATIENT file.
+  ;"       STARTMARKERS -- Table name or bracketed table header.
+  ;"Output: TEXT -- PASS BY REFERENCE.  Cached table text line.  Format TEXT(#)=<text>
+  ;"        NOTEDT -- PASS BY REFERENCE.  FM date/time of the linked TIU document or unlinked table data.
+  ;"        SPACES -- PASS BY REFERENCE.  Derived indentation for display of the table header.
+  ;"Result: 1 if cached text was returned, otherwise 0.
+  NEW TMGRESULT SET TMGRESULT=0
+  KILL TEXT
+  SET (NOTEDT,SPACES)=""
+  SET TMGDFN=+$GET(TMGDFN)
+  IF TMGDFN'>0 GOTO GLTDN
+  SET STARTMARKERS=$GET(STARTMARKERS)
+  IF STARTMARKERS="" GOTO GLTDN
+  NEW TABLENAME,TABLEIEN
+  IF STARTMARKERS["[" DO
+  . SET TABLENAME=$PIECE(STARTMARKERS,"[",2)
+  . SET TABLENAME=$PIECE(TABLENAME,"]",1)
+  ELSE  SET TABLENAME=STARTMARKERS
+  SET TABLEIEN=+$ORDER(^TMG(22708,"B",TABLENAME,0))
+  IF TABLEIEN'>0 GOTO GLTDN
+  NEW IEN22729 SET IEN22729=+$ORDER(^TMG(22729,"C",TMGDFN,TABLEIEN,0))
+  IF IEN22729'>0 GOTO GLTDN
+  NEW TMGNODE SET TMGNODE=$GET(^TMG(22729,IEN22729,0))
+  NEW TIUIEN SET TIUIEN=+$PIECE(TMGNODE,"^",3)
+  IF TIUIEN>0 DO
+  . IF $DATA(^TIU(8925,TIUIEN))=0 SET NOTEDT=-1 QUIT
+  . SET NOTEDT=+$PIECE($GET(^TIU(8925,TIUIEN,13)),"^",1)
+  ELSE  SET NOTEDT=+$PIECE(TMGNODE,"^",4)
+  IF NOTEDT'>0 GOTO GLTDN
+  NEW LINE SET LINE=0
+  IF $ORDER(^TMG(22729,IEN22729,1,LINE))'>0 GOTO GLTDN
+  FOR  SET LINE=$ORDER(^TMG(22729,IEN22729,1,LINE)) QUIT:LINE'>0  DO
+  . SET TEXT(LINE)=$GET(^TMG(22729,IEN22729,1,LINE,0))
+  SET SPACES=$CHAR(9)
+  NEW FOUND SET FOUND=0,LINE=0
+  FOR  SET LINE=$ORDER(TEXT(LINE)) QUIT:(LINE'>0)!FOUND  DO
+  . NEW ONELINE SET ONELINE=$GET(TEXT(LINE))
+  . IF $$TRIM^XLFSTR(ONELINE)="" QUIT
+  . SET FOUND=1
+  . IF $EXTRACT(ONELINE,1)'=" " QUIT
+  . SET SPACES=""
+  . FOR  QUIT:$EXTRACT(ONELINE,1)'=" "  DO
+  . . SET SPACES=SPACES_" "
+  . . SET ONELINE=$EXTRACT(ONELINE,2,$LENGTH(ONELINE))
+  SET TMGRESULT=1
+GLTDN ;
+  QUIT TMGRESULT
+  ;
+  ;"//delete later.  copied for backup.  10/6/26
+  ;"XTRCTSPC(IEN8925,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) ;"EXTRACT SPECIAL
+  ;"  ;"Purpose: To scan the REPORT TEXT field in given document and return
+  ;"  ;"         paragraph of text that is started by STARTMARKERS, and ended by ENDMARKERS.
+  ;"  ;"         I.E. Search for a line that contains MARKERS.  Return that line and
+  ;"  ;"         all following lines until line found with ENDMARKERS, or
+  ;"  ;"         end of text.
+  ;"  ;"Input: IEN8925 -- IEN in file 8925 (TIU DOCUMENT)
+  ;"  ;"       STARTMARKERS -- the string to search for that indicates start of block
+  ;"  ;"       ENDMARKERS -- the string to search for that indicates the end of block.
+  ;"  ;"              NOTE: IF ENDMARKERS="BLANK_LINE", then search is
+  ;"  ;"              ended when a blank line is encountered.
+  ;"  ;"              ALSO, will end if </P> or </TD> or </TR> FOUND
+  ;"  ;"       ARRAY -- PASS BY REFERENCE, an OUT PARAMETER.  Prior values killed.
+  ;"  ;"              Format:  ARRAY(0)=MaxLineCount
+  ;"  ;"                       ARRAY(1)="Text line 1"
+  ;"  ;"                       ARRAY(2)="Text line 2" ...
+  ;"  ;"       SPACES -- OPTIONAL.  Pass by reference. AN OUT PARAMETER.
+  ;"  ;"                      Fill with the space length that found tables are indented with.
+  ;"  ;"Result: 1 IF data found, otherwise 0
+  ;"  ;
+  ;"  NEW RESULT SET RESULT=0
+  ;"  NEW ISHTML
+  ;"  KILL ARRAY
+  ;"  SET SPACES=""
+  ;"  SET IEN8925=+$GET(IEN8925)
+  ;"  IF IEN8925'>0 GOTO ESDONE
+  ;"  IF $DATA(^TIU(8925,IEN8925,"TEXT"))'>0 GOTO ESDONE
+  ;"  IF $GET(STARTMARKERS)="" GOTO ESDONE
+  ;"  IF $GET(ENDMARKERS)="" GOTO ESDONE
+  ;"  NEW REF SET REF=$NAME(^TIU(8925,IEN8925,"TEXT"))
+  ;"  ;"to do ... just call XTRCTREF() below, but needs to be tested.  
+  ;"  NEW TEMPARRAY
+  ;"  NEW ISHTML SET ISHTML=$$ISHTML^TMGHTM1(IEN8925)
+  ;"  IF ISHTML DO
+  ;"  . MERGE TEMPARRAY=^TIU(8925,IEN8925,"TEXT")
+  ;"  . DO HTML2TXT^TMGHTM1(.TEMPARRAY)
+  ;"  . SET REF="TEMPARRAY"
+  ;"  NEW LINE,I,BLOCKFOUND,DONE
+  ;"  SET LINE=0,I=0,BLOCKFOUND=0,DONE=0
+  ;"  IF STARTMARKERS'["[" SET STARTMARKERS="["_STARTMARKERS_"]"
+  ;"  FOR  SET LINE=$ORDER(@REF@(LINE)) QUIT:(LINE="")!DONE  DO
+  ;"  . NEW LINES SET LINES=$GET(@REF@(LINE,0))
+  ;"  . IF (BLOCKFOUND=0) DO  QUIT  ;"don't include header line with output
+  ;"  . . IF LINES[STARTMARKERS DO
+  ;"  . . . SET BLOCKFOUND=1
+  ;"  . . . FOR  QUIT:$EXTRACT(LINES,1)'=" "  DO
+  ;"  . . . . SET SPACES=SPACES_" "
+  ;"  . . . . SET LINES=$EXTRACT(LINES,2,$LENGTH(LINES))
+  ;"  . IF (BLOCKFOUND=1) DO
+  ;"  . . SET I=I+1,ARRAY(0)=I
+  ;"  . . NEW S2 SET S2=$$TRIM^XLFSTR(LINES)
+  ;"  . . SET S2=$$TRIM^XLFSTR(S2,"LR",$CHAR(9))
+  ;"  . . SET ARRAY(I)=LINES
+  ;"  . . IF S2="" SET ARRAY(I)=S2
+  ;"  . . SET RESULT=1
+  ;"  . . IF (ENDMARKERS="BLANK_LINE")&(S2="") SET BLOCKFOUND=0,DONE=1 QUIT
+  ;"  . . IF LINES[ENDMARKERS SET BLOCKFOUND=0,DONE=1 QUIT  ;"include line with END marker
+  ;"  IF 'ISHTML SET SPACES=$CHAR(9) ;"(TAB char)
+  ;"  ;"ELSE  SET SPACES="  "  ;"<--- NOTE: This forces ALL html tables to be indented this amount.
+  ;"ESDONE ;
+  ;"  QUIT RESULT
+  ;"  ;
 XTRCTSPC(IEN8925,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) ;"EXTRACT SPECIAL
   ;"Purpose: To scan the REPORT TEXT field in given document and return
   ;"         paragraph of text that is started by STARTMARKERS, and ended by ENDMARKERS.
@@ -158,49 +271,17 @@ XTRCTSPC(IEN8925,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) ;"EXTRACT SPECIAL
   ;"                      Fill with the space length that found tables are indented with.
   ;"Result: 1 IF data found, otherwise 0
   ;
+  ;"//kt //codex 10/6/26  Modified
   NEW RESULT SET RESULT=0
-  NEW ISHTML
-  KILL ARRAY
-  SET SPACES=""
-  SET IEN8925=+$GET(IEN8925)
-  IF IEN8925'>0 GOTO ESDONE
-  IF $DATA(^TIU(8925,IEN8925,"TEXT"))'>0 GOTO ESDONE
-  IF $GET(STARTMARKERS)="" GOTO ESDONE
-  IF $GET(ENDMARKERS)="" GOTO ESDONE
-  NEW REF SET REF=$NAME(^TIU(8925,IEN8925,"TEXT"))
-  ;"to do ... just call XTRCTREF() below, but needs to be tested.  
-  NEW TEMPARRAY
-  NEW ISHTML SET ISHTML=$$ISHTML^TMGHTM1(IEN8925)
-  IF ISHTML DO
-  . MERGE TEMPARRAY=^TIU(8925,IEN8925,"TEXT")
-  . DO HTML2TXT^TMGHTM1(.TEMPARRAY)
-  . SET REF="TEMPARRAY"
-  NEW LINE,I,BLOCKFOUND,DONE
-  SET LINE=0,I=0,BLOCKFOUND=0,DONE=0
-  IF STARTMARKERS'["[" SET STARTMARKERS="["_STARTMARKERS_"]"
-  FOR  SET LINE=$ORDER(@REF@(LINE)) QUIT:(LINE="")!DONE  DO
-  . NEW LINES SET LINES=$GET(@REF@(LINE,0))
-  . IF (BLOCKFOUND=0) DO  QUIT  ;"don't include header line with output
-  . . IF LINES[STARTMARKERS DO
-  . . . SET BLOCKFOUND=1
-  . . . FOR  QUIT:$EXTRACT(LINES,1)'=" "  DO
-  . . . . SET SPACES=SPACES_" "
-  . . . . SET LINES=$EXTRACT(LINES,2,$LENGTH(LINES))
-  . IF (BLOCKFOUND=1) DO
-  . . SET I=I+1,ARRAY(0)=I
-  . . NEW S2 SET S2=$$TRIM^XLFSTR(LINES)
-  . . SET S2=$$TRIM^XLFSTR(S2,"LR",$CHAR(9))
-  . . SET ARRAY(I)=LINES
-  . . IF S2="" SET ARRAY(I)=S2
-  . . SET RESULT=1
-  . . IF (ENDMARKERS="BLANK_LINE")&(S2="") SET BLOCKFOUND=0,DONE=1 QUIT
-  . . IF LINES[ENDMARKERS SET BLOCKFOUND=0,DONE=1 QUIT  ;"include line with END marker
-  IF 'ISHTML SET SPACES=$CHAR(9) ;"(TAB char)
-  ;"ELSE  SET SPACES="  "  ;"<--- NOTE: This forces ALL html tables to be indented this amount.
-ESDONE ;
-  QUIT RESULT
+  SET IEN8925=+$GET(IEN8925) GOTO:IEN8925'>0 XTRSDN
+  IF $DATA(^TIU(8925,IEN8925,"TEXT"))'>0 GOTO XTRSDN  
+  NEW ZTIUARR MERGE ZTIUARR=^TIU(8925,IEN8925,"TEXT")  ;"//kt //codex 10/6/26
+  ;"NOTE: XTRCTREF() may directly modify @REF, so we must NOT pass direct referenc to ^TIU data  
+  SET RESULT=$$XTRCTREF("ZTIUARR",.STARTMARKERS,.ENDMARKERS,.ARRAY,.SPACES) 
+XTRSDN ;  
+  QUIT RESULT 
   ;
-XTRCTREF(REF,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) ;"EXTRACT SPECIAL, FROM REFERENCE. 
+XTRCTREF(REF,STARTMARKERS,ENDMARKERS,ARRAY,SPACES,ISHTML) ;"EXTRACT SPECIAL, FROM REFERENCE. 
   ;"Purpose: To scan a WP field or array and return
   ;"         paragraph of text that is started by STARTMARKERS, and ended by ENDMARKERS.
   ;"         I.e. Search for a line that contains MARKERS.  Return that line and
@@ -220,17 +301,20 @@ XTRCTREF(REF,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) ;"EXTRACT SPECIAL, FROM REFER
   ;"                       ARRAY(2)="Text line 2" ...
   ;"       SPACES -- OPTIONAL.  Pass by reference. AN OUT PARAMETER.
   ;"                      Fill with the space length that found tables are indented with.
+  ;"       ISHTML -- OPTIONAL.  If passed, should be 1 or 0.  If provided, then local check skippped
   ;"Result: 1 if data found, otherwise 0
   ;
   NEW RESULT SET RESULT=0
-  NEW ISHTML,TEMPARRAY
+  NEW TEMPARRAY
   KILL ARRAY
   SET SPACES=""
   NEW IDX SET IDX=$ORDER(@REF@(0))
   NEW ZNMODE SET ZNMODE=($DATA(@REF@(IDX,0))>0)
   IF $GET(STARTMARKERS)="" GOTO XRDONE
   IF $GET(ENDMARKERS)="" GOTO XRDONE
-  NEW ISHTML SET ISHTML=$$ISHTMREF^TMGHTM1(REF,ZNMODE)
+  IF $DATA(ISHTML)=0 DO
+  . SET ISHTML=$$ISHTMREF^TMGHTM1(REF,ZNMODE)
+  ELSE  SET ISHTML=+ISHTML
   IF ISHTML DO
   . NEW HEADERZN SET HEADERZN=$GET(@REF@(0))  ;"//i.e. header of WP subfile
   . IF ZNMODE DO
@@ -270,8 +354,7 @@ XTRCTREF(REF,STARTMARKERS,ENDMARKERS,ARRAY,SPACES) ;"EXTRACT SPECIAL, FROM REFER
   ;"ELSE  SET SPACES="  "  ;"<--- NOTE: This forces ALL html tables to be indented this amount.
 XRDONE ;
   QUIT RESULT
-  ;
-  
+  ;  
 MERGEIN(PARTARRAY,MASTERARRAY) ;"MERGE INTO
   ;"Purpose: to combine PARTARRAY into MasterARRAY.
   ;"Input: PARTARRAY -- PASS BY REFERENCE

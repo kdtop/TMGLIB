@@ -18,7 +18,7 @@ TMGHTM1 ;TMG/kst-HTML utilities ;7/14/17, 10/18/17
  ;"$$ISHTMLAR(ARRAY) -- determine IF Array text is HTML markup
  ;"$$ISHTMREF(REFARRAY,ZN) -- determine IF @REFARRAY text is HTML markup 
  ;"REMHTML(LINESTR)  -- REMOVE {HTML...} TAGS
- ;"HTML2TXT(ARRAY) -- convert HTML --> text formatted array
+ ;"HTML2TXT(ARRAY,LISUB) -- convert HTML --> text formatted array
  ;"TXT2HTML(ARRAY) -- convert text --> HTML formatted array
  ;"HTML2TXS(LINESTR) -- text a string that is HTML formatted, and strips out tags
  ;"$$STRIPTAG(HTMLSTR)  --remove all tags from an HTML string (doesn't change special chars) 
@@ -119,6 +119,10 @@ HTML2TXT(ARRAY,LISUB) ;
   NEW OUTARRAY,OUTI
   SET OUTI=1
   SET LISUB=$GET(LISUB)
+  ;"//kt //codex begin mod 10/8/26 -- Build logical HTML lines while parsing.
+  ;"  FileMan WP node boundaries are ignored; HTML break tags define the lines.
+  ;"     but if any line is > 200 chars, it is wrapped to a new line.  
+  NEW MAXWPLEN SET MAXWPLEN=200
   ;
   NEW BLKLNTAGS SET BLKLNTAGS="<P>^</TABLE>^</TR>^<TABLE^<TBODY>^</LI>^<p>^</table>^</tr>^<table^<tbody>^</li>" ;" ELH added lower case tags for now 5/30/25
   NEW S2 SET S2=""
@@ -129,7 +133,7 @@ HTML2TXT(ARRAY,LISUB) ;
   . SET S2=""
   . FOR  DO  QUIT:(LINESTR'["<")
   . . NEW TAG,SORTPOS,P,NEXTTAG,PARTA,PARTB
-  . . FOR TAG="<P>","<BR>","<LI>","</LI>","</TABLE>","</TR>","<TABLE","<TBODY>","<p>","<br>","<li>","</li>","</table>","</tr>","<table","<tbody>" DO   ;"elh  added lower case tags to this for now   5/30/25
+  . . FOR TAG="<P>","</P>","<BR>","<LI>","</LI>","</TABLE>","</TR>","<TABLE","<TBODY>","<DIV","</DIV>","</TD>","</TH>","<HR","<p>","</p>","<br>","<li>","</li>","</table>","</tr>","<table","<tbody>","<div","</div>","</td>","</th>","<hr" DO   ;"//kt //codex added standard HTML break tags 10/8/26
   . . . SET SORTPOS($FIND(LINESTR,TAG),TAG)=""
   . . SET NEXTTAG="" SET P=+$ORDER(SORTPOS(0)) IF P>0 SET NEXTTAG=$ORDER(SORTPOS(P,""))
   . . IF NEXTTAG'="",NEXTTAG'[">" DO  ;"//handle open tags (tags that might have properties)
@@ -140,8 +144,7 @@ HTML2TXT(ARRAY,LISUB) ;
   . . ELSE  SET PARTA=LINESTR,PARTB=""
   . . NEW TAGSUB SET TAGSUB=$SELECT(NEXTTAG="<LI>":LISUB,NEXTTAG="<li>":LISUB,1:"")
   . . IF NEXTTAG'="" DO  QUIT
-  . . . SET OUTARRAY(OUTI,0)=PARTA
-  . . . SET OUTI=OUTI+1
+  . . . IF PARTA'="" DO ADDWRAP(.OUTARRAY,.OUTI,.PARTA,MAXWPLEN)
   . . .  IF BLKLNTAGS[$PIECE(NEXTTAG," ",1) DO
   . . . . SET OUTARRAY(OUTI,0)=""  ;"Add blank line to create paragraph break.
   . . . . SET OUTI=OUTI+1
@@ -149,9 +152,9 @@ HTML2TXT(ARRAY,LISUB) ;
   . . SET S2=LINESTR,LINESTR=""
   . . QUIT
   . SET S2=S2_LINESTR
+  . DO FLUSHWRAP(.S2,.OUTARRAY,.OUTI,MAXWPLEN)
   IF S2'="" DO
-  . SET OUTARRAY(OUTI,0)=S2
-  . SET OUTI=OUTI+1
+  . DO ADDWRAP(.OUTARRAY,.OUTI,.S2,MAXWPLEN)
   ;
   ;"Strip out all tags other than <P>
   NEW LINE SET LINE=0
@@ -184,6 +187,75 @@ HTML2TXT(ARRAY,LISUB) ;
   ;
   KILL ARRAY
   MERGE ARRAY=OUTARRAY
+  ;"//kt //codex end mod 10/8/26 --
+  QUIT
+  ;
+ADDWRAP(OUTARRAY,OUTI,TEXT,MAXLEN) ;"ADD WRAPPED TEXT TO A FILEMAN WP-FORMAT ARRAY
+  ;"//kt //codex added entire function 10/8/26
+  ;"Purpose: Add all of TEXT to OUTARRAY, wrapping near MAXLEN without splitting
+  ;"         an HTML tag or entity.  OUTI is the next available WP line number.
+  NEW PARTA,PARTB
+  SET TEXT=$GET(TEXT)
+  IF TEXT="" SET OUTARRAY(OUTI,0)="",OUTI=OUTI+1 QUIT
+  FOR  DO  QUIT:(PARTB="")
+  . DO WRAPPIECE(TEXT,MAXLEN,.PARTA,.PARTB)
+  . SET OUTARRAY(OUTI,0)=PARTA,OUTI=OUTI+1
+  . SET TEXT=PARTB
+  QUIT
+  ;
+FLUSHWRAP(TEXT,OUTARRAY,OUTI,MAXLEN) ;"FLUSH COMPLETE WRAPPED LINES, KEEPING A SHORT RESIDUAL
+  ;"//kt //codex added entire function 10/8/26
+  ;"Purpose: Keep TEXT no longer than MAXLEN by writing completed WP lines to
+  ;"         OUTARRAY.  The residual remains available for text in the next
+  ;"         FileMan WP node, until an HTML break tag is encountered.
+  NEW PARTA,PARTB
+  SET TEXT=$GET(TEXT)
+  FOR  QUIT:$LENGTH(TEXT)'>MAXLEN  DO
+  . DO WRAPPIECE(TEXT,MAXLEN,.PARTA,.PARTB)
+  . SET OUTARRAY(OUTI,0)=PARTA,OUTI=OUTI+1
+  . SET TEXT=PARTB
+  QUIT
+  ;
+WRAPPIECE(TEXT,MAXLEN,PARTA,PARTB) ;"SPLIT TEXT NEAR MAXLEN WITHOUT BREAKING TAGS OR ENTITIES
+  ;"//kt //codex added entire function 10/8/26
+  ;"Input: TEXT -- text to split.  It is not changed.
+  ;"       MAXLEN -- preferred maximum length of PARTA.
+  ;"Output: PARTA and PARTB concatenate to equal TEXT.  Tags (<...>) and
+  ;"        entities (&...;) are kept intact; an overlength construct is kept
+  ;"        in PARTA rather than being corrupted.
+  SET (PARTA,PARTB)=""
+  SET TEXT=$GET(TEXT),MAXLEN=+$GET(MAXLEN)
+  IF MAXLEN'>0 SET MAXLEN=80
+  NEW STRLEN SET STRLEN=$LENGTH(TEXT)
+  IF STRLEN'>MAXLEN SET PARTA=TEXT QUIT
+  NEW POS,CH,INTAG,INSPECIAL,TAGSTART,SPECIALSTART,LASTSPACE
+  SET (INTAG,INSPECIAL)=0,TAGSTART=0,SPECIALSTART=0,LASTSPACE=0
+  FOR POS=1:1:MAXLEN DO
+  . SET CH=$EXTRACT(TEXT,POS)
+  . IF INTAG DO  QUIT
+  . . IF CH=">" SET INTAG=0,TAGSTART=0
+  . IF INSPECIAL DO  QUIT
+  . . IF CH=";" SET INSPECIAL=0,SPECIALSTART=0
+  . IF CH="<" SET INTAG=1,TAGSTART=POS QUIT
+  . IF CH="&" SET INSPECIAL=1,SPECIALSTART=POS QUIT
+  . IF CH=" " SET LASTSPACE=POS
+  NEW SAFEEND
+  SET SAFEEND=MAXLEN
+  IF INTAG SET SAFEEND=TAGSTART-1
+  IF INSPECIAL,SPECIALSTART'>SAFEEND SET SAFEEND=SPECIALSTART-1
+  IF SAFEEND'>0 DO
+  . NEW ENDPOS
+  . IF INTAG SET ENDPOS=$FIND(TEXT,">",MAXLEN+1)
+  . ELSE  IF INSPECIAL SET ENDPOS=$FIND(TEXT,";",MAXLEN+1)
+  . ELSE  SET ENDPOS=0
+  . IF ENDPOS>0 SET SAFEEND=ENDPOS-1
+  . ELSE  SET SAFEEND=MAXLEN  ;"Malformed construct: make progress without retaining a large string.
+  IF (LASTSPACE>1),(LASTSPACE'>SAFEEND) DO
+  . SET PARTA=$EXTRACT(TEXT,1,LASTSPACE-1)
+  . SET PARTB=$EXTRACT(TEXT,LASTSPACE+1,STRLEN)
+  ELSE  DO
+  . SET PARTA=$EXTRACT(TEXT,1,SAFEEND)
+  . SET PARTB=$EXTRACT(TEXT,SAFEEND+1,STRLEN)
   QUIT
   ;
 TXT2HTML(ARRAY,ZN) ;"Convert text ARRAY --> HTML formatted array

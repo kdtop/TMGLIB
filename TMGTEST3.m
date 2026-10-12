@@ -312,7 +312,7 @@ GETHELP(NAME,DEVINFO,OUT)  ;
   . SET OUT(IDX)="When CTRAP includes <CTRL-C>, [NO]CENABLE has no effect.                          ",IDX=IDX+1
   . SET OUT(IDX)="CTRAPping <CTRL-C> also takes precedence over CENABLE.                            ",IDX=IDX+1
   . SET OUT(IDX)="                                                                                  ",IDX=IDX+1
-  . SET OUT(IDX)="CTRAP=$[Z]CHAR(intexpr[,…]) Applies to: TRM                                       ",IDX=IDX+1
+  . SET OUT(IDX)="CTRAP=$[Z]CHAR(intexpr[,?]) Applies to: TRM                                       ",IDX=IDX+1
   IF NAME="EDIT_MODE" DO
   . SET OUT(IDX)="Enables the EDITING mode for the $PRINCIPAL device. If you enable EDITING,        ",IDX=IDX+1
   . SET OUT(IDX)="YottaDB allows the use of the left and right cursor movement keys and certain     ",IDX=IDX+1
@@ -396,7 +396,7 @@ GETHELP(NAME,DEVINFO,OUT)  ;
   . SET OUT(IDX)="error, or an entryref to which YottaDB transfers control, as appropriate for the  ",IDX=IDX+1
   . SET OUT(IDX)="current ydb_ztrap_form.                                                           ",IDX=IDX+1
   . SET OUT(IDX)="                                                                                  ",IDX=IDX+1
-  . SET OUT(IDX)="For more information on error handling, refer to Chapter 13: “Error Processing”.  ",IDX=IDX+1
+  . SET OUT(IDX)="For more information on error handling, refer to Chapter 13: Error Processingï¿½.  ",IDX=IDX+1
   . SET OUT(IDX)="                                                                                  ",IDX=IDX+1
   . SET OUT(IDX)="EXCEPTION=expr Applies to: All devices                                            ",IDX=IDX+1
   IF NAME="FILTERXY" DO

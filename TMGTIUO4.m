@@ -300,7 +300,7 @@ PRIORVIT(TMGDFN,DATE,VITAL,ARRAY)  ;
   ;
 GPVDONE QUIT
         ;
-GETSPECL(TMGDFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTIONS) ;"GET SPECIAL 
+GETSPECL(TMGDFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTION) ;"GET SPECIAL 
   ;"Purpose: to return a block of text from notes for patient, starting with
   ;"         STARTMARKERS, and ending with ENDMARKERS, searching backwards
   ;"         within time period of 'MONTHS'.
@@ -314,7 +314,7 @@ GETSPECL(TMGDFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTIONS) ;"GET 
   ;"       ARRAY -- PASS BY REFERENCE. an OUT PARAMETER.  Old values killed. Format below
   ;"       MODE: operation mode.  As follows:
   ;"              1 = return only block from most recent match
-  ;"              2 = compile all.
+  ;"              2 = compile all.  NOTE: 10/6/26 -- DEPRECIATED.  This mode will be too SLOW.  Not used...
   ;"                  In this mode, the search is carried out from oldest to most
   ;"                  recent, and newer blocks overlay older ones in a 'transparent'
   ;"                  manner such that newer entries will overwrite older entries
@@ -342,12 +342,13 @@ GETSPECL(TMGDFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTIONS) ;"GET 
   ;"                      Label : value
   ;"       SPACES -- OPTIONAL.  Pass by reference. AN OUT PARAMETER.
   ;"                      Fill with the space length that found tables are indented with.
-  ;"       OPTIONS -- PASS BY REFERENCE.  Optional variable.  Format
-  ;"            OPTIONS("ALL NOTES")=1  If found then ALL notes for patient
+  ;"       OPTION -- PASS BY REFERENCE.  Optional variable.  Format
+  ;"            OPTION("ALL NOTES")=1  If found then ALL notes for patient
   ;"                   will be searched.  If not found, then default is to
   ;"                   only search notes with COMPLETED status.  
   ;"            OPTION("DT")=FMDT <-- if present, then result is to be returns AS OF given date
-  ;"
+  ;"            OPTION("USE LAST TABLE TEXT")=0 <-- force legacy TIU-note retrieval.  ;"//kt //codex 10/6/26
+  ;"            //kt //codex 10/6/26  Before we had OPTIONS and also OPTION.  I unified to OPTION
   ;"Output: ARRAY will be filled as follows:
   ;"       ARRAY("text line")=""
   ;"       ARRAY("text line")=""
@@ -361,10 +362,30 @@ GETSPECL(TMGDFN,STARTMARKERS,ENDMARKERS,MONTHS,ARRAY,MODE,SPACES,OPTIONS) ;"GET 
   SET TMGDFN=+$GET(TMGDFN)
   IF TMGDFN'>0 GOTO GSDONE
   ;
+  ;"//kt //codex begin mod 10/6/26 ----
+  SET MODE=+$GET(MODE) IF MODE'>0 SET MODE=1
+  NEW USELASTTEXT SET USELASTTEXT=+$GET(OPTION("USE LAST TABLE TEXT"),1)  ;"NOTE: change ,1 to ,0 to default to legacy behavior  
+  NEW TABLEIEN,TABLENAME 
+  IF STARTMARKERS["[" DO  
+  . SET TABLENAME=$PIECE(STARTMARKERS,"[",2)  
+  . SET TABLENAME=$PIECE(TABLENAME,"]",1)  
+  ELSE  SET TABLENAME=STARTMARKERS  
+  SET TABLEIEN=+$ORDER(^TMG(22708,"B",TABLENAME,0))  
+  IF TABLEIEN=31 SET OPTION("ALL NOTES")=1  
+  NEW USECACHED SET USECACHED=0  
+  IF USELASTTEXT,(MODE=1),(ENDMARKERS="BLANK_LINE"),($GET(OPTION("DT"))'>0),($GET(OPTION("ALL NOTES"))'=1) DO  
+  . NEW CACHEDTEXT,CACHEDDT  
+  . IF $$GETLASTTEXT^TMGTIUO5(TMGDFN,STARTMARKERS,.CACHEDTEXT,.CACHEDDT,.SPACES) DO  
+  . . DO MERGEIN^TMGTIUO5(.CACHEDTEXT,.ARRAY)  
+  . . IF CACHEDDT>+$GET(ARRAY("KEY-VALUE","SOURCE-DATE")) SET ARRAY("KEY-VALUE","SOURCE-DATE")=CACHEDDT  
+  . . SET USECACHED=1  
+  IF USECACHED GOTO GSDONE  
+  ;"//kt //codex end mod 10/6/26 ----
+  ;
   NEW FOUND22729 SET FOUND22729=$$LASTNOTE^TMGTIUO5(TMGDFN,.NOTESLIST,STARTMARKERS,.OPTION)
   IF (FOUND22729=0)!($G(OPTION("ALL NOTES"))=1) DO   ;"ELH  added OR with ALL NOTES 
   . NEW INCDAYS SET INCDAYS=+$GET(MONTHS)*30
-  . DO GNOTELST^TMGTIUO5(TMGDFN,.NOTESLIST,INCDAYS,.OPTIONS)
+  . DO GNOTELST^TMGTIUO5(TMGDFN,.NOTESLIST,INCDAYS,.OPTION)
   ;
   NEW DIRECTION SET DIRECTION=1
   IF MODE=1 SET DIRECTION=-1

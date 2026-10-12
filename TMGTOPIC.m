@@ -126,6 +126,10 @@ TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
   ;"     RESULT: TMGRSULT(1)="1^OK" OR "-1^ErrorMessage"
   ;"             TMGRESULT(#)=1^<TABLE NAME>     <-- '1' indicates start of a table grouping.  
   ;"             TMGRESULT(#)=2^<line of text>   <-- '2' (may be multiple) gives lines of text from table until next '1' node
+  ;"  CMD="SET TABLE DATA":
+  ;"     PARAMS PIECE#1: <IEN22708>  <-- table definition IEN
+  ;"     DATA(#)=<TEXT LINE>  <-- complete replacement table text; an empty DATA array clears the text
+  ;"     RESULT: TMGRESULT(1)="1^<IEN22729>^<FMDT>" OR "-1^ErrorMessage"
   ;
   NEW TMGDEBUG SET TMGDEBUG=0
   NEW REF SET REF=$NAME(^TMG("TMP","TMGTOPICCMD"))
@@ -173,6 +177,8 @@ TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
   . DO MERGETOPICS(.TMGRESULT,TMGDFN,PARAMS)
   IF CMD="GET TABLES AS DATA" DO  GOTO TPCDN
   . DO GETTABLES(.TMGRESULT,TMGDFN,PARAMS) ;"Retrieve 1 or more tables   
+  IF CMD="SET TABLE DATA" DO  GOTO TPCDN
+  . DO SETTABLEDATA(.TMGRESULT,TMGDFN,PARAMS,.DATA) ;"Save independent table data
   ;
 TPCDN;  
   QUIT
@@ -207,6 +213,45 @@ GETTABLES(OUT,TMGDFN,PARAMS) ;"Retrieve 1 or more tables
   . NEW KDX SET KDX=0
   . FOR  SET KDX=$ORDER(ARR(KDX)) QUIT:KDX'>0  DO
   . . SET IDX=IDX+1,OUT(IDX)="2^"_$GET(ARR(KDX))
+  QUIT
+  ;
+SETTABLEDATA(OUT,TMGDFN,PARAMS,DATA) ;"Save table text without a linked TIU document
+  ;"Input: PARAMS piece 1 is the IEN in file 22708. DATA(#) is complete table text.
+  ;"Result: OUT(1)=1^<IEN22729>^<FMDT> or -1^<error message>
+  NEW TABLEIEN SET TABLEIEN=+$PIECE(PARAMS,"^",1)
+  IF TABLEIEN'>0 DO  GOTO STDDN
+  . SET OUT(1)="-1^A valid file 22708 table IEN is required as the first parameter"
+  IF '$DATA(^TMG(22708,TABLEIEN,0)) DO  GOTO STDDN
+  . SET OUT(1)="-1^Table IEN "_TABLEIEN_" was not found in file 22708"
+  NEW IEN22729 SET IEN22729=+$ORDER(^TMG(22729,"C",TMGDFN,TABLEIEN,0))
+  NEW TMGFDA,TMGIEN,TMGMSG,TMGIENS
+  IF IEN22729>0 DO
+  . SET TMGIENS=IEN22729_","
+  . SET TMGFDA(22729,TMGIENS,.03)="@"
+  . SET TMGFDA(22729,TMGIENS,.05)="NOW"
+  . DO FILE^DIE("E","TMGFDA","TMGMSG")
+  ELSE  DO
+  . SET TMGIENS="+1,"
+  . SET TMGFDA(22729,TMGIENS,.01)="`"_TMGDFN
+  . SET TMGFDA(22729,TMGIENS,.02)="`"_TABLEIEN
+  . SET TMGFDA(22729,TMGIENS,.05)="NOW"
+  . DO UPDATE^DIE("E","TMGFDA","TMGIEN","TMGMSG")
+  . SET IEN22729=+$GET(TMGIEN(1))
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO STDDN
+  . SET OUT(1)="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  IF IEN22729'>0 DO  GOTO STDDN
+  . SET OUT(1)="-1^Unable to determine IEN of saved table data"
+  KILL TMGMSG
+  SET TMGIENS=IEN22729_","
+  IF $DATA(DATA) DO
+  . DO WP^DIE(22729,TMGIENS,1,"K","DATA","TMGMSG")
+  ELSE  DO
+  . DO WP^DIE(22729,TMGIENS,1,"K","@","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) DO  GOTO STDDN
+  . SET OUT(1)="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  NEW SAVEDT SET SAVEDT=+$PIECE($GET(^TMG(22729,IEN22729,0)),"^",4)
+  SET OUT(1)="1^"_IEN22729_"^"_SAVEDT
+STDDN
   QUIT
   ;
 LISTTABLES(OUT)  ;"Return all tables defined in file 22708
@@ -641,8 +686,9 @@ TPDTRANGE(TMGDFN,TOPICIEN,OUTSDT,OUTEDT)  ;"Get range of thread entries to speci
   SET OUTSDT=$ORDER(^TMG(22719.2,TMGDFN,1,TOPICIEN,1,"B",0))
   SET OUTEDT=$ORDER(^TMG(22719.2,TMGDFN,1,TOPICIEN,1,"B",""),-1)  
   QUIT
- ;"=======================================================================
- ;
+  ;
+  ;"=======================================================================
+  ;
 TOPICRPT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)  ;"TOPIC REPORT
   ;"Purpose: Entry point, as called from CPRS REPORT system
   ;"Input: ROOT -- Pass by NAME.  This is where output goes
@@ -751,62 +797,15 @@ GETCODE(OUTREF,TAG,ROUTINE) ;
   . SET @OUTREF@($I(IDX))=LINE
   QUIT
   ;  
-  ;"========================================================================
-  ;"Code for fixing threads 
-  ;"========================================================================
-TESTFIX ;"DEPRECIATED
-  ;"NOTE: LEGACY ONLY. Tests the historical carried-forward-text cleanup; it does not use the current provider-aware thread extractor.
-  ;"NEW ADFN SET ADFN=75072
-  ;"NEW ADFN SET ADFN=36735  
-  ;"NEW ADFN SET ADFN=75071
-  NEW ADFN SET ADFN=27475
-  KILL ^TMG("TMP","FIX22719.2",ADFN)  ;"Remove record of prior run. 
-  DO FIX22719D2(ADFN)
-  QUIT
-  ;
-FIXREPEATALL ;"DEPRECIATED 
-  ;"NOTE: LEGACY ONLY. Runs the historical repair for threads containing repeated carried-forward text; use REBUILDALL for a current full rebuild.
-  NEW STIME SET STIME=$H
-  NEW PATCT SET PATCT=0
-  NEW ADFN SET ADFN=0
-  NEW MAXDFN SET MAXDFN=$ORDER(^DPT("@"),-1)
-  FOR  SET ADFN=$ORDER(^DPT(ADFN)) QUIT:ADFN'>0  DO
-  . ;"SET PATCT=PATCT+1
-  . ;"IF (PATCT#10=1)  DO
-  . NEW PATNAME SET PATNAME=$$LJ^XLFSTR($PIECE($GET(^DPT(ADFN,0)),"^",1),22)
-  . DO PROGBAR^TMGUSRI2(ADFN,"Checking "_PATNAME,1,MAXDFN,80,STIME)
-  . DO FIX22719D2(ADFN) 
-  QUIT  
-  ;
-FIXALL(OPTION) ;"Reparse every patient's notes and synchronize topic metadata through FILE1B
-  NEW STIME SET STIME=$H
-  NEW ADFN SET ADFN=0
-  NEW MAXDFN SET MAXDFN=+$ORDER(^DPT("@"),-1)
-  FOR  SET ADFN=$ORDER(^DPT(ADFN)) QUIT:ADFN'>0  DO
-  . NEW PATNAME SET PATNAME=$$LJ^XLFSTR($PIECE($GET(^DPT(ADFN,0)),"^",1),22)
-  . IF $DATA(^TMG("TMP","FIXALL^TMGTOPIC",ADFN)) DO  QUIT
-  . . WRITE "Already processed "_PATNAME,!
-  . DO PROGBAR^TMGUSRI2(ADFN,"Updating topic metadata for "_PATNAME,1,MAXDFN,80,STIME)
-  . DO FIX1PT(ADFN,.OPTION)
-  . SET ^TMG("TMP","FIXALL^TMGTOPIC",ADFN)=""
-  QUIT
-  ;
-FIXALL2 ;"Run the all-patient group/table refresh without creating or rewriting thread text
-  NEW OPTION
-  SET OPTION("SKIP THREAD DATA")=1
-  DO FIXALL(.OPTION)
-  QUIT
-  ;
-FIX1PT(ADFN,OPTION) ;"Reparse one patient's notes and synchronize topic metadata through FILE1B
-  ;"This is going to save off group tags, and associated tables, but NOT the thread text.  
-  SET ADFN=+$GET(ADFN)
-  IF '$DATA(^DPT(ADFN,0)) QUIT
-  DO SCANPTNOTES(ADFN,.OPTION,"META",0)
-  QUIT
-  ;
 SCANPTNOTES(ADFN,OPTION,ACTION,SHOWPROGRESS) ;"Shared date-ordered patient note scan for rebuild and metadata maintenance
+  ;"INPUT: ADFN: PATIENT IEN
+  ;"       OPTION: optional.  PASS BY REFERENCE.  Passed on to other functions.  
+  ;"               OPTION("PROV")=#  <-- only rebuild notes for this provider. 
+  ;"       ACTION -- 'REBUILD', OR 'META' 
+  ;"       SHOWPROGRESS: if >0, then show progress bar
   SET ADFN=+$GET(ADFN)
   SET ACTION=$GET(ACTION)
+  NEW ONLYPROV SET ONLYPROV=+$GET(OPTION("PROV"))  ;"If provided, then only process matching provider
   SET SHOWPROGRESS=+$GET(SHOWPROGRESS)
   NEW MAXTIUIEN,MAXTIUDT,NOTECOUNT,NOTESTART
   SET (MAXTIUIEN,MAXTIUDT,NOTECOUNT)=0,NOTESTART=$H
@@ -819,8 +818,10 @@ SCANPTNOTES(ADFN,OPTION,ACTION,SHOWPROGRESS) ;"Shared date-ordered patient note 
   . FOR  SET TIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",ADFN,TIUDT,TIUIEN)) QUIT:TIUIEN'>0  DO
   . . NEW ARRAY,QUIET
   . . SET NOTECOUNT=NOTECOUNT+1
+  . .   SET PROVIEN=+$PIECE($GET(^TIU(8925,TIUIEN,12)),"^",2)
   . . IF SHOWPROGRESS,(NOTECOUNT#10=0) DO
   . . . DO PROGBAR^TMGUSRI2(TIUIEN,"Note IEN# "_TIUIEN,1,MAXTIUIEN,60,NOTESTART)
+  . . IF ONLYPROV>0,($PIECE($GET(^TIU(8925,TIUIEN,12)),"^",2)'=ONLYPROV) QUIT
   . . IF ACTION="REBUILD" DO
   . . . DO SUMM1^TMGTIUT6(TIUIEN,.OPTION)
   . . ELSE  IF ACTION="META" DO
@@ -990,6 +991,59 @@ CLEANTOPICS(TOPICS)  ;"DEPRECIATED
   QUIT
   ;
   ;"========================================================================
+  ;"Code for fixing threads 
+  ;"========================================================================
+FIXALL2 ;"Run the all-patient group/table refresh without creating or rewriting thread text
+  NEW OPTION
+  SET OPTION("SKIP THREAD DATA")=1
+  DO FIXALL(.OPTION)
+  QUIT
+  ;
+FIX1PT(ADFN,OPTION) ;"Reparse one patient's notes and synchronize topic metadata through FILE1B
+  ;"This is going to save off group tags, and associated tables, but NOT the thread text.  
+  SET ADFN=+$GET(ADFN)
+  IF '$DATA(^DPT(ADFN,0)) QUIT
+  DO SCANPTNOTES(ADFN,.OPTION,"META",0)
+  QUIT
+  ;
+TESTFIX ;"DEPRECIATED
+  ;"NOTE: LEGACY ONLY. Tests the historical carried-forward-text cleanup; it does not use the current provider-aware thread extractor.
+  ;"NEW ADFN SET ADFN=75072
+  ;"NEW ADFN SET ADFN=36735  
+  ;"NEW ADFN SET ADFN=75071
+  NEW ADFN SET ADFN=27475
+  KILL ^TMG("TMP","FIX22719.2",ADFN)  ;"Remove record of prior run. 
+  DO FIX22719D2(ADFN)
+  QUIT
+  ;
+FIXREPEATALL ;"DEPRECIATED 
+  ;"NOTE: LEGACY ONLY. Runs the historical repair for threads containing repeated carried-forward text; use REBUILDALL for a current full rebuild.
+  NEW STIME SET STIME=$H
+  NEW PATCT SET PATCT=0
+  NEW ADFN SET ADFN=0
+  NEW MAXDFN SET MAXDFN=$ORDER(^DPT("@"),-1)
+  FOR  SET ADFN=$ORDER(^DPT(ADFN)) QUIT:ADFN'>0  DO
+  . ;"SET PATCT=PATCT+1
+  . ;"IF (PATCT#10=1)  DO
+  . NEW PATNAME SET PATNAME=$$LJ^XLFSTR($PIECE($GET(^DPT(ADFN,0)),"^",1),22)
+  . DO PROGBAR^TMGUSRI2(ADFN,"Checking "_PATNAME,1,MAXDFN,80,STIME)
+  . DO FIX22719D2(ADFN) 
+  QUIT  
+  ;
+FIXALL(OPTION) ;"Reparse every patient's notes and synchronize topic metadata through FILE1B
+  NEW STIME SET STIME=$H
+  NEW ADFN SET ADFN=0
+  NEW MAXDFN SET MAXDFN=+$ORDER(^DPT("@"),-1)
+  FOR  SET ADFN=$ORDER(^DPT(ADFN)) QUIT:ADFN'>0  DO
+  . NEW PATNAME SET PATNAME=$$LJ^XLFSTR($PIECE($GET(^DPT(ADFN,0)),"^",1),22)
+  . IF $DATA(^TMG("TMP","FIXALL^TMGTOPIC",ADFN)) DO  QUIT
+  . . WRITE "Already processed "_PATNAME,!
+  . DO PROGBAR^TMGUSRI2(ADFN,"Updating topic metadata for "_PATNAME,1,MAXDFN,80,STIME)
+  . DO FIX1PT(ADFN,.OPTION)
+  . SET ^TMG("TMP","FIXALL^TMGTOPIC",ADFN)=""
+  QUIT
+  ;  
+  ;"========================================================================
   ;"Fixing duplicate thread entries  --  DEPRECIATED
   ;" -- This was when topic names > 30 chars were getting filed repeatedly
   ;"    because not immediately found looking only in "B" index.  (fixed now I hope). 
@@ -1109,6 +1163,7 @@ M1DTTDN QUIT TMGRESULT
 REBUILD1PT(TMGDFN,OPTION) ;"Rebuild all stored topic data for one patient  ;"//kt 9/30/26
   ;"Input: TMGDFN -- IEN in PATIENT file (#2)
   ;"       OPTION -- OPTION("SILENT") -- OPTIONAL.  If 1, suppress per-patient status output.
+  ;"                 OPTION("PROV")=#  -- OPTIONAL.  Only rebuild notes for this provider. 
   ;"Results: none
   SET TMGDFN=+$GET(TMGDFN)  ;"//kt 9/30/26
   SET SILENT=+$GET(OPTION("SILENT"))  ;"//kt 9/30/26
@@ -1116,9 +1171,7 @@ REBUILD1PT(TMGDFN,OPTION) ;"Rebuild all stored topic data for one patient  ;"//k
   . WRITE !,"Invalid patient IEN: ",TMGDFN,!
   SET OPTION("REMOVE OLD")=1  ;"//kt 9/30/26 Reconcile threads no longer produced by the corrected parser
   NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)  ;"//kt 9/30/26
-  ;"IF 'SILENT WRITE !,"Rebuilding topic data for ",PTNAME," (",TMGDFN,")",!  ;"//kt 9/30/26
   DO SCANPTNOTES(TMGDFN,.OPTION,"REBUILD",'SILENT)
-  ;"IF 'SILENT WRITE "Topic data rebuild complete.",!  ;"//kt 9/30/26
   IF 'SILENT WRITE "                                                                 ",!
   DO CUU^TMGTERM(1)
 R1PDN ;
@@ -1133,10 +1186,16 @@ TEST1REBUILD ;"Select and rebuild topic data for one patient  ;"//kt 9/30/26
   DO REBUILD1PT(+Y,.OPTION)  ;"//kt 9/30/26
   QUIT
   ;
-REBUILDALL ;"Rebuild stored topic data for every patient  ;"//kt 9/30/26
+REBUILD4MDT  ;"Rebuild all notes for provider MDT
+  NEW OPTION
+  SET OPTION("PROV")=83
+  DO REBUILDALL(.OPTION)
+  QUIT
+  ;
+REBUILDALL(OPTION) ;"Rebuild stored topic data for every patient  ;"//kt 9/30/26
   NEW STARTTIME SET STARTTIME=$H  
   NEW MAXDFN SET MAXDFN=+$ORDER(^DPT("@"),-1)  ;"//kt 10/1/26 ^DPT root reverse order returns a string xref, not the last patient IEN
-  NEW OPTION  ;"//kt 10/1/26 Do not set SILENT; show note-level activity for the active patient
+  ;"//kt 10/1/26 Do not set SILENT; show note-level activity for the active patient
   SET OPTION("ONLY OV")=0
   NEW TMGDFN,PATCT,MAXPTCT SET TMGDFN=0,PATCT=0,MAXPTCT=0  ;"//kt 10/1/26
   FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO

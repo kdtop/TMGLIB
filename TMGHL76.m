@@ -180,6 +180,17 @@ OBX3    ;"Purpose: To transform the OBX segment, field 3 -- Observation Identifi
         ;"Input: Uses globally scoped vars: TMGHL7MSG, TMGU, TMGVALUE, IEN62D4,
         ;"       TMGSEGN, TMGINFO, TMGENV
         ;"Example TMGVALUE -- 'CRE^CREATININE'
+        ;
+        ;"//kt //codex begin mod 2026-10-08 bladder scan normalization --
+        NEW TMGOBX5,TMGOBX5UP
+        SET TMGOBX5=$GET(TMGHL7MSG(TMGSEGN,5))
+        SET TMGOBX5UP=$$UP^XLFSTR(TMGOBX5)
+        IF (TMGVALUE="&GDT"),TMGOBX5UP["BLADDER SCAN" DO
+        . SET TMGVALUE="BLADDER SCAN"
+        . SET TMGOBX5=$PIECE(TMGOBX5,"= ",2,999)
+        . DO SETPCE^TMGHL7X2(TMGVALUE,.TMGHL7MSG,.TMGU,TMGSEGN,3)
+        . DO SETPCE^TMGHL7X2(TMGOBX5,.TMGHL7MSG,.TMGU,TMGSEGN,5)
+        ;"//kt //codex end mod 2026-10-08 bladder scan normalization --
         SET TMGOBXCOUNT=$GET(TMGOBXCOUNT)+1
         IF TMGVALUE="" DO  ;"For some reason, GCHE is not sending ID for some tests
         . NEW INFO MERGE INFO=TMGHL7MSG(TMGSEGN)

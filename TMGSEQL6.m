@@ -54,7 +54,7 @@ PARSE(REFDATA)  ;"Parse data from future appointents output, from SequelPMS
   ;"            }~6 = PROTIME                                                                   
   ;"            }~7 = FPG                                                                       
   ;"            }~8 = FPG                                                                       
-  ;"            }~9 = 321520  <Ñ SEQL account#                                                                    
+  ;"            }~9 = 321520  <- SEQL account#                                                                    
   ;"            }~10 = 1540100                                                                  
   ;"            }~11 = 11/31/1911 00:00:00                                                       
   ;"            }~12 = 4231112222                                  
@@ -74,7 +74,7 @@ PARSE(REFDATA)  ;"Parse data from future appointents output, from SequelPMS
   ;"            }~6 = reason_short_name                                                         
   ;"            }~7 = practice_name                                                             
   ;"            }~8 = location_name                                                             
-  ;"            }~9 = account_num  <Ñ SEQL account#                                                              
+  ;"            }~9 = account_num  <- SEQL account#                                                              
   ;"            }~10 = reason_seq_num                                                           
   ;"            }~11 = patient_dob                                                              
   ;"            }~12 = pat_tel

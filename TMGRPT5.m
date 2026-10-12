@@ -261,7 +261,7 @@ GTQUESTS(ARRAY)
  ;"    SET ARRAY(7,2,4)="2460^0^^Almost never"  
 
  ;"SET ARRAY(8,0)="High Stress"
- ;"  SET ARRAY(8,1,0)="How often is stress a problem for you in handling such things as: –Your health? –Your finances? –Your family or social relationships? –Your work?" 
+ ;"  SET ARRAY(8,1,0)="How often is stress a problem for you in handling such things as: Your health? ï¿½Your finances? ï¿½Your family or social relationships? ï¿½Your work?" 
  ;"    SET ARRAY(8,1,1)="2481^0^^Never or rarely"
  ;"    SET ARRAY(8,1,2)="2486^0^MILD^Sometimes"
  ;"    SET ARRAY(8,1,3)="2487^0^MODERATE^Often"
@@ -289,7 +289,7 @@ GTQUESTS(ARRAY)
  ;"    SET ARRAY(11,1,4)="2508^0^MODERATE^Fair"
  ;"    SET ARRAY(11,1,5)="2511^0^SEVERE^Poor"    
 
- ;"  SET ARRAY(11,2,0)="How would you describe the condition of your mouth and teeth—including false teeth or dentures?"
+ ;"  SET ARRAY(11,2,0)="How would you describe the condition of your mouth and teethï¿½including false teeth or dentures?"
  ;"    SET ARRAY(11,2,1)="2513^0^^Excellent"
  ;"    SET ARRAY(11,2,2)="2514^0^^Very Good"
  ;"    SET ARRAY(11,2,3)="2516^0^^Good"
