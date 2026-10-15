@@ -106,8 +106,8 @@ SPEC2ARR(OBRARR,SPECARR,LASTNTE,LASTOBX)
         QUIT
         ;"
 ONEFLAG(FLAG)  ;"GET FLAG NAME
-        IF FLAG="L" QUIT "Below Low Normal"
-        IF FLAG="H" QUIT "Above High Normal"
+        IF FLAG="L" QUIT "Low"   ;"Below Low Normal"
+        IF FLAG="H" QUIT "High"  ;"Above High Normal"
         IF FLAG="LL" QUIT "Alert Low"
         IF FLAG="HH" QUIT "Alert High"
         IF FLAG="<" QUIT "Panic Low"

@@ -24,7 +24,7 @@ TMGTIUP3 ;TMG/kst-TIU processing Functions ;4/11/17, 6/26/17, 5/21/18, 3/24/21, 
  ;" TMGHTM1, TMGTIUOJ, TMGTIUO6, XLFSTR, TMGSTUT2, TMGSTUT3
  ;"=======================================================================
  ;
-PROCESS(TMGRESULT,TMGIN,OPTION) ;
+PROCESS(TMGRESULT,TMGIN,OPTION) ;"Effect 'processing a note' from CPRS (which refreshes the tables)
   ;"Called from:  (as of 6/4/25)
   ;"   PROCESS() <-- PROCESS^TMGRPC1H <-- RPC call 'TMG CPRS PROCESS NOTE'
   ;"   PROCESS() <-- GETHPI^TMGTIUP2 <-- LASTHPI^TMGTIUP2 <-- LASTHPI^TMGTIUOJ <-- TIU TEXT OBJECT 'TMG LAST HPI'

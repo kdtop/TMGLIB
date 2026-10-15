@@ -61,15 +61,19 @@ NOW() ;"RETURNS THE TIME RIGHT NOW
       ;"
 TODAY(EXTERNAL,FORMAT)  ;"RETURNS TODAY'S DATE
       ;"EXTERNAL (0 OR 1): IF 0 (DEFAULT), THE FILEMAN VALUE WILL BE RETURNED, ELSE THE EXTERNAL DATE
-      ;"FORMAT (0 OR 1): ONLY USES IF EXTERNAL=1, IF 0 (DEFAULT) MONTH
-      ;"        DAY,YEAR. IF 1 MM/DD/YYYY
+      ;"FORMAT (0, 1 OR 2): ONLY USES IF EXTERNAL=1, 
+      ;"           IF 0 (DEFAULT) MONTH DAY,YEAR. 
+      ;"           IF 1 MM/DD/YY   //kt added 10/13/26 NOTE: previous documentation said 1-> YYYY, but code returned YY
+      ;"           IF 2 MM/DD/YYYY
       NEW X
       SET EXTERNAL=+$G(EXTERNAL)
       SET FORMAT=+$G(FORMAT)
       DO NOW^%DTC
       IF EXTERNAL=1 DO
-      . IF FORMAT=1 DO
-      . . SET X=$$FMTE^XLFDT(X,"2D")
+      . IF FORMAT=1 DO  QUIT
+      . . SET X=$$FMTE^XLFDT(X,"2D")   ;"this returns MM/DD/YY
+      . IF FORMAT=2 DO  QUIT
+      . . SET X=$$FMTE^XLFDT(X,"5D")   ;"this returns MM/DD/YYYY
       . ELSE  DO
       . . SET X=$$EXTDATE(X)
       QUIT X
