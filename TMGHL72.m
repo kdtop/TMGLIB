@@ -130,7 +130,23 @@ XMSGB   IF $DATA(TMGU)=0 DO  GOTO XMDN
         NEW PIDSEGN SET PIDSEGN=+$ORDER(TMGHL7MSG("B","PID",0))
         IF PIDSEGN'>0 DO  GOTO XMDN
         . SET TMGXERR="In XMSG.TMGHL72: PID segment not found in message."
-        NEW ORCSEGN SET ORCSEGN=PIDSEGN+0.5
+        ;"//kt //codex prior active XMSG synthetic ORC insertion block 2026-10-18 --
+        ;"NEW ORCSEGN SET ORCSEGN=PIDSEGN+0.5
+        ;"NEW S SET S="ORC"
+        ;"Create segment with empty fields, so that transforms will be called for them
+        ;"NEW I FOR I=2:1:14 SET $PIECE(S,TMGU(1),I)=""
+        ;"DO PRSESEG^TMGHL7X2(ORCSEGN,S,.TMGHL7MSG,.TMGU)
+        ;"
+        ;"NEW DONE SET DONE=0
+        ;"NEW ORD SET ORD=0
+        ;"FOR  SET ORD=$ORDER(TMGHL7MSG("PO",ORD)) QUIT:(+ORD'>0)!DONE  DO
+        ;". IF TMGHL7MSG("PO",ORD)'=PIDSEGN QUIT
+        ;". SET TMGHL7MSG("PO",ORD+0.5)=ORCSEGN
+        ;". SET DONE=1
+        ;"//kt //codex end prior active XMSG synthetic ORC insertion block 2026-10-18 --
+        ;"//kt //codex begin mod 2026-10-18 --
+        NEW INSPARAMS SET INSPARAMS=$$GETINSRTS(.TMGHL7MSG,PIDSEGN,1)
+        NEW ORCSEGN SET ORCSEGN=$PIECE(INSPARAMS,"^",1)
         NEW S SET S="ORC"
         ;"Create segment with empty fields, so that transforms will be called for them
         NEW I FOR I=2:1:14 SET $PIECE(S,TMGU(1),I)=""
@@ -140,8 +156,11 @@ XMSGB   IF $DATA(TMGU)=0 DO  GOTO XMDN
         NEW ORD SET ORD=0
         FOR  SET ORD=$ORDER(TMGHL7MSG("PO",ORD)) QUIT:(+ORD'>0)!DONE  DO
         . IF TMGHL7MSG("PO",ORD)'=PIDSEGN QUIT
-        . SET TMGHL7MSG("PO",ORD+0.5)=ORCSEGN
+        . NEW POPARAMS SET POPARAMS=$$GETINSRTS(.TMGHL7MSG("PO"),ORD,1)
+        . NEW NEWPO SET NEWPO=$PIECE(POPARAMS,"^",1)
+        . SET TMGHL7MSG("PO",NEWPO)=ORCSEGN
         . SET DONE=1
+        ;"//kt //codex end mod 2026-10-18 --
         ;
 XMSGC   KILL TMGLASTOBX,TMGNTEADD,TMGDD
         DO GETDD^TMGHL7X3(.TMGDD)
@@ -744,21 +763,46 @@ ADD2NTE(ARR,TMGHL7MSG,TMGU)   ;" Add lines from ARR as extra NTE segments
         ;"Results: none
         ;"NOTICE: Some messages have separate message sections.  This just adds
         ;"        after last NTE segment.  
+        ;"//kt //codex prior active ADD2NTE block 2026-10-18 --
+        ;"        NEW ARRIDX SET ARRIDX=""
+        ;"        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
+        ;"        . NEW LINE SET LINE=$GET(ARR(ARRIDX))
+        ;"        . NEW NTEIDX SET NTEIDX=$ORDER(TMGHL7MSG("B","NTE",""),-1)
+        ;"        . NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
+        ;"        . NEW NEWSEGN SET NEWSEGN=NTEIDX+1
+        ;"        . FOR  QUIT:($DATA(TMGHL7MSG(NEWSEGN))=0)!(NEWSEGN=NTEIDX)  SET NEWSEGN=NEWSEGN-0.1
+        ;"        . IF NEWSEGN=NTEIDX QUIT
+        ;"        . ;"DO SETPCE("NTE",.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
+        ;"        . DO SETPCE^TMGHL7X2(NTENUM+1,.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
+        ;"        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        . DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
+        ;"        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"
+        ;"        . SET TMGHL7MSG("B","NTE",NEWSEGN)=""
+        ;"//kt //codex end prior active ADD2NTE block 2026-10-18 --
+        ;"//kt //codex begin mod 2026-10-18 --
+        NEW NTEIDX SET NTEIDX=$ORDER(TMGHL7MSG("B","NTE",""),-1)
+        QUIT:+NTEIDX'>0
+        NEW ARRCT SET ARRCT=0
         NEW ARRIDX SET ARRIDX=""
+        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  SET ARRCT=ARRCT+1
+        QUIT:ARRCT'>0
+        NEW INSPARAMS SET INSPARAMS=$$GETINSRTS(.TMGHL7MSG,NTEIDX,ARRCT)
+        NEW NEWSEGN SET NEWSEGN=$PIECE(INSPARAMS,"^",1)
+        NEW INC SET INC=$PIECE(INSPARAMS,"^",2)
+        NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
+        SET ARRIDX=""
         FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
         . NEW LINE SET LINE=$GET(ARR(ARRIDX))
-        . NEW NTEIDX SET NTEIDX=$ORDER(TMGHL7MSG("B","NTE",""),-1)
-        . NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
-        . NEW NEWSEGN SET NEWSEGN=NTEIDX+1
-        . FOR  QUIT:($DATA(TMGHL7MSG(NEWSEGN))=0)!(NEWSEGN=NTEIDX)  SET NEWSEGN=NEWSEGN-0.1
-        . IF NEWSEGN=NTEIDX QUIT
-        . ;"DO SETPCE("NTE",.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
-        . DO SETPCE^TMGHL7X2(NTENUM+1,.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
+        . SET NTENUM=NTENUM+1
+        . DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
         . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         . DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
         . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"       
         . SET TMGHL7MSG("B","NTE",NEWSEGN)=""       
+        . SET NEWSEGN=NEWSEGN+INC
+        ;"//kt //codex end mod 2026-10-18 --
         QUIT        
         ;
 ADD2ARRI(ARR,LABEL,VALUE)  ;"ADD TO ARRAY IF VALUE IS NOT ""
@@ -813,23 +857,38 @@ LABLDATA(OUT,TMGHL7MSG,SEG,SEGN)  ;
         . SET OUT(FLDNAME)=VALUE
         QUIT
         ;
-GETINSRTS(TMGHL7MSG,SEGNPRIOR,COUNT)  ;"Get parameters for insertion
+GETINSRTS(TMGHL7MSG,SEGNPRIOR,COUNT)  ;"Get safe parameters for insertion
         ;"Input: TMGHL7MSG -- the working array. PASS BY REFERENCE.
         ;"       SEGNPRIOR -- The segment number that the NTE array is to be inserted AFTER
         ;"       COUNT -- the number of elements that will be needed to be inserted AFTER
         ;"                SEGNPRIOR, and before the prior NEXT element
-        ;"Result: # to increment by, e.g. 0.01
-        NEW INC SET INC=0.01  ;"Default   7/14/26 was 0.1
+        ;"Result: STARTSEGN^INC, where all COUNT segments fit strictly before NEXTSEGN.
+        ;"//kt //codex prior active GETINSRTS block 2026-10-18 --
+        ;"        NEW INC SET INC=0.01  ;"Default   7/14/26 was 0.1
+        ;"        SET COUNT=+$GET(COUNT)
+        ;"        IF COUNT'>0 GOTO GETIDN
+        ;"        NEW NEXTSEGN SET NEXTSEGN=+$ORDER(TMGHL7MSG(SEGNPRIOR))
+        ;"        IF NEXTSEGN'>0 GOTO GETIDN
+        ;"        NEW DELTA SET DELTA=NEXTSEGN-SEGNPRIOR
+        ;"        NEW DONE SET DONE=0
+        ;"        FOR  DO  QUIT:DONE
+        ;"        . IF (DELTA/INC)<COUNT SET INC=INC/10  ;"e.g. 0.1 -> 0.01
+        ;"        . ELSE  SET DONE=1
+        ;"GETIDN  QUIT INC
+        ;"//kt //codex end prior active GETINSRTS block 2026-10-18 --
+        ;"//kt //codex begin mod 2026-10-18 --
+        NEW INC SET INC=.01
         SET COUNT=+$GET(COUNT)
-        IF COUNT'>0 GOTO GETIDN
+        QUIT:COUNT'>0 ""
         NEW NEXTSEGN SET NEXTSEGN=+$ORDER(TMGHL7MSG(SEGNPRIOR))
-        IF NEXTSEGN'>0 GOTO GETIDN
+        IF NEXTSEGN'>0 QUIT (SEGNPRIOR+INC)_"^"_INC
         NEW DELTA SET DELTA=NEXTSEGN-SEGNPRIOR
-        NEW DONE SET DONE=0
-        FOR  DO  QUIT:DONE
-        . IF (DELTA/INC)<COUNT SET INC=INC/10  ;"e.g. 0.1 -> 0.01
-        . ELSE  SET DONE=1
-GETIDN  QUIT INC
+        ;"Use a strictly smaller total span so the final inserted segment cannot
+        ;"collide with NEXTSEGN when the available gap exactly equals COUNT*INC.
+        FOR  QUIT:(INC*COUNT)<DELTA  SET INC=INC/10
+        NEW STARTSEGN SET STARTSEGN=SEGNPRIOR+INC
+        QUIT STARTSEGN_"^"_INC
+        ;"//kt //codex end mod 2026-10-18 --
         ;
 INSRTSEG(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert segment(s) after SEGNPRIOR from ARR
         ;"Input: ARR -- PASS BY REFERENCE.  The array to add.  Format:
@@ -838,22 +897,41 @@ INSRTSEG(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert segment(s) after SEGNPRIOR fro
         ;"      TMGU -- The array with divisor chars.
         ;"      SEGNPRIOR -- The segment number that the NTE array is to be inserted AFTER
         ;"Results: 1^OK, or -1^Error message
+        ;"//kt //codex prior active INSRTSEG block 2026-10-18 --
+        ;"        NEW TMGRESULT SET TMGRESULT="1^OK"
+        ;"        NEW ARRCT SET ARRCT=$$LISTCT^TMGMISC2("ARR")
+        ;"        NEW INC SET INC=$$GETINSRTS(.TMGHL7MSG,SEGNPRIOR,ARRCT)
+        ;"        NEW CURSEGN SET CURSEGN=SEGNPRIOR
+        ;"        NEW NEWSEGN
+        ;"        NEW ARRIDX SET ARRIDX=""
+        ;"        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
+        ;"        . NEW LINE SET LINE=$GET(ARR(ARRIDX))
+        ;"        . SET NEWSEGN=CURSEGN+INC
+        ;"        . SET TMGHL7MSG(NEWSEGN)=LINE
+        ;"        . NEW SEGNAME SET SEGNAME=$PIECE(LINE,TMGU(1),1)
+        ;"        . SET TMGHL7MSG(NEWSEGN,"SEG")=SEGNAME
+        ;"        . SET TMGHL7MSG("B",SEGNAME,NEWSEGN)=""
+        ;"        . SET TMGHL7MSG("PO",NEWSEGN)=NEWSEGN
+        ;"        . DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,NEWSEGN)
+        ;"        . SET CURSEGN=NEWSEGN
+        ;"//kt //codex end prior active INSRTSEG block 2026-10-18 --
+        ;"//kt //codex begin mod 2026-10-18 --
         NEW TMGRESULT SET TMGRESULT="1^OK"
         NEW ARRCT SET ARRCT=$$LISTCT^TMGMISC2("ARR")
-        NEW INC SET INC=$$GETINSRTS(.TMGHL7MSG,SEGNPRIOR,ARRCT)
-        NEW CURSEGN SET CURSEGN=SEGNPRIOR
-        NEW NEWSEGN  
+        NEW INSPARAMS SET INSPARAMS=$$GETINSRTS(.TMGHL7MSG,SEGNPRIOR,ARRCT)
+        NEW NEWSEGN SET NEWSEGN=$PIECE(INSPARAMS,"^",1)
+        NEW INC SET INC=$PIECE(INSPARAMS,"^",2)
         NEW ARRIDX SET ARRIDX=""
         FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
         . NEW LINE SET LINE=$GET(ARR(ARRIDX))
-        . SET NEWSEGN=CURSEGN+INC
         . SET TMGHL7MSG(NEWSEGN)=LINE
         . NEW SEGNAME SET SEGNAME=$PIECE(LINE,TMGU(1),1)
         . SET TMGHL7MSG(NEWSEGN,"SEG")=SEGNAME       
         . SET TMGHL7MSG("B",SEGNAME,NEWSEGN)=""
         . SET TMGHL7MSG("PO",NEWSEGN)=NEWSEGN
         . DO REFRESHM^TMGHL7X2(.TMGHL7MSG,.TMGU,NEWSEGN)
-        . SET CURSEGN=NEWSEGN
+        . SET NEWSEGN=NEWSEGN+INC
+        ;"//kt //codex end mod 2026-10-18 --
         QUIT TMGRESULT
         ;        
 INSRTNTE(ARR,TMGHL7MSG,TMGU,SEGNPRIOR)   ;"Insert note segment after SEGNPRIOR from ARR
@@ -897,16 +975,53 @@ PREFIXNT(LINE,TMGHL7MSG,TMGU,SEGN)  ;"PREFIX NOTE (INSERT LINE BEFORE INDEX LINE
         ;"  that ARR is to be appended to.
         ;"NOTE: This assumes that inputs are valid and that NTE segment exists
         ;"Results: none
+        ;"//kt //codex prior active PREFIXNT block 2026-10-18 --
+        ;"        NEW NTEIDX SET NTEIDX=SEGN
+        ;"        NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
+        ;"        NEW NEWSEGN SET NEWSEGN=NTEIDX
+        ;"        FOR  SET NEWSEGN=NEWSEGN-0.01,NTENUM=NTENUM-0.01 QUIT:$DATA(TMGHL7MSG(NEWSEGN))=0
+        ;"        DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1)
+        ;"        SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
+        ;"        SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"
+        ;"        SET TMGHL7MSG("B","NTE",NEWSEGN)=""
+        ;"//kt //codex end prior active PREFIXNT block 2026-10-18 --
+        ;"//kt //codex prior active PREFIXNT safe-index block 2026-10-18 --
+        ;"        NEW NTEIDX SET NTEIDX=SEGN
+        ;"        NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
+        ;"        NEW PRIORSEGN SET PRIORSEGN=$ORDER(TMGHL7MSG(NTEIDX),-1)
+        ;"        QUIT:PRIORSEGN=""
+        ;"        ;"Choose a vacant subscript strictly between PRIORSEGN and target NTEIDX.
+        ;"        ;"Do not let a prefix NTE move before the segment immediately preceding it.
+        ;"        NEW GAP SET GAP=NTEIDX-PRIORSEGN
+        ;"        NEW INC SET INC=.01
+        ;"        FOR  QUIT:INC<GAP  SET INC=INC/10
+        ;"        NEW NEWSEGN SET NEWSEGN=PRIORSEGN+INC
+        ;"        SET NTENUM=NTENUM-INC
+        ;"        DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1)
+        ;"        SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
+        ;"        SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"
+        ;"        SET TMGHL7MSG("B","NTE",NEWSEGN)=""
+        ;"//kt //codex end prior active PREFIXNT safe-index block 2026-10-18 --
+        ;"//kt //codex begin mod 2026-10-18 --
         NEW NTEIDX SET NTEIDX=SEGN
         NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
-        NEW NEWSEGN SET NEWSEGN=NTEIDX
-        FOR  SET NEWSEGN=NEWSEGN-0.01,NTENUM=NTENUM-0.01 QUIT:$DATA(TMGHL7MSG(NEWSEGN))=0
+        NEW PRIORSEGN SET PRIORSEGN=$ORDER(TMGHL7MSG(NTEIDX),-1)
+        QUIT:PRIORSEGN=""
+        NEW INSPARAMS SET INSPARAMS=$$GETINSRTS(.TMGHL7MSG,PRIORSEGN,1)
+        NEW NEWSEGN SET NEWSEGN=$PIECE(INSPARAMS,"^",1)
+        NEW INC SET INC=$PIECE(INSPARAMS,"^",2)
+        SET NTENUM=NTENUM-INC
         DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1) 
         SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
         SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"       
         SET TMGHL7MSG("B","NTE",NEWSEGN)=""
+        ;"//kt //codex end mod 2026-10-18 --
         QUIT         
         ;
 PREFXNTA(ARR,TMGHL7MSG,TMGU,SEGN)  ;"PREFIX NOTE ARRAY (INSERT ARRAY BEFORE INDEX LINE)
@@ -917,19 +1032,42 @@ PREFXNTA(ARR,TMGHL7MSG,TMGU,SEGN)  ;"PREFIX NOTE ARRAY (INSERT ARRAY BEFORE INDE
         ;"  that ARR is to be appended to.
         ;"NOTE: This assumes that inputs are valid and that NTE segment exists
         ;"Results: none
+        ;"//kt //codex prior active PREFXNTA block 2026-10-18 --
+        ;"        NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(SEGN,1))
+        ;"        NEW PRIORSEGN SET PRIORSEGN=+$ORDER(TMGHL7MSG(SEGN),-1)
+        ;"        NEW NEWSEGN SET NEWSEGN=PRIORSEGN
+        ;"        NEW ARRIDX SET ARRIDX=""
+        ;"        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:ARRIDX=""  DO
+        ;"        . NEW LINE SET LINE=$GET(ARR(ARRIDX)) IF LINE="" SET LINE="   "
+        ;"        . FOR  SET NEWSEGN=NEWSEGN+.01 QUIT:$DATA(TMGHL7MSG(NEWSEGN))=0
+        ;"        . DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1)
+        ;"        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        . DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
+        ;"        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"
+        ;"        . SET TMGHL7MSG("B","NTE",NEWSEGN)=""
+        ;"//kt //codex end prior active PREFXNTA block 2026-10-18 --
+        ;"//kt //codex begin mod 2026-10-18 --
         NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(SEGN,1))
         NEW PRIORSEGN SET PRIORSEGN=+$ORDER(TMGHL7MSG(SEGN),-1)
-        NEW NEWSEGN SET NEWSEGN=PRIORSEGN
+        NEW ARRCT SET ARRCT=0
         NEW ARRIDX SET ARRIDX=""
+        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:ARRIDX=""  SET ARRCT=ARRCT+1
+        QUIT:ARRCT'>0
+        NEW INSPARAMS SET INSPARAMS=$$GETINSRTS(.TMGHL7MSG,PRIORSEGN,ARRCT)
+        NEW NEWSEGN SET NEWSEGN=$PIECE(INSPARAMS,"^",1)
+        NEW INC SET INC=$PIECE(INSPARAMS,"^",2)
+        SET ARRIDX=""
         FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:ARRIDX=""  DO
         . NEW LINE SET LINE=$GET(ARR(ARRIDX)) IF LINE="" SET LINE="   "
-        . FOR  SET NEWSEGN=NEWSEGN+.01 QUIT:$DATA(TMGHL7MSG(NEWSEGN))=0
         . DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1)
         . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         . DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
         . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"       
         . SET TMGHL7MSG("B","NTE",NEWSEGN)=""
+        . SET NEWSEGN=NEWSEGN+INC
+        ;"//kt //codex end mod 2026-10-18 --
         QUIT         
         ;
 APPNDNTE(ARR,TMGHL7MSG,TMGU,LASTNTESEGN)   ;"APPEND NOTE 
@@ -941,24 +1079,48 @@ APPNDNTE(ARR,TMGHL7MSG,TMGU,LASTNTESEGN)   ;"APPEND NOTE
         ;"                     that ARR is to be appended to.
         ;"NOTE: This assumes that inputs are valid and that NTE segment exists
         ;"Results: none
-        NEW FIRST SET FIRST=1
+        ;"//kt //codex prior active APPNDNTE block 2026-10-18 --
+        ;"        NEW FIRST SET FIRST=1
+        ;"        NEW NTEIDX SET NTEIDX=LASTNTESEGN
+        ;"        NEW ARRIDX SET ARRIDX=""
+        ;"        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
+        ;"        . NEW LINE SET LINE=$GET(ARR(ARRIDX))
+        ;"        . NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
+        ;"        . NEW NEWSEGN
+        ;"        . IF FIRST SET NEWSEGN=NTEIDX+0.5 SET FIRST=0
+        ;"        . ELSE  SET NEWSEGN=NTEIDX+0.01
+        ;"        . FOR  QUIT:($DATA(TMGHL7MSG(NEWSEGN))=0)!(NEWSEGN=NTEIDX)  SET NEWSEGN=NEWSEGN-0.001
+        ;"        . IF NEWSEGN=NTEIDX QUIT
+        ;"        . DO SETPCE^TMGHL7X2(NTENUM+1,.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
+        ;"        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        . DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
+        ;"        . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
+        ;"        . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"
+        ;"        . SET TMGHL7MSG("B","NTE",NEWSEGN)=""
+        ;"        . SET NTEIDX=NEWSEGN
+        ;"//kt //codex end prior active APPNDNTE block 2026-10-18 --
+        ;"//kt //codex begin mod 2026-10-18 --
         NEW NTEIDX SET NTEIDX=LASTNTESEGN
+        NEW ARRCT SET ARRCT=0
         NEW ARRIDX SET ARRIDX=""
+        FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  SET ARRCT=ARRCT+1
+        QUIT:ARRCT'>0
+        NEW INSPARAMS SET INSPARAMS=$$GETINSRTS(.TMGHL7MSG,NTEIDX,ARRCT)
+        NEW NEWSEGN SET NEWSEGN=$PIECE(INSPARAMS,"^",1)
+        NEW INC SET INC=$PIECE(INSPARAMS,"^",2)
+        NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
+        SET ARRIDX=""
         FOR  SET ARRIDX=$ORDER(ARR(ARRIDX)) QUIT:+ARRIDX'>0  DO
         . NEW LINE SET LINE=$GET(ARR(ARRIDX))
-        . NEW NTENUM SET NTENUM=$GET(TMGHL7MSG(NTEIDX,1))
-        . NEW NEWSEGN 
-        . IF FIRST SET NEWSEGN=NTEIDX+0.5 SET FIRST=0
-        . ELSE  SET NEWSEGN=NTEIDX+0.01
-        . FOR  QUIT:($DATA(TMGHL7MSG(NEWSEGN))=0)!(NEWSEGN=NTEIDX)  SET NEWSEGN=NEWSEGN-0.001
-        . IF NEWSEGN=NTEIDX QUIT
-        . DO SETPCE^TMGHL7X2(NTENUM+1,.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
+        . SET NTENUM=NTENUM+1
+        . DO SETPCE^TMGHL7X2(NTENUM,.TMGHL7MSG,.TMGU,NEWSEGN,1) ;
         . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         . DO SETPCE^TMGHL7X2(LINE,.TMGHL7MSG,.TMGU,NEWSEGN,3) ;
         . SET $PIECE(TMGHL7MSG(NEWSEGN),TMGU(1),1)="NTE"
         . SET TMGHL7MSG(NEWSEGN,"SEG")="NTE"       
         . SET TMGHL7MSG("B","NTE",NEWSEGN)=""
-        . SET NTEIDX=NEWSEGN
+        . SET NEWSEGN=NEWSEGN+INC
+        ;"//kt //codex end mod 2026-10-18 --
         QUIT         
         ;   
 KILLDNRS(TMGHL7MSG)  ;"Scan an remove all OBX's with lab value of "DNR", and also associated NTE segs.
@@ -1198,11 +1360,19 @@ OBR2NTE(TMGHL7MSG,TMGU,STARTSEGN,ENDSEGN) ;"Convert NOTE style OBX results into 
        ;"        ENDSEG -- The index of the last OBX segment to be converted.  
        ;"Results: none
        NEW U SET U=TMGU(1)
+       ;"//kt //codex prior active OBR2NTE relocation block 2026-10-18 --
        ;"Move first OBX index forward by 0.01 or so.
-       NEW NEXTI SET NEXTI=STARTSEGN
-       FOR  SET NEXTI=NEXTI+0.01 QUIT:$DATA(TMGHL7MSG(NEXTI))=0
+       ;"NEW NEXTI SET NEXTI=STARTSEGN
+       ;"FOR  SET NEXTI=NEXTI+0.01 QUIT:$DATA(TMGHL7MSG(NEXTI))=0
+       ;"MERGE TMGHL7MSG(NEXTI)=TMGHL7MSG(STARTSEGN)
+       ;"SET TMGHL7MSG("PO",NEXTI)=NEXTI
+       ;"//kt //codex end prior active OBR2NTE relocation block 2026-10-18 --
+       ;"//kt //codex begin mod 2026-10-18 --
+       NEW INSPARAMS SET INSPARAMS=$$GETINSRTS(.TMGHL7MSG,STARTSEGN,1)
+       NEW NEXTI SET NEXTI=$PIECE(INSPARAMS,"^",1)
        MERGE TMGHL7MSG(NEXTI)=TMGHL7MSG(STARTSEGN)
        SET TMGHL7MSG("PO",NEXTI)=NEXTI
+       ;"//kt //codex end mod 2026-10-18 --
        ;
        ;"Make a new OBX at original starting point --> "See Comments:"
        KILL TMGHL7MSG(STARTSEGN)
