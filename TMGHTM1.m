@@ -121,8 +121,8 @@ HTML2TXT(ARRAY,LISUB) ;
   SET LISUB=$GET(LISUB)
   ;"//kt //codex begin mod 10/8/26 -- Build logical HTML lines while parsing.
   ;"  FileMan WP node boundaries are ignored; HTML break tags define the lines.
-  ;"     but if any line is > 200 chars, it is wrapped to a new line.  
-  NEW MAXWPLEN SET MAXWPLEN=200
+  ;"     but if any line is > 300 chars, it is wrapped to a new line.  
+  NEW MAXWPLEN SET MAXWPLEN=300
   ;
   NEW BLKLNTAGS SET BLKLNTAGS="<P>^</TABLE>^</TR>^<TABLE^<TBODY>^</LI>^<p>^</table>^</tr>^<table^<tbody>^</li>" ;" ELH added lower case tags for now 5/30/25
   NEW S2 SET S2=""
