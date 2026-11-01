@@ -156,9 +156,17 @@ XMSGB   IF $DATA(TMGU)=0 DO  GOTO XMDN
         NEW ORD SET ORD=0
         FOR  SET ORD=$ORDER(TMGHL7MSG("PO",ORD)) QUIT:(+ORD'>0)!DONE  DO
         . IF TMGHL7MSG("PO",ORD)'=PIDSEGN QUIT
-        . NEW POPARAMS SET POPARAMS=$$GETINSRTS(.TMGHL7MSG("PO"),ORD,1)
+        . ;"//kt //codex prior active XMSG PO parameter block 2026-10-18 --
+        . ;"NEW POPARAMS SET POPARAMS=$$GETINSRTS(.TMGHL7MSG("PO"),ORD,1)
+        . ;"NEW NEWPO SET NEWPO=$PIECE(POPARAMS,"^",1)
+        . ;"SET TMGHL7MSG("PO",NEWPO)=ORCSEGN
+        . ;"//kt //codex end prior active XMSG PO parameter block 2026-10-18 --
+        . ;"//kt //codex begin mod 2026-10-18 --
+        . NEW POARR MERGE POARR=TMGHL7MSG("PO")
+        . NEW POPARAMS SET POPARAMS=$$GETINSRTS(.POARR,ORD,1)
         . NEW NEWPO SET NEWPO=$PIECE(POPARAMS,"^",1)
         . SET TMGHL7MSG("PO",NEWPO)=ORCSEGN
+        . ;"//kt //codex end mod 2026-10-18 --
         . SET DONE=1
         ;"//kt //codex end mod 2026-10-18 --
         ;

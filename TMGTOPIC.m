@@ -34,6 +34,8 @@ TMGTOPIC ;KT - Topic Routines; 9/1/26
  ;"FIXALL2 -- Run FIXALL in metadata-only mode, without saving thread text
  ;"FIX1PT(ADFN,OPTION) -- Reparse one patient's notes and synchronize topic metadata through FILE1B
  ;"SCANPTNOTES(ADFN,OPTION,ACTION,SHOWPROGRESS) -- Shared date-ordered patient note scan for rebuild and metadata maintenance
+ ;"REBUILDCURATEDCACHE(TMGDFN,SDT,EDT) -- Populate curated-text cache from eligible notes, newest first
+ ;"REBUILDCURATEDCACHEALL(SDT,EDT) -- Populate curated-text cache for every patient with topic records
  ;" 
  ;"=======================================================================
  ;  
@@ -42,9 +44,10 @@ TMGTOPIC ;KT - Topic Routines; 9/1/26
  ;
  ;"=======================================================================
  ;
-TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
+TOPICCMD(TMGRESULT,TMGDFN,TMGDUZ,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD  ;"//kt //codex 2026-10-25
   ;"Purpose: This routine will run commands as supplied in PARAMS
   ;"Input: TMGDFN -- PATIENT IEN
+  ;"       TMGDUZ -- User entry in NEW PERSON file.  
   ;"       PARAMS - Command to run. Format: CMD:<data>^<data>^<data>...
   ;"       SDT - Start Date FMDT -- OPTIONAL.  Default=0
   ;"       EDT - End Date FMDT -- OPTIONAL.  Default=9999999
@@ -66,6 +69,11 @@ TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
   ;"             TMGRESULT(#)=0.5^<LinkedTableIEN>;<LinkedTableName>^... <-- as many as needed.  Entire line can also be repeated if too many for 1 line.    
   ;"             TMGRESULT(#)=1^<FMDT>^<IEN8925>^<HIDDEN>^<USER DATA>    <-- '1' indicates start of document text
   ;"             TMGRESULT(#)=2^<line of text>    <-- '2' (may be multiple) gives lines of text until next '1' node
+ ;"  CMD="GET CURATED":
+ ;"     PARAMS: SUBIEN22719.21
+ ;"     RESULT: TMGRESULT(1)="1^OK" OR "-1^ErrorMessage"
+ ;"             TMGRESULT(#)=0^<TOPIC NAME>^<CURATED SOURCE TIU IEN>^<CURATED SOURCE FMDT>
+ ;"             TMGRESULT(#)=2^<line of CURATED TEXT>  <-- may be multiple
   ;"  CMD="RENAME":  ; //kt //codex 9/24/26
   ;"     PARAMS PIECE#1: <IEN22719.21>  <-- topic IEN  ; //kt //codex 9/24/26
   ;"     PARAMS PIECE#2: <new topic name>  <-- up to 180 chars; no ^ allowed.  ; //kt //codex 9/24/26
@@ -139,6 +147,7 @@ TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
   . SET SDT=$GET(@REF@("SDT"))
   . SET EDT=@REF@("EDT")
   . KILL DATA MERGE DATA=@REF@("DATA")
+  . SET TMGDUZ=$GET(@REF@("TMGDUZ"))  ;"//kt //codex 2026-10-25
   ELSE  DO
   . KILL @REF
   . SET @REF@("TMGDFN")=$GET(TMGDFN)
@@ -146,6 +155,7 @@ TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
   . SET @REF@("SDT")=$GET(SDT)
   . SET @REF@("EDT")=$GET(EDT)
   . MERGE @REF@("DATA")=DATA
+  . SET @REF@("TMGDUZ")=$GET(TMGDUZ)  ;"//kt //codex 2026-10-25
   SET SDT=+$GET(SDT)
   SET EDT=$GET(EDT) IF EDT'>0 SET EDT=9999999
   SET TMGRESULT(1)="1^OK"
@@ -157,6 +167,8 @@ TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
   . DO TOPICLST(.TMGRESULT,TMGDFN,SDT,EDT)  ;"Get lists of all topics for patient.
   IF CMD="GET1" DO  GOTO TPCDN
   . DO GET1(.TMGRESULT,TMGDFN,PARAMS,SDT,EDT) ;"Get text of 1 topic for patient, filtered by SDT, EDT (if provided)
+  IF CMD="GET CURATED" DO  GOTO TPCDN  ;"//kt //codex 2026-10-25
+  . DO GETCURATED(.TMGRESULT,TMGDFN,PARAMS)  ;"//kt //codex 2026-10-25
   IF CMD="LIST TABLES" DO  GOTO TPCDN
   . DO LISTTABLES(.TMGRESULT)
   IF CMD="RENAME" DO  GOTO TPCDN  
@@ -168,13 +180,13 @@ TOPICCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA)  ;" RPC: TMG RPC THREAD/TOPIC CMD
   IF CMD="DEL 1 TOPIC ENTRY" DO  GOTO TPCDN
   . DO DEL1TOPICDT(.TMGRESULT,TMGDFN,PARAMS)  ;"Delete 1 topic FMDT entry. 
   IF CMD="ADD 1 TOPIC ENTRY" DO  GOTO TPCDN
-  . DO ADD1TOPICENTRY(.TMGRESULT,TMGDFN,PARAMS,.DATA)
+  . DO ADD1TOPICENTRY(.TMGRESULT,TMGDFN,PARAMS,.DATA,TMGDUZ)  ;"//kt //codex 2026-10-25
   IF CMD="SET 1 TOPIC ENTRY TEXT" DO  GOTO TPCDN
-  . DO SET1TOPICENTRYTEXT(.TMGRESULT,TMGDFN,PARAMS,.DATA)
+  . DO SET1TOPICENTRYTEXT(.TMGRESULT,TMGDFN,PARAMS,.DATA,TMGDUZ)  ;"//kt //codex 2026-10-25
   IF $PIECE(CMD," ",1,2)="SET TOPIC" DO  GOTO TPCDN
-  . DO SETTOPIC(.TMGRESULT,TMGDFN,CMD,PARAMS,.DATA) ;" Handle SET TOPIC [MULTI / HIDDEN / USER DATA / FMDT ENTRY]  
+  . DO SETTOPIC(.TMGRESULT,TMGDFN,CMD,PARAMS,.DATA,TMGDUZ) ;"//kt //codex 2026-10-25
   IF CMD="MERGE TOPICS" DO  GOTO TPCDN
-  . DO MERGETOPICS(.TMGRESULT,TMGDFN,PARAMS)
+  . DO MERGETOPICS(.TMGRESULT,TMGDFN,PARAMS,TMGDUZ)  ;"//kt //codex 2026-10-25
   IF CMD="GET TABLES AS DATA" DO  GOTO TPCDN
   . DO GETTABLES(.TMGRESULT,TMGDFN,PARAMS) ;"Retrieve 1 or more tables   
   IF CMD="SET TABLE DATA" DO  GOTO TPCDN
@@ -184,6 +196,52 @@ TPCDN;
   QUIT
   ;"    
  ;"=======================================================================
+VALIDAUTHOR(OUT,TMGDUZ) ;"Validate the explicitly supplied CPRS author DUZ for a dated-entry edit.
+  ;"//kt //codex added entire function 2026-10-25
+  NEW RESULT SET RESULT=0
+  SET TMGDUZ=+$GET(TMGDUZ)
+  IF TMGDUZ'>0 DO  GOTO VADN
+  . SET OUT(1)="-1^A valid author DUZ is required for this topic-entry edit"
+  IF '$DATA(^VA(200,TMGDUZ,0)) DO  GOTO VADN
+  . SET OUT(1)="-1^Author DUZ "_TMGDUZ_" was not found in the NEW PERSON file"
+  SET RESULT=1
+VADN ;
+  QUIT RESULT
+  ;
+ADDEDIT(OUT,TMGDFN,TOPICIEN,DTIEN,ACTION,TMGDUZ) ;"Add a dated-entry edit-history record after a successful change.
+  ;"//kt //codex added entire function 2026-10-25
+  NEW TMGFDA,TMGIEN,TMGMSG,IENS
+  SET IENS="+1,"_DTIEN_","_TOPICIEN_","_TMGDFN_","
+  SET TMGFDA(22719.2112,IENS,.01)=$$NOW^XLFDT
+  SET TMGFDA(22719.2112,IENS,.02)=TMGDUZ
+  SET TMGFDA(22719.2112,IENS,.03)=ACTION
+  DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  IF $DATA(TMGMSG("DIERR")) SET OUT(1)="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  QUIT
+  ;
+COPYEDITHX(OUT,TMGDFN,SRCTOPICIEN,SRCENTRYIEN,DESTTOPICIEN,DESTENTRYIEN) ;"Copy all existing edit-history rows while merging topics.
+  ;"//kt //codex added entire function 2026-10-25
+  NEW SRCHXIEN SET SRCHXIEN=0
+  FOR  SET SRCHXIEN=$ORDER(^TMG(22719.2,TMGDFN,1,SRCTOPICIEN,1,SRCENTRYIEN,2,SRCHXIEN)) QUIT:(SRCHXIEN'>0)!(+OUT(1)'=1)  DO
+  . NEW HXZN SET HXZN=$GET(^TMG(22719.2,TMGDFN,1,SRCTOPICIEN,1,SRCENTRYIEN,2,SRCHXIEN,0))
+  . NEW TMGFDA,TMGIEN,TMGMSG,IENS
+  . SET IENS="+1,"_DESTENTRYIEN_","_DESTTOPICIEN_","_TMGDFN_","
+  . SET TMGFDA(22719.2112,IENS,.01)=$PIECE(HXZN,"^",1)
+  . SET TMGFDA(22719.2112,IENS,.02)=$PIECE(HXZN,"^",2)
+  . SET TMGFDA(22719.2112,IENS,.03)=$PIECE(HXZN,"^",3)
+  . DO UPDATE^DIE("","TMGFDA","TMGIEN","TMGMSG")
+  . IF $DATA(TMGMSG("DIERR")) SET OUT(1)="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  QUIT
+  ;
+LOGMULTIEDITS(OUT,TMGDFN,EDITED,TMGDUZ) ;"Add one EDIT history row for every entry changed by SET TOPIC MULTI.
+  ;"//kt //codex added entire function 2026-10-25
+  NEW TOPICIEN SET TOPICIEN=0
+  FOR  SET TOPICIEN=$ORDER(EDITED(TOPICIEN)) QUIT:(TOPICIEN'>0)!(+OUT(1)'=1)  DO
+  . NEW DTIEN SET DTIEN=0
+  . FOR  SET DTIEN=$ORDER(EDITED(TOPICIEN,DTIEN)) QUIT:(DTIEN'>0)!(+OUT(1)'=1)  DO
+  . . DO ADDEDIT(.OUT,TMGDFN,TOPICIEN,DTIEN,"E",TMGDUZ)
+  QUIT
+  ;
 FMSET(OUT,FILE,IENS,FLD,VALUE)  ;"Do a write to database
   NEW TMGFDA SET TMGFDA(+$GET(FILE),$GET(IENS),+$GET(FLD))=$GET(VALUE)
   DO POSTFDA(.OUT,.TMGFDA)
@@ -263,12 +321,12 @@ LISTTABLES(OUT)  ;"Return all tables defined in file 22708
   . . SET IDX=IDX+1,OUT(IDX)=NAME_"^"_IEN
   QUIT
   ;  
-SETTOPIC(OUT,TMGDFN,CMD,PARAMS,DATA) ;" Handle SET TOPIC [MULTI / HIDDEN / USER DATA / FMDT ENTRY]
+SETTOPIC(OUT,TMGDFN,CMD,PARAMS,DATA,TMGDUZ) ;" Handle SET TOPIC [MULTI / HIDDEN / USER DATA / FMDT ENTRY]  ;"//kt //codex 2026-10-25
   NEW SUBIEN SET SUBIEN=+$PIECE(PARAMS,"^",1)
   NEW VALUE SET VALUE=$PIECE(PARAMS,"^",2)
   NEW IENS SET IENS=""
   IF $PIECE(CMD," ",3)="MULTI" DO  GOTO SETTPDN
-  . DO SETMULTI(.OUT,TMGDFN,.DATA)
+  . DO SETMULTI(.OUT,TMGDFN,.DATA,TMGDUZ)  ;"//kt //codex 2026-10-25
   IF $PIECE(CMD," ",3)="HIDDEN" DO  GOTO SETTPDN
   . SET IENS=SUBIEN_","_TMGDFN_","
   . DO FMSET(.OUT,22719.21,IENS,.02,VALUE)
@@ -278,6 +336,7 @@ SETTOPIC(OUT,TMGDFN,CMD,PARAMS,DATA) ;" Handle SET TOPIC [MULTI / HIDDEN / USER 
   IF $PIECE(CMD," ",3,4)="LINKED TABLES" DO  GOTO SETTPDN
   . DO SETTOPICLINKEDTABLES(.OUT,TMGDFN,PARAMS)
   IF $PIECE(CMD," ",3,4)="FMDT ENTRY" DO  GOTO SETTPDN
+  . IF '$$VALIDAUTHOR(.OUT,TMGDUZ) QUIT  ;"//kt //codex 2026-10-25
   . NEW FMDT SET FMDT=$PIECE(PARAMS,"^",2)
   . NEW SSIEN SET SSIEN=$ORDER(^TMG(22719.2,TMGDFN,1,SUBIEN,1,"B",FMDT,0))
   . IF SSIEN'>0 DO  QUIT
@@ -286,8 +345,10 @@ SETTOPIC(OUT,TMGDFN,CMD,PARAMS,DATA) ;" Handle SET TOPIC [MULTI / HIDDEN / USER 
   . SET IENS=SSIEN_","_SUBIEN_","_TMGDFN_","
   . IF $PIECE(CMD," ",5)="HIDDEN" DO  QUIT
   . . DO FMSET(.OUT,22719.211,IENS,.03,VALUE)
+  . . IF +OUT(1)=1 DO ADDEDIT(.OUT,TMGDFN,SUBIEN,SSIEN,"E",TMGDUZ)  ;"//kt //codex 2026-10-25
   . IF $PIECE(CMD," ",5,6)="USER DATA" DO  QUIT
   . . DO FMSET(.OUT,22719.211,IENS,.04,VALUE)
+  . . IF +OUT(1)=1 DO ADDEDIT(.OUT,TMGDFN,SUBIEN,SSIEN,"E",TMGDUZ)  ;"//kt //codex 2026-10-25
 SETTPDN  ;  
   QUIT 
   ;
@@ -397,7 +458,8 @@ DEL1TOPICDT(OUT,TMGDFN,PARAMS)  ;"Delete 1 topic FMDT entry.
 D1TDTDN  ;  
   QUIT
   ;
-ADD1TOPICENTRY(OUT,TMGDFN,PARAMS,DATA) ;"Create one topic DATETIME entry and optionally file its WP text
+ADD1TOPICENTRY(OUT,TMGDFN,PARAMS,DATA,TMGDUZ) ;"Create one topic DATETIME entry and optionally file its WP text  ;"//kt //codex 2026-10-25
+  IF '$$VALIDAUTHOR(.OUT,TMGDUZ) GOTO A1TEDN  ;"//kt //codex 2026-10-25
   NEW SUBIEN SET SUBIEN=+$PIECE(PARAMS,"^",1)
   NEW FMDT SET FMDT=+$PIECE(PARAMS,"^",2)
   IF SUBIEN'>0 DO  GOTO A1TEDN
@@ -427,10 +489,12 @@ ADD1TOPICENTRY(OUT,TMGDFN,PARAMS,DATA) ;"Create one topic DATETIME entry and opt
   . . SET TMGFDA(22719.211,IENS,.01)="@"
   . . DO FILE^DIE("","TMGFDA","TMGMSG")
   . . SET OUT(1)="-1^"_ERR
+  IF +OUT(1)=1 DO ADDEDIT(.OUT,TMGDFN,SUBIEN,SSIEN,"C",TMGDUZ)  ;"//kt //codex 2026-10-25
 A1TEDN  ;
   QUIT
   ;
-SET1TOPICENTRYTEXT(OUT,TMGDFN,PARAMS,DATA) ;"Replace one topic DATETIME entry's WP text from the RPC DATA list
+SET1TOPICENTRYTEXT(OUT,TMGDFN,PARAMS,DATA,TMGDUZ) ;"Replace one topic DATETIME entry's WP text from the RPC DATA list  ;"//kt //codex 2026-10-25
+  IF '$$VALIDAUTHOR(.OUT,TMGDUZ) GOTO S1TETDN  ;"//kt //codex 2026-10-25
   NEW SUBIEN SET SUBIEN=+$PIECE(PARAMS,"^",1)
   IF SUBIEN'>0 DO  GOTO S1TETDN
   . SET OUT(1)="-1^IEN for 22719.21 not provided as first piece of PARAMS"
@@ -450,22 +514,25 @@ SET1TOPICENTRYTEXT(OUT,TMGDFN,PARAMS,DATA) ;"Replace one topic DATETIME entry's 
   . DO WP^DIE(22719.211,IENS,1,"K","@","TMGMSG")
   IF $DATA(TMGMSG("DIERR")) DO
   . SET OUT(1)="-1^"_$$GETERRST^TMGDEBU2(.TMGMSG)
+  IF +OUT(1)=1 DO ADDEDIT(.OUT,TMGDFN,SUBIEN,SSIEN,"E",TMGDUZ)  ;"//kt //codex 2026-10-25
 S1TETDN
   QUIT
   ;
-MERGETOPICS(OUT,TMGDFN,PARAMS) ;"Merge 2 or more topics into 1 final topic record
+MERGETOPICS(OUT,TMGDFN,PARAMS,TMGDUZ) ;"Merge 2 or more topics into 1 final topic record  ;"//kt //codex 2026-10-25
   ;"INPUT:
   ;"Input: OUT -- PASS BY REFERENCE.  Used to send back results.  
   ;"       TMGDFN -- PATIENT IEN  <-- this is also IEN in 22719.2
   ;"       PARAMS -- Format: DestIEN^SrcIEN1^SrcIEN2^SrcIEN3^SrcIEN4...   <-- these are IENs in 22719.21
   NEW DEST SET DEST=$PIECE(PARAMS,"^",1)
   NEW SRC SET SRC=$PIECE(PARAMS,"^",2,$LENGTH(PARAMS,"^"))
+  IF '$$VALIDAUTHOR(.OUT,TMGDUZ) GOTO MTDN  ;"//kt //codex 2026-10-25
   NEW IDX FOR IDX=1:1:$LENGTH(SRC,"^") DO
   . NEW ASRC SET ASRC=$PIECE(SRC,"^",IDX) QUIT:ASRC=""
-  . DO MERGE2TOPICS(.OUT,TMGDFN,DEST,ASRC)
+  . DO MERGE2TOPICS(.OUT,TMGDFN,DEST,ASRC,TMGDUZ)  ;"//kt //codex 2026-10-25
+MTDN ;
   QUIT
   ;
-MERGE2TOPICS(OUT,TMGDFN,DESTSUBIEN,SRCSUBIEN)  ;"Merge 2 topic records into 1 final record (e.g. 'Bak pain' and 'Back pain')
+MERGE2TOPICS(OUT,TMGDFN,DESTSUBIEN,SRCSUBIEN,TMGDUZ)  ;"Merge 2 topic records into 1 final topic record  ;"//kt //codex 2026-10-25
   NEW SRCIENS SET SRCIENS=SRCSUBIEN_","_TMGDFN_","  
   NEW DESTIENS SET DESTIENS=DESTSUBIEN_","_TMGDFN_","  
   NEW TMGTOPICDATA,TMGENTRYDATA,TMGMSG,TMGFDA,TMGIEN  
@@ -540,6 +607,10 @@ MERGE2TOPICS(OUT,TMGDFN,DESTSUBIEN,SRCSUBIEN)  ;"Merge 2 topic records into 1 fi
   . . . SET TMGFDA(22719.211,DESTENTRYIENS,.01)="@"  
   . . . DO FILE^DIE("","TMGFDA","TMGMSG")  
   . . . SET OUT(1)="-1^"_ERR  
+  . IF +OUT(1)'=1 QUIT  ;"//kt //codex 2026-10-25
+  . DO COPYEDITHX(.OUT,TMGDFN,SRCSUBIEN,SRCENTRYIENS,DESTSUBIEN,DESTENTRYIEN)  ;"//kt //codex 2026-10-25
+  . IF +OUT(1)'=1 QUIT  ;"//kt //codex 2026-10-25
+  . DO ADDEDIT(.OUT,TMGDFN,DESTSUBIEN,DESTENTRYIEN,"E",TMGDUZ)  ;"//kt //codex 2026-10-25
   IF +OUT(1)'=1 GOTO M2TDN  
   ;"Store merged topic User Data and force the merged destination record visible.  
   KILL TMGFDA,TMGMSG  
@@ -557,7 +628,7 @@ MERGE2TOPICS(OUT,TMGDFN,DESTSUBIEN,SRCSUBIEN)  ;"Merge 2 topic records into 1 fi
 M2TDN 
   QUIT  
   ;
-SETMULTI(OUT,TMGDFN,DATA) ;"Handle SET TOPIC MULTI command  
+SETMULTI(OUT,TMGDFN,DATA,TMGDUZ) ;"Handle SET TOPIC MULTI command  ;"//kt //codex 2026-10-25
   ;"Input: OUT -- PASS BY REFERENCE.  Used to send back results.  
   ;"       TMGDFN -- PATIENT IEN  <-- this is also IEN in 22719.2
   ;"       DATA -- Format:
@@ -567,7 +638,8 @@ SETMULTI(OUT,TMGDFN,DATA) ;"Handle SET TOPIC MULTI command
   ;"                       If not provided then data targets fields in file 22719.21 (TOPIC subfile).
   ;"         DATA(#)="HIDDEN=<VALUE>"  VALUE should be 'YES' or 'Y' or ''  <-- OPTIONAL
   ;"         DATA(#)="USER DATA=<VALUE>"  VALUE should be up to 64 chars.  <-- OPTIONAL  
-  NEW SUBIEN,SUBSUBIEN SET (SUBIEN,SUBSUBIEN)=""
+  IF '$$VALIDAUTHOR(.OUT,TMGDUZ) GOTO SMDN  ;"//kt //codex 2026-10-25
+  NEW EDITED,SUBIEN,SUBSUBIEN SET (SUBIEN,SUBSUBIEN)=""
   NEW IENS SET IENS=""
   NEW FILE SET FILE=""
   NEW TMGFDA
@@ -577,6 +649,8 @@ SETMULTI(OUT,TMGDFN,DATA) ;"Handle SET TOPIC MULTI command
   . IF LINE["IEN=" DO  QUIT
   . . IF $DATA(TMGFDA) DO  ;"First post any data from prior cycle.  
   . . . DO POSTFDA(.OUT,.TMGFDA)  ;"This will clear TMGFDA upon return    
+  . . . IF +OUT(1)=1 DO LOGMULTIEDITS(.OUT,TMGDFN,.EDITED,TMGDUZ)  ;"//kt //codex 2026-10-25
+  . . . KILL EDITED  ;"//kt //codex 2026-10-25
   . . SET SUBIEN=+$PIECE(LINE,"IEN=",2)
   . . KILL SUBSUBIEN,TMGFDA
   . . IF SUBIEN'>0 QUIT
@@ -593,14 +667,18 @@ SETMULTI(OUT,TMGDFN,DATA) ;"Handle SET TOPIC MULTI command
   . . IF FILE=22719.21 SET FLD=.02
   . . ELSE  IF FILE=22719.211 SET FLD=.03
   . . SET TMGFDA(FILE,IENS,FLD)=VALUE
+  . . IF FILE=22719.211 SET EDITED(SUBIEN,SUBSUBIEN)=""  ;"//kt //codex 2026-10-25
   . IF LINE["USER DATA=" DO  QUIT
   . . NEW VALUE SET VALUE=$PIECE(LINE,"USER DATA=",2)
   . . NEW FLD SET FLD=0
   . . IF FILE=22719.21 SET FLD=.03
   . . ELSE  IF FILE=22719.211 SET FLD=.04
   . . IF FLD>0 SET TMGFDA(FILE,IENS,FLD)=VALUE
+  . . IF FILE=22719.211,FLD>0 SET EDITED(SUBIEN,SUBSUBIEN)=""  ;"//kt //codex 2026-10-25
   IF $DATA(TMGFDA) DO  ;"Post any data from last cycle.  
   . DO POSTFDA(.OUT,.TMGFDA)  ;"This will clear TMGFDA upon return   
+  . IF +OUT(1)=1 DO LOGMULTIEDITS(.OUT,TMGDFN,.EDITED,TMGDUZ)  ;"//kt //codex 2026-10-25
+SMDN ;
   QUIT
   ;
 GET1(OUT,TMGDFN,PARAMS,SDT,EDT) ;"Get text of 1 topic for patient, filtered by SDT, EDT (if provided)
@@ -645,6 +723,31 @@ GET1(OUT,TMGDFN,PARAMS,SDT,EDT) ;"Get text of 1 topic for patient, filtered by S
   . . . NEW LINE SET LINE=$GET(^TMG(22719.2,TMGDFN,1,SUBIEN,1,SSIDX,1,TXI,0))  
   . . . DO ADDGET1LINE(.OUT,.IDX,LINE)
 G1DN ;  
+  QUIT
+  ;
+GETCURATED(OUT,TMGDFN,PARAMS) ;"Return the cached curated text and its source TIU provenance for one topic.
+  ;"//kt //codex added entire function 2026-10-25
+  ;"Output: OUT(1)="1^OK" or "-1^ErrorMessage"
+  ;"        OUT(#)=0^<TOPIC NAME>^<SOURCE TIU IEN>^<SOURCE FMDT>
+  ;"        OUT(#)=2^<CURATED TEXT LINE>
+  SET TMGDFN=+$GET(TMGDFN)
+  IF TMGDFN'>0 SET OUT(1)="-1^Numeric patient IEN not provided" GOTO GCDN
+  NEW SUBIEN SET SUBIEN=+$PIECE($GET(PARAMS),"^",1)
+  IF SUBIEN'>0 SET OUT(1)="-1^Topic IEN not provided" GOTO GCDN
+  NEW ZN SET ZN=$GET(^TMG(22719.2,TMGDFN,1,SUBIEN,0))
+  NEW TOPIC SET TOPIC=$PIECE(ZN,"^",1)
+  IF TOPIC="" SET OUT(1)="-1^Topic IEN not found for patient" GOTO GCDN
+  NEW IENS SET IENS=SUBIEN_","_TMGDFN_","
+  NEW SOURCEIEN SET SOURCEIEN=+$$GET1^DIQ(22719.21,IENS,4,"I")
+  NEW SOURCEDT SET SOURCEDT=+$$GET1^DIQ(22719.21,IENS,4.1,"I")
+  SET OUT(1)="1^OK"
+  NEW IDX SET IDX=2
+  SET OUT(IDX)="0^"_TOPIC_"^"_SOURCEIEN_"^"_SOURCEDT
+  NEW WPIEN SET WPIEN=0
+  FOR  SET WPIEN=$ORDER(^TMG(22719.2,TMGDFN,1,SUBIEN,3,WPIEN)) QUIT:WPIEN'>0  DO
+  . NEW LINE SET LINE=$GET(^TMG(22719.2,TMGDFN,1,SUBIEN,3,WPIEN,0))
+  . DO ADDGET1LINE(.OUT,.IDX,LINE)
+GCDN ;
   QUIT
   ;
 ADDGET1LINE(OUT,IDX,LINE) ;"Append one GET1 WP node as clean RPC result lines
@@ -1043,6 +1146,78 @@ FIXALL(OPTION) ;"Reparse every patient's notes and synchronize topic metadata th
   . SET ^TMG("TMP","FIXALL^TMGTOPIC",ADFN)=""
   QUIT
   ;  
+PICKREBUILDCURATED() ;
+  NEW DIC,X,Y
+  SET DIC=2,DIC(0)="MAEQ"
+  DO ^DIC WRITE !
+  QUIT:+Y'>0
+  NEW ARRAY DO REBUILDCURATEDCACHE(+Y)
+  QUIT
+  ;
+REBUILDCURATEDCACHE(TMGDFN,SDT,EDT) ;"Populate curated topic cache from the newest eligible notes first.
+  ;"//kt //codex added entire function 2026-10-25
+  ;"Input: TMGDFN -- PATIENT IEN
+  ;"       SDT,EDT -- OPTIONAL inclusive FileMan episode date range.  Defaults: 0,9999999.
+  ;"Only completed TIU documents already represented in file 22719 are considered.
+  ;"FILE1B is invoked in CURATED TEXT ONLY mode; thread, topic metadata, and file 22719 data are unchanged.
+  SET TMGDFN=+$GET(TMGDFN)
+  IF '$DATA(^DPT(TMGDFN,0)) WRITE !,"Invalid patient IEN: ",TMGDFN,! GOTO RCCDN
+  SET SDT=+$GET(SDT)
+  SET EDT=+$GET(EDT) IF EDT'>0 SET EDT=9999999
+  NEW MAXNOTES,COUNTDT,COUNTIEN SET MAXNOTES=0,COUNTDT=""  ;"//kt //codex 2026-10-25
+  FOR  SET COUNTDT=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,COUNTDT),-1) QUIT:(COUNTDT'>0)!(COUNTDT<SDT)  DO  ;"//kt //codex 2026-10-25
+  . IF COUNTDT>EDT QUIT  ;"//kt //codex 2026-10-25
+  . SET COUNTIEN="" FOR  SET COUNTIEN=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,COUNTDT,COUNTIEN),-1) QUIT:COUNTIEN'>0  SET MAXNOTES=MAXNOTES+1  ;"//kt //codex 2026-10-25
+  IF MAXNOTES'>0 WRITE !,"No TIU documents found in the requested date range.",! GOTO RCCDN  ;"//kt //codex 2026-10-25
+  NEW NOTECOUNT,STARTTIME,PTNAME SET NOTECOUNT=0,STARTTIME=$H,PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)  ;"//kt //codex 2026-10-25
+  NEW ERRCOUNT SET ERRCOUNT=0  ;"//kt //codex 2026-10-25
+  NEW PROGBARSTATE MERGE PROGBARSTATE=^TMP("TMG-PROGRESS-BAR",$J)  ;"//kt //codex 2026-10-25
+  WRITE !  ;"//kt //codex 2026-10-25
+  NEW TIUDT SET TIUDT=""
+  FOR  SET TIUDT=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,TIUDT),-1) QUIT:(TIUDT'>0)!(TIUDT<SDT)  DO
+  . IF TIUDT>EDT QUIT
+  . NEW TIUIEN SET TIUIEN=""
+  . FOR  SET TIUIEN=$ORDER(^TIU(8925,"ZTMGPTDT",TMGDFN,TIUDT,TIUIEN),-1) QUIT:TIUIEN'>0  DO
+  . . SET NOTECOUNT=NOTECOUNT+1  ;"//kt //codex 2026-10-25
+  . . DO PROGBAR^TMGUSRI2(NOTECOUNT,"Curated cache scan: "_PTNAME,1,MAXNOTES,60,STARTTIME)  ;"//kt //codex 2026-10-25
+  . . IF $PIECE($GET(^TIU(8925,TIUIEN,0)),"^",5)'=7 QUIT
+  . . IF $DATA(^TMG(22719,TIUIEN))=0 QUIT
+  . . NEW ARRAY,OPTION,QUIET
+  . . SET OPTION("SKIP THREAD DATA")=1,OPTION("CURATED TEXT ONLY")=1,QUIET=1
+  . . DO SUMNOTE^TMGTIUP1(TIUIEN,.ARRAY,.OPTION)
+  . . IF $DATA(ARRAY)=0 QUIT
+  . . DO FILE1B^TMGTIUT5(TIUIEN,.ARRAY,.QUIET,.OPTION)
+  . . IF $DATA(QUIET(TIUIEN)) DO  QUIT
+  . . . SET ERRCOUNT=ERRCOUNT+1
+  IF ERRCOUNT>0 DO  ;"//kt //codex 2026-10-25
+  . WRITE !,ERRCOUNT," curated cache errors.",!  ;"//kt //codex 2026-10-25
+  . DO CUU^TMGTERM(3)  ;"//kt //codex 2026-10-25
+  ELSE  DO CUU^TMGTERM(1)  ;"//kt //codex 2026-10-25
+  KILL ^TMP("TMG-PROGRESS-BAR",$J) MERGE ^TMP("TMG-PROGRESS-BAR",$J)=PROGBARSTATE  ;"//kt //codex 2026-10-25
+RCCDN ;
+  QUIT
+  ;
+REBUILDCURATEDCACHEALL(SDT,EDT) ;"Populate curated topic caches for all patients with topic records.
+  ;"//kt //codex added entire function 2026-10-25
+  ;"Input: SDT,EDT -- OPTIONAL inclusive FileMan episode date range.  Defaults: 0,9999999.
+  SET SDT=+$GET(SDT)
+  SET EDT=+$GET(EDT) IF EDT'>0 SET EDT=9999999
+  NEW STARTTIME SET STARTTIME=$H
+  NEW MAXCOUNT,TMGDFN SET MAXCOUNT=0,TMGDFN=0
+  FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
+  . IF $DATA(^TMG(22719.2,TMGDFN))>0 SET MAXCOUNT=MAXCOUNT+1
+  IF MAXCOUNT'>0 WRITE !,"No patients with topic records found.",! GOTO RCCADN
+  NEW COUNT SET COUNT=0,TMGDFN=0
+  FOR  SET TMGDFN=$ORDER(^DPT(TMGDFN)) QUIT:TMGDFN'>0  DO
+  . IF $DATA(^TMG(22719.2,TMGDFN))=0 QUIT
+  . SET COUNT=COUNT+1
+  . NEW PTNAME SET PTNAME=$PIECE($GET(^DPT(TMGDFN,0)),"^",1)
+  . DO PROGBAR^TMGUSRI2(COUNT,"Curated cache: "_PTNAME,1,MAXCOUNT,60,STARTTIME)
+  . DO REBUILDCURATEDCACHE(TMGDFN,SDT,EDT)
+  DO PROGBAR^TMGUSRI2(MAXCOUNT,"Curated cache rebuild complete.",MAXCOUNT,MAXCOUNT,60,STARTTIME)
+RCCADN ;
+  QUIT
+  ;
   ;"========================================================================
   ;"Fixing duplicate thread entries  --  DEPRECIATED
   ;" -- This was when topic names > 30 chars were getting filed repeatedly

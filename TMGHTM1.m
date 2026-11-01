@@ -125,7 +125,12 @@ HTML2TXT(ARRAY,LISUB) ;
   NEW MAXWPLEN SET MAXWPLEN=300
   ;
   NEW BLKLNTAGS SET BLKLNTAGS="<P>^</TABLE>^</TR>^<TABLE^<TBODY>^</LI>^<p>^</table>^</tr>^<table^<tbody>^</li>" ;" ELH added lower case tags for now 5/30/25
-  NEW S2 SET S2=""
+  ;"//kt //codex prior active HTML2TXT logical-line locals 2026-10-22 --
+  ;"NEW S2 SET S2=""
+  ;"//kt //codex end prior active HTML2TXT logical-line locals 2026-10-22 --
+  ;"//kt //codex begin mod 2026-10-22 --
+  NEW S2,PREVBR SET (S2,PREVBR)=""
+  ;"//kt //codex end mod 2026-10-22 --
   NEW LINE SET LINE=0
   FOR  SET LINE=$ORDER(ARRAY(LINE)) QUIT:(LINE="")  DO
   . NEW LINESTR SET LINESTR=S2_$GET(ARRAY(LINE,0))
@@ -143,12 +148,27 @@ HTML2TXT(ARRAY,LISUB) ;
   . . IF NEXTTAG'="" SET PARTA=$PIECE(LINESTR,NEXTTAG,1),PARTB=$PIECE(LINESTR,NEXTTAG,2,999)
   . . ELSE  SET PARTA=LINESTR,PARTB=""
   . . NEW TAGSUB SET TAGSUB=$SELECT(NEXTTAG="<LI>":LISUB,NEXTTAG="<li>":LISUB,1:"")
+  . . ;"//kt //codex prior active HTML2TXT tag processing block 2026-10-22 --
+  . . ;"IF NEXTTAG'="" DO  QUIT
+  . . ;". IF PARTA'="" DO ADDWRAP(.OUTARRAY,.OUTI,.PARTA,MAXWPLEN)
+  . . ;".  IF BLKLNTAGS[$PIECE(NEXTTAG," ",1) DO
+  . . ;". . SET OUTARRAY(OUTI,0)=""  ;"Add blank line to create paragraph break.
+  . . ;". . SET OUTI=OUTI+1
+  . . ;". SET LINESTR=TAGSUB_PARTB
+  . . ;"//kt //codex end prior active HTML2TXT tag processing block 2026-10-22 --
+  . . ;"//kt //codex begin mod 2026-10-22 --
   . . IF NEXTTAG'="" DO  QUIT
-  . . . IF PARTA'="" DO ADDWRAP(.OUTARRAY,.OUTI,.PARTA,MAXWPLEN)
-  . . .  IF BLKLNTAGS[$PIECE(NEXTTAG," ",1) DO
+  . . . NEW ISTAGBR SET ISTAGBR=(NEXTTAG="<BR>")!(NEXTTAG="<br>")
+  . . . IF PARTA'="" DO
+  . . . . DO ADDWRAP(.OUTARRAY,.OUTI,.PARTA,MAXWPLEN)
+  . . . . SET PREVBR=0  ;"Content means this break cannot be consecutive with the prior one.
+  . . . IF $LENGTH(PARTA)=0,ISTAGBR,PREVBR SET OUTARRAY(OUTI,0)="",OUTI=OUTI+1  ;"Restore blank line for <BR><BR>, including across WP nodes.
+  . . . IF BLKLNTAGS[$PIECE(NEXTTAG," ",1) DO
   . . . . SET OUTARRAY(OUTI,0)=""  ;"Add blank line to create paragraph break.
   . . . . SET OUTI=OUTI+1
+  . . . SET PREVBR=ISTAGBR
   . . . SET LINESTR=TAGSUB_PARTB
+  . . ;"//kt //codex end mod 2026-10-22 --
   . . SET S2=LINESTR,LINESTR=""
   . . QUIT
   . SET S2=S2_LINESTR

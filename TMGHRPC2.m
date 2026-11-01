@@ -35,8 +35,33 @@ LISTALL(Y,FROM,DIR,IGNOREINACTIVE)  ;" Return a bolus of patient names.  From is
   IF FROM'="" DO INEXACT(.Y,FROM,.DIR) GOTO LADN  
   DO VALISTALL(.Y,.FROM,.DIR) GOTO LADN   ;"original --> DO LISTALL^ORWPT(.Y,.FROM,.DIR) GOTO LADN  //kt 6/25/24
 LADN  ;          
-  IF $$SHOULDGARBLE^TMGMISC4() DO GARBLERESULTS^TMGMISC4(.Y)     ;"check for special mode to hide patient info during demos
+  ;"//kt //codex prior block 2026-11-01 --
+  ;"IF $$SHOULDGARBLE^TMGMISC4() DO GARBLERESULTS^TMGMISC4(.Y)     ;"check for special mode to hide patient info during demos
+  ;"//kt //codex end prior block 2026-11-01 --
+  ;"//kt //codex begin mod 2026-11-01 --
+  NEW TMGGARBLE SET TMGGARBLE=$$SHOULDGARBLE^TMGMISC4()
+  IF TMGGARBLE DO GARBLERESULTS^TMGMISC4(.Y)
+  IF TMGGARBLE=0 DO ADDDOBAGE(.Y)
+  ;"//kt //codex end mod 2026-11-01 --
   QUIT      
+  ;
+ADDDOBAGE(ARR) ;"//kt //codex added entire function 2026-11-01
+  ;"Add DOB and age in display piece 3 only for small result batches.
+  NEW IDX,COUNT SET IDX="",COUNT=0
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX=""  DO  QUIT:COUNT>20
+  . IF $GET(ARR(IDX))'="" SET COUNT=COUNT+1
+  IF COUNT>20 QUIT
+  SET IDX=""
+  FOR  SET IDX=$ORDER(ARR(IDX)) QUIT:IDX=""  DO
+  . NEW DFN,DOB,INFO SET DFN=+$PIECE($GET(ARR(IDX)),U,1)
+  . IF DFN'>0 QUIT
+  . SET DOB=$PIECE($GET(^DPT(DFN,0)),U,3)
+  . IF DOB'>0 QUIT
+  . SET INFO="DOB: "_$$FMTE^XLFDT(DOB,"5DZ")
+  . IF ($LENGTH(DOB)=7),($EXTRACT(DOB,4,5)'="00"),($EXTRACT(DOB,6,7)'="00"),(DOB'>DT) DO
+  . . SET INFO=INFO_"  Age: "_$$AGE^ORWPT(DFN,DOB)
+  . SET $PIECE(ARR(IDX),U,3)=INFO
+  QUIT
   ;
 VALISTALL(Y,FROM,DIR)	;" Return a bolus of patient names.  From is either Name or IEN^Name.
   ;"Copied and modified from LISTALL^ORWPT   
