@@ -71,6 +71,10 @@ BKJOB(IEN8925)  ;
   DO SCAN4FU^TMGTIU10(IEN8925,"OUT",1)  ;"SCAN4FU gets followup data and saves it into 22731 'TMG TIU FOLLOWUP DATA'
   DO TABLDATA(IEN8925)                  ;"POPULATE TMG TABLE DATA FILE  
   DO HANDLTIU^TMGRX007(IEN8925)         ;"EXTRACT AND SAVE MEDICATION FILE LIST INFORMATION
+  ;"//kt //codex prior active medication history call block 2026-11-01 --
+  ;"DO MEDHIST(IEN8925)                   ;"save medication table history
+  ;"//kt //codex prior active medication history call end 2026-11-01 --
+  ;"//kt //codex 11/1/26 history is now saved by HANDLTIU^TMGRX007.
   DO HNDLMAMMO(IEN8925)                 ;"Handle mammogram type documents (if appropriate type)
   DO CHK6CIT^TMGTIUT6(IEN8925)          ;"Check if note contains 6CIT. If so, add a HF and attach the score to it (STILL USED?)
   ;"DO IN FOREGROUND -> DO ADDLSIGN(IEN8925)                  ;"Used for Death Notes and Path Report (Image) TIU titles. This can be kept and have both notes run through the normal Post-Signature code
@@ -90,6 +94,34 @@ BKJOB(IEN8925)  ;
   ;"**REMOVE THIS BLOCK LATER IF NOT NEEDED.  8/29/24
   ;"IF +^TIU(8925,IEN8925,0)=$$CNSLTPT() DO CHECKDT(IEN8925)  ;"Fix TMGCNSLT Xref entry for certain .01 field entries
   ;
+  QUIT
+  ;
+MEDHIST(IEN8925) ;"//kt //codex added entire function 11/1/26
+  ;"Save each medication table from a signed note and alert on filing errors.
+  NEW MEDDATA,TMGRESULT
+  DO PARSETIU^TMGRX011(IEN8925,.MEDDATA)
+  IF '$GET(MEDDATA("I","FOUND")),'$GET(MEDDATA("F","FOUND")) QUIT
+  SET TMGRESULT=$$FILEHIST^TMGRX011(IEN8925,.MEDDATA)
+  IF TMGRESULT>0 QUIT
+  NEW NOWH SET NOWH=$H
+  NEW XQA,XQAARCH,XQADATA,XQAFLG,XQAGUID,XQAID,XQAOPT,XQAROU,XQASUPV,XQATEXT,XQAMSG
+  SET XQA("LA7V IPL")="",XQA(150)=""
+  SET XQADATA=$J_"^"_NOWH_"^"_+$GET(IEN8925)
+  SET XQAID="TMG-22733.5",XQAROU="MEDHERR^TMGTIUT5"
+  SET XQAMSG="Error saving medication history during Post-Signature process"
+  SET ^TMG("TMP","TMGTIUT5","MED HISTORY",$J,NOWH,"ERROR")=TMGRESULT
+  NEW TEMP SET TEMP=$$SETUP1^XQALERT
+  QUIT
+  ;
+MEDHERR ;"//kt //codex added entire function 11/1/26
+  ;"Display a medication-history post-signature filing error.
+  NEW TMGJOBN,TMGTIME,IEN8925,ERRTEXT
+  SET TMGJOBN=+$PIECE($GET(XQADATA),"^",1),TMGTIME=$PIECE($GET(XQADATA),"^",2)
+  SET IEN8925=+$PIECE($GET(XQADATA),"^",3)
+  SET ERRTEXT=$GET(^TMG("TMP","TMGTIUT5","MED HISTORY",TMGJOBN,TMGTIME,"ERROR"))
+  WRITE !,"Medication history error: ",ERRTEXT,!
+  WRITE "Related TIU document: IEN8925=",IEN8925,!
+  DO PRESS2GO^TMGUSRI2
   QUIT
   ;
 CHECKDT(IEN8925)   ;"DEPRECIATED.  SEEMS TO BE OLD CODE.  //kt 8/27/24        
