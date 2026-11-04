@@ -64,12 +64,18 @@ RXHXCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA) ;"Command entry point for patient 
   ;"            Medication line: original text^parsed text^medication IEN^name^strength^units.
   ;"            Each 0 line applies to subsequent medication lines until the next 0 line.
   ;"
+  ;"          CMD="LIST 1 TIU":
+  ;"            PARAMS: "LIST 1 TIU:<TIU IEN>"; same output as LIST ALL,
+  ;"            restricted to that document within the requested patient.
+  ;"
   ;"          CMD="LIST SUMMARY":
   ;"            PARAMS: "LIST SUMMARY" or "LIST SUMMARY:PARSED".
   ;"            PARSED groups by stored parsed text, falling back to original if blank.
   ;"            Without PARSED, original text is used. Surrounding spaces are trimmed.
   ;"            TMGRESULT(#)="0^<medication name>" -- heading; blank for unmatched lines.
   ;"            TMGRESULT(#)="1^<medication text>^<first FMDT>^<last FMDT>".
+  ;"            TMGRESULT(#)="1.5^<TIU IEN>^<note title>^<note FMDT>^<author name>".
+  ;"            Type 1.5 lines apply to the preceding type 1; each note appears once.
   ;"            TMGRESULT(#)="2^<medication IEN>^<name>^<strength>^<units>".
   ;"            Type 2 lines apply to the preceding type 1 line and may be repeated.
   ;"            Incoming and final observations are combined; dates are first and last
@@ -91,6 +97,11 @@ RXHXCMD(TMGRESULT,TMGDFN,PARAMS,SDT,EDT,DATA) ;"Command entry point for patient 
   NEW CMD SET CMD=$PIECE($GET(PARAMS),":",1)
   IF CMD="LIST ALL" DO  GOTO RHCDN
   . DO LISTHIST(.TMGRESULT,+TMGDFN,.SDT,.EDT)
+  IF CMD="LIST 1 TIU" DO  GOTO RHCDN  ;"//kt //codex begin mod 11/3/26
+  . NEW TIUIEN SET TIUIEN=$PIECE($GET(PARAMS),":",2)
+  . IF (TIUIEN'?1.N)!(+TIUIEN'>0) SET TMGRESULT(1)="-1^A TIU document IEN is required" QUIT
+  . DO LISTHIST(.TMGRESULT,+TMGDFN,.SDT,.EDT,+TIUIEN)
+  ;"//kt //codex end mod 11/3/26
   IF CMD="LIST SUMMARY" DO  GOTO RHCDN  ;"//kt //codex 11/1/26
   . ;"//kt //codex begin mod 2026-11-01 --
   . NEW OPTION SET OPTION("PARAMS")=$PIECE($GET(PARAMS),":",2,999)
@@ -136,6 +147,7 @@ LISTSUM(OUT,TMGDFN,SDT,EDT,OPTION) ;"//kt //codex added entire function 11/1/26
   ;"Input: OUT -- PASS BY REFERENCE. An OUT parameter. Format:
   ;"         OUT(#)="0^<medication name>" -- heading for following entries.
   ;"         OUT(#)="1^<medication text>^<first FMDT>^<last FMDT>"
+  ;"         OUT(#)="1.5^<TIU IEN>^<note title>^<note FMDT>^<author name>" (once per note)
   ;"         OUT(#)="2^<medication IEN>^<medication name>^<strength>^<units>"
   ;"         Type 2 lines apply to the preceding type 1 entry; multiple
   ;"         lines are returned if the entry has differing medication details.
@@ -150,12 +162,12 @@ LISTSUM(OUT,TMGDFN,SDT,EDT,OPTION) ;"//kt //codex added entire function 11/1/26
   KILL OUT
   NEW LIST DO LISTHIST(.LIST,TMGDFN,$GET(SDT),$GET(EDT))
   IF $PIECE($GET(LIST(1)),"^",1)="-1" SET OUT(1)=LIST(1) QUIT
-  NEW GROUPS,IDX,LINE,TYPE,NOTEDT,ORIG,MEDNAME,GRP,PREV,MEDINFO  ;"//kt //codex 11/1/26
+  NEW GROUPS,IDX,LINE,TYPE,TIUIEN,NOTEDT,ORIG,MEDNAME,GRP,PREV,MEDINFO  ;"//kt //codex 11/3/26
   NEW USEPARSE SET USEPARSE=($$UP^XLFSTR($GET(OPTION("PARAMS")))["PARSED")  ;"//kt //codex 11/1/26
-  SET (IDX,NOTEDT)=0
+  SET (IDX,TIUIEN,NOTEDT)=0  ;"//kt //codex 11/3/26
   FOR  SET IDX=$ORDER(LIST(IDX)) QUIT:IDX'>0  DO
   . SET LINE=$GET(LIST(IDX)),TYPE=$PIECE(LINE,"^",1)
-  . IF TYPE=0 SET NOTEDT=+$PIECE(LINE,"^",3) QUIT
+  . IF TYPE=0 SET TIUIEN=+$PIECE(LINE,"^",2),NOTEDT=+$PIECE(LINE,"^",3) QUIT  ;"//kt //codex 11/3/26
   . IF (TYPE'=1)&(TYPE'=2) QUIT
   . IF NOTEDT'>0 QUIT
   . SET ORIG=$$TRIM^XLFSTR($PIECE(LINE,"^",2))
@@ -165,6 +177,7 @@ LISTSUM(OUT,TMGDFN,SDT,EDT,OPTION) ;"//kt //codex added entire function 11/1/26
   . ;"//kt //codex begin mod 2026-11-01 --
   . SET MEDINFO=$PIECE(LINE,"^",4)_"^"_MEDNAME_"^"_$PIECE(LINE,"^",6)_"^"_$PIECE(LINE,"^",7)
   . SET GROUPS(GRP,MEDNAME,ORIG,"INFO",MEDINFO)=""
+  . IF TIUIEN>0 SET GROUPS(GRP,MEDNAME,ORIG,"TIU",TIUIEN)=NOTEDT  ;"//kt //codex 11/3/26
   . ;"//kt //codex end mod 2026-11-01 --
   . SET PREV=$GET(GROUPS(GRP,MEDNAME,ORIG))
   . IF PREV="" SET GROUPS(GRP,MEDNAME,ORIG)=NOTEDT_"^"_NOTEDT QUIT
@@ -188,6 +201,15 @@ SUMGRP(OUT,COUNT,GROUPS,GRP,MEDNAME) ;"//kt //codex added entire function 11/1/2
   NEW ORIG SET ORIG=""
   FOR  SET ORIG=$ORDER(GROUPS(GRP,MEDNAME,ORIG)) QUIT:ORIG=""  DO
   . SET COUNT=COUNT+1,OUT(COUNT)="1^"_ORIG_"^"_GROUPS(GRP,MEDNAME,ORIG)
+  . ;"//kt //codex begin mod 2026-11-03 --
+  . NEW TIUIEN,TITLE,ZN,AUTHOR,AUTHIEN SET TIUIEN=0  ;"//kt //codex 11/3/26
+  . FOR  SET TIUIEN=$ORDER(GROUPS(GRP,MEDNAME,ORIG,"TIU",TIUIEN)) QUIT:TIUIEN'>0  DO
+  . . SET ZN=$GET(^TIU(8925,TIUIEN,0)),TITLE=$PIECE($GET(^TIU(8925.1,+ZN,0)),"^",1)
+  . . SET AUTHIEN=+$PIECE($GET(^TIU(8925,TIUIEN,12)),"^",2)  ;"//kt //codex 11/3/26
+  . . SET AUTHOR=$PIECE($GET(^VA(200,AUTHIEN,0)),"^",1)  ;"//kt //codex 11/3/26
+  . . SET TITLE=$TRANSLATE(TITLE,"^","~"),AUTHOR=$TRANSLATE(AUTHOR,"^","~")  ;"//kt //codex 11/3/26
+  . . SET COUNT=COUNT+1,OUT(COUNT)="1.5^"_TIUIEN_"^"_TITLE_"^"_GROUPS(GRP,MEDNAME,ORIG,"TIU",TIUIEN)_"^"_AUTHOR  ;"//kt //codex 11/3/26
+  . ;"//kt //codex end mod 2026-11-03 --
   . ;"//kt //codex begin mod 2026-11-01 --
   . NEW MEDINFO SET MEDINFO=""
   . FOR  SET MEDINFO=$ORDER(GROUPS(GRP,MEDNAME,ORIG,"INFO",MEDINFO)) QUIT:MEDINFO=""  DO
@@ -195,7 +217,7 @@ SUMGRP(OUT,COUNT,GROUPS,GRP,MEDNAME) ;"//kt //codex added entire function 11/1/2
   . ;"//kt //codex end mod 2026-11-01 --
   QUIT
   ;
-LISTHIST(OUT,TMGDFN,SDT,EDT) ;"//kt //codex added entire function 11/1/26
+LISTHIST(OUT,TMGDFN,SDT,EDT,ONLYTIU) ;"//kt //codex added entire function 11/1/26
   ;"Input: OUT -- PASS BY REFERNECE.  An OUT parameter.  Format:
   ;"        OUT(#)=<data line>  Data line syntax:
   ;"          OUT(#)=<line type>^<data>
@@ -205,6 +227,7 @@ LISTHIST(OUT,TMGDFN,SDT,EDT) ;"//kt //codex added entire function 11/1/26
   ;"          Medication line fields: original text^parsed text^medication IEN^medication name^strength^units.  ;"//kt //codex 11/1/26
   ;"       TMGDFN -- PATIENT record number
   ;"       SDT,EDT -- FMDT for date rante.  Dates are inclusive; a date-only EDT includes the whole day.
+  ;"       ONLYTIU -- optional TIU IEN; use the patient subfile B index.  //kt //codex 11/3/26
   ;"Result: none
   KILL OUT
   SET SDT=+$GET(SDT),EDT=+$GET(EDT)
@@ -219,9 +242,10 @@ LISTHIST(OUT,TMGDFN,SDT,EDT) ;"//kt //codex added entire function 11/1/26
   IF +$ORDER(@ROOT@("B",TMGDFN,PARENT))>0 SET OUT(1)="-1^Duplicate patient history records" QUIT
   NEW HX,NODE,TIUIEN,TYPE,NOTEDT,SELECTED  ;"//kt //codex 11/1/26
   SET HX=0
-  FOR  SET HX=$ORDER(@ROOT@(PARENT,1,HX)) QUIT:HX'>0  DO
+  FOR  SET HX=$SELECT(+$GET(ONLYTIU)>0:$ORDER(@ROOT@(PARENT,1,"B",+ONLYTIU,HX)),1:$ORDER(@ROOT@(PARENT,1,HX))) QUIT:HX'>0  DO  ;"//kt //codex 11/3/26
   . SET NODE=$GET(@ROOT@(PARENT,1,HX,0))
   . SET TIUIEN=+NODE,TYPE=$PIECE(NODE,"^",2),NOTEDT=+$PIECE(NODE,"^",3)
+  . IF +$GET(ONLYTIU)>0,TIUIEN'=+ONLYTIU QUIT  ;"//kt //codex 11/3/26
   . IF (TIUIEN'>0)!(NOTEDT'>0)!((TYPE'="I")&(TYPE'="F")) QUIT
   . IF (NOTEDT<SDT)!(NOTEDT>EDT) QUIT  ;"//kt //codex 11/1/26
   . SET SELECTED(NOTEDT,TIUIEN,HX)=TYPE
@@ -517,6 +541,10 @@ FILEHIST(IEN8925,OUT) ;"//kt //codex added entire function 11/1/26
   . . NEW TMGFDA,IENS,MSG,ENTRY,ORIG,PARSED,MED,STRENGTH,UNITS
   . . SET ENTRY="+1,"_HXIEN_","_PARENT_","
   . . SET ORIG=$GET(OUT(TYPE,IDX,"ORIG TEXT")),PARSED=$GET(OUT(TYPE,IDX,"PARSED TEXT"))
+  . . ;"//kt //codex begin mod 2026-11-01 --
+  . . IF ORIG["^" SET ORIG=$$REPLSTR^TMGSTUT3(ORIG,"^","/"_$CHAR(92))
+  . . IF PARSED["^" SET PARSED=$$REPLSTR^TMGSTUT3(PARSED,"^","/"_$CHAR(92))
+  . . ;"//kt //codex end mod 2026-11-01 --
   . . IF $LENGTH(ORIG)>250 SET ORIG=$EXTRACT(ORIG,1,247)_"..."
   . . IF $LENGTH(PARSED)>250 SET PARSED=$EXTRACT(PARSED,1,247)_"..."
   . . SET MED=+$GET(OUT(TYPE,IDX,"MEDICATION"))
@@ -526,7 +554,6 @@ FILEHIST(IEN8925,OUT) ;"//kt //codex added entire function 11/1/26
   . . . SET RESULT="-1^Field exceeds maximum length: "
   . . . IF $LENGTH(STRENGTH)>32 SET RESULT=RESULT_"STRENGTH ("_$LENGTH(STRENGTH)_", max 32): ["_STRENGTH_"] "
   . . . IF $LENGTH(UNITS)>16 SET RESULT=RESULT_"UNITS ("_$LENGTH(UNITS)_", max 16): ["_UNITS_"]"
-  . . IF PARSED["^" SET RESULT="-1^PARSED TEXT contains a caret: ["_PARSED_"]" QUIT
   . . ;"//kt //codex end mod 2026-11-01 --
   . . SET TMGFDA(22733.511,ENTRY,.01)=ORIG
   . . IF PARSED'="" SET TMGFDA(22733.511,ENTRY,.02)=PARSED

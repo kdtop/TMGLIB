@@ -682,6 +682,7 @@ GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         IF LRDFN'>0 QUIT TMGRESULT
         SET LABNUM=+$GET(LABNUM)
         SET LABNUM=71697  ;"9/22/26 - Labcorp
+        SET LABNUM=5118  ;"9/22/26 - Labcorp
         IF LABNUM'>0 QUIT TMGRESULT
         SET NUM=+$GET(NUM)
         IF NUM'>0 SET NUM=1

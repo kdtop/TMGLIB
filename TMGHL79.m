@@ -322,7 +322,89 @@ HNDLPID ;"Purpose: This will get PID 18.6 and PID 18.7 (Status of Specimen and F
         DO INSRTNTE^TMGHL72(.TEMPARR,.TMGHL7MSG,.TMGU,PIDIDX)
         QUIT
         ;"
-HNDLOBR ;"Purpose: Check all OBRs elements to see if they are children of other OBR
+HNDLOBR ;"Issue to resolve: Labcorp sends us Results that are vague, using Tests named "Result #". For example:
+        ;"     ORC|RE|20704918866^LAB|25264673560^LAB||||||202609090000|||1093726085^TOPPENBER^K^^^^^N
+        ;"     OBR|1|20704918866^LAB|25264673560^LAB|008144^Stool Culture^L|||202609091033||||||SRC:ST|202609090000|ST     CD- 20704918866|||20704918866||20704918866||202609141636|||F
+        ;"     OBX|1|ST|008722^Salmonella/Shigella Screen^L||Final report|||||N|F|20031013||202609121301|01|||||||||||||MIC
+        ;"     
+        ;"     ORC|RE|20704918866^LAB|25264673560^LAB||||||202609090000|||1093726085^TOPPENBER^K^^^^^N
+        ;"     OBR|2|20704918866^LAB|25264673560^LAB|997871^Result^L|||202609091033||||G|||202609090000||||20704918866||20704918866||202609141636|||F|008722|||008144
+        ;"     OBX|1|TX|997141^Result 1^L||Comment|||||N|F|||202609121301|01|||||||||||||MIC
+        ;"     NTE|1|L|No Salmonella or Shigella recovered.
+        ;"
+        ;"Purpose: Check all OBRs elements to see if they are children of other OBR and to give all Result # tests unique specific names.
+        ;"         To achieve this, first check all OBRs to see if they are children (Piece 11 is "G" and Piece 29 points to parent OBR)
+        ;"
+        ;"         Once all Parent and Children OBRs are identified, then cycle through the Children replacing the names with the parent name.
+        ;"         This is useful when the child is:
+        ;"
+        ;"           OBR|2|27919702700^LAB|27919702700^LAB|997870^Result^L|||202610061430||||G|||202610070000||||||27919702700||202610120536|||F|008847|||008847
+        ;"                                                         ^--- Vague                                                                               ^--- Parent
+        ;"
+        ;"         We can then use the parent: 
+        ;"           OBR|1|27919702700^LAB|27919702700^LAB|008847^Urine Culture, Routine^L|||202610061430|||||||202610070000||||||27919702700||202610120536||01|F
+        ;"                                                   ^---- Child's parent field (piece 29) points to this
+        ;"
+        ;"         So that we can change the child to be 
+        ;"           OBR|2|27919702700^LAB|27919702700^LAB|008847^Urine Culture, Routine^L|||202610061430||||G|||202610070000||||||27919702700||202610120536|||F|008847|||008847
+        ;"
+        ;"         The final step is to take all OBXs that have vague 'Result #' test names and append the linked test name
+        ;"         For example, Result 1 in this OBR shows that it's parent to Stool Culture (008144, piece 29) but the result of Salmonella/Shigella Screen (008722, piece 27) 
+        ;"           OBR|2|20704918866^LAB|25264673560^LAB|997871^Result^L|||202609091033||||G|||202609090000||||20704918866||20704918866||202609141636|||F|008722|            |      |008144
+        ;"                                                           ^--- Vague test name                                                                     ^-- Parent OBX             ^--- Parent OBR
+        ;"           OBX|1|TX|997141^Result 1^L||Comment|||||N|F|||202609121301|01|||||||||||||MIC
+        ;"
+        ;"         In this final step, cycle through all elements storing ORB data(parent OBRs, test names, and test codes) as well as all OBX test codes and names
+        ;"         When an OBX is found containing 'Result', look at the Parent OBX. If there is one there, use that code and test name otherwise use the OBR test code and test name.
+        ;"         Append this code and test name to the Result to create a unique test code. To further ensure this is unique, create an index.
+        ;"
+        ;"         In the above case we find that test 008722 is
+        ;"             OBX|1|ST|008722^Salmonella/Shigella Screen^L||Final report|||||N|F|20031013||202609121301|01|||||||||||||MIC
+        ;"         That makes the Result 1's OBX:
+        ;"             OBX|1|TX|008722-997141-1^Salmonella/Shigella Screen-Result-1^L||Comment|||||N|F|||202609121301|01|||||||||||||MIC
+        ;"                                    ^-------     AND                    ^----- are the index. The next Result will be 2 and so on.
+        ;"To begin with, we have to create a listing of all OBR tests.
+        ;"   This cannot be done top down, because some reflex tests may themselve reflex and overwrite the parent
+        NEW PARENTARR,CHILDARR
+        NEW ONESEGN SET ONESEGN=0
+        FOR  SET ONESEGN=$O(TMGHL7MSG("B","OBR",ONESEGN)) QUIT:ONESEGN'>0  DO
+        . NEW TESTNUM SET TESTNUM=$P($G(TMGHL7MSG(ONESEGN,4)),TMGU(2),1)
+        . SET PARENTARR(TESTNUM)=$G(TMGHL7MSG(ONESEGN,4))
+        . NEW CODE SET CODE=$G(TMGHL7MSG(ONESEGN,11))
+        . IF CODE="G" SET CHILDARR(ONESEGN)=$G(TMGHL7MSG(ONESEGN,29))
+        ;"
+        ;"Now go through each child node, replacing the test with the parent
+        SET ONESEGN=0
+        FOR  SET ONESEGN=$O(CHILDARR(ONESEGN)) QUIT:ONESEGN'>0  DO
+        . NEW PARENT SET PARENT=$G(CHILDARR(ONESEGN))
+        . IF PARENT'="" SET PARENT=$G(PARENTARR(PARENT))
+        . IF PARENT'="" SET $P(TMGHL7MSG(ONESEGN),TMGU(1),5)=PARENT   ;"  USE  SETPCE^TMGHL7X2
+        ;"
+        ;"Now that we have the OBRs setup properly, let's go through the entire file to properly set each test name, if they have RESULT
+        NEW ONEITEM SET ONEITEM=0
+        NEW LOBRTEST,LOBRCODE,LOBRPARENT
+        SET LOBRTEST="",LOBRCODE="",LOBRSTR="",LOBRPARENT=""
+        NEW RESULTIDX SET RESULTIDX=0
+        NEW TESTARR
+        FOR  SET ONEITEM=$O(TMGHL7MSG(ONEITEM)) QUIT:+ONEITEM'>0  DO
+        . NEW SEGMENT SET SEGMENT=$P($G(TMGHL7MSG(ONEITEM)),TMGU(1),1)
+        . IF SEGMENT="OBR" DO
+        . . SET LOBRSTR=$P($G(TMGHL7MSG(ONEITEM)),TMGU(1),5)
+        . . SET LOBRTEST=$P(LOBRSTR,TMGU(2),2)
+        . . SET LOBRCODE=$P(LOBRSTR,TMGU(2),1)
+        . . SET LOBRPARENT=$P($G(TMGHL7MSG(ONEITEM)),TMGU(1),27)
+        . IF SEGMENT="OBX" DO
+        . . NEW THISOBX SET THISOBX=$G(TMGHL7MSG(ONEITEM))
+        . . NEW THISOBXSTR SET THISOBXSTR=$P(THISOBX,TMGU(1),4)
+        . . NEW THISTEST,THISCODE
+        . . SET THISTEST=$P(THISOBXSTR,TMGU(2),2)
+        . . SET THISCODE=$P(THISOBXSTR,TMGU(2),1)
+        . . SET TESTARR(THISCODE)=THISTEST
+        . . IF THISTEST["Result" DO
+        . . . IF (LOBRPARENT'="")&($D(TESTARR(LOBRPARENT))) SET LOBRTEST=$G(TESTARR(LOBRPARENT))
+        . . . NEW NEWOBXSTR SET NEWOBXSTR=LOBRCODE_"-"_THISCODE_"-"_$I(RESULTIDX)_TMGU(2)_LOBRTEST_"-Result "_RESULTIDX_TMGU(2)_$P(THISOBXSTR,TMGU(2),3)
+        . . . SET $P(TMGHL7MSG(ONEITEM),TMGU(1),4)=NEWOBXSTR
+        QUIT
         ;"//kt //codex 2026-10-02 ;"To begin with, we have to create a listing of all OBR tests.
         ;"//kt //codex 2026-10-02 ;"   This cannot be done top down, because some reflex tests may themselve reflex and overwrite the parent
         ;"//kt //codex 2026-10-02 NEW PARENTARR,CHILDARR

@@ -71,10 +71,6 @@ BKJOB(IEN8925)  ;
   DO SCAN4FU^TMGTIU10(IEN8925,"OUT",1)  ;"SCAN4FU gets followup data and saves it into 22731 'TMG TIU FOLLOWUP DATA'
   DO TABLDATA(IEN8925)                  ;"POPULATE TMG TABLE DATA FILE  
   DO HANDLTIU^TMGRX007(IEN8925)         ;"EXTRACT AND SAVE MEDICATION FILE LIST INFORMATION
-  ;"//kt //codex prior active medication history call block 2026-11-01 --
-  ;"DO MEDHIST(IEN8925)                   ;"save medication table history
-  ;"//kt //codex prior active medication history call end 2026-11-01 --
-  ;"//kt //codex 11/1/26 history is now saved by HANDLTIU^TMGRX007.
   DO HNDLMAMMO(IEN8925)                 ;"Handle mammogram type documents (if appropriate type)
   DO CHK6CIT^TMGTIUT6(IEN8925)          ;"Check if note contains 6CIT. If so, add a HF and attach the score to it (STILL USED?)
   ;"DO IN FOREGROUND -> DO ADDLSIGN(IEN8925)                  ;"Used for Death Notes and Path Report (Image) TIU titles. This can be kept and have both notes run through the normal Post-Signature code
