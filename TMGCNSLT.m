@@ -247,7 +247,16 @@ CNSLTRPT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)  ;"HTML CONSULTAN
   ;"       REMOTE --
   ;"       MAX    --
   ;"       ORFHIE -D-
-  NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>CONSULTANT CONTACT REPORT</B><BR>*Highlighted offices are associated with this patient's care.<BR>"
+  ;"//kt //codex prior active consultant contact table block 11/18/26 --
+  ; NEW HD SET HD="<TABLE BORDER=3><CAPTION><B>CONSULTANT CONTACT REPORT</B><BR>*Highlighted offices are associated with this patient's care.<BR>"
+  ;"//kt //codex end prior active consultant contact table block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW HD SET HD="<style type=""text/css"">.report-table {border-collapse:collapse;font-family:Arial,sans-serif;color:#263746;}"
+  SET HD=HD_".report-table th,.report-table td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}"
+  SET HD=HD_".report-table th {background-color:#315e78;color:#ffffff;}"
+  SET HD=HD_".report-table caption {color:#234b60;padding:8px;}</style>"
+  SET HD=HD_"<TABLE class=""report-table""><CAPTION><B>CONSULTANT CONTACT REPORT</B><BR>*Highlighted offices are associated with this patient's care.<BR></CAPTION>"
+  ;"//kt //codex end mod 11/18/26 --
   SET HD=HD_"<TR><TH>OFFICE</TH><TH>PHONE NUMBER</TH><TH>FAX NUMBER</TH><TH>PHYSICIANS</TH></TR>"
   NEW TMGRESULT,CONSULTARR
   NEW OUTIDX SET OUTIDX=0

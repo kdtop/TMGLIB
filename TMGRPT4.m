@@ -59,8 +59,30 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   SET SDT=+$GET(SDT)
   SET EDT=+$GET(EDT) IF EDT'>0 SET EDT="9999999"
   DO ADD(ROOT,"<HTML><head>",0)
-  DO ADD(ROOT,"<TITLE>CPT CODES</TITLE>",0)
-  DO ADD(ROOT,"</head><body>",0)
+  ;"//kt //codex prior active report HTML header block 11/18/26 --
+  ;   DO ADD(ROOT,"<TITLE>CPT CODES</TITLE>",0)
+  ;   DO ADD(ROOT,"</head><body>",0)
+  ;"//kt //codex end prior active report HTML header block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  DO ADD(ROOT,"<TITLE>CPT AND ICD REPORT</TITLE>",0)
+  DO ADD(ROOT,"<style type=""text/css"">",0)
+  DO ADD(ROOT,"body {font-family:Arial,sans-serif;color:#263746;}",0)
+  DO ADD(ROOT,".codes {border-collapse:collapse;width:100%;}",0)
+  DO ADD(ROOT,".codes th,.codes td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}",0)
+  DO ADD(ROOT,".codes caption {text-align:left;font-weight:bold;font-size:1.15em;padding:8px 0;}",0)
+  ;"//kt //codex prior active report color block 11/18/26 --
+  ;   DO ADD(ROOT,".codes .columns th {background:#dbeaf0;}",0)
+  ;"//kt //codex end prior active report color block 11/18/26 --
+  DO ADD(ROOT,".codes .columns th {background-color:#315e78;color:#ffffff;}",0) ;"//kt //codex 11/18/26
+  ;"//kt //codex prior active report color block 11/18/26 --
+  ;   DO ADD(ROOT,".codes .date th {background:#edf4f7;color:#234b60;}",0)
+  ;"//kt //codex end prior active report color block 11/18/26 --
+  DO ADD(ROOT,".codes .date th {background-color:#c9e2ec;color:#173e53;}",0)
+  DO ADD(ROOT,".codes .icd {background-color:#e0f1e8;color:#195d41;}",0)
+  DO ADD(ROOT,".codes .cpt {background-color:#e9e5f5;color:#514076;}",0) ;"//kt //codex 11/18/26
+  DO ADD(ROOT,".codes .type {width:55px;}.codes .code {width:90px;white-space:nowrap;}",0)
+  DO ADD(ROOT,"</style></head><body>",0)
+  ;"//kt //codex end mod 11/18/26 --
   ;DO ADD(ROOT,"THIS <b>IS A</b> TEST3")
   ;DO ADD(ROOT,"DFN="_TMGDFN)
   ;DO ADD(ROOT,"ID="_$GET(ID))
@@ -70,43 +92,92 @@ TMGCPT(ROOT,TMGDFN,ID,SDT,EDT,DTRANGE,REMOTE,MAX,ORFHIE) ;"CPT report
   ;DO ADD(ROOT,"REMOTE="_$GET(REMOTE))
   ;DO ADD(ROOT,"MAX="_$GET(MAX))
   ;DO ADD(ROOT,"ORFHIE="_$GET(ORFHIE))
-  NEW STR SET STR="<u>CPT's And ICD's FOR DATES: "
-  SET STR=STR_"<b>"_$$FMTE^XLFDT(SDT\1)_"</b> - "  
-  IF EDT=9999999 SET STR=STR_"<b>(NOW)</b>"
-  ELSE  SET STR=STR_"<b>"_$$FMTE^XLFDT(EDT\1)_"</b>"
-  SET STR=STR_"</u>"
-  DO ADD(ROOT,STR)
+  ;"//kt //codex prior active report title block 11/18/26 --
+  ;   NEW STR SET STR="<u>CPT's And ICD's FOR DATES: "
+  ;   SET STR=STR_"<b>"_$$FMTE^XLFDT(SDT\1)_"</b> - "
+  ;   IF EDT=9999999 SET STR=STR_"<b>(NOW)</b>"
+  ;   ELSE  SET STR=STR_"<b>"_$$FMTE^XLFDT(EDT\1)_"</b>"
+  ;   SET STR=STR_"</u>"
+  ;   DO ADD(ROOT,STR)
+  ;"//kt //codex end prior active report title block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW STR SET STR="<table class=""codes""><caption>CPT's And ICD's FOR DATES: "
+  SET STR=STR_$$FMTE^XLFDT(SDT\1)_" - "
+  IF EDT=9999999 SET STR=STR_"(NOW)"
+  ELSE  SET STR=STR_$$FMTE^XLFDT(EDT\1)
+  DO ADD(ROOT,STR_"</caption>",0)
+  DO ADD(ROOT,"<tr class=""columns""><th>Type</th><th>Code</th><th>Description</th></tr>",0)
+  ;"//kt //codex end mod 11/18/26 --
   NEW TEMP 
   DO GETCPT(.TEMP,.TMGDFN,.SDT,.EDT)
   DO GETICD(.TEMP,.TMGDFN,.SDT,.EDT)
   NEW ALLICDS  ;" ARRAY TO STORE ALL THE ICDS
   NEW FOUND SET FOUND=0
   NEW DT SET DT=""
+  ;"//kt //codex prior active dated report entries block 11/18/26 --
+  ;   FOR  SET DT=$ORDER(TEMP("DT",DT),-1) QUIT:+DT'>0  DO
+  ;   . DO ADD(ROOT,"<b><u>"_$$FMTE^XLFDT(DT\1)_"</b></u>")
+  ;   . NEW ICD SET ICD=""
+  ;   . FOR  SET ICD=$ORDER(TEMP("DT",DT,"ICD",ICD)) QUIT:ICD=""  DO
+  ;   . . NEW STR SET STR="<b>"_$PIECE(ICD,"^",1)_"</b> -- "_$PIECE(ICD,"^",2)
+  ;   . . DO ADD(ROOT,"&nbsp;&nbsp;ICD: "_STR)
+  ;   . . NEW COLOR SET COLOR=$$ICDCOLOR^TMGCMS1($PIECE(ICD,"^",1))
+  ;   . . SET ALLICDS(STR)=COLOR
+  ;   . NEW CPT SET CPT=""
+  ;   . FOR  SET CPT=$ORDER(TEMP("DT",DT,"CPT",CPT)) QUIT:CPT=""  DO
+  ;   . . NEW STR SET STR="<b>"_$PIECE(CPT,"^",1)_"</b> -- "_$PIECE(CPT,"^",2)
+  ;   . . DO ADD(ROOT,"&nbsp;&nbsp;CPT: "_STR)
+  ;   . SET FOUND=1
+  ;   IF FOUND=0 DO
+  ;   . DO ADD(ROOT,"(None found in date range -- perhaps try a different date range?)")
+  ;"//kt //codex end prior active dated report entries block 11/18/26 --
+  ;"//kt //codex prior active report color block 11/18/26 --
+  ;   . . DO ADD(ROOT,"<tr><td class=""type"">ICD</td><td class=""code""><b>"_$P(ICD,"^",1)_"</b></td><td>"_$P(ICD,"^",2)_"</td></tr>",0)
+  ;"//kt //codex end prior active report color block 11/18/26 --
+  ;"//kt //codex prior active report color block 11/18/26 --
+  ;   . . DO ADD(ROOT,"<tr><td class=""type"">CPT</td><td class=""code""><b>"_$P(CPT,"^",1)_"</b></td><td>"_$P(CPT,"^",2)_"</td></tr>",0)
+  ;"//kt //codex end prior active report color block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
   FOR  SET DT=$ORDER(TEMP("DT",DT),-1) QUIT:+DT'>0  DO
-  . DO ADD(ROOT,"<b><u>"_$$FMTE^XLFDT(DT\1)_"</b></u>")
+  . DO ADD(ROOT,"<tr class=""date""><th colspan=""3"">"_$$FMTE^XLFDT(DT\1)_"</th></tr>",0)
   . NEW ICD SET ICD=""
   . FOR  SET ICD=$ORDER(TEMP("DT",DT,"ICD",ICD)) QUIT:ICD=""  DO
   . . NEW STR SET STR="<b>"_$PIECE(ICD,"^",1)_"</b> -- "_$PIECE(ICD,"^",2)
-  . . DO ADD(ROOT,"&nbsp;&nbsp;ICD: "_STR)
+  . . DO ADD(ROOT,"<tr><td class=""type icd"">ICD</td><td class=""code""><b>"_$P(ICD,"^",1)_"</b></td><td>"_$P(ICD,"^",2)_"</td></tr>",0) ;"//kt //codex 11/18/26
   . . NEW COLOR SET COLOR=$$ICDCOLOR^TMGCMS1($PIECE(ICD,"^",1))
   . . SET ALLICDS(STR)=COLOR
   . NEW CPT SET CPT=""
   . FOR  SET CPT=$ORDER(TEMP("DT",DT,"CPT",CPT)) QUIT:CPT=""  DO
-  . . NEW STR SET STR="<b>"_$PIECE(CPT,"^",1)_"</b> -- "_$PIECE(CPT,"^",2)
-  . . DO ADD(ROOT,"&nbsp;&nbsp;CPT: "_STR)
+  . . DO ADD(ROOT,"<tr><td class=""type cpt"">CPT</td><td class=""code""><b>"_$P(CPT,"^",1)_"</b></td><td>"_$P(CPT,"^",2)_"</td></tr>",0) ;"//kt //codex 11/18/26
   . SET FOUND=1
   IF FOUND=0 DO
-  . DO ADD(ROOT,"(None found in date range -- perhaps try a different date range?)")
-  DO ADD(ROOT,"<p>")  
-  DO ADD(ROOT,"<hr><p>")
-  DO ADD(ROOT,"<b><u>ALL ICD'S LISTED FOR THIS DATE RANGE</b></u><br>")
+  . DO ADD(ROOT,"<tr><td colspan=""3"">None found in date range -- perhaps try a different date range?</td></tr>",0)
+  DO ADD(ROOT,"</table>",0)
+  ;"//kt //codex end mod 11/18/26 --
+  ;"//kt //codex prior active ICD summary block 11/18/26 --
+  ;   DO ADD(ROOT,"<p>")
+  ;   DO ADD(ROOT,"<hr><p>")
+  ;   DO ADD(ROOT,"<b><u>ALL ICD'S LISTED FOR THIS DATE RANGE</b></u><br>")
+  ;   NEW STR SET STR=""
+  ;   FOR  SET STR=$O(ALLICDS(STR)) QUIT:STR=""  DO
+  ;   . NEW COLOR SET COLOR=$G(ALLICDS(STR))
+  ;   . IF COLOR'="" DO
+  ;   . . DO ADD(ROOT,"<span style="""_"background-color: "_COLOR_""" "_"<b>"_$P(STR," -- ",1)_"</b> -- "_$P(STR," -- ",2)_""_"</span>")
+  ;   . ELSE  DO
+  ;   . . DO ADD(ROOT,STR)
+  ;"//kt //codex end prior active ICD summary block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  DO ADD(ROOT,"<br><table class=""codes""><caption>ALL ICD'S LISTED FOR THIS DATE RANGE</caption>",0)
+  DO ADD(ROOT,"<tr class=""columns""><th>Type</th><th>Code</th><th>Description</th></tr>",0)
   NEW STR SET STR=""
   FOR  SET STR=$O(ALLICDS(STR)) QUIT:STR=""  DO
   . NEW COLOR SET COLOR=$G(ALLICDS(STR))
-  . IF COLOR'="" DO
-  . . DO ADD(ROOT,"<span style="""_"background-color: "_COLOR_""" "_"<b>"_$P(STR," -- ",1)_"</b> -- "_$P(STR," -- ",2)_""_"</span>")
-  . ELSE  DO
-  . . DO ADD(ROOT,STR)
+  . NEW ATTR SET ATTR=""
+  . IF COLOR'="" SET ATTR=" style=""background-color:"_COLOR_""""
+  . DO ADD(ROOT,"<tr><td class=""type icd"">ICD</td><td class=""code"""_ATTR_">"_$P(STR," -- ",1)_"</td><td"_ATTR_">"_$P(STR," -- ",2)_"</td></tr>",0)
+  IF '$D(ALLICDS) DO ADD(ROOT,"<tr><td colspan=""3"">No ICD codes found in date range.</td></tr>",0)
+  DO ADD(ROOT,"</table>",0)
+  ;"//kt //codex end mod 11/18/26 --
   DO ADD(ROOT,"</body></HTML>")
   QUIT
   ;
@@ -462,7 +533,7 @@ NOADDL  ;"This report checks to see if over the course of the last
   . . IF ADDLFOUND=0 DO
   . . . NEW TMGDFN SET TMGDFN=$P($G(^TIU(8925,TIUIEN,0)),"^",2)
   . . . NEW NAME SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
-  . . . SET ADDLARRAY(DOCIEN,NAME,TIUIEN)="  "_$P($G(^DPT(TMGDFN,0)),"^",1)_" ON "_$$EXTDATE^TMGDATE(TIUDATE,1)_" ("_TIUIEN_")"
+  . . . SET ADDLARRAY(DOCIEN,NAME,TIUIEN)="  "_$P($G(^DPT(TMGDFN,0)),"^",1)_" ("_$$EXTDATE^TMGDATE($P($G(^DPT(TMGDFN,0)),"^",3),1)_") ON "_$$EXTDATE^TMGDATE(TIUDATE,1)_" ("_TIUIEN_")"
   NEW DOCIEN SET DOCIEN=0
   FOR  SET DOCIEN=$O(ADDLARRAY(DOCIEN)) QUIT:DOCIEN'>0  DO
   . WRITE "==== ",$P($G(^TIU(8925.1,DOCIEN,0)),"^",1)," ====",!

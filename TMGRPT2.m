@@ -125,7 +125,16 @@ IMMRPT(ROOT,TMGDFN)   ;
   . . . . SET TEMPSTR=$$ADDLF(TEMPSTR)
   . . . . SET TMGRESULT(IMMIEN)=DOS_"^"_IMM_"^<FONT SIZE=2>"_TEMPSTR_"</FONT>"   ;"NEW LINE
   . . . . SET IMMIEN=IMMIEN+1
-  NEW HD SET HD="<table BORDER=3><CAPTION><b>IMMUNIZATION ADMINISTRATION RECORD</b><br>"
+  ;"//kt //codex prior active immunization table heading block 11/18/26 --
+  ; NEW HD SET HD="<table BORDER=3><CAPTION><b>IMMUNIZATION ADMINISTRATION RECORD</b><br>"
+  ;"//kt //codex end prior active immunization table heading block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW HD SET HD="<style type=""text/css"">.imm-report {border-collapse:collapse;font-family:Arial,sans-serif;color:#263746;}"
+  SET HD=HD_".imm-report th,.imm-report td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}"
+  SET HD=HD_".imm-report th {background-color:#315e78;color:#ffffff;}.imm-report td {background-color:#f5f9fa;}"
+  SET HD=HD_".imm-report caption {color:#234b60;padding:8px;}</style>"
+  SET HD=HD_"<table class=""imm-report""><CAPTION><b>IMMUNIZATION ADMINISTRATION RECORD</b><br>"
+  ;"//kt //codex end mod 11/18/26 --
   SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
   SET HD=HD_" GREENEVILLE, TN 37745</CAPTION><TR><th>ADMIN DATE</th>"
   SET HD=HD_"<th>VACCINATION</th><th>DETAILS</th></tr>" 
@@ -164,7 +173,24 @@ TMGHFACT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE)  ;"HEALTH FACTOR 
   ;"Input: <Same as above>
   ;"Result: None. Output goes into @ROOT
   ;"SET @ROOT@(1)="<HTML><head><title>HEALTH FACTORS</title></head><body>THIS IS THE <b>TEST</b></body></HTML>"
-  NEW HD SET HD="<table BORDER=3><CAPTION><b>HEALTH FACTORS</b><br>"
+  ;"//kt //codex prior active health factors table heading block 11/18/26 --
+  ; NEW HD SET HD="<table BORDER=3><CAPTION><b>HEALTH FACTORS</b><br>"
+  ;"//kt //codex end prior active health factors table heading block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  ;"//kt //codex prior active health factors styles block 11/18/26 --
+  ;   NEW HD SET HD="<style type=""text/css"">.hf-report,.hf-report th,.hf-report td {border:1px solid #888;}"
+  ;   SET HD=HD_".hf-report th {background-color:#315e78;color:#ffffff;}" ;"//kt //codex 11/18/26
+  ;   SET HD=HD_".hf-report {border-collapse:collapse;}</style><table class=""hf-report""><CAPTION><b>HEALTH FACTORS</b><br>"
+  ;"//kt //codex end prior active health factors styles block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW HD SET HD="<style type=""text/css"">.hf-report {border-collapse:collapse;border-spacing:0;"
+  SET HD=HD_"font-family:Arial,sans-serif;color:#263746;background-color:#f5f9fa;}"
+  SET HD=HD_".hf-report,.hf-report th,.hf-report td {border:1px solid #c4d2da;}"
+  SET HD=HD_".hf-report th,.hf-report td {padding:6px 9px;}"
+  SET HD=HD_".hf-report th {background-color:#315e78;color:#ffffff;}"
+  SET HD=HD_"</style><table class=""hf-report"" cellspacing=""0""><CAPTION><b>HEALTH FACTORS</b><br>"
+  ;"//kt //codex end mod 11/18/26 --
+  ;"//kt //codex end mod 11/18/26 --
   SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
   SET HD=HD_" GREENEVILLE, TN 37745</CAPTION><TR bgColor=#c4e3ed><th>DATE</th><th>HEALTH FACTOR</th><th>COMMENT</th></tr>"
   NEW DATA 
@@ -209,7 +235,12 @@ XTRADATA(TMGRESULT,TMGDFN)  ;"
   NEW IDX,CFIDX,FINDING
   SET IDX=9000 ;"Initial index
   SET TMGRESULT(IDX)="<HR>^<HR>^<HR>",IDX=IDX+1
-  SET TMGRESULT(IDX)="<b>COMPUTED FINDING^<b>FINDING RESULT^"
+  ;"//kt //codex prior active computed finding headings block 11/18/26 --
+  ;   SET TMGRESULT(IDX)="<b>COMPUTED FINDING^<b>FINDING RESULT^"
+  ;"//kt //codex end prior active computed finding headings block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  SET TMGRESULT(IDX)="<b>COMPUTED FINDING</b>^<b>FINDING RESULT</b>^"
+  ;"//kt //codex end mod 11/18/26 --
   SET TMGRESULT(IDX,"HEADING")=1,IDX=IDX+1
   SET CFIDX="103,110,108,112,122,149"  ;"IENS FOR FM FILE 811.4
   FOR FINDING=1:1:6  DO
@@ -227,7 +258,12 @@ XTRADATA(TMGRESULT,TMGDFN)  ;"
   NEW LASTAWV DO LASTAWV^TMGTIUOA(.LASTAWV,TMGDFN)
   NEW LASTPHQ9 SET LASTPHQ9=$$PAIDPHQ9^TMGSSQL7(TMGDFN)
   SET TMGRESULT(IDX)="<HR>^<HR>^<HR>",IDX=IDX+1
-  SET TMGRESULT(IDX)="<b>BILLING TYPE^<b>DATE LAST BILLED FOR^"
+  ;"//kt //codex prior active billing headings block 11/18/26 --
+  ;   SET TMGRESULT(IDX)="<b>BILLING TYPE^<b>DATE LAST BILLED FOR^"
+  ;"//kt //codex end prior active billing headings block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  SET TMGRESULT(IDX)="<b>BILLING TYPE</b>^<b>DATE LAST BILLED FOR</b>^"
+  ;"//kt //codex end mod 11/18/26 --
   SET TMGRESULT(IDX,"HEADING")=1,IDX=IDX+1
   SET TMGRESULT(IDX)="LAST BILLED PHYSICAL^"_LASTCPE,IDX=IDX+1
   SET TMGRESULT(IDX)="LAST BILLED AWV^"_LASTAWV,IDX=IDX+1
@@ -252,20 +288,116 @@ SETHTML(ROOT,RESULTS,TITLE,HEADING,COLNUMS)  ;
   SET @ROOT@(1)="<HTML><head><title>"_TITLE_"</title></head><body>"
   SET DATA=HEADING
   NEW IDX SET IDX=0
+  ;"//kt //codex prior active report row rendering block 11/18/26 --
+  ;   FOR  SET IDX=$ORDER(RESULTS(IDX)) QUIT:IDX'>0  DO
+  ;   . ;"//kt //codex begin mod 11/18/26 --
+  ;   . IF (TITLE="CHART EVENT REPORT"),($PIECE($GET(RESULTS(IDX)),"^",2)="DAY TOTAL TIME") DO  QUIT
+  ;   . . NEW LINE,LABEL SET LINE=$GET(RESULTS(IDX)),LABEL="Day total time"
+  ;   . . IF $PIECE(LINE,"^",3)="(UNMATCHED TIME!)" SET LABEL=LABEL_" - unmatched time!"
+  ;   . . SET DATA=DATA_"<tr style=""background-color:#dcebf2;color:#234b60;font-weight:bold;"">"
+  ;   . . SET DATA=DATA_"<td colspan=""3"">"_LABEL_"</td><td colspan=""2"">"_$PIECE(LINE,"^",4)_" min</td></tr>"
+  ;   . ;"//kt //codex end mod 11/18/26 --
+  ;   . IF $DATA(RESULTS(IDX,"HEADING")) DO
+  ;   . . IF TITLE="HEALTH FACTORS" SET DATA=DATA_"<TR style=""background-color:#315e78;color:#ffffff;"" align=""center"">" QUIT ;"//kt //codex 11/18/26
+  ;   . . SET DATA=DATA_"<TR bgcolor=#c4e3ed align=""center"">"
+  ;   . ELSE  DO
+  ;   . . SET DATA=DATA_"<TR>"
+  ;   . NEW PIECE
+  ;   . FOR PIECE=1:1:COLNUMS  DO
+  ;   . . ;"//kt //codex begin mod 11/18/26 --
+  ;   . . IF (TITLE="CHART EVENT REPORT"),(PIECE=2) DO  QUIT
+  ;   . . . NEW EVENT,COLOR SET EVENT=$PIECE($GET(RESULTS(IDX)),"^",PIECE),COLOR=""
+  ;   . . . IF $$UP^XLFSTR(EVENT)="STARTTIMER" SET COLOR="#dff1e6"
+  ;   . . . IF $$UP^XLFSTR(EVENT)="STOPTIMER" SET COLOR="#fae3e3"
+  ;   . . . IF COLOR="" SET DATA=DATA_"<td>"_EVENT_"</td>" QUIT
+  ;   . . . SET DATA=DATA_"<td style=""background-color:"_COLOR_";"">"_EVENT_"</td>"
+  ;   . . ;"//kt //codex end mod 11/18/26 --
+  ;   . . SET DATA=DATA_"<td>"_$PIECE($GET(RESULTS(IDX)),"^",PIECE)_"</td>"
+  ;   . ;SET DATA=DATA_"<td>"_$GET(RESULTS(IDX))_"</td>"
+  ;   . SET DATA=DATA_"</tr>"
+  ;   . SET END=END+1
+  ;"//kt //codex end prior active report row rendering block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW EVENTSPACER SET EVENTSPACER=0
   FOR  SET IDX=$ORDER(RESULTS(IDX)) QUIT:IDX'>0  DO
+  . IF (TITLE="CHART EVENT REPORT"),($PIECE($GET(RESULTS(IDX)),"^",2)="DAY TOTAL TIME") DO  QUIT
+  . . NEW LINE,LABEL SET LINE=$GET(RESULTS(IDX)),LABEL="Day total time"
+  . . IF $PIECE(LINE,"^",3)="(UNMATCHED TIME!)" SET LABEL=LABEL_" - unmatched time!"
+  . . SET DATA=DATA_"<tr style=""background-color:#dcebf2;color:#234b60;font-weight:bold;"">"
+  . . SET DATA=DATA_"<td colspan=""3"">"_LABEL_"</td><td>"_$PIECE(LINE,"^",4)_" min</td></tr>"
+  . . SET EVENTSPACER=1
+  . IF TITLE="CHART EVENT REPORT" DO
+  . . NEW DAY SET DAY=$PIECE($GET(RESULTS(IDX)),"^",1)
+  . . IF (DAY="")!(DAY="""") QUIT
+  . . IF EVENTSPACER SET DATA=DATA_"<tr><td colspan=""4"" style=""height:12px;border:0;padding:0;""></td></tr>"
+  . . SET DATA=DATA_"<tr><th colspan=""4"" style=""background-color:#c9e2ec;color:#173e53;"">"_DAY_"</th></tr>"
+  . . SET EVENTSPACER=0
+  . ; Previously tracked a row start for an empty-cell workaround. ;"//kt //codex 11/18/26
   . IF $DATA(RESULTS(IDX,"HEADING")) DO
+  . . IF TITLE="HEALTH FACTORS" SET DATA=DATA_"<TR style=""background-color:#315e78;color:#ffffff;"" align=""center"">" QUIT
   . . SET DATA=DATA_"<TR bgcolor=#c4e3ed align=""center"">"
   . ELSE  DO
   . . SET DATA=DATA_"<TR>"
   . NEW PIECE
   . FOR PIECE=1:1:COLNUMS  DO
+  . . IF (TITLE="CHART EVENT REPORT"),(PIECE=1) QUIT
+  . . ;"//kt //codex begin mod 11/18/26 --
+  . . IF (TITLE="CHART EVENT REPORT"),(PIECE=5),($$UP^XLFSTR($PIECE($GET(RESULTS(IDX)),"^",2))="STARTTIMER") DO  QUIT  ;"//kt //codex 11/18/26
+  . . . NEW ELAPSED SET ELAPSED=$PIECE($GET(RESULTS(IDX)),"^",5)
+  . . . IF ELAPSED="""" SET ELAPSED=""
+  . . . SET DATA=DATA_"<td>"_ELAPSED_"</td>"
+  . . ;"//kt //codex end mod 11/18/26 --
+  . . IF (TITLE="CHART EVENT REPORT"),(PIECE=2) DO  QUIT
+  . . . NEW EVENT,COLOR SET EVENT=$PIECE($GET(RESULTS(IDX)),"^",PIECE),COLOR=""
+  . . . IF $$UP^XLFSTR(EVENT)="STARTTIMER" SET COLOR="#dff1e6"
+  . . . IF $$UP^XLFSTR(EVENT)="STOPTIMER" SET COLOR="#fae3e3"
+  . . . IF COLOR="" SET DATA=DATA_"<td>"_EVENT_"</td>" QUIT
+  . . . SET DATA=DATA_"<td style=""background-color:"_COLOR_";"">"_EVENT_"</td>"
   . . SET DATA=DATA_"<td>"_$PIECE($GET(RESULTS(IDX)),"^",PIECE)_"</td>"
   . ;SET DATA=DATA_"<td>"_$GET(RESULTS(IDX))_"</td>"
+  . ;"//kt //codex prior active empty-cell workaround block 11/18/26 --
+  . ;   . ;"//kt //codex begin mod 11/18/26 --
+  . ;   . IF TITLE="HEALTH FACTORS" DO
+  . ;   . . NEW HFROW SET HFROW=$EXTRACT(DATA,HFSTART+1,$LENGTH(DATA))
+  . ;   . . IF ($LENGTH(HFROW,"<td>")=5),($EXTRACT(HFROW,$LENGTH(HFROW)-8,$LENGTH(HFROW))="<td></td>") DO
+  . ;   . . . SET DATA=$EXTRACT(DATA,1,$LENGTH(DATA)-9)
+  . ;   . ;"//kt //codex end mod 11/18/26 --
+  . ;"//kt //codex end prior active empty-cell workaround block 11/18/26 --
   . SET DATA=DATA_"</tr>"
   . SET END=END+1
+  ;"//kt //codex end mod 11/18/26 --
+  ;"//kt //codex prior active health factors output block 11/18/26 --
+  ; IF TITLE="HEALTH FACTORS" SET DATA=$$HFTRIM(DATA) ;"//kt //codex 11/18/26
+  ; SET @ROOT@(2)=DATA
+  ;"//kt //codex end prior active health factors output block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  IF TITLE="HEALTH FACTORS" DO  QUIT
+  . NEW SEG,OUTIDX,PART SET OUTIDX=1
+  . FOR SEG=1:1:$LENGTH(DATA,"</tr>")-1 DO
+  . . SET OUTIDX=OUTIDX+1,@ROOT@(OUTIDX)=$PIECE(DATA,"</tr>",SEG)_"</tr>"
+  . SET PART=$PIECE(DATA,"</tr>",$LENGTH(DATA,"</tr>"))
+  . IF PART'="" SET OUTIDX=OUTIDX+1,@ROOT@(OUTIDX)=PART
+  . SET @ROOT@(OUTIDX+1)="</table></body></HTML>"
+  ;"//kt //codex end mod 11/18/26 --
   SET @ROOT@(2)=DATA
   SET @ROOT@(3)="</table></body></HTML>"
   QUIT        
+  ;"
+HFTRIM(HTML) ;"Remove an empty fourth cell from a health factors row
+  ;"//kt //codex added entire function 11/18/26
+  ;"Input: HTML -- generated health factors table markup.
+  ;"Result: HTML with a final empty fourth cell removed from affected rows.
+  ;"        Populated cells and rows with other structures are preserved.
+  NEW RESULT,INDEX,PART,ROW,REST,POS
+  SET RESULT=$PIECE(HTML,"<TR",1)
+  FOR INDEX=2:1:$LENGTH(HTML,"<TR") DO
+  . SET PART=$PIECE(HTML,"<TR",INDEX),POS=$FIND(PART,"</tr>")
+  . IF POS>0 DO
+  . . SET ROW=$EXTRACT(PART,1,POS-6),REST=$EXTRACT(PART,POS-5,$LENGTH(PART))
+  . . IF ($LENGTH(ROW,"<td>")=5),($EXTRACT(ROW,$LENGTH(ROW)-8,$LENGTH(ROW))="<td></td>") DO
+  . . . SET PART=$EXTRACT(ROW,1,$LENGTH(ROW)-9)_REST
+  . SET RESULT=RESULT_"<TR"_PART
+  QUIT RESULT
   ;"
 BILLRPC(TMGRESULT,BDATE,EDATE,FILTER)   ;"
   ;"Purpose: This is the RPC entry point for displaying a report
@@ -1127,7 +1259,16 @@ TICKLER(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"Tickler report
   ;"       MAX    --
   ;"       ORFHIE --
   NEW TICKLIEN,ARRAY SET TICKLIEN=0
-  NEW HD SET HD="<table BORDER=3><CAPTION><b>PATIENT TICKLERS</b>"
+  ;"//kt //codex prior active tickler table heading block 11/18/26 --
+  ; NEW HD SET HD="<table BORDER=3><CAPTION><b>PATIENT TICKLERS</b>"
+  ;"//kt //codex end prior active tickler table heading block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW HD SET HD="<style type=""text/css"">.tickler-report {border-collapse:collapse;font-family:Arial,sans-serif;color:#263746;}"
+  SET HD=HD_".tickler-report th,.tickler-report td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}"
+  SET HD=HD_".tickler-report th {background-color:#315e78;color:#ffffff;}"
+  SET HD=HD_".tickler-report caption {color:#234b60;padding:8px;}</style>"
+  SET HD=HD_"<table class=""tickler-report""><CAPTION><b>PATIENT TICKLERS</b>"
+  ;"//kt //codex end mod 11/18/26 --
   ;"SET HD=HD_"<br> FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
   ;"SET HD=HD_" GREENEVILLE, TN 37745
   SET HD=HD_"</CAPTION><tr bgColor=#c4e3ed><th>DUE DATE</th><th>STATUS</th><th>RECIPIENT</th><th>TICKLER MESSAGE</th><th>NOTE DATE</th><th>NOTE TITLE</th></tr>"
@@ -1833,7 +1974,16 @@ TMGAWV(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
   ;"       ORFHIE --
   ;"Result: None.  Output goes into @ROOT
   NEW TMGRESULT
-  NEW HD SET HD="<table BORDER=3><CAPTION><b>ANNUAL WELLNESS REPORT</b><br>"
+  ;"//kt //codex prior active annual wellness table block 11/18/26 --
+  ; NEW HD SET HD="<table BORDER=3><CAPTION><b>ANNUAL WELLNESS REPORT</b><br>"
+  ;"//kt //codex end prior active annual wellness table block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW HD SET HD="<style type=""text/css"">.report-table {border-collapse:collapse;font-family:Arial,sans-serif;color:#263746;}"
+  SET HD=HD_".report-table th,.report-table td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}"
+  SET HD=HD_".report-table th {background-color:#315e78;color:#ffffff;}"
+  SET HD=HD_".report-table caption {color:#234b60;padding:8px;}</style>"
+  SET HD=HD_"<table class=""report-table""><CAPTION><b>ANNUAL WELLNESS REPORT</b><br>"
+  ;"//kt //codex end mod 11/18/26 --
   SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
   SET HD=HD_" GREENEVILLE, TN 37745</CAPTION><tr><th>ITEM</th>"
   SET HD=HD_"<th>STATUS</th><th>LAST DONE</th><th>DUE DATE</th></tr>"
@@ -2153,7 +2303,16 @@ APPTRPT(ROOT,TMGDFN)   ;
   SET APPTDT=9999999
   FOR  SET APPTDT=$O(APPTARR(APPTDT),-1) QUIT:APPTDT=""  DO
   . SET TMGRESULT(APPTIEN)=$G(APPTARR(APPTDT)),APPTIEN=APPTIEN+1
-  NEW HD SET HD="<table BORDER=3><CAPTION><b>APPOINTMENT REPORT</b><br>"
+  ;"//kt //codex prior active appointment table block 11/18/26 --
+  ; NEW HD SET HD="<table BORDER=3><CAPTION><b>APPOINTMENT REPORT</b><br>"
+  ;"//kt //codex end prior active appointment table block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW HD SET HD="<style type=""text/css"">.report-table {border-collapse:collapse;font-family:Arial,sans-serif;color:#263746;}"
+  SET HD=HD_".report-table th,.report-table td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}"
+  SET HD=HD_".report-table th {background-color:#315e78;color:#ffffff;}"
+  SET HD=HD_".report-table caption {color:#234b60;padding:8px;}</style>"
+  SET HD=HD_"<table class=""report-table""><CAPTION><b>APPOINTMENT REPORT</b><br>"
+  ;"//kt //codex end mod 11/18/26 --
   SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
   SET HD=HD_" GREENEVILLE, TN 37745</CAPTION><tr><th>APPT DATE</th>"
   SET HD=HD_"<th>REASON</th><th>PHYSICIAN</th>"
@@ -2169,7 +2328,13 @@ APPTRPT(ROOT,TMGDFN)   ;
   . IF TIUTYPE=1455 SET CANCELDTS(TIUDATE)=""
   . IF TIUTYPE=652 SET CANCELDTS(TIUDATE)=""
   NEW TEXT
-  SET TEXT="</table><P><TABLE BORDER=3><CAPTION><B>MISSED APPOINTMENTS</B><BR>"
+  ;"//kt //codex prior active missed appointments table block 11/18/26 --
+  ; SET TEXT="</table><P><TABLE BORDER=3><CAPTION><B>MISSED APPOINTMENTS</B><BR>"
+  ;"//kt //codex end prior active missed appointments table block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  SET TEXT="</table><P><TABLE class=""report-table""><CAPTION><B>MISSED APPOINTMENTS</B></CAPTION>"
+  SET TEXT=TEXT_"<TR><TH>STATUS</TH><TH>DATE</TH></TR>"
+  ;"//kt //codex end mod 11/18/26 --
   IF $D(NOSHOWDTS) DO
   . NEW DATE SET DATE="9999999.999"
   . FOR  SET DATE=$O(NOSHOWDTS(DATE),-1) QUIT:DATE=""  DO

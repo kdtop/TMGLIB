@@ -876,7 +876,16 @@ GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"SENT RECORDS RE
         NEW SDT,EDT
         SET SDT=+$G(ALPHA)
         SET EDT=+$G(OMEGA) IF EDT'>0 SET EDT="9999999"
-        NEW HD SET HD="<table BORDER=3><CAPTION><B>PATIENT RECORDS SENT REPORT</B><br>"
+        ;"//kt //codex prior active records sent table block 11/18/26 --
+        ; NEW HD SET HD="<table BORDER=3><CAPTION><B>PATIENT RECORDS SENT REPORT</B><br>"
+        ;"//kt //codex end prior active records sent table block 11/18/26 --
+        ;"//kt //codex begin mod 11/18/26 --
+        NEW HD SET HD="<style type=""text/css"">.report-table {border-collapse:collapse;font-family:Arial,sans-serif;color:#263746;}"
+        SET HD=HD_".report-table th,.report-table td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}"
+        SET HD=HD_".report-table th {background-color:#315e78;color:#ffffff;}"
+        SET HD=HD_".report-table caption {color:#234b60;padding:8px;}</style>"
+        SET HD=HD_"<table class=""report-table""><CAPTION><B>PATIENT RECORDS SENT REPORT</B><br>"
+        ;"//kt //codex end mod 11/18/26 --
         SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
         SET HD=HD_" GREENEVILLE, TN 37745</CAPTION><tr><TH>DATE</TH>"
         SET HD=HD_"<TH>SENT TO</TH><TH>FAX #</TH><TH>USER</TH><TH>REGARDING</TH><TH>COMMENTS</TH></tr>"
@@ -922,7 +931,12 @@ GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"SENT RECORDS RE
 	    NEW ROOTIDX SET ROOTIDX=$O(@ROOT@(999999),-1)+1
 	    IF $D(CONSULTARR) DO
 	    . SET @ROOT@(ROOTIDX)="<p>",ROOTIDX=ROOTIDX+1
-	    . SET @ROOT@(ROOTIDX)="<table BORDER=3><CAPTION><B>SET TO AUTOSEND LAB RESULTS</b></CAPTION>",ROOTIDX=ROOTIDX+1
+	    . ;"//kt //codex prior active autosend table block 11/18/26 --
+	    . ; . SET @ROOT@(ROOTIDX)="<table BORDER=3><CAPTION><B>SET TO AUTOSEND LAB RESULTS</b></CAPTION>",ROOTIDX=ROOTIDX+1
+	    . ;"//kt //codex end prior active autosend table block 11/18/26 --
+	    . ;"//kt //codex begin mod 11/18/26 --
+	    . SET @ROOT@(ROOTIDX)="<table class=""report-table""><CAPTION><B>SET TO AUTOSEND LAB RESULTS</b></CAPTION>",ROOTIDX=ROOTIDX+1
+	    . ;"//kt //codex end mod 11/18/26 --
 	    . SET @ROOT@(ROOTIDX)="<TH>When new LabCorp results are imported, an alert goes to medical records to send them to the following specialists:</TH>",ROOTIDX=ROOTIDX+1
 	    . NEW CONSULT SET CONSULT=""
 	    . FOR  SET CONSULT=$O(CONSULTARR(CONSULT)) QUIT:CONSULT=""  DO

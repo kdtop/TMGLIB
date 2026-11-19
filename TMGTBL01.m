@@ -681,8 +681,7 @@ GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         NEW LRDFN SET LRDFN=+$GET(^DPT(TMGDFN,"LR"))
         IF LRDFN'>0 QUIT TMGRESULT
         SET LABNUM=+$GET(LABNUM)
-        SET LABNUM=71697  ;"9/22/26 - Labcorp
-        SET LABNUM=5118  ;"9/22/26 - Labcorp
+        SET LABNUM=69030  ;"9/22/26 - Labcorp
         IF LABNUM'>0 QUIT TMGRESULT
         SET NUM=+$GET(NUM)
         IF NUM'>0 SET NUM=1
@@ -692,7 +691,8 @@ GETLLAB(TMGDFN,LABNUM,NUM,DTONLY)   ;"Return the last urine culture
         NEW ARR,TOTARR
         FOR  SET DATEIDX=$ORDER(^LR(LRDFN,"CH",DATEIDX)) QUIT:(DATEIDX'>0)!(FOUND=1)  DO
         . ;" Next line is for LabCorp IF ('$DATA(^LR(LRDFN,"CH",DATEIDX,LABNUM)))&('$DATA(^LR(LRDFN,"CH",DATEIDX,69038))) QUIT  ;"ADDED 69038 FOR NOW 3/21/21
-        . IF ('$DATA(^LR(LRDFN,"CH",DATEIDX,LABNUM)))&('$DATA(^LR(LRDFN,"CH",DATEIDX,71698))) QUIT  ;"Labcorp testing
+        . ;"IF ('$DATA(^LR(LRDFN,"CH",DATEIDX,LABNUM)))&('$DATA(^LR(LRDFN,"CH",DATEIDX,71698))) QUIT  ;"Labcorp testing
+        . IF '$DATA(^LR(LRDFN,"CH",DATEIDX,LABNUM)) QUIT
         . SET CURCOUNT=CURCOUNT+1
         . NEW TEMP
         . DO LABTOARR(.TEMP,LRDFN,DATEIDX)

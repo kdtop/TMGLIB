@@ -184,9 +184,21 @@ GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
   NEW SDT,EDT
   SET SDT=+$G(ALPHA)
   SET EDT=+$G(OMEGA) IF EDT'>0 SET EDT="9999999"
-  NEW HD SET HD="<table BORDER=3><caption><b>PATIENT EVENT REPORT</b><br>"
+  ;"//kt //codex prior active patient events table block 11/18/26 --
+  ; NEW HD SET HD="<table BORDER=3><caption><b>PATIENT EVENT REPORT</b><br>"
+  ;"//kt //codex end prior active patient events table block 11/18/26 --
+  ;"//kt //codex begin mod 11/18/26 --
+  NEW HD SET HD="<style type=""text/css"">.report-table {border-collapse:collapse;font-family:Arial,sans-serif;color:#263746;}"
+  SET HD=HD_".report-table th,.report-table td {border:1px solid #c4d2da;padding:6px 9px;text-align:left;}"
+  SET HD=HD_".report-table th {background-color:#315e78;color:#ffffff;}"
+  SET HD=HD_".report-table caption {color:#234b60;padding:8px;}</style>"
+  SET HD=HD_"<table class=""report-table""><caption><b>PATIENT EVENT REPORT</b><br>"
+  ;"//kt //codex end mod 11/18/26 --
   SET HD=HD_" FAMILY PHYSICIANS OF GREENEVILLE<br>1410 TUSCULUM BLVD  STE. 2600 <br>"
-  SET HD=HD_" GREENEVILLE, TN 37745</caption><TR><th>DATE</th>"
+  ;"//kt //codex prior active event header block 11/18/26 --
+  ; SET HD=HD_" GREENEVILLE, TN 37745</caption><TR><th>DATE</th>"
+  ;"//kt //codex end prior active event header block 11/18/26 --
+  SET HD=HD_" GREENEVILLE, TN 37745</caption><TR>" ;"//kt //codex 11/18/26
   SET HD=HD_"<th>EVENT</th><th>USER</th><th>TIME</th><th>ELLAPSED</th></TR>"
   NEW IDX SET IDX=9999999
   NEW LASTDATE SET LASTDATE=0
@@ -221,6 +233,7 @@ GTREPORT(ROOT,TMGDFN,ID,ALPHA,OMEGA,DTRANGE,REMOTE,MAX,ORFHIE) ;"AWV report
   . SET TMGRESULT(RESULTIDX)=DAY_"^"_$P($G(^TMG(22746,EVENT,0)),"^",1)_"^"_$P($G(^VA(200,THISUSER,0)),"^",1)_"^"_TIME_"^"_ELLAPSED
   . SET RESULTIDX=RESULTIDX+1
   IF $D(TIMEARR) DO TIMESUM(.TIMEARR,.TMGRESULT,.RESULTIDX,SUM)
+  DO EVREVERSE(.TMGRESULT) ;"//kt //codex 11/18/26
   DO SETHTML^TMGRPT2(.ROOT,.TMGRESULT,"CHART EVENT REPORT",HD,5)
   QUIT
   ;"
@@ -244,6 +257,56 @@ TIMESUM(TIMEARR,TMGRESULT,RESULTIDX,SUM)  ;"
   KILL TIMEARR 
   QUIT
   ;" 
+EVREVERSE(RESULT) ;"Reorder each day's events for the chart event report
+  ;"//kt //codex added entire procedure 11/18/26
+  ;"Input: RESULT -- by reference, date-grouped report rows and daily totals.
+  ;"       Rows are date^event^user^time^elapsed, followed by a daily total.
+  ;"Result: none. RESULT is replaced with each date's events in ascending order.
+  ;"        Paired elapsed time is shown on the stop row; totals are retained.
+  NEW OUT,OUTIDX,ROWS,COUNT,IDX,LINE,DAY
+  SET OUTIDX=0,COUNT=0,IDX=0,DAY=""
+  FOR  SET IDX=$ORDER(RESULT(IDX)) QUIT:IDX'>0  DO
+  . SET LINE=$GET(RESULT(IDX))
+  . IF $PIECE(LINE,"^",2)="DAY TOTAL TIME" DO  QUIT
+  . . DO EVREVGRP(.ROWS,COUNT,DAY,.OUT,.OUTIDX)
+  . . SET OUTIDX=OUTIDX+1,OUT(OUTIDX)=LINE
+  . . KILL ROWS SET COUNT=0,DAY=""
+  . SET COUNT=COUNT+1,ROWS(COUNT)=LINE
+  . IF DAY="" SET DAY=$PIECE(LINE,"^",1)
+  IF COUNT>0 DO EVREVGRP(.ROWS,COUNT,DAY,.OUT,.OUTIDX)
+  KILL RESULT MERGE RESULT=OUT
+  QUIT
+  ;"
+EVREVGRP(ROWS,COUNT,DAY,OUT,OUTIDX) ;"Reverse one event group into OUT
+  ;"//kt //codex added entire procedure 11/18/26
+  ;"Input: ROWS -- by reference, newest-first event rows.
+  ;"       COUNT -- row count; DAY -- date for the first displayed row.
+  ;"       OUT and OUTIDX -- by reference, destination and last index.
+  ;"Result: none. OUT and OUTIDX are updated; unmatched events remain unchanged.
+  NEW I,LINE,OTHER,EVENT,OTHERNAME,ELAPSED
+  FOR I=COUNT:-1:1 DO
+  . SET LINE=$GET(ROWS(I)),EVENT=$$UP^XLFSTR($PIECE(LINE,"^",2))
+  . IF I=COUNT SET $PIECE(LINE,"^",1)=DAY
+  . ELSE  SET $PIECE(LINE,"^",1)=""""
+  . IF (EVENT="STARTTIMER"),(I>1) DO
+  . . SET OTHER=$GET(ROWS(I-1)),OTHERNAME=$$UP^XLFSTR($PIECE(OTHER,"^",2))
+  . . SET ELAPSED=$PIECE(LINE,"^",5)
+  . . IF OTHERNAME'="STOPTIMER" QUIT
+  . . IF $PIECE(OTHER,"^",3)'=$PIECE(LINE,"^",3) QUIT
+  . . IF (ELAPSED="")!(ELAPSED="""") QUIT
+  . . IF ($PIECE(OTHER,"^",5)'="")&($PIECE(OTHER,"^",5)'="""") QUIT
+  . . SET $PIECE(LINE,"^",5)=""""
+  . IF (EVENT="STOPTIMER"),(I<COUNT) DO
+  . . SET OTHER=$GET(ROWS(I+1)),OTHERNAME=$$UP^XLFSTR($PIECE(OTHER,"^",2))
+  . . SET ELAPSED=$PIECE(OTHER,"^",5)
+  . . IF OTHERNAME'="STARTTIMER" QUIT
+  . . IF $PIECE(OTHER,"^",3)'=$PIECE(LINE,"^",3) QUIT
+  . . IF (ELAPSED="")!(ELAPSED="""") QUIT
+  . . IF ($PIECE(LINE,"^",5)'="")&($PIECE(LINE,"^",5)'="""") QUIT
+  . . SET $PIECE(LINE,"^",5)=ELAPSED
+  . SET OUTIDX=OUTIDX+1,OUT(OUTIDX)=LINE
+  QUIT
+  ;"
 OPENTIME(TMGRESULT,TMGDFN)  ;"
   ;"THIS IS FOR RPC "TMG GET TODAYS TIME" TO BE USED WHEN OPENING A CHART
   ;"   SO IT CAN SET THE TIMER TO DISPLAY TODAY'S TIME UP UNTIL NOW

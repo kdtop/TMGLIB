@@ -161,28 +161,75 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   NEW DATEARR  ;"//kt //codex 10/5/26
   DO FRMTDTS(.ARRAY,.DATEARR)  ;"//kt //codex 10/5/26
   DO GETLABS^TMGLRR02(.LABS,.TMGDFN,.SDT,.EDT,.OPTION)  ;"//kt //codex 10/5/26
+  ;"//kt //codex begin mod 11/17/26 -- Filter only this report's results before building its date navigation
+  NEW FILTERDT,FILTERIEN,HIDEFLAG,HIDDEN,VISIBLE
+  SET FILTERDT=0
+  FOR  SET FILTERDT=$ORDER(LABS("DT",FILTERDT)) QUIT:FILTERDT=""  DO
+  . SET FILTERIEN="",HIDDEN=0,VISIBLE=0
+  . FOR  SET FILTERIEN=$ORDER(LABS("DT",FILTERDT,FILTERIEN)) QUIT:FILTERIEN=""  DO
+  . . IF +FILTERIEN'=FILTERIEN QUIT
+  . . ;"//kt //codex prior active hide flag block 11/17/26 --
+  . . ;IF FILTERIEN>0,'$DATA(HIDEFLAG(FILTERIEN)) SET HIDEFLAG(FILTERIEN)=+$$GET1^DIQ(60,FILTERIEN_",",22702,"I")
+  . . ;IF +$GET(HIDEFLAG(FILTERIEN))=1 KILL LABS("DT",FILTERDT,FILTERIEN) SET HIDDEN=1 QUIT
+  . . ;"//kt //codex end prior active hide flag block 11/17/26 --
+  . . IF FILTERIEN>0,'$DATA(HIDEFLAG(FILTERIEN)) SET HIDEFLAG(FILTERIEN)=$$GET1^DIQ(60,FILTERIEN_",",22702,"I")
+  . . IF $GET(HIDEFLAG(FILTERIEN))="Y" KILL LABS("DT",FILTERDT,FILTERIEN) SET HIDDEN=1 QUIT
+  . . SET VISIBLE=1
+  . IF HIDDEN,'VISIBLE KILL LABS("DT",FILTERDT)
+  ;"//kt //codex end mod 11/17/26 --
   NEW IDX SET IDX=2  ;"//kt //codex 10/5/26
-  NEW ADT,DAY,DATEID,LASTTOCDAY,TOCIDX  ;"//kt //codex 10/5/26 Build a unique, descending date table of contents before rendering report data
-  SET ADT=99999999,LASTTOCDAY=0,TOCIDX=0  ;"//kt //codex 10/5/26
-  FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO  ;"//kt //codex 10/5/26
-  . SET DAY=$PIECE(ADT,".",1)  ;"//kt //codex 10/5/26
-  . IF DAY=LASTTOCDAY QUIT  ;"//kt //codex 10/5/26 One navigation link per calendar date
-  . SET TOCIDX=TOCIDX+1,DATEID(DAY)=TOCIDX,LASTTOCDAY=DAY  ;"//kt //codex 10/5/26
+  ;"//kt //codex prior active date index block 11/17/26 --
+  ;NEW ADT,DAY,DATEID,LASTTOCDAY,TOCIDX
+  ;SET ADT=99999999,LASTTOCDAY=0,TOCIDX=0
+  ;FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO
+  ;. SET DAY=$PIECE(ADT,".",1)
+  ;. IF DAY=LASTTOCDAY QUIT
+  ;. SET TOCIDX=TOCIDX+1,DATEID(DAY)=TOCIDX,LASTTOCDAY=DAY
+  ;"//kt //codex end prior active date index block 11/17/26 --
+  ;"//kt //codex begin mod 11/17/26 -- Count visible results across all times on each calendar day
+  NEW ADT,DAY,DATEID,LASTTOCDAY,TOCIDX,LABCOUNT,COUNTNODE
+  SET ADT=99999999,LASTTOCDAY=0,TOCIDX=0
+  FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO
+  . SET DAY=$PIECE(ADT,".",1)
+  . IF DAY'=LASTTOCDAY SET TOCIDX=TOCIDX+1,DATEID(DAY)=TOCIDX,LASTTOCDAY=DAY
+  . SET COUNTNODE=""
+  . FOR  SET COUNTNODE=$ORDER(LABS("DT",ADT,COUNTNODE)) QUIT:COUNTNODE=""  DO
+  . . IF +COUNTNODE=COUNTNODE SET LABCOUNT(DAY)=$GET(LABCOUNT(DAY))+1
+  ;"//kt //codex end mod 11/17/26 --
   SET OUT(0)="<!DOCTYPE html>"  ;"//kt //codex 10/5/26
   SET OUT(1)="<html><head><title>HTML Lab Report</title><style type=""text/css"">"  ;"//kt //codex 10/5/26
   SET OUT(IDX)="html, body { height: 100%; margin: 0; overflow: hidden; } body { font-family: Tahoma, Arial, sans-serif; position: relative; }",IDX=IDX+1  ;"//kt //codex 10/5/26 Give the absolute report panes a viewport-sized containing block
-  SET OUT(IDX)=".lab-toc { background: #f5f9fc; border-right: 1px solid #c9d8e6; bottom: 0; left: 0; overflow-y: auto; padding: 9px 6px; position: absolute; top: 0; width: 120px; z-index: 2; }",IDX=IDX+1  ;"//kt //codex 10/5/26
+  ;"//kt //codex prior active toc width block 11/17/26 --
+  ;SET OUT(IDX)=".lab-toc { background: #f5f9fc; border-right: 1px solid #c9d8e6; bottom: 0; left: 0; overflow-y: auto; padding: 9px 6px; position: absolute; top: 0; width: 120px; z-index: 2; }",IDX=IDX+1
+  ;"//kt //codex end prior active toc width block 11/17/26 --
+  SET OUT(IDX)=".lab-toc { background: #f5f9fc; border-right: 1px solid #c9d8e6; bottom: 0; left: 0; overflow-y: auto; padding: 9px 6px; position: absolute; top: 0; width: 170px; z-index: 2; }",IDX=IDX+1  ;"//kt //codex 11/17/26
   SET OUT(IDX)=".lab-toc-title { color: #1f4e79; font-size: 11px; font-weight: bold; margin: 0 3px 6px 3px; text-transform: uppercase; }",IDX=IDX+1  ;"//kt //codex 10/5/26
   SET OUT(IDX)=".lab-toc a { color: #1f4e79; display: block; font-size: 12px; padding: 4px 3px; text-decoration: none; }",IDX=IDX+1  ;"//kt //codex 10/5/26
   SET OUT(IDX)=".lab-toc a:hover { background: #dcecf7; }",IDX=IDX+1  ;"//kt //codex 10/5/26
-  SET OUT(IDX)=".lab-content { bottom: 0; left: 133px; overflow: auto; padding: 0 12px 12px 12px; position: absolute; right: 0; top: 0; z-index: 1; }",IDX=IDX+1  ;"//kt //codex 10/5/26 Account for the TOC border and keep lab content out of its column
+  ;"//kt //codex prior active content offset block 11/17/26 --
+  ;SET OUT(IDX)=".lab-content { bottom: 0; left: 133px; overflow: auto; padding: 0 12px 12px 12px; position: absolute; right: 0; top: 0; z-index: 1; }",IDX=IDX+1
+  ;"//kt //codex end prior active content offset block 11/17/26 --
+  SET OUT(IDX)=".lab-content { bottom: 0; left: 183px; overflow: auto; padding: 0 12px 12px 12px; position: absolute; right: 0; top: 0; z-index: 1; }",IDX=IDX+1  ;"//kt //codex 11/17/26
   SET OUT(IDX)=".lab-date-anchor { display: block; height: 0; }",IDX=IDX+1  ;"//kt //codex 10/5/26
+  ;"//kt //codex prior active lab table styles block 11/17/26 --
+  ;SET OUT(IDX)=".lab-content table[border='1'] { border-collapse: collapse; border: 1px solid #c9d8e6; margin: 4px 0 12px; }",IDX=IDX+1
+  ;SET OUT(IDX)=".lab-content table[border='1'] th, .lab-content table[border='1'] td { border: 1px solid #c9d8e6; padding: 5px 7px; text-align: left; vertical-align: top; }",IDX=IDX+1
+  ;SET OUT(IDX)=".lab-content table[border='1'] th { background-color: #e8f0f6; color: #1f4e79; font-size: 11px; }",IDX=IDX+1
+  ;"//kt //codex end prior active lab table styles block 11/17/26 --
+  ;"//kt //codex begin mod 11/17/26 -- Class selectors also work in older embedded browser modes
+  SET OUT(IDX)="table.lab-results { border-collapse: collapse; border: 1px solid #c9d8e6; margin: 4px 0 12px; }",IDX=IDX+1
+  SET OUT(IDX)="table.lab-results th, table.lab-results td { border: 1px solid #c9d8e6; padding: 5px 7px; text-align: left; vertical-align: top; }",IDX=IDX+1
+  SET OUT(IDX)="table.lab-results th { background-color: #e8f0f6; color: #1f4e79; font-size: 11px; }",IDX=IDX+1
+  ;"//kt //codex end mod 11/17/26 --
   SET OUT(IDX)="</style></head><body><div id=""tmg-lab-html-date-report""><div class=""lab-toc""><div class=""lab-toc-title"">Lab dates</div>",IDX=IDX+1  ;"//kt //codex 10/5/26 Marker lets new CPRS intercept only this report's date links
   SET ADT=99999999,LASTTOCDAY=0  ;"//kt //codex 10/5/26
   FOR  SET ADT=$ORDER(LABS("DT",ADT),-1) QUIT:(ADT="")  DO  ;"//kt //codex 10/5/26
   . SET DAY=$PIECE(ADT,".",1)  ;"//kt //codex 10/5/26
   . IF DAY=LASTTOCDAY QUIT  ;"//kt //codex 10/5/26 One navigation link per calendar date
-  . SET OUT(IDX)="<a href=""#lab-date-"_DATEID(DAY)_""">"_$$EXTDATE^TMGDATE(DAY)_"</a>",IDX=IDX+1  ;"//kt //codex 10/5/26 Standard fragment links preserve compatible production rendering
+  . ;"//kt //codex prior active date link block 11/17/26 --
+  . ;SET OUT(IDX)="<a href=""#lab-date-"_DATEID(DAY)_""">"_$$EXTDATE^TMGDATE(DAY)_"</a>",IDX=IDX+1
+  . ;"//kt //codex end prior active date link block 11/17/26 --
+  . SET OUT(IDX)="<a href=""#lab-date-"_DATEID(DAY)_""">"_$$EXTDATE^TMGDATE(DAY)_" ("_+$GET(LABCOUNT(DAY))_" labs)</a>",IDX=IDX+1  ;"//kt //codex 11/17/26
   . SET LASTTOCDAY=DAY  ;"//kt //codex 10/5/26
   SET OUT(IDX)="</div><div class=""lab-content""><font size=""2"">",IDX=IDX+1  ;"//kt //codex 10/5/26
   SET ADT=99999999  ;"//kt //codex 10/5/26
@@ -192,9 +239,15 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . NEW DAY SET DAY=$P(ADT,".",1)
   . IF DAY'=LASTDT DO 
   . . SET OUT(IDX)="<a class=""lab-date-anchor"" name=""lab-date-"_$GET(DATEID(DAY))_""" id=""lab-date-"_$GET(DATEID(DAY))_"""></a>",IDX=IDX+1  ;"//kt //codex 10/5/26 Standard anchors work in the legacy TWebBrowser control
-  . . DO CAPTION(.OUT,.IDX,ADT,TMGDFN)  ;"//kt //codex 10/5/26
+  . . ;"//kt //codex prior active caption call block 11/17/26 --
+  . . ;DO CAPTION(.OUT,.IDX,ADT,TMGDFN)  ;"//kt //codex 10/5/26
+  . . ;"//kt //codex end prior active caption call block 11/17/26 --
+  . . DO CAPTION(.OUT,.IDX,ADT,TMGDFN,1)  ;"//kt //codex 11/17/26
   . ELSE  DO
-  . . SET OUT(IDX)="<table border=""1"" width=""600"">",IDX=IDX+1  ;"//kt //codex 10/5/26
+  . . ;"//kt //codex prior active subsequent table block 11/17/26 --
+  . . ;SET OUT(IDX)="<table border=""1"" width=""600"">",IDX=IDX+1  ;"//kt //codex 10/5/26
+  . . ;"//kt //codex end prior active subsequent table block 11/17/26 --
+  . . SET OUT(IDX)="<table class=""lab-results"" border=""0"" cellspacing=""0"" width=""600"">",IDX=IDX+1  ;"//kt //codex 11/17/26
   . . SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   . SET LASTDT=DAY
   . ;"IF '$D(DATEARR(DAY)) QUIT
@@ -208,8 +261,10 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . FOR  SET NODE=$ORDER(LABS("DT",ADT,NODE)) QUIT:(NODE="")  DO
   . . IF +NODE=NODE DO
   . . . IF SETHEAD=0 DO
-  . . . . IF IDX>2 DO
-  . . . . . SET OUT(IDX)="<p style=""page-break-before: always"">",IDX=IDX+1
+  . . . . ;"//kt //codex prior active page break block 11/17/26 --
+  . . . . ;IF IDX>2 DO
+  . . . . ;. SET OUT(IDX)="<p style=""page-break-before: always"">",IDX=IDX+1
+  . . . . ;"//kt //codex end prior active page break block 11/17/26 --
   . . . . ;"DO CAPTION(.OUT,.IDX,ADT,TMGDFN)
   . . . . SET SETHEAD=1
   . . . ;"SET STR="LAB^"_ADT_"^"_NODE_"^"_$GET(LABS("DT",ADT,NODE))
@@ -235,11 +290,14 @@ GETRPTDT(OUT,TMGDFN,EDT,SDT) ;"
   . . . SET COMMENT=$GET(TMP(1))
   . . SET OUT(IDX)="<tr><td colspan=""6"">"_COMMENT_"</td></tr>",IDX=IDX+1
   . ;"SET OUT(3)=$G(ARRAY(1))
-  . SET OUT(IDX)="</td></tr></table><br>",IDX=IDX+1
+  . ;"//kt //codex prior active table close block 11/17/26 --
+  . ;SET OUT(IDX)="</td></tr></table><br>",IDX=IDX+1
+  . ;"//kt //codex end prior active table close block 11/17/26 --
+  . SET OUT(IDX)="</table><br>",IDX=IDX+1  ;"//kt //codex 11/17/26
   SET OUT(IDX)="</font></div></div></body></html>"  ;"//kt //codex 10/5/26
   QUIT
   ;"
-CAPTION(OUT,IDX,LABDATE,TMGDFN)
+CAPTION(OUT,IDX,LABDATE,TMGDFN,MODERN)  ;"//kt //codex 11/17/26 Optional modern table styling for the date report
   NEW NAME,DOB,AGE,ADT
   SET LABDATE=$P(LABDATE,".",1)
   SET NAME=$P($G(^DPT(TMGDFN,0)),"^",1)
@@ -261,7 +319,13 @@ CAPTION(OUT,IDX,LABDATE,TMGDFN)
   SET OUT(IDX)="<td nowrap><b>Date: "_$$EXTDATE^TMGDATE(LABDATE),IDX=IDX+1  ;"//kt //codex 10/5/26
   SET OUT(IDX)="</b></td>",IDX=IDX+1
   SET OUT(IDX)="</tr></table>",IDX=IDX+1  ;"//kt //codex 10/5/26 Keep the lab-content pane open until the report is complete
-  SET OUT(IDX)="<table border=""1"" width=""600"">",IDX=IDX+1  ;"//kt //codex 10/5/26
+  ;"//kt //codex prior active caption table block 11/17/26 --
+  ;SET OUT(IDX)="<table border=""1"" width=""600"">",IDX=IDX+1  ;"//kt //codex 10/5/26
+  ;"//kt //codex end prior active caption table block 11/17/26 --
+  ;"//kt //codex begin mod 11/17/26 -- Keep existing callers' table markup
+  IF +$GET(MODERN) SET OUT(IDX)="<table class=""lab-results"" border=""0"" cellspacing=""0"" width=""600"">",IDX=IDX+1
+  ELSE  SET OUT(IDX)="<table border=""1"" width=""600"">",IDX=IDX+1
+  ;"//kt //codex end mod 11/17/26 --
   ;"SET OUT(IDX)="<CAPTION><B>"_$$EXTDATE^TMGDATE(LABDATE)_"</b></CAPTION>",IDX=IDX+1
   SET OUT(IDX)=$$HEADER(),IDX=IDX+1
   QUIT
